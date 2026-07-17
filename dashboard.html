@@ -3,9 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Panel · NEXUS</title>
+  <title>Panel general · NEXUS</title>
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/empresas.css">
+  <link rel="stylesheet" href="css/anexo1.css">
   <link rel="stylesheet" href="css/dashboard.css">
 </head>
 <body class="app">
@@ -29,35 +31,191 @@
 
     <main class="contenido">
 
-      <section class="tarjetas" id="tarjetas">
-        <article class="tarjeta">
-          <span class="tarjeta-etiqueta">Empresas</span>
-          <span class="tarjeta-valor" id="kpi-empresas">—</span>
-        </article>
-        <article class="tarjeta">
-          <span class="tarjeta-etiqueta">Sucursales</span>
-          <span class="tarjeta-valor" id="kpi-sucursales">—</span>
-        </article>
-        <article class="tarjeta">
-          <span class="tarjeta-etiqueta">Áreas</span>
-          <span class="tarjeta-valor" id="kpi-areas">—</span>
-        </article>
-        <article class="tarjeta">
-          <span class="tarjeta-etiqueta">Cargos</span>
-          <span class="tarjeta-valor" id="kpi-cargos">—</span>
-        </article>
+      <!-- Selectores -->
+      <section class="tablero-controles">
+        <div class="campo campo-empresa">
+          <label class="etiqueta" for="empresa-activa">Empresa</label>
+          <select class="entrada" id="empresa-activa">
+            <option value="">— Seleccione una empresa —</option>
+          </select>
+        </div>
+        <div class="campo campo-anio">
+          <label class="etiqueta" for="tablero-anio">Año</label>
+          <select class="entrada entrada-anio" id="tablero-anio"></select>
+        </div>
+        <div class="campo campo-anio">
+          <label class="etiqueta" for="tablero-comparar">Comparar con</label>
+          <select class="entrada entrada-anio" id="tablero-comparar">
+            <option value="">Ninguno</option>
+          </select>
+        </div>
+        <button class="boton-secundario boton-imprimir" id="btn-imprimir" type="button">
+          Imprimir
+        </button>
       </section>
 
-      <section class="aviso">
-        <h2 class="aviso-titulo">Estado del sistema</h2>
-        <p class="aviso-texto">
-          Núcleo organizacional activo. Los módulos de trabajadores, exámenes,
-          ergonomía, vigilancia e indicadores se habilitarán progresivamente.
-        </p>
-      </section>
+      <div id="tablero" hidden>
+
+        <!-- Encabezado de impresión -->
+        <header class="impresion-cabecera">
+          <div>
+            <h2 class="impresion-titulo" id="imp-empresa">—</h2>
+            <p class="impresion-sub" id="imp-periodo">—</p>
+          </div>
+          <div class="impresion-meta">
+            <span>NEXUS · Sistema de gestión SST</span>
+            <span id="imp-fecha">—</span>
+          </div>
+        </header>
+
+        <!-- ============ Cumplimiento del Anexo 1 ============ -->
+        <section class="bloque">
+          <h2 class="bloque-titulo">Cumplimiento del Anexo 1 · A.M. MDT-2024-196</h2>
+
+          <div class="medidores-fila">
+            <article class="medidor-caja">
+              <div class="medidor medidor-chico">
+                <svg class="medidor-svg" viewBox="0 0 120 120" aria-hidden="true">
+                  <circle class="medidor-fondo" cx="60" cy="60" r="52"></circle>
+                  <circle class="medidor-trazo" id="med-salud" cx="60" cy="60" r="52"></circle>
+                </svg>
+                <div class="medidor-centro">
+                  <span class="medidor-valor" id="val-salud">—</span>
+                </div>
+              </div>
+              <span class="medidor-nombre">Salud ocupacional</span>
+              <span class="medidor-detalle" id="det-salud">—</span>
+            </article>
+
+            <article class="medidor-caja">
+              <div class="medidor medidor-chico">
+                <svg class="medidor-svg" viewBox="0 0 120 120" aria-hidden="true">
+                  <circle class="medidor-fondo" cx="60" cy="60" r="52"></circle>
+                  <circle class="medidor-trazo" id="med-seguridad" cx="60" cy="60" r="52"></circle>
+                </svg>
+                <div class="medidor-centro">
+                  <span class="medidor-valor" id="val-seguridad">—</span>
+                </div>
+              </div>
+              <span class="medidor-nombre">Seguridad industrial</span>
+              <span class="medidor-detalle" id="det-seguridad">—</span>
+            </article>
+
+            <article class="medidor-caja medidor-caja-total">
+              <div class="medidor">
+                <svg class="medidor-svg" viewBox="0 0 120 120" aria-hidden="true">
+                  <circle class="medidor-fondo" cx="60" cy="60" r="52"></circle>
+                  <circle class="medidor-trazo" id="med-total" cx="60" cy="60" r="52"></circle>
+                </svg>
+                <div class="medidor-centro">
+                  <span class="medidor-valor medidor-valor-grande" id="val-total">—</span>
+                </div>
+              </div>
+              <span class="medidor-nombre">Cumplimiento total</span>
+              <span class="medidor-detalle" id="det-total">—</span>
+            </article>
+          </div>
+        </section>
+
+        <!-- ============ Cifras del año ============ -->
+        <section class="bloque">
+          <h2 class="bloque-titulo">Cifras del período</h2>
+          <div class="cifras" id="cifras"></div>
+        </section>
+
+        <!-- ============ Siniestralidad ============ -->
+        <section class="bloque salto-pagina">
+          <h2 class="bloque-titulo">Siniestralidad</h2>
+
+          <div class="indices" id="indices"></div>
+
+          <article class="grafico-caja">
+            <div class="grafico-cabecera">
+              <h3 class="grafico-titulo">Evolución mensual</h3>
+              <div class="leyenda" id="leyenda-eventos"></div>
+            </div>
+            <div id="grafico-eventos"></div>
+          </article>
+        </section>
+
+        <!-- ============ Salud ============ -->
+        <section class="bloque">
+          <h2 class="bloque-titulo">Salud ocupacional</h2>
+
+          <div class="rejilla-graficos">
+            <article class="grafico-caja">
+              <div class="grafico-cabecera">
+                <h3 class="grafico-titulo">Atenciones y reposo</h3>
+                <div class="leyenda" id="leyenda-salud"></div>
+              </div>
+              <div id="grafico-salud"></div>
+            </article>
+
+            <article class="grafico-caja">
+              <div class="grafico-cabecera">
+                <h3 class="grafico-titulo">Exámenes ocupacionales</h3>
+              </div>
+              <div id="grafico-examenes"></div>
+            </article>
+          </div>
+        </section>
+
+        <!-- ============ Morbilidad ============ -->
+        <section class="bloque salto-pagina">
+          <h2 class="bloque-titulo">Morbilidad común · principales diagnósticos</h2>
+          <div class="tabla-envoltura">
+            <table class="tabla">
+              <thead>
+                <tr>
+                  <th class="celda-centro">CIE-10</th>
+                  <th>Diagnóstico</th>
+                  <th class="celda-centro">Casos</th>
+                  <th class="celda-centro">H</th>
+                  <th class="celda-centro">M</th>
+                  <th class="columna-distribucion">Distribución</th>
+                </tr>
+              </thead>
+              <tbody id="cuerpo-morbilidad"></tbody>
+            </table>
+          </div>
+          <p class="vacio" id="vacio-morbilidad" hidden>Sin atenciones en el período.</p>
+        </section>
+
+        <!-- ============ Capacitación ============ -->
+        <section class="bloque">
+          <h2 class="bloque-titulo">Capacitación</h2>
+          <div class="rejilla-graficos">
+            <article class="grafico-caja">
+              <div class="grafico-cabecera">
+                <h3 class="grafico-titulo">Ejecución por ámbito</h3>
+              </div>
+              <div id="grafico-capac"></div>
+            </article>
+            <article class="grafico-caja">
+              <div class="grafico-cabecera">
+                <h3 class="grafico-titulo">Resumen del período</h3>
+              </div>
+              <div class="barras" id="capac-barras"></div>
+            </article>
+          </div>
+        </section>
+
+        <!-- Pie de impresión -->
+        <footer class="impresion-pie">
+          <p>
+            Documento generado por NEXUS. Los índices de frecuencia y gravedad se calculan
+            conforme a la Resolución CD 513 (2016) Art. 56, con horas-hombre estimadas
+            sobre el número de trabajadores registrados.
+          </p>
+        </footer>
+
+      </div>
+
+      <p class="aviso-inicial" id="aviso-inicial">
+        Seleccione una empresa para ver sus indicadores.
+      </p>
 
     </main>
-
   </div>
 
   <script type="module" src="js/dashboard.js"></script>
