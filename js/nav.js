@@ -17,6 +17,7 @@ export const MODULOS = [
   { id: 'empresas',     texto: 'Empresas',       archivo: 'empresas.html',     listo: true,  clinico: false },
   { id: 'trabajadores', texto: 'Trabajadores',   archivo: 'trabajadores.html', listo: true,  clinico: false },
   { id: 'examenes',     texto: 'Exámenes',       archivo: 'examenes.html',     listo: false, clinico: true  },
+  { id: 'atenciones',   texto: 'Atenciones',     archivo: 'atenciones.html',   listo: true,  clinico: true  },
   { id: 'enfermeria',   texto: 'Farmacia',       archivo: 'farmacia.html',     listo: true,  clinico: true  },
   { id: 'vigilancia',   texto: 'Vigilancia',     archivo: 'vigilancia.html',   listo: false, clinico: true  },
   { id: 'ergonomia',    texto: 'Ergonomía',      archivo: 'ergonomia.html',    listo: false, clinico: false },
