@@ -171,23 +171,11 @@
           <p class="nota" id="m-nota-evidencias"></p>
         </div>
 
-        <!-- Fechas -->
-        <div id="m-bloque-fechas">
-          <h3 class="subtitulo">Vigencia</h3>
-          <div class="rejilla">
-            <div class="campo">
-              <label class="etiqueta" for="m_fecha_registro">Fecha de registro</label>
-              <input class="entrada" id="m_fecha_registro" type="date">
-            </div>
-            <div class="campo">
-              <label class="etiqueta" for="m_fecha_caducidad">Fecha de caducidad</label>
-              <input class="entrada" id="m_fecha_caducidad" type="date">
-              <span class="ayuda" id="ayuda-caducidad">Avisará 30 días antes</span>
-            </div>
-          </div>
-          <button class="boton-enlace" id="btn-un-anio" type="button">
-            Caducidad a un año del registro
-          </button>
+        <!-- Vigencia derivada -->
+        <div class="vigencia-derivada" id="m-vigencia" hidden>
+          <span class="vigencia-etiqueta">Vigencia del requisito</span>
+          <span class="vigencia-valor" id="m-vigencia-valor">—</span>
+          <span class="vigencia-nota">Determinada por la evidencia que caduca primero</span>
         </div>
 
         <!-- Observación -->
@@ -248,14 +236,30 @@
           <span class="ayuda">Enlace al documento o carpeta en Drive</span>
         </div>
 
+        <div class="rejilla">
+          <div class="campo">
+            <label class="etiqueta" for="e_fecha_registro">Fecha del documento</label>
+            <input class="entrada" id="e_fecha_registro" type="date">
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="e_fecha_caducidad">Fecha de caducidad</label>
+            <input class="entrada" id="e_fecha_caducidad" type="date">
+            <span class="ayuda" id="ayuda-caducidad">Avisará 30 días antes</span>
+          </div>
+        </div>
+
+        <button class="boton-enlace" id="btn-un-anio" type="button">
+          Caducidad a un año del documento
+        </button>
+
         <div class="campo">
           <label class="etiqueta" for="e_observacion">Observación</label>
           <input class="entrada" id="e_observacion" type="text">
         </div>
 
         <p class="nota">
-          El documento permanece en su repositorio. El sistema conserva la referencia,
-          no una copia.
+          Cada documento tiene su propia vigencia. El requisito vence cuando vence
+          el primero de ellos.
         </p>
 
         <p class="alerta" id="alerta-enlace" role="alert" hidden></p>
