@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Empresas · NEXUS</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/empresas.css">
+</head>
+<body class="app">
+
+  <aside class="barra-lateral" id="barra-lateral">
+    <div class="lateral-marca">NEXUS</div>
+    <nav class="lateral-nav" id="lateral-nav"></nav>
+    <button class="lateral-salir" id="btn-salir" type="button">Cerrar sesión</button>
+  </aside>
+
+  <div class="contenedor">
+
+    <header class="cabecera">
+      <button class="cabecera-menu" id="btn-menu" type="button" aria-label="Menú">☰</button>
+      <h1 class="cabecera-titulo">Empresas</h1>
+      <div class="cabecera-usuario">
+        <span class="usuario-nombre" id="usuario-nombre">—</span>
+        <span class="usuario-rol" id="usuario-rol">—</span>
+      </div>
+    </header>
+
+    <main class="contenido">
+
+      <!-- Barra de herramientas -->
+      <section class="herramientas">
+        <input class="busqueda" id="busqueda" type="search"
+               placeholder="Buscar por RUC, razón social o actividad…">
+        <label class="alternador">
+          <input type="checkbox" id="ver-inactivas">
+          <span>Ver inactivas</span>
+        </label>
+        <button class="boton-primario" id="btn-nueva" type="button">+ Nueva empresa</button>
+      </section>
+
+      <!-- Listado -->
+      <section class="panel">
+        <div class="tabla-envoltura">
+          <table class="tabla">
+            <thead>
+              <tr>
+                <th>RUC</th>
+                <th>Razón social</th>
+                <th>Actividad</th>
+                <th class="celda-centro">CIIU</th>
+                <th class="celda-centro">Riesgo</th>
+                <th class="celda-centro">Trab.</th>
+                <th class="celda-centro">Estado</th>
+                <th class="celda-derecha">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="cuerpo-tabla"></tbody>
+          </table>
+        </div>
+        <p class="vacio" id="vacio" hidden>Sin registros que coincidan.</p>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Formulario -->
+  <div class="modal" id="modal" hidden>
+    <div class="modal-caja" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo" id="modal-titulo">Nueva empresa</h2>
+        <button class="modal-cerrar" id="btn-cerrar" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+
+        <div class="rejilla">
+
+          <div class="campo">
+            <label class="etiqueta" for="ruc">RUC <span class="obligatorio">*</span></label>
+            <input class="entrada" id="ruc" type="text" maxlength="13" inputmode="numeric"
+                   placeholder="1790012345001">
+            <span class="ayuda" id="ayuda-ruc"></span>
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="num_trabajadores">N.º de trabajadores</label>
+            <input class="entrada" id="num_trabajadores" type="number" min="0" value="0">
+            <span class="ayuda" id="ayuda-delegado"></span>
+          </div>
+
+          <div class="campo campo-ancho">
+            <label class="etiqueta" for="razon_social">Razón social <span class="obligatorio">*</span></label>
+            <input class="entrada" id="razon_social" type="text">
+          </div>
+
+          <div class="campo campo-ancho">
+            <label class="etiqueta" for="nombre_comercial">Nombre comercial</label>
+            <input class="entrada" id="nombre_comercial" type="text">
+          </div>
+
+          <div class="campo campo-ancho">
+            <label class="etiqueta" for="representante_legal">Representante legal</label>
+            <input class="entrada" id="representante_legal" type="text">
+          </div>
+
+          <div class="campo campo-ancho">
+            <label class="etiqueta" for="actividad_economica">Actividad económica</label>
+            <input class="entrada" id="actividad_economica" type="text"
+                   placeholder="Cultivo de banano">
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="ciiu">Código CIIU</label>
+            <input class="entrada" id="ciiu" type="text" placeholder="A0122.01">
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="riesgo_ciiu">Nivel de riesgo (IESS)</label>
+            <select class="entrada" id="riesgo_ciiu">
+              <option value="">— Seleccionar —</option>
+              <option value="1">1 · Riesgo mínimo</option>
+              <option value="2">2 · Riesgo bajo</option>
+              <option value="3">3 · Riesgo medio</option>
+              <option value="4">4 · Riesgo alto</option>
+              <option value="5">5 · Riesgo máximo</option>
+            </select>
+          </div>
+
+          <div class="campo campo-ancho">
+            <label class="etiqueta" for="direccion">Dirección</label>
+            <input class="entrada" id="direccion" type="text">
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="provincia">Provincia</label>
+            <input class="entrada" id="provincia" type="text" value="El Oro">
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="canton">Cantón</label>
+            <input class="entrada" id="canton" type="text">
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="telefono">Teléfono</label>
+            <input class="entrada" id="telefono" type="tel">
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="correo">Correo</label>
+            <input class="entrada" id="correo" type="email">
+          </div>
+
+        </div>
+
+        <p class="alerta" id="alerta" role="alert" hidden></p>
+
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" id="btn-cancelar" type="button">Cancelar</button>
+        <button class="boton-primario" id="btn-guardar" type="button">Guardar</button>
+      </footer>
+
+    </div>
+  </div>
+
+  <script type="module" src="js/empresas.js"></script>
+</body>
+</html>
