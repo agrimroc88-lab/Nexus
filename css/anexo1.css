@@ -404,6 +404,55 @@
 }
 
 /* ============================================
+   VIGENCIA DERIVADA
+   ============================================ */
+
+.vigencia-derivada {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding: 0.7rem 1rem;
+  margin-bottom: 1.15rem;
+  background: var(--color-fondo);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+}
+
+.vigencia-vencida {
+  border-color: rgba(245, 115, 115, 0.4);
+  background: rgba(245, 115, 115, 0.05);
+}
+
+.vigencia-aviso {
+  border-color: rgba(245, 215, 110, 0.4);
+  background: rgba(245, 215, 110, 0.04);
+}
+
+.vigencia-etiqueta {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-texto-tenue);
+}
+
+.vigencia-valor {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.vigencia-vencida .vigencia-valor { color: #f57373; }
+.vigencia-aviso .vigencia-valor   { color: #f5d76e; }
+
+.vigencia-nota {
+  margin-left: auto;
+  font-size: 0.7rem;
+  font-style: italic;
+  color: var(--color-texto-tenue);
+}
+
+/* ============================================
    EVIDENCIAS
    ============================================ */
 
@@ -420,6 +469,11 @@
 
 .evidencia-lista { border-color: rgba(126, 226, 168, 0.35); }
 
+.evidencia-vencida {
+  border-color: rgba(245, 115, 115, 0.4);
+  background: rgba(245, 115, 115, 0.04);
+}
+
 .evidencia-marca {
   flex-shrink: 0;
   width: 18px;
@@ -430,6 +484,7 @@
 }
 
 .evidencia-lista .evidencia-marca { color: #7ee2a8; }
+.evidencia-vencida .evidencia-marca { color: #f57373; }
 
 .evidencia-cuerpo {
   flex: 1;
@@ -460,6 +515,15 @@
   font-size: 0.72rem;
   color: var(--color-texto-tenue);
 }
+
+.evidencia-vigencia {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.7rem;
+  color: var(--color-texto-tenue);
+}
+
+.evidencia-vigencia-vencida { color: #f57373; font-weight: 600; }
+.evidencia-vigencia-aviso   { color: #f5d76e; font-weight: 600; }
 
 .evidencia-obs {
   font-size: 0.72rem;
