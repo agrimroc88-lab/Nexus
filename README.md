@@ -1,146 +1,316 @@
 # NEXUS
 
-**Sistema Inteligente de Medicina Ocupacional y Seguridad y Salud en el Trabajo**
+Sistema de gestión de Medicina Ocupacional y SG-SST para consultoría en Ecuador.
 
-Sistema web para la gestión de medicina ocupacional y SG-SST bajo normativa ecuatoriana.
-No es un CRUD: relaciona información, calcula estados y genera alertas para asistir la
-decisión del médico ocupacional.
+Marco normativo: **Decreto Ejecutivo 255 (2024)** y **Acuerdo Ministerial MDT-2024-196**.
 
-- **Aplicación:** https://agrimroc88-lab.github.io/Nexus/
-- **Responsable:** Dr. Jorge Leonardo Arias Espinoza · Médico Ocupacional
-- **Marco legal:** D.E. 255 (2024), A.M. MDT-2024-196
+App en vivo: https://agrimroc88-lab.github.io/Nexus/
+
+---
+
+## Índice
+
+- [Arquitectura](#arquitectura)
+- [Estructura del proyecto](#estructura-del-proyecto)
+- [Instalación](#instalación)
+- [Base de datos](#base-de-datos)
+- [Roles y seguridad](#roles-y-seguridad)
+- [Módulos](#módulos)
+- [Reglas de negocio](#reglas-de-negocio)
+- [Marco normativo](#marco-normativo)
+- [Diagnóstico de problemas](#diagnóstico-de-problemas)
 
 ---
 
 ## Arquitectura
 
-Restricción deliberada: sin frameworks, sin librerías, sin dependencias externas.
-El sistema debe seguir funcionando dentro de diez años sin migrar nada.
+**Restricción deliberada:** HTML5, CSS3, JavaScript Vanilla (ES6 Modules) y PostgreSQL
+sobre Supabase. Nada más.
 
-| Capa | Tecnología |
+Sin React, sin Vue, sin Node, sin frameworks, sin librerías externas, sin APIs de terceros.
+Los gráficos son SVG escrito a mano.
+
+El objetivo no es la elegancia: es que el sistema siga funcionando en diez años sin
+migrar nada. Una dependencia que se abandone obliga a reescribir lo que la usaba. El
+navegador, en cambio, no rompe hacia atrás.
+
+### Principios
+
+| Principio | Qué significa |
 |---|---|
-| Alojamiento | GitHub Pages |
-| Interfaz | HTML5, CSS3, JavaScript Vanilla (ES6 Modules) |
-| Datos | PostgreSQL vía Supabase |
-| Autenticación | Supabase Auth |
-| Seguridad | Row Level Security (RLS) |
-
-**Prohibido:** React, Vue, Angular, Node, Express, Firebase, MongoDB, MySQL,
-Docker, frameworks CSS, APIs externas.
-
-### Proyecto Supabase
-
-```
-URL: https://ydqwkxpkjwydxownwapv.supabase.co
-```
-
-La clave `anon` es pública por diseño y reside en `js/supabase.js`. La seguridad
-real la impone RLS en PostgreSQL, no el ocultamiento de la clave.
-La clave `service_role` nunca debe incorporarse al repositorio.
+| **Nunca duplicar datos** | Un dato se captura una vez y se lee donde haga falta. Dos copias divergen. |
+| **Un módulo = 3 archivos** | Un HTML, un JS, un CSS. Los compartidos permanecen estables. |
+| **La lógica vive en la base** | Las vistas agregan; el navegador solo pinta. La agregación en JS se repetiría y divergiría entre módulos. |
+| **Derivar antes que declarar** | El estado se calcula de los hechos. Lo que el usuario declara, el usuario olvida actualizar. |
+| **Multiaño** | Nunca se borra historia al cambiar de período. |
 
 ---
 
-## Organización
+## Estructura del proyecto
 
 ```
-/
-├── index.html              Portada
-├── login.html              Acceso
-├── dashboard.html          Panel general
-├── empresas.html           Módulo Empresas
-├── trabajadores.html       Módulo Trabajadores
-├── farmacia.html           Módulo Farmacia
+Nexus/
+├── index.html                  Redirección
+├── login.html                  Autenticación
+├── dashboard.html              Panel general · tablero de indicadores
+├── empresas.html               Empresas → sucursales → áreas → cargos
+├── trabajadores.html           Nómina y períodos laborales
+├── atenciones.html             Atenciones médicas (morbilidad común)
+├── farmacia.html               Medicamentos, lotes, kárdex
+├── salud-ocupacional.html      Anexo 1 · ámbito salud
+├── seguridad-industrial.html   Anexo 1 · ámbito seguridad
+├── README.md
 │
 ├── css/
-│   ├── base.css            Variables, reset, tipografía      [COMPARTIDO]
-│   ├── layout.css          Shell: lateral, cabecera          [COMPARTIDO]
-│   ├── login.css
-│   ├── dashboard.css
-│   ├── empresas.css        Tabla, modal, botones, formulario
+│   ├── base.css                Variables + regla [hidden] crítica
+│   ├── layout.css              Estructura de la aplicación
+│   ├── empresas.css            Tablas, modales, botones (base compartida)
 │   ├── trabajadores.css
-│   └── farmacia.css
+│   ├── farmacia.css
+│   ├── atenciones.css
+│   ├── anexo1.css              Compartido por salud y seguridad
+│   └── dashboard.css           Incluye estilos de impresión
 │
 ├── js/
-│   ├── supabase.js         Cliente único de conexión         [COMPARTIDO]
-│   ├── auth.js             Sesión, roles, guardia de rutas   [COMPARTIDO]
-│   ├── nav.js              Barra lateral y catálogo módulos  [COMPARTIDO]
-│   ├── utils.js            Validación, formato, reglas       [COMPARTIDO]
-│   ├── login.js
-│   ├── dashboard.js
+│   ├── supabase.js             Cliente único
+│   ├── auth.js                 Sesión, roles, guardia de página
+│   ├── nav.js                  Menú lateral + catálogo MODULOS
+│   ├── utils.js                Validación RUC/cédula, formato, escapar, retrasar
+│   ├── dashboard.js            Tablero + gráficos SVG
 │   ├── empresas.js
 │   ├── trabajadores.js
-│   └── farmacia.js
+│   ├── atenciones.js
+│   ├── farmacia.js
+│   └── anexo1.js               Motor compartido · lee data-ambito del <body>
 │
-├── img/
 └── sql/
-    ├── 001_tablas.sql      Perfiles, empresas, estructura
+    ├── 001_tablas.sql
     ├── 002_trabajadores.sql
-    └── 003_farmacia.sql
+    ├── 003_farmacia.sql
+    ├── 004_atenciones.sql
+    ├── 005_anexo1.sql
+    ├── 006_vigencia_evidencias.sql
+    ├── 007_evidencias_seguridad.sql
+    ├── 008_capacitaciones.sql
+    ├── 009_eventos_sst.sql
+    └── 010_tablero.sql
 ```
-
-### Regla de aislamiento
-
-**Un módulo = un HTML + un JS + un CSS.** Ningún módulo modifica archivos de otro.
-
-- Cero `<script>` embebido. Cero `onclick=` en el marcado.
-- Cero `<style>` embebido. Cero `style=` en línea.
-- Los cinco archivos marcados `[COMPARTIDO]` son estables por diseño.
-  Modificarlos exige advertir el impacto antes.
-
-`empresas.css` contiene los estilos genéricos de tabla, modal, formulario y botones.
-Otros módulos lo importan y añaden solo lo propio. No es deuda técnica: es
-reutilización deliberada.
 
 ---
 
-## Roles
+## Instalación
+
+### 1. Base de datos
+
+En Supabase → SQL Editor, ejecutar **en orden**:
+
+```
+001_tablas.sql
+002_trabajadores.sql
+003_farmacia.sql
+004_atenciones.sql
+005_anexo1.sql
+006_vigencia_evidencias.sql
+007_evidencias_seguridad.sql
+008_capacitaciones.sql
+009_eventos_sst.sql
+010_tablero.sql
+```
+
+Todos son **reejecutables**: usan `IF NOT EXISTS` y `ON CONFLICT DO NOTHING`. Volver a
+correrlos no destruye datos.
+
+### 2. Usuario administrador
+
+En Supabase → Authentication → Users → Add user. Luego insertar su perfil:
+
+```sql
+INSERT INTO perfiles (id, nombres, apellidos, cedula, rol)
+VALUES ('<UID del usuario>', 'Nombre', 'Apellido', '0000000000', 'admin');
+```
+
+### 3. Publicación
+
+GitHub Pages sobre la rama principal. La clave `anon` de Supabase es pública por diseño:
+la seguridad la impone Row Level Security, no el secreto de la clave.
+
+---
+
+## Base de datos
+
+### 001 · Fundación
+
+`perfiles` · `empresas` → `sucursales` → `areas` → `cargos`
+
+Incluye `fn_auditoria()` (trigger de creado/modificado en toda tabla), `rol_actual()` y
+`tiene_permiso_clinico()`.
+
+`rol_actual()` usa `SECURITY DEFINER` para evitar recursión infinita en las políticas RLS:
+una política que consulta `perfiles` dispararía la política de `perfiles`, que consultaría
+`perfiles`.
+
+### 002 · Trabajadores
+
+`trabajadores` · `periodos_laborales` · vista `v_trabajadores`
+
+El código (1–3000) es permanente y único por empresa; jamás se recicla. La cédula es la
+llave real. Los períodos laborales permiten reingresos sin duplicar la ficha.
+
+Campos en `empresas`: `periodicidad_examen_meses` (12), `anticipacion_examen_meses` (2).
+
+### 003 · Farmacia
+
+`medicamentos` · `lotes` · `kardex` · vistas `v_stock_lotes`, `v_stock_medicamentos`
+
+El saldo **nunca se almacena**: se calcula del kárdex. Un saldo guardado se desincroniza
+del movimiento que lo produjo. El kárdex es inmutable — corregir un error exige un
+movimiento de ajuste, no reescribir la historia.
+
+Salida FEFO (primero en caducar, primero en salir). El lote se genera automáticamente
+agrupando por medicamento + fecha de caducidad: el usuario nunca escribe número de lote.
+
+### 004 · Atenciones médicas
+
+`atenciones` · `atencion_diagnosticos` · `atencion_medicamentos` · `cie10` (182 códigos)
+RPC `registrar_atencion()` · vistas `v_atenciones`, `v_morbilidad`
+
+El primer diagnóstico (orden = 1) es el principal y define el caso en los indicadores.
+Contar los secundarios inflaría el total.
+
+### 005 · Anexo 1
+
+`requisitos` (96) · `requisito_evidencias` · `cumplimientos` · `cumplimiento_enlaces`
+RPC `abrir_cumplimientos()` · vistas `v_cumplimientos`, `v_indicadores_anexo1`,
+`v_indicadores_consolidado`
+
+Un solo catálogo para ambos ámbitos. El campo `ambito` (salud / seguridad / ambos)
+determina qué módulo lo muestra.
+
+| Ámbito | Requisitos |
+|---|---|
+| Salud | 20 propios |
+| Seguridad | 73 propios |
+| Compartidos | 3 (GT-06, GTH-09, GTH-10) |
+| **Módulo Salud ve** | **23** |
+| **Módulo Seguridad ve** | **76** |
+
+Los compartidos generan **dos registros de cumplimiento**, uno por ámbito: la capacitación
+de ergonomía del médico no puede tapar la falta de la charla de riesgo eléctrico del técnico.
+
+### 006 · Vigencia por evidencia
+
+Cada enlace tiene su propia fecha de registro y caducidad. La caducidad del requisito se
+deriva: es la **más próxima** entre sus evidencias. Si el informe ergonómico vence en marzo
+y el psicosocial en agosto, el requisito está vencido desde marzo.
+
+### 007 · Evidencias múltiples de seguridad
+
+POB-16 (plan + 2 cronogramas), POB-19 (programa + inventario), POB-21 (procedimiento +
+matriz EPP), GTH-08 (programa + cronograma).
+
+### 008 · Capacitaciones
+
+`capacitacion_temas` · `capacitaciones` · RPC `abrir_capacitaciones()`
+
+El **tema** persiste entre años; su **ejecución** pertenece a un año. En 2027 la lista de
+temas sigue intacta, vacía de fechas y asistentes.
+
+Cada tema activo **es** una evidencia esperada de GTH-09. Nueve temas de salud son nueve
+espacios de enlace: subir cinco otorga 56% del requisito. El catálogo y el cumplimiento no
+se declaran por separado — son la misma cosa vista desde dos lados.
+
+Un trigger refleja el registro de asistencia en GTH-09 automáticamente: se captura una vez.
+
+### 009 · Eventos SST
+
+`eventos_sst` (seguridad) · `enfermedades_profesionales` (salud) ·
+`atenciones_ocupacionales` (salud)
+
+Granularidad deliberadamente distinta:
+
+- **Eventos y enfermedades** se registran caso por caso. El área, el turno y los días de
+  baja son propios de cada suceso; sin ellos no hay investigación ni índices.
+- **Atenciones ocupacionales** son conteo mensual. Lo que se necesita es cuántos exámenes
+  de cada tipo, no quién los recibió: el expediente individual ya vive en el módulo clínico.
+
+### 010 · Tablero
+
+Vistas `v_morbilidad_mensual`, `v_top_diagnosticos`, `v_indices_siniestralidad`,
+`v_tablero_anual`, `v_serie_mensual`
+
+Índices conforme **Resolución CD 513 (2016) Art. 56**:
+
+```
+Frecuencia = (accidentes × 200 000) / horas-hombre
+Gravedad   = (días perdidos × 200 000) / horas-hombre
+```
+
+Las horas-hombre se **estiman** en 2 000 anuales por trabajador. Es una aproximación
+declarada, no un dato medido: el índice oficial exige horas reales de planilla. El
+documento impreso lo advierte al pie.
+
+---
+
+## Roles y seguridad
 
 | Rol | Alcance |
 |---|---|
-| `admin` | Control total. **Hereda todos los permisos clínicos.** |
-| `medico_ocupacional` | Historia clínica, exámenes, aptitud, vigilancia, farmacia |
-| `tecnico_sst` | Riesgos, inspecciones, estructura organizacional. **Sin acceso clínico** |
-| `ergonomo` | Evaluaciones ergonómicas |
+| `admin` | Todo. Hereda permisos clínicos. |
+| `medico_ocupacional` | Clínica completa + Anexo 1 ámbito salud |
+| `tecnico_sst` | Anexo 1 ámbito seguridad + eventos. Sin acceso clínico. |
+| `ergonomo` | Consulta + módulo de ergonomía (pendiente) |
 | `consulta` | Solo lectura, sin datos clínicos |
 
-**Decisión de diseño:** `admin` no es paralelo al médico; lo contiene. El titular
-del sistema es médico ocupacional y administrador a la vez, sin cambiar de contexto.
+**Secreto médico:** el técnico y el rol consulta nunca ven diagnósticos ni kárdex. La
+enfermedad profesional, aunque sea información de gestión, contiene diagnóstico: solo el
+médico y el administrador acceden.
 
-**Secreto médico:** `tecnico_sst` y `consulta` nunca acceden a diagnósticos,
-resultados ni al kárdex de dispensación. Solo al certificado de aptitud y las
-restricciones operativas — lo que el empleador legalmente necesita conocer.
-Esto se impone por RLS a nivel de tabla, no ocultando botones.
+**Escritura del Anexo 1 por ámbito:** el médico registra salud, el técnico seguridad, el
+administrador ambos. Un ámbito no puede declarar el cumplimiento del otro. La política RLS
+lo impone en la base; el JS solo lo espeja en la interfaz.
 
-**Pendiente:** rol `enfermeria` para el personal que opera farmacia y atenciones.
-Al crearse, se añade a las políticas RLS de `medicamentos`, `lotes` y `kardex`.
+**Pendiente:** crear el rol `enfermeria`.
 
 ---
 
-## Modelo de datos
+## Módulos
 
-```
-empresas
-   └── sucursales
-          └── areas
-                 └── cargos ──────────┐
-                                      │
-trabajadores (por empresa)            │
-   └── periodos_laborales ────────────┘
-                 │
-                 ↓
-medicamentos → lotes → kardex ← trabajadores
-```
+### Panel general
 
-### Cadena conceptual del sistema
+Tablero por empresa y año. Cumplimiento del Anexo 1 (salud, seguridad, total), cifras del
+período, índices de siniestralidad, evolución mensual, top de morbilidad, capacitación.
 
-```
-Empresa → Sucursal → Área → Cargo → Factores de Riesgo → Protocolos
-   → Exámenes → Resultados → Aptitud → Restricciones
-   → Vigilancia → Indicadores → Reportes
-```
+Comparación entre años: cada cifra muestra su variación, con color según significado —
+menos accidentes es verde, menos capacitaciones es rojo.
 
-El **cargo** es el nodo central: de él cuelgan los riesgos que determinan
-qué exámenes corresponden. Ningún módulo debe diseñarse aislado de esta cadena.
+Botón **Imprimir**: sale a A4 vertical, fondo blanco, sin menú, con encabezado, fecha de
+generación y saltos de página.
+
+### Atenciones médicas
+
+Morbilidad común. Tres pestañas:
+
+- **Atenciones** — solo las de hoy. Mañana amanece vacía; todo queda guardado. Buscador
+  arriba: código + Enter → ficha del paciente con dos botones (Nueva atención / Historial
+  embebido).
+- **Consolidado** — todas, filtrables por año, mes y diagnóstico. Da **nombres**.
+- **Morbilidad** — ranking agregado por sexo. Da **números**.
+
+### Farmacia
+
+Medicamentos, lotes y kárdex inmutable. Saldo calculado, salida FEFO.
+
+### Salud ocupacional / Seguridad industrial
+
+**Un solo motor:** `anexo1.js`. El ámbito lo declara el HTML en `data-ambito`. Los dos
+archivos se diferencian en cinco líneas.
+
+Cuatro pestañas (la última solo en salud):
+
+- **Cumplimiento** — requisitos del Anexo 1 con medidor, evidencias y vigencia
+- **Capacitaciones** — catálogo multiaño ligado a GTH-09
+- **Incidentes y accidentes** / **Enfermedades profesionales**
+- **Atenciones ocupacionales** — matriz 12 meses × 4 tipos (solo salud)
 
 ---
 
@@ -148,265 +318,99 @@ qué exámenes corresponden. Ningún módulo debe diseñarse aislado de esta cad
 
 ### Trabajadores
 
-**Pertenencia por empresa.** El trabajador pertenece a una sola empresa.
-El mismo individuo en otra empresa cliente constituye un expediente
-independiente, con otro código y otro historial. Los expedientes no se cruzan.
-Esto evita mezclar historias clínicas entre empleadores.
-
-**Código permanente.** Entero de 1 a 3000, único por empresa. Se asigna una vez
-y **jamás se recicla**. Si el trabajador sale, el código queda reservado; si
-reingresa, vuelve con el mismo. Reasignarlo mezclaría historias clínicas de dos
-personas: el peor error posible en medicina ocupacional.
-
-El sistema **sugiere** el menor código libre pero no lo impone: existen códigos
-históricos previos al sistema y el usuario debe poder respetarlos.
-
-**La cédula es la llave real.** El código es etiqueta interna; la cédula
-identifica a la persona. `UNIQUE (empresa_id, cedula)` impide duplicados.
-Al escribir una cédula ya registrada e inactiva, el sistema detecta y ofrece
-reingreso en lugar de crear un registro nuevo.
-
-**Reingreso.** Genera un periodo laboral nuevo. El cargo puede cambiar;
-el código nunca.
-
-**Nunca se borra.** Solo se desactiva. `trabajadores.activo` es un campo
-derivado, mantenido por trigger: verdadero si existe un periodo sin fecha
-de salida. Nunca se escribe a mano.
-
-**Un solo periodo abierto.** Índice único parcial en la base:
-`WHERE fecha_salida IS NULL`. No depende de que la interfaz lo valide.
-
-### Antigüedad y examen periódico
-
-**La antigüedad se cuenta desde el último ingreso, no desde el primero.**
-
-Un trabajador con diez años previos que estuvo cinco años fuera y reingresa
-vuelve con cero meses. Fundamento clínico: lo que importa es el tiempo de
-**exposición continua** al riesgo actual. La interrupción resetea la exposición.
-
-**Periodicidad: 12 meses. Alerta: 10 meses.**
-
-El examen periódico es anual. Los 10 meses son la **ventana de programación
-anticipada**, no la obligación. Se programa a los 10 meses para que el examen
-se realice antes de cumplir el año: agendar, laboratorio y resultados consumen
-tiempo, y esperar al mes 12 empujaría el examen al mes 13 o 14, dejando al
-trabajador descubierto.
-
-| Estado | Condición |
-|---|---|
-| `al_dia` | Menos de 10 meses |
-| `por_programar` | 10 a 12 meses — ventana de gestión |
-| `vencido` | Más de 12 meses — incumplimiento |
-
-Ambos valores son configurables por empresa (`empresas.periodicidad_examen_meses`,
-`empresas.anticipacion_examen_meses`) aunque el formulario no los expone. Existen
-para que un requerimiento contractual futuro no obligue a reescribir el módulo.
-
-**No se realizan exámenes semestrales.** Periodicidad anual para toda empresa.
-
-### Edad
-
-Nunca se almacena; se calcula desde `fecha_nacimiento`. Un dato almacenado
-envejece mal, literalmente.
+- Un trabajador pertenece a **una** empresa. Otra empresa es otro expediente.
+- Código 1–3000 permanente, nunca reciclado, se conserva en el reingreso.
+- La antigüedad para el examen periódico se cuenta desde el **último** ingreso.
+- Periódico anual; alerta a los 10 meses (ventana de programación).
 
 ### Farmacia
 
-**El saldo nunca se almacena.** Se calcula como suma algebraica del kárdex.
-Un kárdex es un libro de movimientos, no un contador. Almacenar el saldo
-permitiría que un error lo corrompiera de forma permanente, sin auditoría posible.
+- El saldo se calcula del kárdex; nunca se almacena.
+- Kárdex inmutable. Unidades mínimas, no cajas. FEFO.
+- El lote se genera solo. El usuario escribe: medicamento, tipo, fecha, cantidad,
+  caducidad, observación.
 
-**El kárdex es inmutable.** Trigger `fn_kardex_inmutable()` bloquea `UPDATE`
-y `DELETE`. Un error se corrige registrando un movimiento contrario. La
-trazabilidad es innegociable.
+### Atenciones
 
-**Toda existencia pertenece a un lote con caducidad.** No se registra stock
-sin lote. Exigencia sanitaria y garantía de que no se dispense vencido.
+- El primer diagnóstico es el principal y define el caso.
+- Si falta stock, la atención se registra igual y el medicamento queda **no entregado**.
+  Negar el registro por falta de inventario perdería el acto médico.
+- Alergias en rojo, editables desde la atención, persistentes en la ficha.
 
-**Unidad mínima de dispensación.** Una caja de 100 tabletas se registra como
-100 tabletas. El consumo se da por tableta; contar cajas haría mentir al stock.
-El campo `presentacion` es referencia informativa y no participa en cálculos.
+### Anexo 1
 
-**La salida por consumo exige trabajador identificado.** Restricción en la base:
-`CHECK (tipo <> 'salida_consumo' OR trabajador_id IS NOT NULL)`.
-Las bajas y ajustes no lo exigen.
+- El estado **se deriva** de las evidencias. Solo "no aplica" es decisión humana.
+- "No aplica" es **por empresa**, exige motivo escrito y sale de numerador **y**
+  denominador. El porcentaje se mide sobre lo **exigible**.
+- Cumplimiento **fraccionario**: un requisito con dos informes y uno entregado aporta 0,5.
+- Los requisitos condicionados por número de trabajadores **se ocultan solos**
+  (`min_trabajadores` / `max_trabajadores`). Nadie los configura.
+- La evidencia es un **enlace**, no un archivo. El documento vive en su repositorio;
+  duplicarlo genera versiones divergentes.
+- Cada evidencia tiene su vigencia. La del requisito es la más próxima.
 
-**FEFO** — *First Expired, First Out*. Al dispensar, el sistema preselecciona
-el lote con caducidad más próxima. Evita que se venza medicación al fondo
-del botiquín.
+### Reparto de ámbitos
 
-**Niveles de existencia:**
+- **Accidentes de trabajo** → técnico (POB-06 a POB-10)
+- **Enfermedades profesionales** → médico (POB-11, POB-12, POB-13)
+- **Capacitaciones** → ambos, por separado. Mismo requisito legal, evidencias distintas.
 
-| Campo | Uso |
-|---|---|
-| `stock_minimo` | Punto de reposición. Por debajo → alerta |
-| `stock_optimo` | Meta. `reponer = optimo − disponible` |
-| `stock_maximo` | Techo. Evita sobrestock que caduca sin usarse |
+### Capacitaciones
 
-Definición manual por criterio del médico. Con 3–6 meses de kárdex acumulado
-podrá añadirse sugerencia automática por consumo histórico sin alterar la
-estructura: los datos ya estarán ahí.
+- Una al año, aunque tome varios días cubrir al personal (fecha de inicio y fin).
+- El tema es global: se agrega a todas las empresas.
+- Quitar un tema es **baja lógica**: sale de la lista y de GTH-09, pero los años cerrados
+  conservan su registro.
+- Salud viene con 9 temas precargados. Seguridad nace vacío: los define el técnico según
+  los riesgos de cada operación.
 
-**Stock total ≠ stock disponible.** Los lotes caducados suman al total pero
-no son dispensables. La interfaz muestra ambos.
+### Multiaño
 
-**Tipos de movimiento:**
+Todo el sistema conserva historia. Cambiar de año abre registros vacíos; nunca borra los
+anteriores.
 
-| Tipo | Signo | Notas |
+---
+
+## Marco normativo
+
+**Vigente:**
+
+- Decreto Ejecutivo 255 (2024) — Reglamento del SG-SST
+- Acuerdo Ministerial MDT-2024-196 — Anexo 1, lista de verificación
+- Decisión 584 (2004) — Instrumento Andino de SST
+- Resolución 957 (2008) — Reglamento del Instrumento Andino
+- Resolución IESS CD 513 (2016) — Riesgos del trabajo
+- Código del Trabajo (2005)
+
+**Regla firme:** el **D.E. 2393 nunca se cita como ley vigente**. Fue derogado por el
+D.E. 255. Citarlo en un documento técnico lo invalida.
+
+---
+
+## Diagnóstico de problemas
+
+| Síntoma | Causa probable | Solución |
 |---|---|---|
-| `inventario_inicial` | + | Conteo al implantar el sistema |
-| `entrada_compra` | + | Reposición |
-| `entrada_donacion` | + | Sin costo |
-| `salida_consumo` | − | **Exige trabajador** |
-| `ajuste_positivo` | + | Conteo físico: sobra |
-| `ajuste_negativo` | − | Conteo físico: falta |
-| `baja_caducidad` | − | Vencido |
-| `baja_deterioro` | − | Dañado o perdido |
+| Los modales no cierran | `display:flex` anula el atributo `hidden` | La regla `[hidden]{display:none!important;}` en `base.css` lo resuelve. Verificar que exista. |
+| El menú aparece duplicado | Se subió `nav (1).js` en vez de reemplazar `nav.js` | Renombrar en GitHub o editar con el lápiz. |
+| "No existe la relación v_…" | Falta ejecutar un SQL | Correr los archivos de `sql/` en orden. |
+| El módulo carga vacío | Los cumplimientos no se han abierto | Botón **Abrir requisitos** en la pestaña Cumplimiento. |
+| No puedo escribir en el Anexo 1 | RLS por ámbito | El médico solo escribe salud; el técnico solo seguridad. |
+| El porcentaje no cuadra | Hay requisitos en "no aplica" | Es correcto: salen del cálculo. El % se mide sobre lo exigible. |
+| Los gráficos salen vacíos | Sin datos en el período | Verificar el año seleccionado. |
+| Cambios de SQL sin efecto | Caché de esquema de Supabase | Esperar unos segundos o recargar el editor. |
 
-La función `signo_movimiento()` es el punto único de verdad sobre qué suma
-y qué resta. No duplicar esa lógica en ningún otro lugar.
+### Al subir archivos a GitHub
 
-**Validaciones impuestas por la base** (trigger `fn_validar_movimiento`):
-- Prohibido dispensar lote caducado
-- Prohibido ingresar lote ya vencido
-- Saldo nunca negativo
-- Coherencia empresa ↔ medicamento ↔ lote ↔ trabajador
-
-### Empresas
-
-**RUC validado** con algoritmo ecuatoriano completo: módulo 10 para persona
-natural, módulo 11 para sociedad privada y sector público. Un RUC inválido
-no entra a la base.
-
-**El RUC no se edita** una vez creado: es la identidad legal del registro.
-
-**Alerta legal automática** según número de trabajadores:
-
-| Trabajadores | Obligación |
-|---|---|
-| 1–9 | Responsable de SST designado |
-| 10–49 | **Delegado de SST obligatorio** (Art. 33, D.E. 255) |
-| 50–99 | Técnico de SST y Comité Paritario |
-| 100+ | Unidad de SST, Comité Paritario y Servicio Médico |
-
-**Nunca se borra.** Solo se desactiva. El histórico es permanente en
-documentación de SST.
+El navegador renombra los archivos que ya existen: `nav.js` se convierte en `nav (1).js`.
+Hay que renombrarlo antes de confirmar, o editar el original con el lápiz y pegar el
+contenido. Este error ya rompió la navegación una vez.
 
 ---
 
-## Convenciones
+## Autor
 
-### Base de datos
+**Dr. Jorge Leonardo Arias Espinoza** — Médico ocupacional
 
-- Auditoría en toda tabla: `creado_en`, `creado_por`, `modificado_en`, `modificado_por`,
-  mantenida por trigger `fn_auditoria()`. Nunca a mano.
-- `rol_actual()` usa `SECURITY DEFINER` para evitar recursión infinita en políticas
-  RLS — error clásico de Supabase.
-- Los campos derivados se mantienen por trigger, jamás por la interfaz.
-- Las vistas (`v_`) calculan; las tablas almacenan hechos.
-
-### JavaScript
-
-- ES6 Modules. Cada archivo declara qué importa y qué exporta.
-- Todo texto proveniente de la base pasa por `escapar()` antes de inyectarse en HTML.
-- La validación en la interfaz es cortesía; la validación real está en la base.
-- Español en nombres de funciones, variables y comentarios.
-
-### CSS
-
-- Variables en `:root` dentro de `base.css`. No introducir colores sueltos.
-- `[hidden] { display: none !important; }` en `base.css`: sin esa regla,
-  `display: flex` de los modales anula el atributo `hidden` y las ventanas
-  no cierran. Defecto ya corregido; no reintroducirlo.
-
----
-
-## Estado
-
-### Operativo
-
-- Autenticación, sesión y guardia de rutas
-- Roles y RLS
-- Panel general con indicadores
-- **Empresas** — alta, edición, desactivación, validación de RUC, alerta legal
-- **Trabajadores** — código permanente, historial de periodos, reingreso
-  automático, semáforo de periódico
-- **Farmacia** — catálogo, lotes, kárdex, FEFO, alertas de caducidad y
-  reposición, baja de caducados
-
-### Pendiente
-
-**Inmediato**
-- Módulo de estructura organizacional: Sucursales → Áreas → Cargos.
-  Sin él no se puede asignar cargo a un trabajador.
-- Rol `enfermeria` y gestión de usuarios.
-
-**Siguiente**
-- Enfermería · Atenciones. La salida de farmacia debe nacer de una atención.
-- Factores de riesgo por cargo (metodología GTC 45).
-- Protocolos de exámenes según cargo, riesgo y actividad económica.
-- Exámenes ocupacionales: preocupacional, periódico, reintegro, retiro,
-  especial, cambio de puesto. El sistema **sugiere**; el médico decide.
-- Historia clínica ocupacional: nunca sobrescribir, todo conserva historial.
-- Vigilancia de la salud: comparar resultados, detectar tendencias, alertar.
-- Ergonomía: ROSA, RULA, REBA, MAC, NIOSH, OCRA. No almacenar solo
-  puntuaciones — interpretar y recomendar.
-- Inspecciones: fotografías, hallazgos, planes de acción, seguimiento, cierre.
-- Indicadores y reportes: PDF, Excel, tablero.
-
----
-
-## Operación
-
-### Publicar cambios
-
-Los archivos se editan en GitHub (icono de lápiz) o se suben con
-`Add file → Upload files`. GitHub Pages publica automáticamente en 1–2 minutos.
-
-**Advertencia:** al subir un archivo que ya existe, el navegador puede
-renombrarlo como `archivo (1).js`. GitHub lo tratará como archivo nuevo y el
-original quedará intacto. Renombrar antes de subir, o editar directamente
-con el lápiz.
-
-Con el crecimiento del proyecto conviene migrar a GitHub Desktop + VS Code.
-
-### Ejecutar SQL
-
-Supabase → SQL Editor → New query → pegar el archivo completo → Run.
-Los scripts usan `IF NOT EXISTS` y `DROP ... IF EXISTS`: son reejecutables
-sin destruir datos.
-
-### Diagnóstico
-
-F12 → Console. Errores frecuentes:
-
-| Síntoma | Causa probable |
-|---|---|
-| 404 en `css/` o `js/` | Archivos no subidos o en subcarpeta equivocada |
-| Módulo no responde | Archivo `(1)` duplicado; el original quedó desactualizado |
-| Modal no cierra | Falta `[hidden] { display: none !important; }` |
-| `relation does not exist` | El SQL correspondiente no se ejecutó |
-| 409 al guardar | Violación de restricción única |
-| Recursión infinita en RLS | Función de rol sin `SECURITY DEFINER` |
-
----
-
-## Filosofía
-
-> No quiero el software más rápido. Quiero el software mejor diseñado.
-
-Antes de escribir código: analizar el problema, la lógica del negocio, el
-impacto sobre el sistema; diseñar; explicar la estrategia. Después, codificar.
-
-Antes de crear una tabla: analizar relaciones, dependencias, impacto,
-escalabilidad. Antes de crear una función: verificar si ya existe algo
-reutilizable. Antes de crear un módulo: analizar cómo afecta a los demás.
-
-Ante un error: no reconstruir. Analizar, identificar la causa, explicar,
-corregir únicamente lo necesario.
-
-El sistema debe pensar como arquitecto, como médico ocupacional, como
-especialista en ergonomía. Debe pensar en la normativa ecuatoriana, en la
-escalabilidad, en la integridad de la información y en quien lo usa.
-
-**El médico siempre tiene la decisión final.** El sistema sugiere, alerta,
-relaciona y calcula. No impone.
+Las reglas de negocio de este sistema provienen de la práctica de la medicina ocupacional
+en Ecuador, no de una plantilla genérica de software.
