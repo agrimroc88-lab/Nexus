@@ -18,7 +18,7 @@ export const MODULOS = [
   { id: 'trabajadores', texto: 'Trabajadores',       archivo: 'trabajadores.html',      listo: true,  clinico: false },
   { id: 'atenciones',   texto: 'Atenciones médicas', archivo: 'atenciones.html',        listo: true,  clinico: true  },
   { id: 'farmacia',     texto: 'Farmacia',           archivo: 'farmacia.html',          listo: true,  clinico: true  },
-  { id: 'salud_ocup',   texto: 'Salud ocupacional',  archivo: 'salud-ocupacional.html', listo: false, clinico: true  },
+  { id: 'salud_ocup',   texto: 'Salud ocupacional',  archivo: 'salud-ocupacional.html', listo: true,  clinico: true  },
   { id: 'ergonomia',    texto: 'Ergonomía',          archivo: 'ergonomia.html',         listo: false, clinico: false },
   { id: 'inspecciones', texto: 'Inspecciones',       archivo: 'inspecciones.html',      listo: false, clinico: false }
 ];
