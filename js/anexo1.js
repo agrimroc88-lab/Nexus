@@ -37,6 +37,7 @@ const estado = {
   enlaces: {},         // cumplimiento_id → [enlaces]
   indicadores: null,
   consolidado: null,
+  vigenciaDocs: null,  // vencimientos contados por documento
   actual: null,        // requisito abierto en el modal
   enlaceDestino: null  // evidencia que se está enlazando
 };
@@ -161,7 +162,7 @@ async function cargarEnlaces() {
   const ids = estado.requisitos.map((r) => r.id);
 
   const { data, error } = await supabase
-    .from('cumplimiento_enlaces')
+    .from('v_enlaces')
     .select('*')
     .in('cumplimiento_id', ids);
 
@@ -174,15 +175,18 @@ async function cargarEnlaces() {
 }
 
 async function cargarIndicadores() {
-  const [propio, total] = await Promise.all([
+  const [propio, total, docs] = await Promise.all([
     supabase.from('v_indicadores_anexo1').select('*')
       .eq('empresa_id', estado.empresaId).eq('ambito', AMBITO).maybeSingle(),
     supabase.from('v_indicadores_consolidado').select('*')
-      .eq('empresa_id', estado.empresaId).maybeSingle()
+      .eq('empresa_id', estado.empresaId).maybeSingle(),
+    supabase.from('v_vigencia_documentos').select('*')
+      .eq('empresa_id', estado.empresaId).eq('ambito', AMBITO).maybeSingle()
   ]);
 
   estado.indicadores = propio.data;
   estado.consolidado = total.data;
+  estado.vigenciaDocs = docs.data;
 }
 
 /** Abre los cumplimientos que correspondan a la empresa */
@@ -230,8 +234,10 @@ function pintarMedidor() {
   document.getElementById('n-na').textContent         = i?.no_aplica ?? 0;
   document.getElementById('n-exigibles').textContent  = i?.exigibles ?? 0;
 
-  const vencidos = i?.vencidos ?? 0;
-  const porVencer = i?.por_vencer ?? 0;
+  /* Vencimientos contados por documento: un requisito
+     multi-evidencia puede tener uno vencido y otro vigente */
+  const vencidos = estado.vigenciaDocs?.docs_vencidos ?? 0;
+  const porVencer = estado.vigenciaDocs?.docs_por_vencer ?? 0;
 
   document.getElementById('n-vencidos').textContent = vencidos;
   document.getElementById('caja-vencidos').hidden = vencidos === 0;
@@ -380,19 +386,17 @@ function abrirRequisito(r) {
   }
 
   pintarEstadoModal(r);
+  pintarVigenciaModal(r);
   pintarEvidenciasModal(r);
 
-  document.getElementById('m_fecha_registro').value = r.fecha_registro ?? '';
-  document.getElementById('m_fecha_caducidad').value = r.fecha_caducidad ?? '';
   document.getElementById('m_observacion').value = r.observacion ?? '';
   document.getElementById('m_motivo_na').value = r.motivo_no_aplica ?? '';
 
   /* Solo el ámbito responsable edita */
-  ['m_fecha_registro', 'm_fecha_caducidad', 'm_observacion', 'm_motivo_na'].forEach((id) => {
+  ['m_observacion', 'm_motivo_na'].forEach((id) => {
     document.getElementById(id).disabled = !editable;
   });
   document.getElementById('btn-guardar-req').hidden = !editable;
-  document.getElementById('btn-un-anio').hidden = !editable;
   document.getElementById('m-plegable-na').hidden = !editable;
 
   document.getElementById('btn-marcar-na').hidden = r.estado === 'no_aplica';
@@ -422,6 +426,30 @@ function pintarEstadoModal(r) {
   }
 }
 
+/**
+ * La vigencia del requisito es derivada: la caducidad más
+ * próxima entre sus evidencias. No se edita aquí.
+ */
+function pintarVigenciaModal(r) {
+  const $caja = document.getElementById('m-vigencia');
+  const $valor = document.getElementById('m-vigencia-valor');
+
+  if (!r.fecha_caducidad) { $caja.hidden = true; return; }
+
+  $caja.hidden = false;
+  $caja.className = 'vigencia-derivada';
+
+  if (r.vigencia === 'vencido') {
+    $valor.textContent = `Vencido el ${formatearFecha(r.fecha_caducidad)}`;
+    $caja.classList.add('vigencia-vencida');
+  } else if (r.vigencia === 'por_vencer') {
+    $valor.textContent = `Vence en ${r.dias_para_vencer} días · ${formatearFecha(r.fecha_caducidad)}`;
+    $caja.classList.add('vigencia-aviso');
+  } else {
+    $valor.textContent = `Vigente hasta ${formatearFecha(r.fecha_caducidad)}`;
+  }
+}
+
 function pintarEvidenciasModal(r) {
   const $cont = document.getElementById('m-evidencias');
   const esperadas = estado.evidencias[r.requisito_codigo] || [];
@@ -435,6 +463,7 @@ function pintarEvidenciasModal(r) {
 
     const fila = document.createElement('div');
     fila.className = 'evidencia' + (enlace ? ' evidencia-lista' : '');
+    if (enlace?.vigencia === 'vencido') fila.classList.add('evidencia-vencida');
 
     fila.innerHTML = `
       <span class="evidencia-marca">${enlace ? '✓' : '○'}</span>
@@ -444,6 +473,7 @@ function pintarEvidenciasModal(r) {
           ? `<a class="evidencia-enlace" href="${escapar(enlace.url)}"
                 target="_blank" rel="noopener noreferrer">${escapar(acortar(enlace.url))}</a>`
           : '<span class="evidencia-falta">Sin enlace registrado</span>'}
+        ${enlace ? pintarVigenciaEvidencia(enlace) : ''}
         ${enlace?.observacion
           ? `<span class="evidencia-obs">${escapar(enlace.observacion)}</span>` : ''}
       </div>
@@ -479,6 +509,26 @@ function pintarEvidenciasModal(r) {
     : 'Registre el enlace al documento en Drive.';
 }
 
+function pintarVigenciaEvidencia(enlace) {
+  if (!enlace.fecha_caducidad) {
+    return '<span class="evidencia-vigencia">Sin fecha de caducidad</span>';
+  }
+
+  if (enlace.vigencia === 'vencido') {
+    return `<span class="evidencia-vigencia evidencia-vigencia-vencida">
+              Vencido · ${formatearFecha(enlace.fecha_caducidad)}
+            </span>`;
+  }
+  if (enlace.vigencia === 'por_vencer') {
+    return `<span class="evidencia-vigencia evidencia-vigencia-aviso">
+              Vence en ${enlace.dias_para_vencer} días · ${formatearFecha(enlace.fecha_caducidad)}
+            </span>`;
+  }
+  return `<span class="evidencia-vigencia">
+            Vigente hasta ${formatearFecha(enlace.fecha_caducidad)}
+          </span>`;
+}
+
 function acortar(url) {
   try {
     const u = new URL(url);
@@ -495,21 +545,13 @@ async function guardarRequisito() {
   const r = estado.actual;
   if (!r) return;
 
-  const registro = document.getElementById('m_fecha_registro').value || null;
-  const caducidad = document.getElementById('m_fecha_caducidad').value || null;
-
-  if (registro && caducidad && caducidad < registro) {
-    return alertaReq('La caducidad no puede ser anterior al registro');
-  }
-
   const $btn = document.getElementById('btn-guardar-req');
   $btn.disabled = true;
 
+  /* Las fechas son derivadas: las mantiene el trigger */
   const { error } = await supabase
     .from('cumplimientos')
     .update({
-      fecha_registro: registro,
-      fecha_caducidad: caducidad,
       observacion: document.getElementById('m_observacion').value.trim() || null
     })
     .eq('id', r.id);
@@ -572,6 +614,18 @@ function abrirEnlace(evidencia, enlaceExistente) {
   document.getElementById('e-evidencia').textContent = evidencia.etiqueta;
   document.getElementById('e_url').value = enlaceExistente?.url ?? '';
   document.getElementById('e_observacion').value = enlaceExistente?.observacion ?? '';
+
+  /* Documento nuevo: fecha de hoy y caducidad a un año */
+  if (enlaceExistente) {
+    document.getElementById('e_fecha_registro').value = enlaceExistente.fecha_registro ?? '';
+    document.getElementById('e_fecha_caducidad').value = enlaceExistente.fecha_caducidad ?? '';
+  } else {
+    document.getElementById('e_fecha_registro').value = HOY();
+    document.getElementById('e_fecha_caducidad').value = '';
+    aplicarUnAnio();
+  }
+
+  evaluarCaducidad();
   document.getElementById('alerta-enlace').hidden = true;
   document.getElementById('modal-enlace').hidden = false;
   document.getElementById('e_url').focus();
@@ -588,6 +642,13 @@ async function guardarEnlace() {
     return alertaEnlace('El enlace debe comenzar con http:// o https://');
   }
 
+  const registro = document.getElementById('e_fecha_registro').value || null;
+  const caducidad = document.getElementById('e_fecha_caducidad').value || null;
+
+  if (registro && caducidad && caducidad < registro) {
+    return alertaEnlace('La caducidad no puede ser anterior a la fecha del documento');
+  }
+
   const $btn = document.getElementById('btn-guardar-enlace');
   $btn.disabled = true;
 
@@ -596,6 +657,8 @@ async function guardarEnlace() {
     evidencia_id: evidencia.id,
     etiqueta: evidencia.etiqueta,
     url,
+    fecha_registro: registro,
+    fecha_caducidad: caducidad,
     observacion: document.getElementById('e_observacion').value.trim() || null
   };
 
@@ -606,16 +669,6 @@ async function guardarEnlace() {
   $btn.disabled = false;
 
   if (error) return alertaEnlace(traducirBd(error));
-
-  /* Fecha de registro por defecto al primer enlace */
-  if (!enlace && !document.getElementById('m_fecha_registro').value) {
-    document.getElementById('m_fecha_registro').value = HOY();
-    aplicarUnAnio();
-    await supabase.from('cumplimientos').update({
-      fecha_registro: document.getElementById('m_fecha_registro').value,
-      fecha_caducidad: document.getElementById('m_fecha_caducidad').value
-    }).eq('id', r.id);
-  }
 
   document.getElementById('modal-enlace').hidden = true;
   await refrescarModal();
@@ -657,17 +710,17 @@ function alertaEnlace(texto) {
    ============================================ */
 
 function aplicarUnAnio() {
-  const registro = document.getElementById('m_fecha_registro').value;
+  const registro = document.getElementById('e_fecha_registro').value;
   if (!registro) return;
 
   const f = new Date(registro + 'T00:00');
   f.setFullYear(f.getFullYear() + 1);
-  document.getElementById('m_fecha_caducidad').value = f.toISOString().slice(0, 10);
+  document.getElementById('e_fecha_caducidad').value = f.toISOString().slice(0, 10);
   evaluarCaducidad();
 }
 
 function evaluarCaducidad() {
-  const valor = document.getElementById('m_fecha_caducidad').value;
+  const valor = document.getElementById('e_fecha_caducidad').value;
   const $ayuda = document.getElementById('ayuda-caducidad');
 
   if (!valor) { $ayuda.textContent = 'Avisará 30 días antes'; $ayuda.className = 'ayuda'; return; }
@@ -745,7 +798,10 @@ function conectarEventos() {
   document.getElementById('btn-guardar-enlace').addEventListener('click', guardarEnlace);
   document.getElementById('btn-un-anio').addEventListener('click', aplicarUnAnio);
 
-  document.getElementById('m_fecha_caducidad').addEventListener('change', evaluarCaducidad);
+  document.getElementById('e_fecha_caducidad').addEventListener('change', evaluarCaducidad);
+  document.getElementById('e_fecha_registro').addEventListener('change', () => {
+    if (!document.getElementById('e_fecha_caducidad').value) aplicarUnAnio();
+  });
 
   document.getElementById('busqueda').addEventListener('input', retrasar(pintarLista, 200));
   document.getElementById('filtro-estado').addEventListener('change', pintarLista);
