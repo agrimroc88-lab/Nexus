@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trabajadores · NEXUS</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/empresas.css">
+  <link rel="stylesheet" href="css/trabajadores.css">
+</head>
+<body class="app">
+
+  <aside class="barra-lateral" id="barra-lateral">
+    <div class="lateral-marca">NEXUS</div>
+    <nav class="lateral-nav" id="lateral-nav"></nav>
+    <button class="lateral-salir" id="btn-salir" type="button">Cerrar sesión</button>
+  </aside>
+
+  <div class="contenedor">
+
+    <header class="cabecera">
+      <button class="cabecera-menu" id="btn-menu" type="button" aria-label="Menú">☰</button>
+      <h1 class="cabecera-titulo">Trabajadores</h1>
+      <div class="cabecera-usuario">
+        <span class="usuario-nombre" id="usuario-nombre">—</span>
+        <span class="usuario-rol" id="usuario-rol">—</span>
+      </div>
+    </header>
+
+    <main class="contenido">
+
+      <!-- Selector de empresa -->
+      <section class="selector-empresa">
+        <label class="etiqueta" for="empresa-activa">Empresa</label>
+        <select class="entrada" id="empresa-activa">
+          <option value="">— Seleccione una empresa —</option>
+        </select>
+      </section>
+
+      <!-- Resumen -->
+      <section class="resumen" id="resumen" hidden>
+        <article class="resumen-item">
+          <span class="resumen-etiqueta">Activos</span>
+          <span class="resumen-valor" id="kpi-activos">0</span>
+        </article>
+        <article class="resumen-item resumen-aviso">
+          <span class="resumen-etiqueta">Por programar</span>
+          <span class="resumen-valor" id="kpi-programar">0</span>
+        </article>
+        <article class="resumen-item resumen-critico">
+          <span class="resumen-etiqueta">Periódico vencido</span>
+          <span class="resumen-valor" id="kpi-vencidos">0</span>
+        </article>
+        <article class="resumen-item">
+          <span class="resumen-etiqueta">Inactivos</span>
+          <span class="resumen-valor" id="kpi-inactivos">0</span>
+        </article>
+      </section>
+
+      <!-- Herramientas -->
+      <section class="herramientas" id="herramientas" hidden>
+        <input class="busqueda" id="busqueda" type="search"
+               placeholder="Buscar por código, cédula o nombre…">
+        <select class="entrada filtro" id="filtro-estado">
+          <option value="activos">Activos</option>
+          <option value="inactivos">Inactivos</option>
+          <option value="todos">Todos</option>
+          <option value="por_programar">Por programar</option>
+          <option value="vencido">Periódico vencido</option>
+        </select>
+        <button class="boton-primario" id="btn-nuevo" type="button">+ Nuevo trabajador</button>
+      </section>
+
+      <!-- Listado -->
+      <section class="panel" id="panel" hidden>
+        <div class="tabla-envoltura">
+          <table class="tabla">
+            <thead>
+              <tr>
+                <th class="celda-centro">Código</th>
+                <th>Cédula</th>
+                <th>Apellidos y nombres</th>
+                <th>Cargo</th>
+                <th class="celda-centro">Edad</th>
+                <th class="celda-centro">Ingreso</th>
+                <th class="celda-centro">Antig.</th>
+                <th class="celda-centro">Periódico</th>
+                <th class="celda-derecha">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="cuerpo-tabla"></tbody>
+          </table>
+        </div>
+        <p class="vacio" id="vacio" hidden>Sin registros que coincidan.</p>
+      </section>
+
+      <p class="aviso-inicial" id="aviso-inicial">
+        Seleccione una empresa para gestionar su nómina.
+      </p>
+
+    </main>
+  </div>
+
+  <!-- Formulario de trabajador -->
+  <div class="modal" id="modal" hidden>
+    <div class="modal-caja" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo" id="modal-titulo">Nuevo trabajador</h2>
+        <button class="modal-cerrar" id="btn-cerrar" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+
+        <!-- Detección de reingreso -->
+        <div class="hallazgo" id="hallazgo" hidden>
+          <div class="hallazgo-texto" id="hallazgo-texto"></div>
+          <button class="boton-primario boton-compacto" id="btn-reingresar" type="button">
+            Registrar reingreso
+          </button>
+        </div>
+
+        <div class="rejilla">
+
+          <div class="campo">
+            <label class="etiqueta" for="cedula">Cédula <span class="obligatorio">*</span></label>
+            <input class="entrada" id="cedula" type="text" maxlength="10" inputmode="numeric"
+                   placeholder="0705191229">
+            <span class="ayuda" id="ayuda-cedula"></span>
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="codigo">Código <span class="obligatorio">*</span></label>
+            <input class="entrada" id="codigo" type="number" min="1" max="3000">
+            <span class="ayuda" id="ayuda-codigo"></span>
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="apellidos">Apellidos <span class="obligatorio">*</span></label>
+            <input class="entrada" id="apellidos" type="text">
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="nombres">Nombres <span class="obligatorio">*</span></label>
+            <input class="entrada" id="nombres" type="text">
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="fecha_nacimiento">Fecha de nacimiento</label>
+            <input class="entrada" id="fecha_nacimiento" type="date">
+            <span class="ayuda" id="ayuda-edad"></span>
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="sexo">Sexo</label>
+            <select class="entrada" id="sexo">
+              <option value="">— Seleccionar —</option>
+              <option value="M">Masculino</option>
+              <option value="F">Femenino</option>
+            </select>
+          </div>
+
+          <div class="campo" id="campo-sangre">
+            <label class="etiqueta" for="tipo_sangre">Tipo de sangre</label>
+            <select class="entrada" id="tipo_sangre">
+              <option value="">— Seleccionar —</option>
+              <option value="O+">O+</option>
+              <option value="O-">O−</option>
+              <option value="A+">A+</option>
+              <option value="A-">A−</option>
+              <option value="B+">B+</option>
+              <option value="B-">B−</option>
+              <option value="AB+">AB+</option>
+              <option value="AB-">AB−</option>
+            </select>
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="telefono">Teléfono</label>
+            <input class="entrada" id="telefono" type="tel">
+          </div>
+
+        </div>
+
+        <!-- Vinculación laboral: solo al crear -->
+        <div id="bloque-vinculacion">
+          <h3 class="subtitulo">Vinculación laboral</h3>
+          <div class="rejilla">
+
+            <div class="campo campo-ancho">
+              <label class="etiqueta" for="cargo_id">Cargo</label>
+              <select class="entrada" id="cargo_id">
+                <option value="">— Seleccionar —</option>
+              </select>
+              <span class="ayuda" id="ayuda-cargo"></span>
+            </div>
+
+            <div class="campo">
+              <label class="etiqueta" for="fecha_ingreso">Fecha de ingreso <span class="obligatorio">*</span></label>
+              <input class="entrada" id="fecha_ingreso" type="date">
+              <span class="ayuda" id="ayuda-antiguedad"></span>
+            </div>
+
+          </div>
+        </div>
+
+        <p class="alerta" id="alerta" role="alert" hidden></p>
+
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" id="btn-cancelar" type="button">Cancelar</button>
+        <button class="boton-primario" id="btn-guardar" type="button">Guardar</button>
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- Historial laboral -->
+  <div class="modal" id="modal-historial" hidden>
+    <div class="modal-caja modal-estrecho" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo" id="historial-titulo">Historial laboral</h2>
+        <button class="modal-cerrar" id="btn-cerrar-historial" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+        <div id="historial-lista"></div>
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" id="btn-cerrar-historial-2" type="button">Cerrar</button>
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- Registrar salida -->
+  <div class="modal" id="modal-salida" hidden>
+    <div class="modal-caja modal-estrecho" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo">Registrar salida</h2>
+        <button class="modal-cerrar" id="btn-cerrar-salida" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+        <p class="salida-sujeto" id="salida-sujeto"></p>
+
+        <div class="campo">
+          <label class="etiqueta" for="fecha_salida">Fecha de salida <span class="obligatorio">*</span></label>
+          <input class="entrada" id="fecha_salida" type="date">
+        </div>
+
+        <div class="campo">
+          <label class="etiqueta" for="motivo_salida">Motivo</label>
+          <select class="entrada" id="motivo_salida">
+            <option value="">— Seleccionar —</option>
+            <option value="renuncia">Renuncia</option>
+            <option value="terminacion_contrato">Terminación de contrato</option>
+            <option value="despido">Despido</option>
+            <option value="jubilacion">Jubilación</option>
+            <option value="fallecimiento">Fallecimiento</option>
+            <option value="otro">Otro</option>
+          </select>
+        </div>
+
+        <p class="nota">El código se conserva. Si reingresa, se le asignará el mismo.</p>
+        <p class="alerta" id="alerta-salida" role="alert" hidden></p>
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" id="btn-cancelar-salida" type="button">Cancelar</button>
+        <button class="boton-primario" id="btn-confirmar-salida" type="button">Confirmar salida</button>
+      </footer>
+
+    </div>
+  </div>
+
+  <script type="module" src="js/trabajadores.js"></script>
+</body>
+</html>
