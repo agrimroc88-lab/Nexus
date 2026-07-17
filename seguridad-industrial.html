@@ -42,6 +42,14 @@
 
       <div id="area-trabajo" hidden>
 
+        <nav class="pestanas">
+          <button class="pestana activa" data-vista="cumplimiento" type="button">Cumplimiento</button>
+          <button class="pestana" data-vista="capacitaciones" type="button">Capacitaciones</button>
+        </nav>
+
+        <!-- ============ Vista: Cumplimiento ============ -->
+        <section class="vista" id="vista-cumplimiento">
+
         <!-- Medidor de cumplimiento -->
         <section class="medidor-panel">
           <div class="medidor">
@@ -125,6 +133,75 @@
         <div id="lista-requisitos"></div>
 
         <p class="vacio" id="vacio" hidden>Sin requisitos que coincidan con el filtro.</p>
+
+        </section>
+
+        <!-- ============ Vista: Capacitaciones ============ -->
+        <section class="vista" id="vista-capacitaciones" hidden>
+
+          <!-- Resumen del año -->
+          <section class="capac-resumen">
+            <div class="capac-anio">
+              <label class="etiqueta" for="capac-anio">Año</label>
+              <select class="entrada entrada-anio" id="capac-anio"></select>
+            </div>
+
+            <article class="resumen-item">
+              <span class="resumen-etiqueta">Programadas</span>
+              <span class="resumen-valor" id="c-programadas">0</span>
+            </article>
+            <article class="resumen-item">
+              <span class="resumen-etiqueta">Ejecutadas</span>
+              <span class="resumen-valor" id="c-ejecutadas">0</span>
+            </article>
+            <article class="resumen-item">
+              <span class="resumen-etiqueta">Con registro</span>
+              <span class="resumen-valor" id="c-documentadas">0</span>
+            </article>
+            <article class="resumen-item">
+              <span class="resumen-etiqueta">Asistentes</span>
+              <span class="resumen-valor" id="c-asistentes">0</span>
+            </article>
+            <article class="resumen-item resumen-destacado">
+              <span class="resumen-etiqueta">Ejecución</span>
+              <span class="resumen-valor" id="c-porcentaje">—</span>
+            </article>
+          </section>
+
+          <section class="herramientas">
+            <button class="boton-primario" id="btn-nuevo-tema" type="button" hidden>
+              + Nuevo tema
+            </button>
+            <button class="boton-secundario" id="btn-abrir-anio" type="button" hidden>
+              Abrir año
+            </button>
+            <p class="pista pista-inline" id="pista-gth09">
+              Los registros de asistencia alimentan GTH-09 del cumplimiento.
+            </p>
+          </section>
+
+          <div class="tabla-envoltura">
+            <table class="tabla">
+              <thead>
+                <tr>
+                  <th>Tema</th>
+                  <th class="celda-centro">Fecha</th>
+                  <th class="celda-centro">Días</th>
+                  <th class="celda-centro">Asistentes</th>
+                  <th>Facilitador</th>
+                  <th class="celda-centro">Registro</th>
+                  <th class="celda-derecha">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="cuerpo-capacitaciones"></tbody>
+            </table>
+          </div>
+
+          <p class="vacio" id="vacio-capac" hidden>
+            No hay temas registrados. Agregue el primero.
+          </p>
+
+        </section>
 
       </div>
 
@@ -268,6 +345,103 @@
       <footer class="modal-pie">
         <button class="boton-secundario" data-cierra="modal-enlace" type="button">Cancelar</button>
         <button class="boton-primario" id="btn-guardar-enlace" type="button">Guardar enlace</button>
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- ============ Modal: Capacitación ============ -->
+  <div class="modal" id="modal-capac" hidden>
+    <div class="modal-caja modal-estrecho" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <div class="modal-encabezado">
+          <h2 class="modal-titulo" id="c-titulo">—</h2>
+          <span class="capac-anio-marca" id="c-anio-marca">—</span>
+        </div>
+        <button class="modal-cerrar" data-cierra="modal-capac" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+
+        <div class="rejilla">
+          <div class="campo">
+            <label class="etiqueta" for="c_fecha_inicio">Fecha de realización</label>
+            <input class="entrada" id="c_fecha_inicio" type="date">
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="c_fecha_fin">Fecha de cierre</label>
+            <input class="entrada" id="c_fecha_fin" type="date">
+            <span class="ayuda">Si tomó varios días cubrir al personal</span>
+          </div>
+        </div>
+
+        <div class="rejilla">
+          <div class="campo">
+            <label class="etiqueta" for="c_asistentes">Número de asistentes</label>
+            <input class="entrada" id="c_asistentes" type="number" min="0" placeholder="0">
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="c_facilitador">Facilitador</label>
+            <input class="entrada" id="c_facilitador" type="text">
+          </div>
+        </div>
+
+        <div class="campo">
+          <label class="etiqueta" for="c_url">Registro de asistencia</label>
+          <input class="entrada" id="c_url" type="url"
+                 placeholder="https://drive.google.com/…" autocomplete="off">
+          <span class="ayuda">Enlace al registro firmado. Alimenta GTH-09 del cumplimiento.</span>
+        </div>
+
+        <div class="campo">
+          <label class="etiqueta" for="c_observacion">Observación</label>
+          <input class="entrada" id="c_observacion" type="text">
+        </div>
+
+        <p class="alerta" id="alerta-capac" role="alert" hidden></p>
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" data-cierra="modal-capac" type="button">Cancelar</button>
+        <button class="boton-primario" id="btn-guardar-capac" type="button">Guardar</button>
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- ============ Modal: Tema ============ -->
+  <div class="modal" id="modal-tema" hidden>
+    <div class="modal-caja modal-estrecho" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo" id="t-titulo">Nuevo tema</h2>
+        <button class="modal-cerrar" data-cierra="modal-tema" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+        <div class="campo">
+          <label class="etiqueta" for="t_nombre">Nombre del tema <span class="obligatorio">*</span></label>
+          <input class="entrada" id="t_nombre" type="text"
+                 placeholder="Manejo manual de cargas" autocomplete="off">
+        </div>
+
+        <div class="campo">
+          <label class="etiqueta" for="t_descripcion">Descripción</label>
+          <input class="entrada" id="t_descripcion" type="text">
+        </div>
+
+        <p class="nota">
+          El tema se agrega a todas las empresas y abre un espacio de evidencia
+          en GTH-09. Persiste al cambiar de año; solo se vacían sus datos de ejecución.
+        </p>
+
+        <p class="alerta" id="alerta-tema" role="alert" hidden></p>
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" data-cierra="modal-tema" type="button">Cancelar</button>
+        <button class="boton-primario" id="btn-guardar-tema" type="button">Guardar tema</button>
       </footer>
 
     </div>
