@@ -17,6 +17,10 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
+/* El atributo hidden debe prevalecer sobre cualquier display */
+[hidden] { display: none !important; }
+
+
 body {
   margin: 0;
   font-family: var(--fuente-base);
