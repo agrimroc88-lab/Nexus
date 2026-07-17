@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Atenciones · NEXUS</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/empresas.css">
+  <link rel="stylesheet" href="css/trabajadores.css">
+  <link rel="stylesheet" href="css/farmacia.css">
+  <link rel="stylesheet" href="css/atenciones.css">
+</head>
+<body class="app">
+
+  <aside class="barra-lateral" id="barra-lateral">
+    <div class="lateral-marca">NEXUS</div>
+    <nav class="lateral-nav" id="lateral-nav"></nav>
+    <button class="lateral-salir" id="btn-salir" type="button">Cerrar sesión</button>
+  </aside>
+
+  <div class="contenedor">
+
+    <header class="cabecera">
+      <button class="cabecera-menu" id="btn-menu" type="button" aria-label="Menú">☰</button>
+      <h1 class="cabecera-titulo">Atenciones médicas</h1>
+      <div class="cabecera-usuario">
+        <span class="usuario-nombre" id="usuario-nombre">—</span>
+        <span class="usuario-rol" id="usuario-rol">—</span>
+      </div>
+    </header>
+
+    <main class="contenido">
+
+      <section class="selector-empresa">
+        <label class="etiqueta" for="empresa-activa">Empresa</label>
+        <select class="entrada" id="empresa-activa">
+          <option value="">— Seleccione una empresa —</option>
+        </select>
+      </section>
+
+      <div id="area-trabajo" hidden>
+
+        <section class="resumen">
+          <article class="resumen-item">
+            <span class="resumen-etiqueta">Atenciones del mes</span>
+            <span class="resumen-valor" id="kpi-mes">0</span>
+          </article>
+          <article class="resumen-item">
+            <span class="resumen-etiqueta">Atenciones del año</span>
+            <span class="resumen-valor" id="kpi-anio">0</span>
+          </article>
+          <article class="resumen-item">
+            <span class="resumen-etiqueta">Trabajadores atendidos</span>
+            <span class="resumen-valor" id="kpi-personas">0</span>
+          </article>
+          <article class="resumen-item resumen-aviso">
+            <span class="resumen-etiqueta">Días de reposo · año</span>
+            <span class="resumen-valor" id="kpi-reposo">0</span>
+          </article>
+        </section>
+
+        <nav class="pestanas">
+          <button class="pestana activa" data-vista="listado" type="button">Atenciones</button>
+          <button class="pestana" data-vista="morbilidad" type="button">Morbilidad</button>
+        </nav>
+
+        <!-- Vista: Listado -->
+        <section class="vista" id="vista-listado">
+
+          <div class="herramientas">
+            <input class="busqueda" id="busqueda" type="search"
+                   placeholder="Buscar por código, nombre o diagnóstico…">
+            <select class="entrada filtro" id="filtro-periodo">
+              <option value="mes">Este mes</option>
+              <option value="anio">Este año</option>
+              <option value="todos">Todas</option>
+            </select>
+            <button class="boton-primario" id="btn-nueva" type="button">+ Nueva atención</button>
+          </div>
+
+          <div class="panel">
+            <div class="tabla-envoltura">
+              <table class="tabla">
+                <thead>
+                  <tr>
+                    <th class="celda-centro">Fecha</th>
+                    <th class="celda-centro">Código</th>
+                    <th>Trabajador</th>
+                    <th class="celda-centro">Edad</th>
+                    <th>Diagnóstico principal</th>
+                    <th class="celda-centro">Dx</th>
+                    <th class="celda-centro">Rx</th>
+                    <th class="celda-centro">Reposo</th>
+                    <th class="celda-derecha">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="cuerpo-listado"></tbody>
+              </table>
+            </div>
+            <p class="vacio" id="vacio-listado" hidden>Sin atenciones registradas en el periodo.</p>
+          </div>
+        </section>
+
+        <!-- Vista: Morbilidad -->
+        <section class="vista" id="vista-morbilidad" hidden>
+
+          <div class="herramientas">
+            <select class="entrada filtro" id="morb-anio"></select>
+            <select class="entrada filtro" id="morb-mes">
+              <option value="0">Todo el año</option>
+              <option value="1">Enero</option>
+              <option value="2">Febrero</option>
+              <option value="3">Marzo</option>
+              <option value="4">Abril</option>
+              <option value="5">Mayo</option>
+              <option value="6">Junio</option>
+              <option value="7">Julio</option>
+              <option value="8">Agosto</option>
+              <option value="9">Septiembre</option>
+              <option value="10">Octubre</option>
+              <option value="11">Noviembre</option>
+              <option value="12">Diciembre</option>
+            </select>
+            <select class="entrada filtro" id="morb-tipo">
+              <option value="principal">Solo diagnóstico principal</option>
+              <option value="todos">Todos los diagnósticos</option>
+            </select>
+          </div>
+
+          <div class="panel">
+            <div class="tabla-envoltura">
+              <table class="tabla">
+                <thead>
+                  <tr>
+                    <th class="celda-centro">#</th>
+                    <th class="celda-centro">CIE-10</th>
+                    <th>Diagnóstico</th>
+                    <th class="celda-centro">Hombres</th>
+                    <th class="celda-centro">Mujeres</th>
+                    <th class="celda-centro">Total</th>
+                    <th>Distribución</th>
+                  </tr>
+                </thead>
+                <tbody id="cuerpo-morbilidad"></tbody>
+              </table>
+            </div>
+            <p class="vacio" id="vacio-morbilidad" hidden>Sin datos en el periodo seleccionado.</p>
+          </div>
+        </section>
+
+      </div>
+
+      <p class="aviso-inicial" id="aviso-inicial">
+        Seleccione una empresa para registrar y consultar atenciones.
+      </p>
+
+    </main>
+  </div>
+
+  <!-- ============ Modal: Nueva atención ============ -->
+  <div class="modal" id="modal-atencion" hidden>
+    <div class="modal-caja modal-ancho" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo">Nueva atención</h2>
+        <button class="modal-cerrar" data-cierra="modal-atencion" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+
+        <!-- Identificación del trabajador -->
+        <div class="rejilla">
+          <div class="campo">
+            <label class="etiqueta" for="at_codigo">Código de trabajador <span class="obligatorio">*</span></label>
+            <input class="entrada entrada-destacada" id="at_codigo" type="number" min="1" max="3000"
+                   placeholder="1830" autocomplete="off">
+            <span class="ayuda" id="ayuda-codigo"></span>
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="at_fecha">Fecha <span class="obligatorio">*</span></label>
+            <input class="entrada" id="at_fecha" type="date">
+          </div>
+        </div>
+
+        <!-- Ficha del trabajador -->
+        <div class="ficha" id="ficha" hidden>
+          <div class="ficha-datos">
+            <div class="ficha-item">
+              <span class="ficha-etiqueta">Nombre</span>
+              <span class="ficha-valor" id="f-nombre">—</span>
+            </div>
+            <div class="ficha-item">
+              <span class="ficha-etiqueta">Cédula</span>
+              <span class="ficha-valor celda-mono" id="f-cedula">—</span>
+            </div>
+            <div class="ficha-item">
+              <span class="ficha-etiqueta">Edad</span>
+              <span class="ficha-valor" id="f-edad">—</span>
+            </div>
+            <div class="ficha-item">
+              <span class="ficha-etiqueta">Sexo</span>
+              <span class="ficha-valor" id="f-sexo">—</span>
+            </div>
+            <div class="ficha-item">
+              <span class="ficha-etiqueta">Cargo</span>
+              <span class="ficha-valor" id="f-cargo">—</span>
+            </div>
+            <div class="ficha-item">
+              <span class="ficha-etiqueta">Tipo de sangre</span>
+              <span class="ficha-valor" id="f-sangre">—</span>
+            </div>
+          </div>
+
+          <!-- Alergias: dato permanente, capturable aquí -->
+          <div class="alergias">
+            <label class="alergias-etiqueta" for="at_alergias">⚠ Alergias conocidas</label>
+            <input class="alergias-entrada" id="at_alergias" type="text"
+                   placeholder="Ninguna conocida · escriba aquí para registrar">
+            <span class="alergias-nota">Se conserva en la ficha del trabajador</span>
+          </div>
+        </div>
+
+        <!-- Motivo -->
+        <div class="campo" id="bloque-motivo" hidden>
+          <label class="etiqueta" for="at_motivo">Motivo de consulta</label>
+          <textarea class="entrada area" id="at_motivo" rows="2"
+                    placeholder="Síntomas referidos por el trabajador"></textarea>
+        </div>
+
+        <!-- Signos vitales -->
+        <details class="plegable" id="bloque-vitales" hidden>
+          <summary class="plegable-titulo">Signos vitales · opcional</summary>
+          <div class="rejilla rejilla-vitales">
+            <div class="campo">
+              <label class="etiqueta" for="at_sistolica">P. sistólica</label>
+              <input class="entrada" id="at_sistolica" type="number" min="50" max="300" placeholder="120">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="at_diastolica">P. diastólica</label>
+              <input class="entrada" id="at_diastolica" type="number" min="30" max="200" placeholder="80">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="at_fc">F. cardíaca</label>
+              <input class="entrada" id="at_fc" type="number" min="30" max="220" placeholder="72">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="at_fr">F. respiratoria</label>
+              <input class="entrada" id="at_fr" type="number" min="5" max="60" placeholder="16">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="at_temp">Temperatura</label>
+              <input class="entrada" id="at_temp" type="number" step="0.1" min="30" max="45" placeholder="36.5">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="at_sat">Saturación</label>
+              <input class="entrada" id="at_sat" type="number" min="50" max="100" placeholder="98">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="at_peso">Peso · kg</label>
+              <input class="entrada" id="at_peso" type="number" step="0.1" min="20" max="300">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="at_talla">Talla · m</label>
+              <input class="entrada" id="at_talla" type="number" step="0.01" min="1" max="2.5" placeholder="1.70">
+            </div>
+          </div>
+          <p class="ayuda" id="ayuda-imc"></p>
+        </details>
+
+        <!-- Diagnósticos -->
+        <div id="bloque-diagnosticos" hidden>
+          <div class="seccion-cabecera">
+            <h3 class="subtitulo subtitulo-plano">Diagnósticos</h3>
+            <button class="boton-agregar" id="btn-add-diagnostico" type="button">+ Añadir diagnóstico</button>
+          </div>
+          <div id="lista-diagnosticos"></div>
+          <p class="nota">El primer diagnóstico es el principal y es el que computa en los indicadores de morbilidad.</p>
+        </div>
+
+        <!-- Medicamentos -->
+        <div id="bloque-medicamentos" hidden>
+          <div class="seccion-cabecera">
+            <h3 class="subtitulo subtitulo-plano">Medicamentos</h3>
+            <button class="boton-agregar" id="btn-add-medicamento" type="button">+ Añadir medicamento</button>
+          </div>
+          <div id="lista-medicamentos"></div>
+          <p class="nota">La entrega descuenta del botiquín aplicando FEFO. Si no hay existencia suficiente, la atención se registra igual y el medicamento queda como no entregado.</p>
+        </div>
+
+        <!-- Cierre -->
+        <div class="rejilla" id="bloque-cierre" hidden>
+          <div class="campo campo-ancho">
+            <label class="etiqueta" for="at_observacion">Observación</label>
+            <textarea class="entrada area" id="at_observacion" rows="2"></textarea>
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="at_reposo">Días de reposo</label>
+            <input class="entrada" id="at_reposo" type="number" min="0" value="0">
+          </div>
+        </div>
+
+        <p class="alerta" id="alerta-atencion" role="alert" hidden></p>
+
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" data-cierra="modal-atencion" type="button">Cancelar</button>
+        <button class="boton-primario" id="btn-guardar-atencion" type="button">Registrar atención</button>
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- ============ Modal: Buscador CIE-10 ============ -->
+  <div class="modal" id="modal-cie" hidden>
+    <div class="modal-caja" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo">Buscar diagnóstico</h2>
+        <button class="modal-cerrar" data-cierra="modal-cie" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+        <input class="entrada entrada-busqueda" id="cie-busqueda" type="search"
+               placeholder="Escriba código o descripción · ej. M54.5 o lumbago" autocomplete="off">
+
+        <div class="resultados" id="cie-resultados"></div>
+
+        <!-- Alta de código faltante -->
+        <div class="agregar-cie" id="agregar-cie" hidden>
+          <p class="agregar-texto">
+            ¿No encuentra el código? Regístrelo y quedará disponible en el catálogo.
+          </p>
+          <div class="rejilla">
+            <div class="campo">
+              <label class="etiqueta" for="nuevo_cie_codigo">Código <span class="obligatorio">*</span></label>
+              <input class="entrada" id="nuevo_cie_codigo" type="text" placeholder="M54.5">
+              <span class="ayuda" id="ayuda-nuevo-cie">Formato: letra + 2 dígitos + subcategoría</span>
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="nuevo_cie_desc">Descripción <span class="obligatorio">*</span></label>
+              <input class="entrada" id="nuevo_cie_desc" type="text">
+            </div>
+          </div>
+          <button class="boton-primario boton-compacto" id="btn-crear-cie" type="button">
+            Registrar código
+          </button>
+        </div>
+
+        <p class="alerta" id="alerta-cie" role="alert" hidden></p>
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" id="btn-mostrar-agregar" type="button">+ Código no listado</button>
+        <button class="boton-secundario" data-cierra="modal-cie" type="button">Cerrar</button>
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- ============ Modal: Detalle ============ -->
+  <div class="modal" id="modal-detalle" hidden>
+    <div class="modal-caja" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo" id="detalle-titulo">Detalle de atención</h2>
+        <button class="modal-cerrar" data-cierra="modal-detalle" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo" id="detalle-cuerpo"></div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" data-cierra="modal-detalle" type="button">Cerrar</button>
+      </footer>
+
+    </div>
+  </div>
+
+  <script type="module" src="js/atenciones.js"></script>
+</body>
+</html>
