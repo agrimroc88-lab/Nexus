@@ -44,7 +44,14 @@ const estado = {
   anio: new Date().getFullYear(),
   capacitaciones: [],
   indCapac: null,
-  capacActual: null    // capacitación abierta en el modal
+  capacActual: null,   // capacitación abierta en el modal
+  eventos: [],
+  indEventos: null,
+  eventoActual: null,
+  trabajadorEvento: null,
+  ocupacionales: [],
+  indOcup: null,
+  ocupActual: null
 };
 
 const HOY = () => new Date().toISOString().slice(0, 10);
@@ -75,6 +82,8 @@ async function iniciar() {
   montarNavegacion(perfil, MODULO);
 
   prepararAnios();
+  prepararAniosEventos();
+  ocultarPestanasAjenas();
   await cargarEmpresas();
   conectarEventos();
 }
@@ -1048,6 +1057,789 @@ function alertaTema(texto) {
 }
 
 /* ============================================
+   Eventos
+   Seguridad: incidentes y accidentes.
+   Salud: enfermedades profesionales.
+   Mismo motor; la tabla y las columnas cambian.
+   ============================================ */
+
+/* Configuración por ámbito: evita duplicar la lógica */
+const EVENTOS = AMBITO === 'seguridad'
+  ? {
+      tabla: 'eventos_sst',
+      vista: 'v_eventos_sst',
+      indicadores: 'v_indicadores_eventos',
+      titulo: 'Registrar evento',
+      etiquetaFecha: 'Fecha del evento',
+      textoReporte: 'Reportado al IESS',
+      pista: 'Los accidentes sin investigar ni reportar incumplen POB-08 y POB-09.'
+    }
+  : {
+      tabla: 'enfermedades_profesionales',
+      vista: 'v_enfermedades_profesionales',
+      indicadores: 'v_indicadores_ep',
+      titulo: 'Registrar enfermedad profesional',
+      etiquetaFecha: 'Fecha de presunción',
+      textoReporte: 'Presunción reportada',
+      pista: 'La presunción sin reportar a la autoridad incumple POB-12.'
+    };
+
+const MESES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+               'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+function prepararAniosEventos() {
+  const actual = new Date().getFullYear();
+  ['ev-anio', 'ao-anio'].forEach((id) => {
+    const $sel = document.getElementById(id);
+    if (!$sel) return;
+    for (let a = actual; a >= actual - 5; a--) {
+      const opcion = document.createElement('option');
+      opcion.value = a;
+      opcion.textContent = a;
+      $sel.appendChild(opcion);
+    }
+  });
+}
+
+async function cargarEventos() {
+  const anio = parseInt(document.getElementById('ev-anio').value, 10);
+  const mes = parseInt(document.getElementById('ev-mes').value, 10);
+
+  let consulta = supabase.from(EVENTOS.vista).select('*')
+    .eq('empresa_id', estado.empresaId)
+    .eq('anio', anio)
+    .order('fecha', { ascending: false });
+
+  if (mes !== 0) consulta = consulta.eq('mes', mes);
+
+  const { data, error } = await consulta;
+  estado.eventos = error ? [] : (data || []);
+
+  /* Indicadores del período */
+  let ind = supabase.from(EVENTOS.indicadores).select('*')
+    .eq('empresa_id', estado.empresaId).eq('anio', anio);
+  if (mes !== 0) ind = ind.eq('mes', mes);
+
+  const { data: filas } = await ind;
+  estado.indEventos = agregarIndicadores(filas || []);
+
+  document.getElementById('btn-nuevo-evento').hidden = !puedeEscribir();
+  document.getElementById('ev-pista').textContent = EVENTOS.pista;
+}
+
+/** Suma los meses del período seleccionado */
+function agregarIndicadores(filas) {
+  if (filas.length === 0) return null;
+
+  const suma = {};
+  const campos = Object.keys(filas[0]).filter(
+    (k) => !['empresa_id', 'anio', 'mes', 'ambito'].includes(k)
+  );
+
+  campos.forEach((c) => {
+    suma[c] = filas.reduce((s, f) => s + (Number(f[c]) || 0), 0);
+  });
+
+  return suma;
+}
+
+function pintarEventos() {
+  pintarTarjetasEventos();
+  pintarDistribuciones();
+  pintarTablaEventos();
+}
+
+function pintarTarjetasEventos() {
+  const i = estado.indEventos;
+  const $cont = document.getElementById('ev-tarjetas');
+
+  const tarjetas = AMBITO === 'seguridad'
+    ? [
+        { etiqueta: 'Incidentes', valor: i?.incidentes ?? 0 },
+        { etiqueta: 'Accidentes', valor: i?.accidentes ?? 0 },
+        { etiqueta: 'Con baja', valor: i?.accidentes_baja ?? 0, alerta: true },
+        { etiqueta: 'Días perdidos', valor: i?.dias_perdidos ?? 0, alerta: true }
+      ]
+    : [
+        { etiqueta: 'Presunciones', valor: i?.presunciones ?? 0 },
+        { etiqueta: 'Calificadas', valor: i?.calificadas ?? 0, alerta: true },
+        { etiqueta: 'Descartadas', valor: i?.descartadas ?? 0 },
+        { etiqueta: 'Días perdidos', valor: i?.dias_perdidos ?? 0 }
+      ];
+
+  $cont.innerHTML = tarjetas.map((t) => `
+    <article class="resumen-item ${t.alerta && t.valor > 0 ? 'resumen-alerta' : ''}">
+      <span class="resumen-etiqueta">${t.etiqueta}</span>
+      <span class="resumen-valor">${t.valor}</span>
+    </article>
+  `).join('');
+}
+
+function pintarDistribuciones() {
+  const i = estado.indEventos;
+
+  pintarBarras('ev-sexo', [
+    { etiqueta: 'Hombres', valor: i?.hombres ?? 0 },
+    { etiqueta: 'Mujeres', valor: i?.mujeres ?? 0 }
+  ]);
+
+  pintarBarras('ev-turno', [
+    { etiqueta: 'Día', valor: i?.turno_dia ?? 0 },
+    { etiqueta: 'Tarde', valor: i?.turno_tarde ?? 0 },
+    { etiqueta: 'Noche', valor: i?.turno_noche ?? 0 }
+  ]);
+
+  /* Por área: se calcula del listado, no hay vista agregada */
+  const porArea = new Map();
+  estado.eventos.forEach((e) => {
+    const a = e.area || 'Sin especificar';
+    porArea.set(a, (porArea.get(a) || 0) + 1);
+  });
+
+  const areas = [...porArea.entries()]
+    .map(([etiqueta, valor]) => ({ etiqueta, valor }))
+    .sort((a, b) => b.valor - a.valor)
+    .slice(0, 6);
+
+  pintarBarras('ev-area', areas);
+}
+
+function pintarBarras(id, datos) {
+  const $cont = document.getElementById(id);
+  const total = datos.reduce((s, d) => s + d.valor, 0);
+
+  if (total === 0) {
+    $cont.innerHTML = '<p class="barras-vacio">Sin registros</p>';
+    return;
+  }
+
+  $cont.innerHTML = datos.map((d) => {
+    const pct = Math.round(d.valor / total * 100);
+    return `
+      <div class="barra-fila">
+        <span class="barra-etiqueta">${escapar(d.etiqueta)}</span>
+        <div class="barra-pista">
+          <div class="barra-relleno" style="width:${pct}%"></div>
+        </div>
+        <span class="barra-valor">${d.valor}</span>
+        <span class="barra-pct">${pct}%</span>
+      </div>
+    `;
+  }).join('');
+}
+
+function pintarTablaEventos() {
+  const $cab = document.getElementById('ev-cabecera');
+  const $cuerpo = document.getElementById('cuerpo-eventos');
+
+  $cab.innerHTML = AMBITO === 'seguridad'
+    ? `<th class="celda-centro">Fecha</th>
+       <th class="celda-centro">Tipo</th>
+       <th>Área</th>
+       <th class="celda-centro">Turno</th>
+       <th class="celda-centro">Sexo</th>
+       <th>Descripción</th>
+       <th class="celda-centro">Baja</th>
+       <th class="celda-centro">Gestión</th>
+       <th class="celda-derecha">Acciones</th>`
+    : `<th class="celda-centro">Fecha</th>
+       <th class="celda-centro">Estado</th>
+       <th>Área</th>
+       <th class="celda-centro">Turno</th>
+       <th class="celda-centro">Sexo</th>
+       <th>Diagnóstico</th>
+       <th class="celda-centro">Baja</th>
+       <th class="celda-centro">Reporte</th>
+       <th class="celda-derecha">Acciones</th>`;
+
+  $cuerpo.innerHTML = '';
+  document.getElementById('vacio-eventos').hidden = estado.eventos.length > 0;
+
+  const frag = document.createDocumentFragment();
+  estado.eventos.forEach((e) => frag.appendChild(filaEvento(e)));
+  $cuerpo.appendChild(frag);
+}
+
+const ETIQUETA_TIPO = {
+  incidente:      ['insignia-inactiva', 'Incidente'],
+  accidente:      ['insignia-aviso',    'Accidente'],
+  accidente_baja: ['insignia-critica',  'Con baja']
+};
+
+const ETIQUETA_EP = {
+  presuncion: ['insignia-aviso',    'Presunción'],
+  calificada: ['insignia-critica',  'Calificada'],
+  descartada: ['insignia-inactiva', 'Descartada']
+};
+
+function filaEvento(e) {
+  const fila = document.createElement('tr');
+
+  const [clase, texto] = AMBITO === 'seguridad'
+    ? (ETIQUETA_TIPO[e.tipo] || ['insignia-inactiva', '—'])
+    : (ETIQUETA_EP[e.estado] || ['insignia-inactiva', '—']);
+
+  const detalle = AMBITO === 'seguridad'
+    ? escapar(e.descripcion || '')
+    : `${e.codigo_cie10 ? `<span class="cie-chip">${escapar(e.codigo_cie10)}</span> ` : ''}${escapar(e.diagnostico || '')}`;
+
+  fila.innerHTML = `
+    <td class="celda-centro celda-mono">${formatearFecha(e.fecha)}</td>
+    <td class="celda-centro"><span class="insignia ${clase}">${texto}</span></td>
+    <td>${escapar(textoOGuion(e.area))}</td>
+    <td class="celda-centro celda-tenue">${turnoTexto(e.turno)}</td>
+    <td class="celda-centro">${e.sexo === 'M' ? 'H' : 'M'}</td>
+    <td class="celda-detalle">
+      ${detalle}
+      ${e.trabajador ? `<span class="secundario">${escapar(e.trabajador)}</span>` : ''}
+    </td>
+    <td class="celda-centro">
+      ${e.dias_baja > 0 ? `<span class="reposo">${e.dias_baja}</span>` : '—'}
+    </td>
+    <td class="celda-centro"></td>
+    <td class="celda-derecha"></td>
+  `;
+
+  /* Gestión */
+  const $g = fila.querySelector('td:nth-child(8)');
+  if (e.gestion === 'sin_investigar') {
+    $g.innerHTML = '<span class="chip-falta" title="POB-08 exige el informe de investigación">Sin investigar</span>';
+  } else if (e.gestion === 'sin_reportar') {
+    $g.innerHTML = `<span class="chip-falta" title="${AMBITO === 'seguridad' ? 'POB-09' : 'POB-12'} exige el reporte a la autoridad">Sin reportar</span>`;
+  } else if (e.gestion) {
+    $g.innerHTML = '<span class="chip-registro-est">Gestionado</span>';
+  } else {
+    $g.innerHTML = '<span class="celda-tenue">—</span>';
+  }
+
+  /* Acciones */
+  const $a = fila.querySelector('td:last-child');
+  if (puedeEscribir()) {
+    const btn = document.createElement('button');
+    btn.className = 'boton-icono';
+    btn.type = 'button';
+    btn.textContent = 'Editar';
+    btn.addEventListener('click', () => abrirEvento(e));
+    $a.appendChild(btn);
+  } else {
+    $a.innerHTML = '<span class="celda-tenue">—</span>';
+  }
+
+  return fila;
+}
+
+function turnoTexto(t) {
+  return { dia: 'Día', tarde: 'Tarde', noche: 'Noche' }[t] || '—';
+}
+
+/* --- Modal de evento --- */
+
+async function abrirEvento(e) {
+  estado.eventoActual = e || null;
+
+  document.getElementById('ev-titulo').textContent =
+    e ? 'Editar registro' : EVENTOS.titulo;
+  document.getElementById('ev-etiqueta-fecha').textContent = EVENTOS.etiquetaFecha;
+  document.getElementById('ev-texto-reporte').textContent = EVENTOS.textoReporte;
+
+  /* Campos propios de cada ámbito */
+  const esSeguridad = AMBITO === 'seguridad';
+  document.getElementById('ev-campo-tipo').hidden = !esSeguridad;
+  document.getElementById('ev-campo-hora').hidden = !esSeguridad;
+  document.getElementById('ev-campo-investigado').hidden = !esSeguridad;
+  document.getElementById('ev-bloque-desc').hidden = !esSeguridad;
+  document.getElementById('ev-campo-estado').hidden = esSeguridad;
+  document.getElementById('ev-bloque-dx').hidden = esSeguridad;
+
+  await cargarAreas();
+
+  if (e) {
+    document.getElementById('ev_fecha').value = e.fecha ?? '';
+    document.getElementById('ev_hora').value = e.hora?.slice(0, 5) ?? '';
+    document.getElementById('ev_turno').value = e.turno ?? 'dia';
+    document.getElementById('ev_area').value = e.area_id ?? '';
+    document.getElementById('ev_area_texto').value = e.area_id ? '' : (e.area ?? '');
+    document.getElementById('ev_codigo').value = e.codigo_trabajador ?? '';
+    document.getElementById('ev_sexo').value = e.sexo ?? 'M';
+    document.getElementById('ev_dias').value = e.dias_baja ?? 0;
+    document.getElementById('ev_reportado').checked = e.reportado_iess ?? false;
+    document.getElementById('ev_fecha_reporte').value = e.fecha_reporte ?? '';
+    document.getElementById('ev_url').value = e.url_informe ?? '';
+    document.getElementById('ev_medidas').value = e.medidas ?? '';
+    document.getElementById('ev_observacion').value = e.observacion ?? '';
+
+    if (esSeguridad) {
+      marcarRadio('ev_tipo', e.tipo);
+      document.getElementById('ev_investigado').checked = e.investigado ?? false;
+      document.getElementById('ev_descripcion').value = e.descripcion ?? '';
+      document.getElementById('ev_parte').value = e.parte_cuerpo ?? '';
+      document.getElementById('ev_agente').value = e.agente ?? '';
+    } else {
+      marcarRadio('ev_estado', e.estado);
+      document.getElementById('ev_cie').value = e.codigo_cie10 ?? '';
+      document.getElementById('ev_diagnostico').value = e.diagnostico ?? '';
+      document.getElementById('ev_agente_causal').value = e.agente_causal ?? '';
+      document.getElementById('ev_fecha_dictamen').value = e.fecha_dictamen ?? '';
+    }
+  } else {
+    limpiarFormEvento();
+  }
+
+  document.getElementById('btn-eliminar-evento').hidden = !e || !puedeEscribir();
+  document.getElementById('alerta-evento').hidden = true;
+  ajustarCamposEvento();
+  document.getElementById('modal-evento').hidden = false;
+  document.getElementById('ev_fecha').focus();
+}
+
+function limpiarFormEvento() {
+  ['ev_fecha', 'ev_hora', 'ev_area_texto', 'ev_codigo', 'ev_url', 'ev_medidas',
+   'ev_observacion', 'ev_descripcion', 'ev_parte', 'ev_agente', 'ev_cie',
+   'ev_diagnostico', 'ev_agente_causal', 'ev_fecha_dictamen', 'ev_fecha_reporte'
+  ].forEach((id) => {
+    const $e = document.getElementById(id);
+    if ($e) $e.value = '';
+  });
+
+  document.getElementById('ev_fecha').value = HOY();
+  document.getElementById('ev_turno').value = 'dia';
+  document.getElementById('ev_area').value = '';
+  document.getElementById('ev_sexo').value = 'M';
+  document.getElementById('ev_dias').value = 0;
+  document.getElementById('ev_investigado').checked = false;
+  document.getElementById('ev_reportado').checked = false;
+  document.getElementById('ev-ayuda-trabajador').textContent = '';
+  marcarRadio('ev_tipo', 'incidente');
+  marcarRadio('ev_estado', 'presuncion');
+}
+
+function marcarRadio(nombre, valor) {
+  const $r = document.querySelector(`input[name="${nombre}"][value="${valor}"]`);
+  if ($r) $r.checked = true;
+}
+
+function leerRadio(nombre) {
+  return document.querySelector(`input[name="${nombre}"]:checked`)?.value;
+}
+
+/** Muestra u oculta campos según el tipo o estado elegido */
+function ajustarCamposEvento() {
+  if (AMBITO === 'seguridad') {
+    const tipo = leerRadio('ev_tipo');
+    const conBaja = tipo === 'accidente_baja';
+    document.getElementById('ev-campo-dias').hidden = !conBaja;
+    if (!conBaja) document.getElementById('ev_dias').value = 0;
+  } else {
+    const est = leerRadio('ev_estado');
+    document.getElementById('ev-campo-dictamen').hidden = est === 'presuncion';
+  }
+
+  document.getElementById('ev-campo-freporte').hidden =
+    !document.getElementById('ev_reportado').checked;
+}
+
+/** Las áreas cuelgan de sucursal; se unen por empresa */
+async function cargarAreas() {
+  const $sel = document.getElementById('ev_area');
+  if ($sel.dataset.empresa === estado.empresaId) return;
+
+  const { data, error } = await supabase
+    .from('areas')
+    .select('id, nombre, sucursales!inner(empresa_id, nombre)')
+    .eq('sucursales.empresa_id', estado.empresaId)
+    .eq('activo', true)
+    .order('nombre');
+
+  $sel.innerHTML = '<option value="">— Seleccione —</option>';
+  if (error) return;
+
+  (data || []).forEach((a) => {
+    const o = document.createElement('option');
+    o.value = a.id;
+    o.textContent = a.nombre;
+    $sel.appendChild(o);
+  });
+
+  $sel.dataset.empresa = estado.empresaId;
+}
+
+/** Busca el trabajador por código y autocompleta el sexo */
+const buscarTrabajadorEvento = retrasar(async () => {
+  const codigo = parseInt(document.getElementById('ev_codigo').value, 10);
+  const $ayuda = document.getElementById('ev-ayuda-trabajador');
+
+  if (!codigo) { $ayuda.textContent = ''; estado.trabajadorEvento = null; return; }
+
+  const { data } = await supabase
+    .from('v_trabajadores')
+    .select('id, nombre_completo, sexo')
+    .eq('empresa_id', estado.empresaId)
+    .eq('codigo', codigo)
+    .maybeSingle();
+
+  if (!data) {
+    $ayuda.textContent = 'Código no encontrado';
+    $ayuda.className = 'ayuda ayuda-error';
+    estado.trabajadorEvento = null;
+    return;
+  }
+
+  $ayuda.textContent = data.nombre_completo;
+  $ayuda.className = 'ayuda ayuda-ok';
+  estado.trabajadorEvento = data;
+  if (data.sexo) document.getElementById('ev_sexo').value = data.sexo;
+}, 400);
+
+/* --- Buscador CIE-10 para enfermedad profesional --- */
+
+const buscarCieEvento = retrasar(async () => {
+  const texto = document.getElementById('ev_cie').value.trim();
+  const $sug = document.getElementById('ev_cie_sug');
+
+  if (texto.length < 2) { $sug.hidden = true; return; }
+
+  const { data } = await supabase
+    .from('cie10')
+    .select('codigo, descripcion')
+    .or(`codigo.ilike.${texto}%,descripcion.ilike.%${texto}%`)
+    .order('codigo')
+    .limit(8);
+
+  if (!data || data.length === 0) { $sug.hidden = true; return; }
+
+  $sug.innerHTML = '';
+  data.forEach((c) => {
+    const b = document.createElement('button');
+    b.className = 'sugerencia';
+    b.type = 'button';
+    b.innerHTML = `<span class="cie-chip">${escapar(c.codigo)}</span>
+                   <span class="sugerencia-nombre">${escapar(c.descripcion)}</span>`;
+    b.addEventListener('click', () => {
+      document.getElementById('ev_cie').value = c.codigo;
+      document.getElementById('ev_diagnostico').value = c.descripcion;
+      $sug.hidden = true;
+    });
+    $sug.appendChild(b);
+  });
+  $sug.hidden = false;
+}, 300);
+
+/* --- Guardar --- */
+
+async function guardarEvento() {
+  const fecha = document.getElementById('ev_fecha').value;
+  if (!fecha) return alertaEvento('Indique la fecha');
+
+  const areaId = document.getElementById('ev_area').value || null;
+  const areaTexto = document.getElementById('ev_area_texto').value.trim() || null;
+  if (!areaId && !areaTexto) return alertaEvento('Indique el área o escriba el lugar');
+
+  const url = document.getElementById('ev_url').value.trim() || null;
+  if (url && !/^https?:\/\//i.test(url)) {
+    return alertaEvento('El enlace debe comenzar con http:// o https://');
+  }
+
+  const base = {
+    empresa_id: estado.empresaId,
+    fecha,
+    turno: document.getElementById('ev_turno').value,
+    area_id: areaId,
+    area_texto: areaId ? null : areaTexto,
+    trabajador_id: estado.trabajadorEvento?.id ?? null,
+    sexo: document.getElementById('ev_sexo').value,
+    reportado_iess: document.getElementById('ev_reportado').checked,
+    fecha_reporte: document.getElementById('ev_fecha_reporte').value || null,
+    url_informe: url,
+    medidas: document.getElementById('ev_medidas').value.trim() || null,
+    observacion: document.getElementById('ev_observacion').value.trim() || null
+  };
+
+  let datos;
+
+  if (AMBITO === 'seguridad') {
+    const tipo = leerRadio('ev_tipo');
+    const dias = parseInt(document.getElementById('ev_dias').value, 10) || 0;
+    const desc = document.getElementById('ev_descripcion').value.trim();
+
+    if (!desc) return alertaEvento('Describa lo ocurrido');
+    if (tipo === 'accidente_baja' && dias < 1) {
+      return alertaEvento('El accidente con baja requiere al menos un día perdido');
+    }
+
+    datos = {
+      ...base,
+      tipo,
+      hora: document.getElementById('ev_hora').value || null,
+      descripcion: desc,
+      parte_cuerpo: document.getElementById('ev_parte').value.trim() || null,
+      agente: document.getElementById('ev_agente').value.trim() || null,
+      dias_baja: tipo === 'accidente_baja' ? dias : 0,
+      investigado: document.getElementById('ev_investigado').checked
+    };
+  } else {
+    const est = leerRadio('ev_estado');
+    const dx = document.getElementById('ev_diagnostico').value.trim();
+    const dictamen = document.getElementById('ev_fecha_dictamen').value || null;
+
+    if (!dx) return alertaEvento('Indique el diagnóstico');
+    if (est !== 'presuncion' && !dictamen) {
+      return alertaEvento('Un caso calificado o descartado exige la fecha del dictamen');
+    }
+
+    datos = {
+      ...base,
+      estado: est,
+      codigo_cie10: document.getElementById('ev_cie').value.trim() || null,
+      diagnostico: dx,
+      agente_causal: document.getElementById('ev_agente_causal').value.trim() || null,
+      fecha_dictamen: dictamen,
+      dias_baja: parseInt(document.getElementById('ev_dias').value, 10) || 0
+    };
+  }
+
+  const $btn = document.getElementById('btn-guardar-evento');
+  $btn.disabled = true;
+
+  const { error } = estado.eventoActual
+    ? await supabase.from(EVENTOS.tabla).update(datos).eq('id', estado.eventoActual.id)
+    : await supabase.from(EVENTOS.tabla).insert(datos);
+
+  $btn.disabled = false;
+
+  if (error) return alertaEvento(traducirBd(error));
+
+  document.getElementById('modal-evento').hidden = true;
+  await cargarEventos();
+  pintarEventos();
+}
+
+async function eliminarEvento() {
+  const e = estado.eventoActual;
+  if (!e) return;
+  if (!confirm('¿Eliminar este registro? La acción no se puede deshacer.')) return;
+
+  const { error } = await supabase.from(EVENTOS.tabla).delete().eq('id', e.id);
+  if (error) return alertaEvento(traducirBd(error));
+
+  document.getElementById('modal-evento').hidden = true;
+  await cargarEventos();
+  pintarEventos();
+}
+
+function alertaEvento(texto) {
+  const $a = document.getElementById('alerta-evento');
+  $a.textContent = texto;
+  $a.hidden = false;
+}
+
+/* ============================================
+   Atenciones ocupacionales · solo salud
+   Conteo mensual: el expediente individual ya
+   vive en el módulo clínico.
+   ============================================ */
+
+const TIPOS_AO = [
+  { id: 'ingreso',   texto: 'Ingreso' },
+  { id: 'periodica', texto: 'Periódica' },
+  { id: 'reintegro', texto: 'Reintegro' },
+  { id: 'egreso',    texto: 'Egreso' }
+];
+
+async function cargarOcupacionales() {
+  if (AMBITO !== 'salud') return;
+
+  const anio = parseInt(document.getElementById('ao-anio').value, 10);
+
+  const [filas, ind] = await Promise.all([
+    supabase.from('v_atenciones_ocupacionales').select('*')
+      .eq('empresa_id', estado.empresaId).eq('anio', anio)
+      .order('mes'),
+    supabase.from('v_indicadores_atenciones_ocup').select('*')
+      .eq('empresa_id', estado.empresaId).eq('anio', anio).maybeSingle()
+  ]);
+
+  estado.ocupacionales = filas.data || [];
+  estado.indOcup = ind.data;
+
+  document.getElementById('btn-abrir-ao').hidden =
+    estado.ocupacionales.length > 0 || !puedeEscribir();
+}
+
+function pintarOcupacionales() {
+  const i = estado.indOcup;
+
+  document.getElementById('ao-ingreso').textContent   = i?.ingreso ?? 0;
+  document.getElementById('ao-periodica').textContent = i?.periodica ?? 0;
+  document.getElementById('ao-reintegro').textContent = i?.reintegro ?? 0;
+  document.getElementById('ao-egreso').textContent    = i?.egreso ?? 0;
+  document.getElementById('ao-total').textContent     = i?.total ?? 0;
+
+  pintarBarras('ao-sexo', [
+    { etiqueta: 'Hombres', valor: i?.hombres ?? 0 },
+    { etiqueta: 'Mujeres', valor: i?.mujeres ?? 0 }
+  ]);
+
+  const $cuerpo = document.getElementById('cuerpo-ocupacionales');
+  const $pie = document.getElementById('pie-ocupacionales');
+  $cuerpo.innerHTML = '';
+  $pie.innerHTML = '';
+
+  document.getElementById('vacio-ao').hidden = estado.ocupacionales.length > 0;
+  if (estado.ocupacionales.length === 0) return;
+
+  /* Indexar por mes y tipo */
+  const mapa = new Map();
+  estado.ocupacionales.forEach((a) => {
+    if (!mapa.has(a.mes)) mapa.set(a.mes, {});
+    mapa.get(a.mes)[a.tipo] = a;
+  });
+
+  const frag = document.createDocumentFragment();
+  const totales = {};
+  TIPOS_AO.forEach((t) => { totales[t.id] = { h: 0, m: 0 }; });
+
+  for (let mes = 1; mes <= 12; mes++) {
+    const datos = mapa.get(mes) || {};
+    const fila = document.createElement('tr');
+    fila.className = 'fila-mes';
+
+    let celdas = `<td class="celda-mes">${MESES[mes]}</td>`;
+    let totalMes = 0;
+
+    TIPOS_AO.forEach((t) => {
+      const d = datos[t.id];
+      const h = d?.hombres ?? 0;
+      const m = d?.mujeres ?? 0;
+      totalMes += h + m;
+      totales[t.id].h += h;
+      totales[t.id].m += m;
+
+      celdas += `
+        <td class="celda-centro ${h ? '' : 'celda-cero'}">${h}</td>
+        <td class="celda-centro ${m ? '' : 'celda-cero'}">${m}</td>
+        <td class="celda-centro celda-subtotal">${h + m || '—'}</td>
+      `;
+    });
+
+    celdas += `<td class="celda-centro celda-total">${totalMes || '—'}</td>`;
+    fila.innerHTML = celdas;
+
+    if (puedeEscribir()) {
+      fila.classList.add('fila-editable');
+      fila.addEventListener('click', () => abrirOcupacional(mes, datos));
+    }
+
+    frag.appendChild(fila);
+  }
+
+  $cuerpo.appendChild(frag);
+
+  /* Pie con totales */
+  let pie = '<tr class="fila-totales"><td class="celda-mes">Total</td>';
+  let granTotal = 0;
+
+  TIPOS_AO.forEach((t) => {
+    const { h, m } = totales[t.id];
+    granTotal += h + m;
+    pie += `<td class="celda-centro">${h}</td>
+            <td class="celda-centro">${m}</td>
+            <td class="celda-centro celda-subtotal">${h + m}</td>`;
+  });
+
+  pie += `<td class="celda-centro celda-total">${granTotal}</td></tr>`;
+  $pie.innerHTML = pie;
+}
+
+async function abrirAnioOcupacional() {
+  const $btn = document.getElementById('btn-abrir-ao');
+  $btn.disabled = true;
+
+  const { error } = await supabase.rpc('abrir_atenciones_ocupacionales', {
+    p_empresa: estado.empresaId,
+    p_anio: parseInt(document.getElementById('ao-anio').value, 10)
+  });
+
+  $btn.disabled = false;
+  if (error) { alert('No fue posible abrir el año: ' + error.message); return; }
+
+  await cargarOcupacionales();
+  pintarOcupacionales();
+}
+
+function abrirOcupacional(mes, datos) {
+  estado.ocupActual = { mes, datos };
+
+  document.getElementById('ao-titulo').textContent = MESES[mes];
+  document.getElementById('ao-marca').textContent = document.getElementById('ao-anio').value;
+
+  const $campos = document.getElementById('ao-campos');
+  $campos.innerHTML = TIPOS_AO.map((t) => {
+    const d = datos[t.id];
+    return `
+      <div class="ao-grupo">
+        <span class="ao-tipo">${t.texto}</span>
+        <div class="ao-entradas">
+          <div class="campo campo-mini">
+            <label class="etiqueta" for="ao_${t.id}_h">Hombres</label>
+            <input class="entrada" id="ao_${t.id}_h" type="number" min="0"
+                   value="${d?.hombres ?? 0}">
+          </div>
+          <div class="campo campo-mini">
+            <label class="etiqueta" for="ao_${t.id}_m">Mujeres</label>
+            <input class="entrada" id="ao_${t.id}_m" type="number" min="0"
+                   value="${d?.mujeres ?? 0}">
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  const primero = datos[TIPOS_AO[0].id];
+  document.getElementById('ao_observacion').value = primero?.observacion ?? '';
+
+  document.getElementById('alerta-ao').hidden = true;
+  document.getElementById('modal-ao').hidden = false;
+}
+
+async function guardarOcupacional() {
+  const { mes, datos } = estado.ocupActual || {};
+  if (!mes) return;
+
+  const anio = parseInt(document.getElementById('ao-anio').value, 10);
+  const observacion = document.getElementById('ao_observacion').value.trim() || null;
+
+  const $btn = document.getElementById('btn-guardar-ao');
+  $btn.disabled = true;
+
+  const filas = TIPOS_AO.map((t) => ({
+    empresa_id: estado.empresaId,
+    anio,
+    mes,
+    tipo: t.id,
+    hombres: parseInt(document.getElementById(`ao_${t.id}_h`).value, 10) || 0,
+    mujeres: parseInt(document.getElementById(`ao_${t.id}_m`).value, 10) || 0,
+    observacion
+  }));
+
+  const { error } = await supabase
+    .from('atenciones_ocupacionales')
+    .upsert(filas, { onConflict: 'empresa_id,anio,mes,tipo' });
+
+  $btn.disabled = false;
+
+  if (error) {
+    const $a = document.getElementById('alerta-ao');
+    $a.textContent = traducirBd(error);
+    $a.hidden = false;
+    return;
+  }
+
+  document.getElementById('modal-ao').hidden = true;
+  await cargarOcupacionales();
+  pintarOcupacionales();
+}
+
+/* ============================================
    Pestañas
    ============================================ */
 
@@ -1056,10 +1848,22 @@ function cambiarVista(vista) {
   document.querySelectorAll('.pestana').forEach((p) => {
     p.classList.toggle('activa', p.dataset.vista === vista);
   });
-  ['cumplimiento', 'capacitaciones'].forEach((v) => {
-    document.getElementById('vista-' + v).hidden = v !== vista;
+  ['cumplimiento', 'capacitaciones', 'eventos', 'ocupacionales'].forEach((v) => {
+    const $v = document.getElementById('vista-' + v);
+    if ($v) $v.hidden = v !== vista;
   });
   if (vista === 'capacitaciones') pintarCapacitaciones();
+  if (vista === 'eventos') pintarEventos();
+  if (vista === 'ocupacionales') pintarOcupacionales();
+}
+
+/** Atenciones ocupacionales solo existen en salud */
+function ocultarPestanasAjenas() {
+  if (AMBITO === 'salud') return;
+  const $p = document.querySelector('.pestana[data-vista="ocupacionales"]');
+  const $v = document.getElementById('vista-ocupacionales');
+  if ($p) $p.remove();
+  if ($v) $v.remove();
 }
 
 async function cambiarAnio() {
@@ -1087,8 +1891,11 @@ async function seleccionarEmpresa() {
   $avisoIni.hidden = true;
 
   await cargarTodo();
-  await cargarCapacitaciones();
+  await Promise.all([cargarCapacitaciones(), cargarEventos(), cargarOcupacionales()]);
+
   if (estado.vista === 'capacitaciones') pintarCapacitaciones();
+  if (estado.vista === 'eventos') pintarEventos();
+  if (estado.vista === 'ocupacionales') pintarOcupacionales();
 }
 
 /* ============================================
@@ -1156,12 +1963,58 @@ function conectarEventos() {
     if (!$fin.value) $fin.value = document.getElementById('c_fecha_inicio').value;
   });
 
-  document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape') return;
-    const orden = ['modal-tema', 'modal-capac', 'modal-enlace', 'modal-req'];
-    for (const id of orden) {
-      const $m = document.getElementById(id);
-      if (!$m.hidden) { $m.hidden = true; return; }
+  /* Eventos */
+  document.getElementById('ev-anio').addEventListener('change', recargarEventos);
+  document.getElementById('ev-mes').addEventListener('change', recargarEventos);
+  document.getElementById('btn-nuevo-evento').addEventListener('click', () => abrirEvento(null));
+  document.getElementById('btn-guardar-evento').addEventListener('click', guardarEvento);
+  document.getElementById('btn-eliminar-evento').addEventListener('click', eliminarEvento);
+  document.getElementById('ev_codigo').addEventListener('input', buscarTrabajadorEvento);
+  document.getElementById('ev_reportado').addEventListener('change', ajustarCamposEvento);
+
+  document.querySelectorAll('input[name="ev_tipo"], input[name="ev_estado"]')
+    .forEach((r) => r.addEventListener('change', ajustarCamposEvento));
+
+  /* El área escrita y la seleccionada se excluyen */
+  document.getElementById('ev_area').addEventListener('change', () => {
+    if (document.getElementById('ev_area').value) {
+      document.getElementById('ev_area_texto').value = '';
     }
   });
+
+  const $cie = document.getElementById('ev_cie');
+  if ($cie) {
+    $cie.addEventListener('input', buscarCieEvento);
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#ev_cie') && !e.target.closest('#ev_cie_sug')) {
+        document.getElementById('ev_cie_sug').hidden = true;
+      }
+    });
+  }
+
+  /* Atenciones ocupacionales */
+  const $aoAnio = document.getElementById('ao-anio');
+  if ($aoAnio) {
+    $aoAnio.addEventListener('change', async () => {
+      await cargarOcupacionales();
+      pintarOcupacionales();
+    });
+    document.getElementById('btn-abrir-ao').addEventListener('click', abrirAnioOcupacional);
+    document.getElementById('btn-guardar-ao').addEventListener('click', guardarOcupacional);
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const orden = ['modal-ao', 'modal-evento', 'modal-tema', 'modal-capac',
+                   'modal-enlace', 'modal-req'];
+    for (const id of orden) {
+      const $m = document.getElementById(id);
+      if ($m && !$m.hidden) { $m.hidden = true; return; }
+    }
+  });
+}
+
+async function recargarEventos() {
+  await cargarEventos();
+  pintarEventos();
 }
