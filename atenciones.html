@@ -61,23 +61,165 @@
         </section>
 
         <nav class="pestanas">
-          <button class="pestana activa" data-vista="listado" type="button">Atenciones</button>
+          <button class="pestana activa" data-vista="atenciones" type="button">Atenciones</button>
+          <button class="pestana" data-vista="consolidado" type="button">Consolidado</button>
           <button class="pestana" data-vista="morbilidad" type="button">Morbilidad</button>
         </nav>
 
-        <!-- Vista: Listado -->
-        <section class="vista" id="vista-listado">
+        <!-- ============ Vista: Atenciones ============ -->
+        <section class="vista" id="vista-atenciones">
+
+          <!-- Buscador de paciente -->
+          <section class="buscador-panel">
+            <div class="buscador-fila">
+              <div class="campo campo-codigo">
+                <label class="etiqueta" for="busca_codigo">Código de trabajador</label>
+                <input class="entrada entrada-destacada" id="busca_codigo" type="number"
+                       min="1" max="3000" placeholder="1830" autocomplete="off">
+              </div>
+              <button class="boton-primario boton-buscar" id="btn-buscar" type="button">Buscar</button>
+              <div class="campo campo-crece">
+                <label class="etiqueta" for="busca_nombre">O buscar por nombre o cédula</label>
+                <input class="entrada" id="busca_nombre" type="search"
+                       placeholder="Apellidos, nombres o cédula" autocomplete="off">
+                <div class="sugerencias" id="busca_sugerencias" hidden></div>
+              </div>
+            </div>
+            <span class="ayuda" id="ayuda-busca"></span>
+          </section>
+
+          <!-- Ficha del paciente -->
+          <section class="tarjeta-trabajador" id="paciente" hidden>
+            <div class="trabajador-cabecera">
+              <div class="trabajador-identidad">
+                <h2 class="trabajador-nombre" id="p-nombre">—</h2>
+                <p class="trabajador-meta" id="p-meta">—</p>
+              </div>
+              <div class="trabajador-acciones">
+                <button class="boton-primario" id="btn-nueva-atencion" type="button">
+                  + Nueva atención
+                </button>
+                <button class="boton-secundario" id="btn-historial" type="button">
+                  Historial
+                </button>
+              </div>
+            </div>
+
+            <div class="ficha-datos">
+              <div class="ficha-item">
+                <span class="ficha-etiqueta">Código</span>
+                <span class="ficha-valor" id="p-codigo">—</span>
+              </div>
+              <div class="ficha-item">
+                <span class="ficha-etiqueta">Cédula</span>
+                <span class="ficha-valor celda-mono" id="p-cedula">—</span>
+              </div>
+              <div class="ficha-item">
+                <span class="ficha-etiqueta">Edad</span>
+                <span class="ficha-valor" id="p-edad">—</span>
+              </div>
+              <div class="ficha-item">
+                <span class="ficha-etiqueta">Sexo</span>
+                <span class="ficha-valor" id="p-sexo">—</span>
+              </div>
+              <div class="ficha-item">
+                <span class="ficha-etiqueta">Cargo</span>
+                <span class="ficha-valor" id="p-cargo">—</span>
+              </div>
+              <div class="ficha-item">
+                <span class="ficha-etiqueta">Tipo de sangre</span>
+                <span class="ficha-valor" id="p-sangre">—</span>
+              </div>
+              <div class="ficha-item">
+                <span class="ficha-etiqueta">Estado</span>
+                <span class="ficha-valor" id="p-estado">—</span>
+              </div>
+              <div class="ficha-item">
+                <span class="ficha-etiqueta">Atenciones</span>
+                <span class="ficha-valor" id="p-total">—</span>
+              </div>
+            </div>
+
+            <p class="detalle-alergia" id="p-alergias" hidden></p>
+
+            <!-- Historial desplegable -->
+            <div class="historial-embebido" id="p-historial" hidden>
+              <div class="panel-recurrencia" id="p-recurrencia" hidden>
+                <h3 class="panel-titulo">Diagnósticos recurrentes</h3>
+                <div class="chips" id="p-chips"></div>
+                <p class="nota" id="p-nota-recurrencia"></p>
+              </div>
+              <h3 class="panel-titulo">Historial clínico</h3>
+              <div id="p-lista"></div>
+            </div>
+          </section>
+
+          <!-- Atenciones del día -->
+          <section class="dia-cabecera">
+            <div>
+              <h2 class="dia-titulo">Atenciones de hoy</h2>
+              <p class="dia-fecha" id="dia-fecha">—</p>
+            </div>
+            <span class="dia-contador" id="dia-contador">0</span>
+          </section>
+
+          <div class="panel">
+            <div class="tabla-envoltura">
+              <table class="tabla">
+                <thead>
+                  <tr>
+                    <th class="celda-centro">Hora</th>
+                    <th class="celda-centro">Código</th>
+                    <th>Trabajador</th>
+                    <th class="celda-centro">Edad</th>
+                    <th>Diagnóstico principal</th>
+                    <th class="celda-centro">Dx</th>
+                    <th class="celda-centro">Rx</th>
+                    <th class="celda-centro">Reposo</th>
+                    <th class="celda-derecha">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="cuerpo-hoy"></tbody>
+              </table>
+            </div>
+            <p class="vacio" id="vacio-hoy" hidden>
+              Sin atenciones registradas hoy. Busque un trabajador por su código para comenzar.
+            </p>
+          </div>
+        </section>
+
+        <!-- ============ Vista: Consolidado ============ -->
+        <section class="vista" id="vista-consolidado" hidden>
 
           <div class="herramientas">
-            <input class="busqueda" id="busqueda" type="search"
-                   placeholder="Buscar por código, nombre o diagnóstico…">
-            <select class="entrada filtro" id="filtro-periodo">
-              <option value="mes">Este mes</option>
-              <option value="anio">Este año</option>
-              <option value="todos">Todas</option>
+            <select class="entrada filtro" id="cons-anio"></select>
+            <select class="entrada filtro" id="cons-mes">
+              <option value="0">Todo el año</option>
+              <option value="1">Enero</option>
+              <option value="2">Febrero</option>
+              <option value="3">Marzo</option>
+              <option value="4">Abril</option>
+              <option value="5">Mayo</option>
+              <option value="6">Junio</option>
+              <option value="7">Julio</option>
+              <option value="8">Agosto</option>
+              <option value="9">Septiembre</option>
+              <option value="10">Octubre</option>
+              <option value="11">Noviembre</option>
+              <option value="12">Diciembre</option>
             </select>
-            <button class="boton-primario" id="btn-nueva" type="button">+ Nueva atención</button>
+            <select class="entrada filtro filtro-ancho" id="cons-dx">
+              <option value="">Todos los diagnósticos</option>
+            </select>
+            <input class="busqueda" id="cons-busqueda" type="search"
+                   placeholder="Buscar por código, nombre o cédula…">
           </div>
+
+          <!-- Resultado del filtro -->
+          <section class="filtro-resumen" id="cons-resumen" hidden>
+            <span class="filtro-resumen-texto" id="cons-resumen-texto"></span>
+            <button class="boton-icono" id="cons-limpiar" type="button">Limpiar filtros</button>
+          </section>
 
           <div class="panel">
             <div class="tabla-envoltura">
@@ -95,10 +237,10 @@
                     <th class="celda-derecha">Acciones</th>
                   </tr>
                 </thead>
-                <tbody id="cuerpo-listado"></tbody>
+                <tbody id="cuerpo-consolidado"></tbody>
               </table>
             </div>
-            <p class="vacio" id="vacio-listado" hidden>Sin atenciones registradas en el periodo.</p>
+            <p class="vacio" id="vacio-consolidado" hidden>Sin atenciones que coincidan.</p>
           </div>
         </section>
 
@@ -220,6 +362,9 @@
                    placeholder="Ninguna conocida · escriba aquí para registrar">
             <span class="alergias-nota">Se conserva en la ficha del trabajador</span>
           </div>
+
+          <!-- Contexto clínico previo -->
+          <div class="antecedente" id="antecedente" hidden></div>
         </div>
 
         <!-- Motivo -->
