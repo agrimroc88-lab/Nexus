@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Farmacia · NEXUS</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/empresas.css">
+  <link rel="stylesheet" href="css/trabajadores.css">
+  <link rel="stylesheet" href="css/farmacia.css">
+</head>
+<body class="app">
+
+  <aside class="barra-lateral" id="barra-lateral">
+    <div class="lateral-marca">NEXUS</div>
+    <nav class="lateral-nav" id="lateral-nav"></nav>
+    <button class="lateral-salir" id="btn-salir" type="button">Cerrar sesión</button>
+  </aside>
+
+  <div class="contenedor">
+
+    <header class="cabecera">
+      <button class="cabecera-menu" id="btn-menu" type="button" aria-label="Menú">☰</button>
+      <h1 class="cabecera-titulo">Farmacia</h1>
+      <div class="cabecera-usuario">
+        <span class="usuario-nombre" id="usuario-nombre">—</span>
+        <span class="usuario-rol" id="usuario-rol">—</span>
+      </div>
+    </header>
+
+    <main class="contenido">
+
+      <!-- Selector de empresa -->
+      <section class="selector-empresa">
+        <label class="etiqueta" for="empresa-activa">Empresa</label>
+        <select class="entrada" id="empresa-activa">
+          <option value="">— Seleccione una empresa —</option>
+        </select>
+      </section>
+
+      <div id="area-trabajo" hidden>
+
+        <!-- Resumen -->
+        <section class="resumen">
+          <article class="resumen-item">
+            <span class="resumen-etiqueta">Medicamentos</span>
+            <span class="resumen-valor" id="kpi-items">0</span>
+          </article>
+          <article class="resumen-item resumen-critico">
+            <span class="resumen-etiqueta">Agotados</span>
+            <span class="resumen-valor" id="kpi-agotados">0</span>
+          </article>
+          <article class="resumen-item resumen-aviso">
+            <span class="resumen-etiqueta">Bajo mínimo</span>
+            <span class="resumen-valor" id="kpi-bajos">0</span>
+          </article>
+          <article class="resumen-item resumen-aviso">
+            <span class="resumen-etiqueta">Por caducar</span>
+            <span class="resumen-valor" id="kpi-caducar">0</span>
+          </article>
+          <article class="resumen-item resumen-critico">
+            <span class="resumen-etiqueta">Caducados</span>
+            <span class="resumen-valor" id="kpi-caducados">0</span>
+          </article>
+        </section>
+
+        <!-- Pestañas -->
+        <nav class="pestanas">
+          <button class="pestana activa" data-vista="existencias" type="button">Existencias</button>
+          <button class="pestana" data-vista="lotes" type="button">Lotes</button>
+          <button class="pestana" data-vista="kardex" type="button">Kárdex</button>
+        </nav>
+
+        <!-- Vista: Existencias -->
+        <section class="vista" id="vista-existencias">
+
+          <div class="herramientas">
+            <input class="busqueda" id="busqueda" type="search"
+                   placeholder="Buscar medicamento…">
+            <select class="entrada filtro" id="filtro-nivel">
+              <option value="todos">Todos</option>
+              <option value="agotado">Agotados</option>
+              <option value="bajo">Bajo mínimo</option>
+              <option value="normal">Normales</option>
+              <option value="exceso">En exceso</option>
+            </select>
+            <button class="boton-secundario" id="btn-nuevo-med" type="button">+ Medicamento</button>
+            <button class="boton-primario" id="btn-ingreso" type="button">↓ Ingreso</button>
+            <button class="boton-primario" id="btn-salida" type="button">↑ Salida</button>
+          </div>
+
+          <div class="panel">
+            <div class="tabla-envoltura">
+              <table class="tabla">
+                <thead>
+                  <tr>
+                    <th>Medicamento</th>
+                    <th>Forma</th>
+                    <th class="celda-centro">Disponible</th>
+                    <th class="celda-centro">Mín.</th>
+                    <th class="celda-centro">Ópt.</th>
+                    <th class="celda-centro">Reponer</th>
+                    <th class="celda-centro">Próx. caducidad</th>
+                    <th class="celda-centro">Nivel</th>
+                    <th class="celda-derecha">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="cuerpo-existencias"></tbody>
+              </table>
+            </div>
+            <p class="vacio" id="vacio-existencias" hidden>
+              Sin medicamentos registrados. Comience creando el catálogo.
+            </p>
+          </div>
+        </section>
+
+        <!-- Vista: Lotes -->
+        <section class="vista" id="vista-lotes" hidden>
+
+          <div class="herramientas">
+            <input class="busqueda" id="busqueda-lotes" type="search"
+                   placeholder="Buscar por medicamento o lote…">
+            <select class="entrada filtro" id="filtro-caducidad">
+              <option value="con_saldo">Con existencia</option>
+              <option value="caducado">Caducados</option>
+              <option value="critico">Críticos (30 días)</option>
+              <option value="proximo">Próximos (90 días)</option>
+              <option value="todos">Todos</option>
+            </select>
+          </div>
+
+          <div class="panel">
+            <div class="tabla-envoltura">
+              <table class="tabla">
+                <thead>
+                  <tr>
+                    <th>Medicamento</th>
+                    <th>Lote</th>
+                    <th class="celda-centro">Caducidad</th>
+                    <th class="celda-centro">Días</th>
+                    <th class="celda-centro">Saldo</th>
+                    <th class="celda-centro">Estado</th>
+                    <th class="celda-derecha">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="cuerpo-lotes"></tbody>
+              </table>
+            </div>
+            <p class="vacio" id="vacio-lotes" hidden>Sin lotes que coincidan.</p>
+          </div>
+        </section>
+
+        <!-- Vista: Kárdex -->
+        <section class="vista" id="vista-kardex" hidden>
+
+          <div class="herramientas">
+            <input class="busqueda" id="busqueda-kardex" type="search"
+                   placeholder="Buscar por medicamento o trabajador…">
+            <select class="entrada filtro" id="filtro-tipo">
+              <option value="todos">Todos los movimientos</option>
+              <option value="entradas">Solo entradas</option>
+              <option value="salidas">Solo salidas</option>
+              <option value="salida_consumo">Consumo</option>
+              <option value="baja_caducidad">Bajas por caducidad</option>
+            </select>
+          </div>
+
+          <div class="panel">
+            <div class="tabla-envoltura">
+              <table class="tabla">
+                <thead>
+                  <tr>
+                    <th class="celda-centro">Fecha</th>
+                    <th>Movimiento</th>
+                    <th>Medicamento</th>
+                    <th>Lote</th>
+                    <th class="celda-centro">Cant.</th>
+                    <th>Trabajador</th>
+                    <th>Observación</th>
+                  </tr>
+                </thead>
+                <tbody id="cuerpo-kardex"></tbody>
+              </table>
+            </div>
+            <p class="vacio" id="vacio-kardex" hidden>Sin movimientos registrados.</p>
+          </div>
+        </section>
+
+      </div>
+
+      <p class="aviso-inicial" id="aviso-inicial">
+        Seleccione una empresa para gestionar su botiquín.
+      </p>
+
+    </main>
+  </div>
+
+  <!-- ============ Modal: Medicamento ============ -->
+  <div class="modal" id="modal-med" hidden>
+    <div class="modal-caja" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo" id="med-titulo">Nuevo medicamento</h2>
+        <button class="modal-cerrar" data-cierra="modal-med" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+        <div class="rejilla">
+
+          <div class="campo campo-ancho">
+            <label class="etiqueta" for="nombre_generico">Nombre genérico <span class="obligatorio">*</span></label>
+            <input class="entrada" id="nombre_generico" type="text" placeholder="Paracetamol">
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="nombre_comercial">Nombre comercial</label>
+            <input class="entrada" id="nombre_comercial" type="text" placeholder="Apronax">
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="concentracion">Concentración</label>
+            <input class="entrada" id="concentracion" type="text" placeholder="500 mg">
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="forma">Forma farmacéutica <span class="obligatorio">*</span></label>
+            <select class="entrada" id="forma">
+              <option value="tableta">Tableta</option>
+              <option value="capsula">Cápsula</option>
+              <option value="jarabe">Jarabe</option>
+              <option value="suspension">Suspensión</option>
+              <option value="ampolla">Ampolla</option>
+              <option value="vial">Vial</option>
+              <option value="crema">Crema</option>
+              <option value="unguento">Ungüento</option>
+              <option value="gel">Gel</option>
+              <option value="gotas">Gotas</option>
+              <option value="spray">Spray</option>
+              <option value="supositorio">Supositorio</option>
+              <option value="parche">Parche</option>
+              <option value="solucion">Solución</option>
+              <option value="polvo">Polvo</option>
+              <option value="insumo">Insumo</option>
+              <option value="otro">Otro</option>
+            </select>
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="presentacion">Presentación</label>
+            <input class="entrada" id="presentacion" type="text" placeholder="Caja x 100 tabletas">
+            <span class="ayuda">Referencia del empaque</span>
+          </div>
+
+          <div class="campo campo-ancho">
+            <h3 class="subtitulo">Niveles de existencia · unidades</h3>
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="stock_minimo">Stock mínimo <span class="obligatorio">*</span></label>
+            <input class="entrada" id="stock_minimo" type="number" min="0" value="0">
+            <span class="ayuda">Por debajo, se emite alerta</span>
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="stock_optimo">Stock óptimo <span class="obligatorio">*</span></label>
+            <input class="entrada" id="stock_optimo" type="number" min="0" value="0">
+            <span class="ayuda">Meta de reposición</span>
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="stock_maximo">Stock máximo</label>
+            <input class="entrada" id="stock_maximo" type="number" min="0">
+            <span class="ayuda" id="ayuda-niveles">Opcional. Evita sobrestock</span>
+          </div>
+
+        </div>
+
+        <p class="alerta" id="alerta-med" role="alert" hidden></p>
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" data-cierra="modal-med" type="button">Cancelar</button>
+        <button class="boton-primario" id="btn-guardar-med" type="button">Guardar</button>
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- ============ Modal: Ingreso ============ -->
+  <div class="modal" id="modal-ingreso" hidden>
+    <div class="modal-caja" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo">Ingreso de existencias</h2>
+        <button class="modal-cerrar" data-cierra="modal-ingreso" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+        <div class="rejilla">
+
+          <div class="campo campo-ancho">
+            <label class="etiqueta" for="ing_medicamento">Medicamento <span class="obligatorio">*</span></label>
+            <select class="entrada" id="ing_medicamento">
+              <option value="">— Seleccionar —</option>
+            </select>
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="ing_tipo">Tipo de ingreso <span class="obligatorio">*</span></label>
+            <select class="entrada" id="ing_tipo">
+              <option value="inventario_inicial">Inventario inicial</option>
+              <option value="entrada_compra">Compra</option>
+              <option value="entrada_donacion">Donación</option>
+            </select>
+            <span class="ayuda" id="ayuda-tipo-ing">Conteo de lo que ya existe</span>
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="ing_fecha">Fecha <span class="obligatorio">*</span></label>
+            <input class="entrada" id="ing_fecha" type="date">
+          </div>
+
+          <div class="campo campo-ancho">
+            <h3 class="subtitulo">Lote</h3>
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="ing_lote_existente">Lote existente</label>
+            <select class="entrada" id="ing_lote_existente">
+              <option value="">— Nuevo lote —</option>
+            </select>
+            <span class="ayuda">O registre uno nuevo abajo</span>
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="ing_cantidad">Cantidad <span class="obligatorio">*</span></label>
+            <input class="entrada" id="ing_cantidad" type="number" min="1">
+            <span class="ayuda">Unidades</span>
+          </div>
+
+          <div class="campo" id="campo-lote-nuevo">
+            <label class="etiqueta" for="ing_numero_lote">N.º de lote <span class="obligatorio">*</span></label>
+            <input class="entrada" id="ing_numero_lote" type="text" placeholder="L2024-081">
+          </div>
+
+          <div class="campo" id="campo-caducidad-nueva">
+            <label class="etiqueta" for="ing_caducidad">Caducidad <span class="obligatorio">*</span></label>
+            <input class="entrada" id="ing_caducidad" type="date">
+            <span class="ayuda" id="ayuda-caducidad"></span>
+          </div>
+
+          <div class="campo campo-ancho" id="campo-registro">
+            <label class="etiqueta" for="ing_registro">Registro sanitario</label>
+            <input class="entrada" id="ing_registro" type="text">
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="ing_proveedor">Proveedor</label>
+            <input class="entrada" id="ing_proveedor" type="text">
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="ing_documento">Documento</label>
+            <input class="entrada" id="ing_documento" type="text" placeholder="Factura N.º">
+          </div>
+
+          <div class="campo campo-ancho">
+            <label class="etiqueta" for="ing_observacion">Observación</label>
+            <input class="entrada" id="ing_observacion" type="text">
+          </div>
+
+        </div>
+
+        <p class="alerta" id="alerta-ingreso" role="alert" hidden></p>
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" data-cierra="modal-ingreso" type="button">Cancelar</button>
+        <button class="boton-primario" id="btn-guardar-ingreso" type="button">Registrar ingreso</button>
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- ============ Modal: Salida ============ -->
+  <div class="modal" id="modal-salida" hidden>
+    <div class="modal-caja" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo">Salida de existencias</h2>
+        <button class="modal-cerrar" data-cierra="modal-salida" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+        <div class="rejilla">
+
+          <div class="campo campo-ancho">
+            <label class="etiqueta" for="sal_tipo">Tipo de salida <span class="obligatorio">*</span></label>
+            <select class="entrada" id="sal_tipo">
+              <option value="salida_consumo">Consumo · entrega a trabajador</option>
+              <option value="baja_caducidad">Baja por caducidad</option>
+              <option value="baja_deterioro">Baja por deterioro o pérdida</option>
+              <option value="ajuste_negativo">Ajuste negativo · faltante en conteo</option>
+            </select>
+          </div>
+
+          <div class="campo campo-ancho">
+            <label class="etiqueta" for="sal_medicamento">Medicamento <span class="obligatorio">*</span></label>
+            <select class="entrada" id="sal_medicamento">
+              <option value="">— Seleccionar —</option>
+            </select>
+          </div>
+
+          <div class="campo campo-ancho">
+            <label class="etiqueta" for="sal_lote">Lote <span class="obligatorio">*</span></label>
+            <select class="entrada" id="sal_lote">
+              <option value="">— Seleccionar medicamento primero —</option>
+            </select>
+            <span class="ayuda" id="ayuda-lote-sal"></span>
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="sal_cantidad">Cantidad <span class="obligatorio">*</span></label>
+            <input class="entrada" id="sal_cantidad" type="number" min="1">
+            <span class="ayuda" id="ayuda-cantidad-sal"></span>
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="sal_fecha">Fecha <span class="obligatorio">*</span></label>
+            <input class="entrada" id="sal_fecha" type="date">
+          </div>
+
+          <div class="campo campo-ancho" id="campo-trabajador">
+            <label class="etiqueta" for="sal_trabajador">Trabajador <span class="obligatorio">*</span></label>
+            <select class="entrada" id="sal_trabajador">
+              <option value="">— Seleccionar —</option>
+            </select>
+          </div>
+
+          <div class="campo campo-ancho">
+            <label class="etiqueta" for="sal_observacion">Observación</label>
+            <input class="entrada" id="sal_observacion" type="text"
+                   placeholder="Motivo de la entrega">
+          </div>
+
+        </div>
+
+        <p class="alerta" id="alerta-salida" role="alert" hidden></p>
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" data-cierra="modal-salida" type="button">Cancelar</button>
+        <button class="boton-primario" id="btn-guardar-salida" type="button">Registrar salida</button>
+      </footer>
+
+    </div>
+  </div>
+
+  <script type="module" src="js/farmacia.js"></script>
+</body>
+</html>
