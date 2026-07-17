@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seguridad industrial · NEXUS</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/empresas.css">
+  <link rel="stylesheet" href="css/trabajadores.css">
+  <link rel="stylesheet" href="css/farmacia.css">
+  <link rel="stylesheet" href="css/atenciones.css">
+  <link rel="stylesheet" href="css/anexo1.css">
+</head>
+<body class="app" data-ambito="seguridad" data-modulo="seguridad_ind">
+
+  <aside class="barra-lateral" id="barra-lateral">
+    <div class="lateral-marca">NEXUS</div>
+    <nav class="lateral-nav" id="lateral-nav"></nav>
+    <button class="lateral-salir" id="btn-salir" type="button">Cerrar sesión</button>
+  </aside>
+
+  <div class="contenedor">
+
+    <header class="cabecera">
+      <button class="cabecera-menu" id="btn-menu" type="button" aria-label="Menú">☰</button>
+      <h1 class="cabecera-titulo">Seguridad industrial</h1>
+      <div class="cabecera-usuario">
+        <span class="usuario-nombre" id="usuario-nombre">—</span>
+        <span class="usuario-rol" id="usuario-rol">—</span>
+      </div>
+    </header>
+
+    <main class="contenido">
+
+      <section class="selector-empresa">
+        <label class="etiqueta" for="empresa-activa">Empresa</label>
+        <select class="entrada" id="empresa-activa">
+          <option value="">— Seleccione una empresa —</option>
+        </select>
+      </section>
+
+      <div id="area-trabajo" hidden>
+
+        <!-- Medidor de cumplimiento -->
+        <section class="medidor-panel">
+          <div class="medidor">
+            <svg class="medidor-svg" viewBox="0 0 120 120" aria-hidden="true">
+              <circle class="medidor-fondo" cx="60" cy="60" r="52"></circle>
+              <circle class="medidor-trazo" id="medidor-trazo" cx="60" cy="60" r="52"></circle>
+            </svg>
+            <div class="medidor-centro">
+              <span class="medidor-valor" id="medidor-valor">—</span>
+              <span class="medidor-etiqueta">Anexo 1 · Seguridad</span>
+            </div>
+          </div>
+
+          <div class="medidor-detalle">
+            <div class="estado-fila">
+              <span class="punto punto-cumplido"></span>
+              <span class="estado-texto">Cumplidos</span>
+              <span class="estado-num" id="n-cumplidos">0</span>
+            </div>
+            <div class="estado-fila">
+              <span class="punto punto-proceso"></span>
+              <span class="estado-texto">En proceso</span>
+              <span class="estado-num" id="n-proceso">0</span>
+            </div>
+            <div class="estado-fila">
+              <span class="punto punto-pendiente"></span>
+              <span class="estado-texto">Pendientes</span>
+              <span class="estado-num" id="n-pendientes">0</span>
+            </div>
+            <div class="estado-fila estado-fila-tenue">
+              <span class="punto punto-na"></span>
+              <span class="estado-texto">No aplica</span>
+              <span class="estado-num" id="n-na">0</span>
+            </div>
+            <div class="estado-separador"></div>
+            <div class="estado-fila">
+              <span class="estado-texto">Exigibles</span>
+              <span class="estado-num" id="n-exigibles">0</span>
+            </div>
+          </div>
+
+          <div class="medidor-alertas">
+            <article class="alerta-caja alerta-critica" id="caja-vencidos" hidden>
+              <span class="alerta-num" id="n-vencidos">0</span>
+              <span class="alerta-texto">Documentos vencidos</span>
+            </article>
+            <article class="alerta-caja alerta-aviso" id="caja-porvencer" hidden>
+              <span class="alerta-num" id="n-porvencer">0</span>
+              <span class="alerta-texto">Vencen en 30 días</span>
+            </article>
+            <article class="alerta-caja alerta-neutra" id="caja-consolidado">
+              <span class="alerta-num" id="n-consolidado">—</span>
+              <span class="alerta-texto">Anexo 1 total</span>
+            </article>
+          </div>
+        </section>
+
+        <!-- Herramientas -->
+        <section class="herramientas">
+          <input class="busqueda" id="busqueda" type="search"
+                 placeholder="Buscar por código o descripción…">
+          <select class="entrada filtro" id="filtro-estado">
+            <option value="todos">Todos los estados</option>
+            <option value="pendiente">Pendientes</option>
+            <option value="en_proceso">En proceso</option>
+            <option value="cumplido">Cumplidos</option>
+            <option value="no_aplica">No aplica</option>
+            <option value="vencido">Vencidos</option>
+            <option value="por_vencer">Por vencer</option>
+          </select>
+          <label class="alternador">
+            <input type="checkbox" id="ocultar-na">
+            <span>Ocultar no aplica</span>
+          </label>
+          <button class="boton-secundario" id="btn-abrir" type="button" hidden>
+            Abrir requisitos
+          </button>
+        </section>
+
+        <!-- Listado por sección -->
+        <div id="lista-requisitos"></div>
+
+        <p class="vacio" id="vacio" hidden>Sin requisitos que coincidan con el filtro.</p>
+
+      </div>
+
+      <p class="aviso-inicial" id="aviso-inicial">
+        Seleccione una empresa para gestionar su cumplimiento.
+      </p>
+
+    </main>
+  </div>
+
+  <!-- ============ Modal: Gestionar requisito ============ -->
+  <div class="modal" id="modal-req" hidden>
+    <div class="modal-caja modal-ancho" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <div class="modal-encabezado">
+          <span class="req-codigo" id="m-codigo">—</span>
+          <h2 class="modal-titulo" id="m-titulo">—</h2>
+        </div>
+        <button class="modal-cerrar" data-cierra="modal-req" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+
+        <!-- Contexto normativo -->
+        <div class="normativa-caja">
+          <span class="normativa-etiqueta">Normativa legal</span>
+          <p class="normativa-texto" id="m-normativa">—</p>
+        </div>
+
+        <p class="nota-aplicabilidad" id="m-nota" hidden></p>
+
+        <!-- Estado -->
+        <div class="estado-actual" id="m-estado-caja">
+          <span class="estado-etiqueta">Estado</span>
+          <span class="insignia" id="m-estado">—</span>
+          <span class="estado-fraccion" id="m-fraccion"></span>
+        </div>
+
+        <!-- Evidencias -->
+        <div id="m-bloque-evidencias">
+          <h3 class="subtitulo">Evidencias requeridas</h3>
+          <div id="m-evidencias"></div>
+          <p class="nota" id="m-nota-evidencias"></p>
+        </div>
+
+        <!-- Vigencia derivada -->
+        <div class="vigencia-derivada" id="m-vigencia" hidden>
+          <span class="vigencia-etiqueta">Vigencia del requisito</span>
+          <span class="vigencia-valor" id="m-vigencia-valor">—</span>
+          <span class="vigencia-nota">Determinada por la evidencia que caduca primero</span>
+        </div>
+
+        <!-- Observación -->
+        <div class="campo campo-ancho">
+          <label class="etiqueta" for="m_observacion">Observación</label>
+          <textarea class="entrada area" id="m_observacion" rows="2"
+                    placeholder="Notas visibles para la empresa"></textarea>
+        </div>
+
+        <!-- No aplica -->
+        <details class="plegable" id="m-plegable-na">
+          <summary class="plegable-titulo">Marcar como no aplica</summary>
+          <p class="na-advertencia">
+            El requisito saldrá del cálculo de cumplimiento. El motivo debe sostenerse
+            ante una inspección.
+          </p>
+          <div class="campo">
+            <label class="etiqueta" for="m_motivo_na">Motivo <span class="obligatorio">*</span></label>
+            <input class="entrada" id="m_motivo_na" type="text"
+                   placeholder="La empresa no dispone de servicios de cocina">
+          </div>
+          <div class="na-acciones">
+            <button class="boton-na" id="btn-marcar-na" type="button">Marcar no aplica</button>
+            <button class="boton-secundario" id="btn-quitar-na" type="button" hidden>
+              Volver a aplicar
+            </button>
+          </div>
+        </details>
+
+        <p class="alerta" id="alerta-req" role="alert" hidden></p>
+
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" data-cierra="modal-req" type="button">Cerrar</button>
+        <button class="boton-primario" id="btn-guardar-req" type="button">Guardar cambios</button>
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- ============ Modal: Enlace ============ -->
+  <div class="modal" id="modal-enlace" hidden>
+    <div class="modal-caja modal-estrecho" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo" id="e-titulo">Enlace de evidencia</h2>
+        <button class="modal-cerrar" data-cierra="modal-enlace" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+        <p class="enlace-evidencia" id="e-evidencia">—</p>
+
+        <div class="campo">
+          <label class="etiqueta" for="e_url">Enlace <span class="obligatorio">*</span></label>
+          <input class="entrada" id="e_url" type="url"
+                 placeholder="https://drive.google.com/…" autocomplete="off">
+          <span class="ayuda">Enlace al documento o carpeta en Drive</span>
+        </div>
+
+        <div class="rejilla">
+          <div class="campo">
+            <label class="etiqueta" for="e_fecha_registro">Fecha del documento</label>
+            <input class="entrada" id="e_fecha_registro" type="date">
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="e_fecha_caducidad">Fecha de caducidad</label>
+            <input class="entrada" id="e_fecha_caducidad" type="date">
+            <span class="ayuda" id="ayuda-caducidad">Avisará 30 días antes</span>
+          </div>
+        </div>
+
+        <button class="boton-enlace" id="btn-un-anio" type="button">
+          Caducidad a un año del documento
+        </button>
+
+        <div class="campo">
+          <label class="etiqueta" for="e_observacion">Observación</label>
+          <input class="entrada" id="e_observacion" type="text">
+        </div>
+
+        <p class="nota">
+          Cada documento tiene su propia vigencia. El requisito vence cuando vence
+          el primero de ellos.
+        </p>
+
+        <p class="alerta" id="alerta-enlace" role="alert" hidden></p>
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" data-cierra="modal-enlace" type="button">Cancelar</button>
+        <button class="boton-primario" id="btn-guardar-enlace" type="button">Guardar enlace</button>
+      </footer>
+
+    </div>
+  </div>
+
+  <script type="module" src="js/anexo1.js"></script>
+</body>
+</html>
