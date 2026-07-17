@@ -45,6 +45,8 @@
         <nav class="pestanas">
           <button class="pestana activa" data-vista="cumplimiento" type="button">Cumplimiento</button>
           <button class="pestana" data-vista="capacitaciones" type="button">Capacitaciones</button>
+          <button class="pestana" data-vista="eventos" type="button">Enfermedades profesionales</button>
+          <button class="pestana" data-vista="ocupacionales" type="button">Atenciones ocupacionales</button>
         </nav>
 
         <!-- ============ Vista: Cumplimiento ============ -->
@@ -202,6 +204,151 @@
           </p>
 
         </section>
+
+        <!-- ============ Vista: Eventos ============ -->
+        <section class="vista" id="vista-eventos" hidden>
+
+          <section class="capac-resumen">
+            <div class="capac-anio">
+              <label class="etiqueta" for="ev-anio">Año</label>
+              <select class="entrada entrada-anio" id="ev-anio"></select>
+            </div>
+            <div class="capac-anio">
+              <label class="etiqueta" for="ev-mes">Mes</label>
+              <select class="entrada entrada-anio entrada-mes" id="ev-mes">
+                <option value="0">Todo</option>
+                <option value="1">Enero</option>
+                <option value="2">Febrero</option>
+                <option value="3">Marzo</option>
+                <option value="4">Abril</option>
+                <option value="5">Mayo</option>
+                <option value="6">Junio</option>
+                <option value="7">Julio</option>
+                <option value="8">Agosto</option>
+                <option value="9">Septiembre</option>
+                <option value="10">Octubre</option>
+                <option value="11">Noviembre</option>
+                <option value="12">Diciembre</option>
+              </select>
+            </div>
+
+            <div id="ev-tarjetas" class="ev-tarjetas"></div>
+          </section>
+
+          <!-- Distribución -->
+          <section class="distribucion">
+            <article class="distrib-caja">
+              <h3 class="distrib-titulo">Por sexo</h3>
+              <div class="barras" id="ev-sexo"></div>
+            </article>
+            <article class="distrib-caja">
+              <h3 class="distrib-titulo">Por turno</h3>
+              <div class="barras" id="ev-turno"></div>
+            </article>
+            <article class="distrib-caja">
+              <h3 class="distrib-titulo">Por área</h3>
+              <div class="barras" id="ev-area"></div>
+            </article>
+          </section>
+
+          <section class="herramientas">
+            <button class="boton-primario" id="btn-nuevo-evento" type="button" hidden>
+              + Registrar
+            </button>
+            <p class="pista pista-inline" id="ev-pista"></p>
+          </section>
+
+          <div class="tabla-envoltura">
+            <table class="tabla">
+              <thead>
+                <tr id="ev-cabecera"></tr>
+              </thead>
+              <tbody id="cuerpo-eventos"></tbody>
+            </table>
+          </div>
+
+          <p class="vacio" id="vacio-eventos" hidden>Sin registros en el período.</p>
+
+        </section>
+
+        <!-- ============ Vista: Atenciones ocupacionales ============ -->
+        <section class="vista" id="vista-ocupacionales" hidden>
+
+          <section class="capac-resumen">
+            <div class="capac-anio">
+              <label class="etiqueta" for="ao-anio">Año</label>
+              <select class="entrada entrada-anio" id="ao-anio"></select>
+            </div>
+
+            <article class="resumen-item">
+              <span class="resumen-etiqueta">Ingreso</span>
+              <span class="resumen-valor" id="ao-ingreso">0</span>
+            </article>
+            <article class="resumen-item">
+              <span class="resumen-etiqueta">Periódica</span>
+              <span class="resumen-valor" id="ao-periodica">0</span>
+            </article>
+            <article class="resumen-item">
+              <span class="resumen-etiqueta">Reintegro</span>
+              <span class="resumen-valor" id="ao-reintegro">0</span>
+            </article>
+            <article class="resumen-item">
+              <span class="resumen-etiqueta">Egreso</span>
+              <span class="resumen-valor" id="ao-egreso">0</span>
+            </article>
+            <article class="resumen-item resumen-destacado">
+              <span class="resumen-etiqueta">Total del año</span>
+              <span class="resumen-valor" id="ao-total">0</span>
+            </article>
+          </section>
+
+          <section class="distribucion distribucion-doble">
+            <article class="distrib-caja">
+              <h3 class="distrib-titulo">Por sexo</h3>
+              <div class="barras" id="ao-sexo"></div>
+            </article>
+          </section>
+
+          <section class="herramientas">
+            <button class="boton-secundario" id="btn-abrir-ao" type="button" hidden>
+              Abrir año
+            </button>
+            <p class="pista pista-inline">
+              Conteo mensual de exámenes ocupacionales. Alimenta el informe de POB-03.
+            </p>
+          </section>
+
+          <div class="tabla-envoltura">
+            <table class="tabla tabla-matriz">
+              <thead>
+                <tr>
+                  <th>Mes</th>
+                  <th class="celda-centro" colspan="3">Ingreso</th>
+                  <th class="celda-centro" colspan="3">Periódica</th>
+                  <th class="celda-centro" colspan="3">Reintegro</th>
+                  <th class="celda-centro" colspan="3">Egreso</th>
+                  <th class="celda-centro">Total</th>
+                </tr>
+                <tr class="cabecera-sub">
+                  <th></th>
+                  <th class="celda-centro">H</th><th class="celda-centro">M</th><th class="celda-centro">T</th>
+                  <th class="celda-centro">H</th><th class="celda-centro">M</th><th class="celda-centro">T</th>
+                  <th class="celda-centro">H</th><th class="celda-centro">M</th><th class="celda-centro">T</th>
+                  <th class="celda-centro">H</th><th class="celda-centro">M</th><th class="celda-centro">T</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="cuerpo-ocupacionales"></tbody>
+              <tfoot id="pie-ocupacionales"></tfoot>
+            </table>
+          </div>
+
+          <p class="vacio" id="vacio-ao" hidden>
+            El año no ha sido abierto. Use el botón «Abrir año».
+          </p>
+
+        </section>
+
 
       </div>
 
@@ -442,6 +589,250 @@
       <footer class="modal-pie">
         <button class="boton-secundario" data-cierra="modal-tema" type="button">Cancelar</button>
         <button class="boton-primario" id="btn-guardar-tema" type="button">Guardar tema</button>
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- ============ Modal: Evento ============ -->
+  <div class="modal" id="modal-evento" hidden>
+    <div class="modal-caja modal-ancho" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo" id="ev-titulo">Registrar</h2>
+        <button class="modal-cerrar" data-cierra="modal-evento" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+
+        <!-- Tipo: solo seguridad -->
+        <div class="campo" id="ev-campo-tipo">
+          <label class="etiqueta">Tipo de evento <span class="obligatorio">*</span></label>
+          <div class="opciones" id="ev_tipo">
+            <label class="opcion">
+              <input type="radio" name="ev_tipo" value="incidente" checked>
+              <span class="opcion-cuerpo">
+                <span class="opcion-titulo">Incidente</span>
+                <span class="opcion-nota">Sin lesión</span>
+              </span>
+            </label>
+            <label class="opcion">
+              <input type="radio" name="ev_tipo" value="accidente">
+              <span class="opcion-cuerpo">
+                <span class="opcion-titulo">Accidente</span>
+                <span class="opcion-nota">Con lesión, sin baja</span>
+              </span>
+            </label>
+            <label class="opcion">
+              <input type="radio" name="ev_tipo" value="accidente_baja">
+              <span class="opcion-cuerpo">
+                <span class="opcion-titulo">Accidente con baja</span>
+                <span class="opcion-nota">Con días perdidos</span>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Estado: solo salud -->
+        <div class="campo" id="ev-campo-estado" hidden>
+          <label class="etiqueta">Estado del caso <span class="obligatorio">*</span></label>
+          <div class="opciones" id="ev_estado">
+            <label class="opcion">
+              <input type="radio" name="ev_estado" value="presuncion" checked>
+              <span class="opcion-cuerpo">
+                <span class="opcion-titulo">Presunción</span>
+                <span class="opcion-nota">En trámite</span>
+              </span>
+            </label>
+            <label class="opcion">
+              <input type="radio" name="ev_estado" value="calificada">
+              <span class="opcion-cuerpo">
+                <span class="opcion-titulo">Calificada</span>
+                <span class="opcion-nota">Confirmada por la autoridad</span>
+              </span>
+            </label>
+            <label class="opcion">
+              <input type="radio" name="ev_estado" value="descartada">
+              <span class="opcion-cuerpo">
+                <span class="opcion-titulo">Descartada</span>
+                <span class="opcion-nota">No es ocupacional</span>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <div class="rejilla">
+          <div class="campo">
+            <label class="etiqueta" for="ev_fecha">
+              <span id="ev-etiqueta-fecha">Fecha</span> <span class="obligatorio">*</span>
+            </label>
+            <input class="entrada" id="ev_fecha" type="date">
+          </div>
+          <div class="campo" id="ev-campo-hora">
+            <label class="etiqueta" for="ev_hora">Hora</label>
+            <input class="entrada" id="ev_hora" type="time">
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="ev_turno">Turno <span class="obligatorio">*</span></label>
+            <select class="entrada" id="ev_turno">
+              <option value="dia">Día</option>
+              <option value="tarde">Tarde</option>
+              <option value="noche">Noche</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="rejilla">
+          <div class="campo">
+            <label class="etiqueta" for="ev_area">Área <span class="obligatorio">*</span></label>
+            <select class="entrada" id="ev_area">
+              <option value="">— Seleccione —</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="ev_area_texto">O escriba el lugar</label>
+            <input class="entrada" id="ev_area_texto" type="text"
+                   placeholder="Si no está en la lista">
+          </div>
+        </div>
+
+        <div class="rejilla">
+          <div class="campo">
+            <label class="etiqueta" for="ev_codigo">Código de trabajador</label>
+            <input class="entrada" id="ev_codigo" type="number" min="1" max="3000"
+                   placeholder="Opcional">
+            <span class="ayuda" id="ev-ayuda-trabajador"></span>
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="ev_sexo">Sexo <span class="obligatorio">*</span></label>
+            <select class="entrada" id="ev_sexo">
+              <option value="M">Masculino</option>
+              <option value="F">Femenino</option>
+            </select>
+          </div>
+          <div class="campo" id="ev-campo-dias">
+            <label class="etiqueta" for="ev_dias">Días de baja</label>
+            <input class="entrada" id="ev_dias" type="number" min="0" value="0">
+          </div>
+        </div>
+
+        <!-- Diagnóstico: solo salud -->
+        <div id="ev-bloque-dx" hidden>
+          <div class="rejilla">
+            <div class="campo">
+              <label class="etiqueta" for="ev_cie">Código CIE-10</label>
+              <input class="entrada" id="ev_cie" type="text" placeholder="Buscar…" autocomplete="off">
+              <div class="sugerencias" id="ev_cie_sug" hidden></div>
+            </div>
+            <div class="campo campo-ancho">
+              <label class="etiqueta" for="ev_diagnostico">Diagnóstico <span class="obligatorio">*</span></label>
+              <input class="entrada" id="ev_diagnostico" type="text">
+            </div>
+          </div>
+          <div class="campo campo-ancho">
+            <label class="etiqueta" for="ev_agente_causal">Agente o factor de riesgo atribuido</label>
+            <input class="entrada" id="ev_agente_causal" type="text"
+                   placeholder="Movimientos repetitivos, ruido, polvo de sílice…">
+          </div>
+          <div class="campo" id="ev-campo-dictamen" hidden>
+            <label class="etiqueta" for="ev_fecha_dictamen">
+              Fecha del dictamen <span class="obligatorio">*</span>
+            </label>
+            <input class="entrada" id="ev_fecha_dictamen" type="date">
+          </div>
+        </div>
+
+        <!-- Descripción: solo seguridad -->
+        <div id="ev-bloque-desc">
+          <div class="campo campo-ancho">
+            <label class="etiqueta" for="ev_descripcion">Descripción <span class="obligatorio">*</span></label>
+            <textarea class="entrada area" id="ev_descripcion" rows="2"
+                      placeholder="Qué ocurrió"></textarea>
+          </div>
+          <div class="rejilla">
+            <div class="campo">
+              <label class="etiqueta" for="ev_parte">Parte del cuerpo</label>
+              <input class="entrada" id="ev_parte" type="text">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="ev_agente">Agente material</label>
+              <input class="entrada" id="ev_agente" type="text"
+                     placeholder="Máquina, herramienta, superficie…">
+            </div>
+          </div>
+        </div>
+
+        <!-- Gestión -->
+        <h3 class="subtitulo">Gestión</h3>
+        <div class="gestion-fila">
+          <label class="alternador" id="ev-campo-investigado">
+            <input type="checkbox" id="ev_investigado">
+            <span>Investigado</span>
+          </label>
+          <label class="alternador">
+            <input type="checkbox" id="ev_reportado">
+            <span id="ev-texto-reporte">Reportado al IESS</span>
+          </label>
+          <div class="campo campo-inline" id="ev-campo-freporte" hidden>
+            <label class="etiqueta" for="ev_fecha_reporte">Fecha de reporte</label>
+            <input class="entrada" id="ev_fecha_reporte" type="date">
+          </div>
+        </div>
+
+        <div class="campo campo-ancho">
+          <label class="etiqueta" for="ev_url">Informe de investigación</label>
+          <input class="entrada" id="ev_url" type="url" placeholder="https://drive.google.com/…">
+        </div>
+
+        <div class="campo campo-ancho">
+          <label class="etiqueta" for="ev_medidas">Medidas correctivas aplicadas</label>
+          <textarea class="entrada area" id="ev_medidas" rows="2"></textarea>
+        </div>
+
+        <div class="campo campo-ancho">
+          <label class="etiqueta" for="ev_observacion">Observación</label>
+          <input class="entrada" id="ev_observacion" type="text">
+        </div>
+
+        <p class="alerta" id="alerta-evento" role="alert" hidden></p>
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-eliminar" id="btn-eliminar-evento" type="button" hidden>Eliminar</button>
+        <span class="pie-espacio"></span>
+        <button class="boton-secundario" data-cierra="modal-evento" type="button">Cancelar</button>
+        <button class="boton-primario" id="btn-guardar-evento" type="button">Guardar</button>
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- ============ Modal: Conteo mensual ============ -->
+  <div class="modal" id="modal-ao" hidden>
+    <div class="modal-caja modal-estrecho" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <div class="modal-encabezado">
+          <h2 class="modal-titulo" id="ao-titulo">—</h2>
+          <span class="capac-anio-marca" id="ao-marca">—</span>
+        </div>
+        <button class="modal-cerrar" data-cierra="modal-ao" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+        <div id="ao-campos"></div>
+
+        <div class="campo">
+          <label class="etiqueta" for="ao_observacion">Observación</label>
+          <input class="entrada" id="ao_observacion" type="text">
+        </div>
+
+        <p class="alerta" id="alerta-ao" role="alert" hidden></p>
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" data-cierra="modal-ao" type="button">Cancelar</button>
+        <button class="boton-primario" id="btn-guardar-ao" type="button">Guardar</button>
       </footer>
 
     </div>
