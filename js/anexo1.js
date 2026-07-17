@@ -39,7 +39,12 @@ const estado = {
   consolidado: null,
   vigenciaDocs: null,  // vencimientos contados por documento
   actual: null,        // requisito abierto en el modal
-  enlaceDestino: null  // evidencia que se está enlazando
+  enlaceDestino: null, // evidencia que se está enlazando
+  vista: 'cumplimiento',
+  anio: new Date().getFullYear(),
+  capacitaciones: [],
+  indCapac: null,
+  capacActual: null    // capacitación abierta en el modal
 };
 
 const HOY = () => new Date().toISOString().slice(0, 10);
@@ -69,6 +74,7 @@ async function iniciar() {
   estado.perfil = perfil;
   montarNavegacion(perfil, MODULO);
 
+  prepararAnios();
   await cargarEmpresas();
   conectarEventos();
 }
@@ -150,7 +156,9 @@ async function cargarEvidencias() {
   if (error) return;
 
   (data || []).forEach((e) => {
-    /* Solo las exigidas a este ámbito */
+    /* Solo las exigidas a este ámbito.
+       Las de GTH-09 nacen del catálogo de temas y ya
+       vienen marcadas con su ámbito. */
     if (e.ambito !== null && e.ambito !== AMBITO) return;
     (estado.evidencias[e.requisito_codigo] ||= []).push(e);
   });
@@ -740,6 +748,327 @@ function evaluarCaducidad() {
 }
 
 /* ============================================
+   Capacitaciones
+   El tema persiste entre años; su ejecución no.
+   ============================================ */
+
+function prepararAnios() {
+  const $sel = document.getElementById('capac-anio');
+  const actual = new Date().getFullYear();
+
+  for (let a = actual + 1; a >= actual - 5; a--) {
+    const opcion = document.createElement('option');
+    opcion.value = a;
+    opcion.textContent = a;
+    $sel.appendChild(opcion);
+  }
+  $sel.value = actual;
+}
+
+async function cargarCapacitaciones() {
+  const [filas, indicador] = await Promise.all([
+    supabase.from('v_capacitaciones').select('*')
+      .eq('empresa_id', estado.empresaId)
+      .eq('ambito', AMBITO)
+      .eq('anio', estado.anio)
+      .order('orden'),
+    supabase.from('v_indicadores_capacitacion').select('*')
+      .eq('empresa_id', estado.empresaId)
+      .eq('ambito', AMBITO)
+      .eq('anio', estado.anio)
+      .maybeSingle()
+  ]);
+
+  estado.capacitaciones = filas.data || [];
+  estado.indCapac = indicador.data;
+
+  /* Sin filas: el año no se ha abierto */
+  document.getElementById('btn-abrir-anio').hidden =
+    estado.capacitaciones.length > 0 || !puedeEscribir();
+  document.getElementById('btn-nuevo-tema').hidden = !puedeEscribir();
+}
+
+async function abrirAnio() {
+  const $btn = document.getElementById('btn-abrir-anio');
+  $btn.disabled = true;
+
+  const { error } = await supabase.rpc('abrir_capacitaciones', {
+    p_empresa: estado.empresaId,
+    p_ambito: AMBITO,
+    p_anio: estado.anio
+  });
+
+  $btn.disabled = false;
+
+  if (error) { alert('No fue posible abrir el año: ' + error.message); return; }
+  await cargarCapacitaciones();
+  pintarCapacitaciones();
+}
+
+function pintarCapacitaciones() {
+  const i = estado.indCapac;
+
+  document.getElementById('c-programadas').textContent  = i?.programadas ?? 0;
+  document.getElementById('c-ejecutadas').textContent   = i?.ejecutadas ?? 0;
+  document.getElementById('c-documentadas').textContent = i?.documentadas ?? 0;
+  document.getElementById('c-asistentes').textContent   = i?.total_asistentes ?? 0;
+  document.getElementById('c-porcentaje').textContent =
+    i?.porcentaje_ejecucion != null ? `${i.porcentaje_ejecucion}%` : '—';
+
+  const $cuerpo = document.getElementById('cuerpo-capacitaciones');
+  $cuerpo.innerHTML = '';
+  document.getElementById('vacio-capac').hidden = estado.capacitaciones.length > 0;
+
+  const frag = document.createDocumentFragment();
+  estado.capacitaciones.forEach((c) => frag.appendChild(filaCapacitacion(c)));
+  $cuerpo.appendChild(frag);
+}
+
+function filaCapacitacion(c) {
+  const fila = document.createElement('tr');
+  if (!c.tema_activo) fila.classList.add('fila-inactiva');
+
+  fila.innerHTML = `
+    <td>
+      <span class="principal">${escapar(c.tema)}</span>
+      ${!c.tema_activo ? '<span class="secundario">Tema retirado</span>' : ''}
+      ${c.tema_descripcion ? `<span class="secundario">${escapar(c.tema_descripcion)}</span>` : ''}
+    </td>
+    <td class="celda-centro celda-mono">
+      ${c.fecha_inicio ? formatearFecha(c.fecha_inicio) : '<span class="celda-tenue">—</span>'}
+    </td>
+    <td class="celda-centro celda-tenue">${c.dias ?? '—'}</td>
+    <td class="celda-centro">
+      ${c.asistentes != null
+        ? `<span class="asistentes">${c.asistentes}</span>`
+        : '<span class="celda-tenue">—</span>'}
+    </td>
+    <td class="celda-tenue">${escapar(textoOGuion(c.facilitador))}</td>
+    <td class="celda-centro"></td>
+    <td class="celda-derecha"></td>
+  `;
+
+  /* Registro de asistencia */
+  const $reg = fila.querySelector('td:nth-child(6)');
+  if (c.url_registro) {
+    const a = document.createElement('a');
+    a.className = 'chip-registro';
+    a.href = c.url_registro;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    a.textContent = 'Ver';
+    $reg.appendChild(a);
+  } else if (c.ejecutada) {
+    const s = document.createElement('span');
+    s.className = 'chip-falta';
+    s.textContent = 'Falta';
+    s.title = 'GTH-09 exige el registro de asistencia firmado';
+    $reg.appendChild(s);
+  } else {
+    $reg.innerHTML = '<span class="celda-tenue">—</span>';
+  }
+
+  /* Acciones */
+  const $acc = fila.querySelector('td:last-child');
+  if (puedeEscribir()) {
+    const editar = document.createElement('button');
+    editar.className = 'boton-icono';
+    editar.type = 'button';
+    editar.textContent = c.ejecutada ? 'Editar' : 'Registrar';
+    editar.addEventListener('click', () => abrirCapacitacion(c));
+    $acc.appendChild(editar);
+
+    if (c.tema_activo) {
+      const quitar = document.createElement('button');
+      quitar.className = 'boton-icono boton-icono-critico';
+      quitar.type = 'button';
+      quitar.textContent = 'Quitar tema';
+      quitar.addEventListener('click', () => quitarTema(c));
+      $acc.appendChild(quitar);
+    }
+  } else {
+    $acc.innerHTML = '<span class="celda-tenue">—</span>';
+  }
+
+  return fila;
+}
+
+/* --- Modal de capacitación --- */
+
+function abrirCapacitacion(c) {
+  estado.capacActual = c;
+
+  document.getElementById('c-titulo').textContent = c.tema;
+  document.getElementById('c-anio-marca').textContent = c.anio;
+  document.getElementById('c_fecha_inicio').value = c.fecha_inicio ?? '';
+  document.getElementById('c_fecha_fin').value = c.fecha_fin ?? '';
+  document.getElementById('c_asistentes').value = c.asistentes ?? '';
+  document.getElementById('c_facilitador').value = c.facilitador ?? '';
+  document.getElementById('c_url').value = c.url_registro ?? '';
+  document.getElementById('c_observacion').value = c.observacion ?? '';
+
+  document.getElementById('alerta-capac').hidden = true;
+  document.getElementById('modal-capac').hidden = false;
+  document.getElementById('c_fecha_inicio').focus();
+}
+
+async function guardarCapacitacion() {
+  const c = estado.capacActual;
+  if (!c) return;
+
+  const inicio = document.getElementById('c_fecha_inicio').value || null;
+  const fin = document.getElementById('c_fecha_fin').value || null;
+  const url = document.getElementById('c_url').value.trim() || null;
+  const asistentes = document.getElementById('c_asistentes').value;
+
+  if (fin && !inicio) {
+    return alertaCapac('Indique primero la fecha de realización');
+  }
+  if (inicio && fin && fin < inicio) {
+    return alertaCapac('La fecha de cierre no puede ser anterior a la de realización');
+  }
+  if (url && !/^https?:\/\//i.test(url)) {
+    return alertaCapac('El enlace debe comenzar con http:// o https://');
+  }
+  if (url && !inicio) {
+    return alertaCapac('Indique la fecha: el registro de asistencia la necesita para calcular vigencia');
+  }
+
+  const $btn = document.getElementById('btn-guardar-capac');
+  $btn.disabled = true;
+
+  const { error } = await supabase
+    .from('capacitaciones')
+    .update({
+      fecha_inicio: inicio,
+      fecha_fin: fin,
+      asistentes: asistentes === '' ? null : parseInt(asistentes, 10),
+      facilitador: document.getElementById('c_facilitador').value.trim() || null,
+      url_registro: url,
+      observacion: document.getElementById('c_observacion').value.trim() || null
+    })
+    .eq('id', c.id);
+
+  $btn.disabled = false;
+
+  if (error) return alertaCapac(traducirBd(error));
+
+  document.getElementById('modal-capac').hidden = true;
+  await cargarCapacitaciones();
+  pintarCapacitaciones();
+
+  /* El registro alimenta GTH-09: refrescar el cumplimiento */
+  await cargarTodo();
+}
+
+function alertaCapac(texto) {
+  const $a = document.getElementById('alerta-capac');
+  $a.textContent = texto;
+  $a.hidden = false;
+}
+
+/* --- Temas --- */
+
+function abrirTema() {
+  document.getElementById('t_nombre').value = '';
+  document.getElementById('t_descripcion').value = '';
+  document.getElementById('alerta-tema').hidden = true;
+  document.getElementById('modal-tema').hidden = false;
+  document.getElementById('t_nombre').focus();
+}
+
+async function guardarTema() {
+  const nombre = document.getElementById('t_nombre').value.trim();
+  if (!nombre) return alertaTema('Indique el nombre del tema');
+
+  const $btn = document.getElementById('btn-guardar-tema');
+  $btn.disabled = true;
+
+  /* Orden al final de la lista */
+  const orden = estado.capacitaciones.length > 0
+    ? Math.max(...estado.capacitaciones.map((c) => c.orden || 0)) + 1
+    : 1;
+
+  const { data, error } = await supabase
+    .from('capacitacion_temas')
+    .insert({
+      ambito: AMBITO,
+      nombre,
+      descripcion: document.getElementById('t_descripcion').value.trim() || null,
+      orden
+    })
+    .select()
+    .single();
+
+  if (error) { $btn.disabled = false; return alertaTema(traducirBd(error)); }
+
+  /* Abrir la fila del año en curso para el tema nuevo */
+  await supabase.from('capacitaciones').insert({
+    empresa_id: estado.empresaId,
+    tema_id: data.id,
+    anio: estado.anio
+  });
+
+  $btn.disabled = false;
+  document.getElementById('modal-tema').hidden = true;
+
+  await cargarCapacitaciones();
+  pintarCapacitaciones();
+  await cargarTodo();
+}
+
+/**
+ * Baja lógica: el tema desaparece de la lista y de GTH-09,
+ * pero los años ya cerrados conservan su registro.
+ */
+async function quitarTema(c) {
+  const aviso = c.ejecutada
+    ? `¿Retirar "${c.tema}"?\n\nTiene registro en ${c.anio}. El historial se conserva, ` +
+      'pero el tema dejará de exigirse y saldrá de GTH-09.'
+    : `¿Retirar "${c.tema}"?\n\nSaldrá de la lista y de GTH-09 en todas las empresas.`;
+
+  if (!confirm(aviso)) return;
+
+  const { error } = await supabase
+    .from('capacitacion_temas')
+    .update({ activo: false })
+    .eq('id', c.tema_id);
+
+  if (error) { alert(traducirBd(error)); return; }
+
+  await cargarCapacitaciones();
+  pintarCapacitaciones();
+  await cargarTodo();
+}
+
+function alertaTema(texto) {
+  const $a = document.getElementById('alerta-tema');
+  $a.textContent = texto;
+  $a.hidden = false;
+}
+
+/* ============================================
+   Pestañas
+   ============================================ */
+
+function cambiarVista(vista) {
+  estado.vista = vista;
+  document.querySelectorAll('.pestana').forEach((p) => {
+    p.classList.toggle('activa', p.dataset.vista === vista);
+  });
+  ['cumplimiento', 'capacitaciones'].forEach((v) => {
+    document.getElementById('vista-' + v).hidden = v !== vista;
+  });
+  if (vista === 'capacitaciones') pintarCapacitaciones();
+}
+
+async function cambiarAnio() {
+  estado.anio = parseInt(document.getElementById('capac-anio').value, 10);
+  await cargarCapacitaciones();
+  pintarCapacitaciones();
+}
+
+/* ============================================
    Empresa
    ============================================ */
 
@@ -758,6 +1087,8 @@ async function seleccionarEmpresa() {
   $avisoIni.hidden = true;
 
   await cargarTodo();
+  await cargarCapacitaciones();
+  if (estado.vista === 'capacitaciones') pintarCapacitaciones();
 }
 
 /* ============================================
@@ -807,9 +1138,27 @@ function conectarEventos() {
   document.getElementById('filtro-estado').addEventListener('change', pintarLista);
   document.getElementById('ocultar-na').addEventListener('change', pintarLista);
 
+  /* Pestañas */
+  document.querySelectorAll('.pestana').forEach((p) => {
+    p.addEventListener('click', () => cambiarVista(p.dataset.vista));
+  });
+
+  /* Capacitaciones */
+  document.getElementById('capac-anio').addEventListener('change', cambiarAnio);
+  document.getElementById('btn-abrir-anio').addEventListener('click', abrirAnio);
+  document.getElementById('btn-nuevo-tema').addEventListener('click', abrirTema);
+  document.getElementById('btn-guardar-capac').addEventListener('click', guardarCapacitacion);
+  document.getElementById('btn-guardar-tema').addEventListener('click', guardarTema);
+
+  /* Cierre por defecto: un año cubre a todo el personal */
+  document.getElementById('c_fecha_inicio').addEventListener('change', () => {
+    const $fin = document.getElementById('c_fecha_fin');
+    if (!$fin.value) $fin.value = document.getElementById('c_fecha_inicio').value;
+  });
+
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
-    const orden = ['modal-enlace', 'modal-req'];
+    const orden = ['modal-tema', 'modal-capac', 'modal-enlace', 'modal-req'];
     for (const id of orden) {
       const $m = document.getElementById(id);
       if (!$m.hidden) { $m.hidden = true; return; }
