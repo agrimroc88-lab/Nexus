@@ -65,7 +65,7 @@ async function iniciar() {
   }
 
   estado.perfil = perfil;
-  montarNavegacion(perfil, 'enfermeria');
+  montarNavegacion(perfil, 'farmacia');
 
   await cargarEmpresas();
   conectarEventos();
