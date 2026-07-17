@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acceso · NEXUS</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/login.css">
+</head>
+<body class="pantalla-acceso">
+
+  <main class="acceso-tarjeta">
+
+    <header class="acceso-encabezado">
+      <h1 class="acceso-marca">NEXUS</h1>
+      <p class="acceso-lema">Medicina Ocupacional y SG-SST</p>
+    </header>
+
+    <div class="acceso-campo">
+      <label class="acceso-etiqueta" for="correo">Correo electrónico</label>
+      <input class="acceso-entrada" type="email" id="correo" autocomplete="username" required>
+    </div>
+
+    <div class="acceso-campo">
+      <label class="acceso-etiqueta" for="clave">Contraseña</label>
+      <input class="acceso-entrada" type="password" id="clave" autocomplete="current-password" required>
+    </div>
+
+    <p class="acceso-mensaje" id="mensaje" role="alert" hidden></p>
+
+    <button class="acceso-boton" id="btn-ingresar" type="button">Ingresar</button>
+
+    <footer class="acceso-pie">
+      <span>Acceso restringido · Información clínica protegida</span>
+    </footer>
+
+  </main>
+
+  <script type="module" src="js/login.js"></script>
+</body>
+</html>

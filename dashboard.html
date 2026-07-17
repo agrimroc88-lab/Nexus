@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel · NEXUS</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body class="app">
+
+  <aside class="barra-lateral" id="barra-lateral">
+    <div class="lateral-marca">NEXUS</div>
+    <nav class="lateral-nav" id="lateral-nav"></nav>
+    <button class="lateral-salir" id="btn-salir" type="button">Cerrar sesión</button>
+  </aside>
+
+  <div class="contenedor">
+
+    <header class="cabecera">
+      <button class="cabecera-menu" id="btn-menu" type="button" aria-label="Menú">☰</button>
+      <h1 class="cabecera-titulo">Panel general</h1>
+      <div class="cabecera-usuario">
+        <span class="usuario-nombre" id="usuario-nombre">—</span>
+        <span class="usuario-rol" id="usuario-rol">—</span>
+      </div>
+    </header>
+
+    <main class="contenido">
+
+      <section class="tarjetas" id="tarjetas">
+        <article class="tarjeta">
+          <span class="tarjeta-etiqueta">Empresas</span>
+          <span class="tarjeta-valor" id="kpi-empresas">—</span>
+        </article>
+        <article class="tarjeta">
+          <span class="tarjeta-etiqueta">Sucursales</span>
+          <span class="tarjeta-valor" id="kpi-sucursales">—</span>
+        </article>
+        <article class="tarjeta">
+          <span class="tarjeta-etiqueta">Áreas</span>
+          <span class="tarjeta-valor" id="kpi-areas">—</span>
+        </article>
+        <article class="tarjeta">
+          <span class="tarjeta-etiqueta">Cargos</span>
+          <span class="tarjeta-valor" id="kpi-cargos">—</span>
+        </article>
+      </section>
+
+      <section class="aviso">
+        <h2 class="aviso-titulo">Estado del sistema</h2>
+        <p class="aviso-texto">
+          Núcleo organizacional activo. Los módulos de trabajadores, exámenes,
+          ergonomía, vigilancia e indicadores se habilitarán progresivamente.
+        </p>
+      </section>
+
+    </main>
+
+  </div>
+
+  <script type="module" src="js/dashboard.js"></script>
+</body>
+</html>
