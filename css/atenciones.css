@@ -1,0 +1,525 @@
+/* ============================================
+   NEXUS · atenciones.css
+   Estilos exclusivos de atenciones.html
+   ============================================ */
+
+/* --- Modal ancho --- */
+
+.modal-ancho { max-width: 820px; }
+
+.entrada-destacada {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.area {
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+/* --- Ficha del trabajador --- */
+
+.ficha {
+  margin: 1.25rem 0;
+  padding: 1rem 1.15rem;
+  background: var(--color-fondo);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+}
+
+.ficha-datos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.85rem 1.25rem;
+}
+
+.ficha-item { display: flex; flex-direction: column; gap: 0.15rem; }
+
+.ficha-etiqueta {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-texto-tenue);
+}
+
+.ficha-valor {
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+/* --- Alergias: alerta permanente --- */
+
+.alergias {
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--color-borde);
+}
+
+.alergias-etiqueta {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #f57373;
+}
+
+.alergias-entrada {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  font-family: inherit;
+  font-size: 0.88rem;
+  color: var(--color-texto);
+  background: var(--color-superficie);
+  border: 1px solid rgba(245, 115, 115, 0.35);
+  border-radius: var(--radio);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.alergias-entrada:focus { border-color: #f57373; }
+
+.alergias-entrada.con-alergia {
+  color: #ffb4ab;
+  font-weight: 600;
+  background: rgba(245, 115, 115, 0.08);
+  border-color: rgba(245, 115, 115, 0.5);
+}
+
+.alergias-nota {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.7rem;
+  color: var(--color-texto-tenue);
+}
+
+/* --- Plegable de signos vitales --- */
+
+.plegable {
+  margin: 1.25rem 0;
+  padding: 0.9rem 1.15rem;
+  background: var(--color-fondo);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+}
+
+.plegable-titulo {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-texto-tenue);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.plegable-titulo::-webkit-details-marker { display: none; }
+
+.plegable-titulo::before {
+  content: '▸ ';
+  display: inline-block;
+  transition: transform 0.15s;
+}
+
+.plegable[open] .plegable-titulo::before { content: '▾ '; }
+
+.plegable[open] .plegable-titulo { margin-bottom: 1rem; }
+
+.rejilla-vitales {
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+}
+
+/* --- Cabecera de sección --- */
+
+.seccion-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 1.5rem 0 0.85rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--color-borde);
+}
+
+.subtitulo-plano {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.boton-agregar {
+  padding: 0.4rem 0.75rem;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-acento);
+  background: rgba(47, 129, 247, 0.08);
+  border: 1px solid rgba(47, 129, 247, 0.3);
+  border-radius: var(--radio);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.boton-agregar:hover { background: rgba(47, 129, 247, 0.16); }
+
+/* --- Renglones de diagnóstico y medicamento --- */
+
+.renglon {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
+  padding: 0.7rem;
+  background: var(--color-fondo);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+}
+
+.renglon-principal { border-left: 3px solid var(--color-acento); }
+
+.renglon-orden {
+  flex-shrink: 0;
+  padding-top: 0.5rem;
+  min-width: 58px;
+}
+
+.orden-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--color-texto-tenue);
+  background: var(--color-superficie);
+  border-radius: 5px;
+}
+
+.etiqueta-principal {
+  display: inline-block;
+  padding: 0.15rem 0.4rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-acento);
+  background: rgba(47, 129, 247, 0.12);
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.renglon-cuerpo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.renglon-medicamento {
+  display: grid;
+  grid-template-columns: 1fr 80px 1fr;
+  gap: 0.5rem;
+}
+
+.entrada-mini {
+  padding: 0.5rem 0.65rem;
+  font-size: 0.84rem;
+  width: 100%;
+}
+
+.entrada-cantidad {
+  padding: 0.5rem 0.5rem;
+  font-size: 0.84rem;
+  text-align: center;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+.entrada-alerta {
+  color: #ffb4ab;
+  border-color: rgba(245, 115, 115, 0.5);
+  background: rgba(245, 115, 115, 0.06);
+}
+
+.aviso-stock {
+  margin: -0.3rem 0 0.7rem 4.1rem;
+  font-size: 0.74rem;
+  color: #f5a05e;
+}
+
+.boton-quitar {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  margin-top: 0.4rem;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--color-texto-tenue);
+  background: transparent;
+  border: 1px solid var(--color-borde);
+  border-radius: 5px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.boton-quitar:hover {
+  color: #f57373;
+  border-color: rgba(245, 115, 115, 0.5);
+}
+
+/* --- Selector CIE-10 --- */
+
+.selector-cie {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  font-family: inherit;
+  font-size: 0.86rem;
+  text-align: left;
+  color: var(--color-texto);
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.selector-cie:hover { border-color: var(--color-acento); }
+
+.selector-lleno { border-color: rgba(47, 129, 247, 0.3); }
+
+.cie-vacio {
+  color: var(--color-texto-tenue);
+  font-size: 0.84rem;
+}
+
+.cie-desc {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cie-chip {
+  display: inline-block;
+  flex-shrink: 0;
+  padding: 0.15rem 0.4rem;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--color-acento);
+  background: rgba(47, 129, 247, 0.12);
+  border-radius: 4px;
+}
+
+/* --- Buscador CIE-10 --- */
+
+.entrada-busqueda {
+  width: 100%;
+  padding: 0.7rem 0.85rem;
+  font-size: 0.95rem;
+  margin-bottom: 1rem;
+}
+
+.resultados {
+  max-height: 340px;
+  overflow-y: auto;
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+}
+
+.resultado {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  padding: 0.65rem 0.8rem;
+  font-family: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  color: var(--color-texto);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--color-borde);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.resultado:last-child { border-bottom: none; }
+.resultado:hover { background: rgba(47, 129, 247, 0.08); }
+
+.resultado-desc { flex: 1; }
+
+.resultado-cap {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  color: var(--color-texto-tenue);
+}
+
+.pista {
+  margin: 0;
+  padding: 1.75rem;
+  text-align: center;
+  font-size: 0.84rem;
+  line-height: 1.6;
+  color: var(--color-texto-tenue);
+}
+
+/* --- Alta de código CIE --- */
+
+.agregar-cie {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--color-fondo);
+  border: 1px dashed var(--color-borde);
+  border-radius: var(--radio);
+}
+
+.agregar-texto {
+  margin: 0 0 0.85rem;
+  font-size: 0.8rem;
+  color: var(--color-texto-tenue);
+}
+
+.agregar-cie .boton-primario { margin-top: 0.85rem; }
+
+/* --- Listado --- */
+
+.rx-parcial {
+  color: #f5a05e;
+  font-weight: 600;
+}
+
+.reposo {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #f5d76e;
+  background: rgba(245, 215, 110, 0.12);
+  border-radius: 5px;
+}
+
+/* --- Morbilidad --- */
+
+.barra {
+  position: relative;
+  height: 20px;
+  min-width: 110px;
+  background: var(--color-fondo);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.barra-relleno {
+  height: 100%;
+  background: linear-gradient(90deg, rgba(47,129,247,0.7), rgba(47,129,247,0.35));
+  border-radius: 4px;
+}
+
+.barra-texto {
+  position: absolute;
+  top: 0;
+  left: 0.5rem;
+  line-height: 20px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-texto);
+}
+
+/* --- Detalle --- */
+
+.detalle-encabezado {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 0.85rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-borde);
+}
+
+.detalle-alergia {
+  margin: 1rem 0 0;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #ffb4ab;
+  background: rgba(245, 115, 115, 0.08);
+  border: 1px solid rgba(245, 115, 115, 0.3);
+  border-radius: var(--radio);
+}
+
+.detalle-titulo {
+  margin: 1.35rem 0 0.6rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-texto-tenue);
+}
+
+.detalle-texto {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.6;
+}
+
+.detalle-linea {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.55rem 0.7rem;
+  margin-bottom: 0.4rem;
+  font-size: 0.85rem;
+  background: var(--color-fondo);
+  border-radius: var(--radio);
+}
+
+.detalle-linea .secundario { margin-left: auto; }
+
+.vitales-tira {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.vital {
+  padding: 0.25rem 0.6rem;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.78rem;
+  color: var(--color-texto);
+  background: var(--color-fondo);
+  border: 1px solid var(--color-borde);
+  border-radius: 5px;
+}
+
+.detalle-reposo {
+  margin: 1rem 0 0;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #f5d76e;
+  background: rgba(245, 215, 110, 0.08);
+  border-radius: var(--radio);
+}
+
+.detalle-pie {
+  margin: 1.5rem 0 0;
+  padding-top: 0.85rem;
+  font-size: 0.74rem;
+  color: var(--color-texto-tenue);
+  border-top: 1px solid var(--color-borde);
+}
+
+/* --- Responsivo --- */
+
+@media (max-width: 720px) {
+  .renglon-medicamento { grid-template-columns: 1fr; }
+  .renglon { flex-wrap: wrap; }
+  .aviso-stock { margin-left: 0; }
+  .seccion-cabecera { flex-direction: column; align-items: stretch; gap: 0.6rem; }
+}
