@@ -30,7 +30,9 @@ const estado = {
   diagnosticos: [],     // [{codigo, descripcion, observacion}]
   prescripciones: [],   // [{medicamento_id, nombre, cantidad, indicacion, disponible}]
   cieDestino: null,     // índice del diagnóstico que abrió el buscador
-  vista: 'listado'
+  paciente: null,       // trabajador localizado en la pestaña Atenciones
+  histAbierto: false,   // historial embebido desplegado
+  vista: 'atenciones'
 };
 
 const HOY = () => new Date().toISOString().slice(0, 10);
@@ -67,14 +69,16 @@ async function iniciar() {
 }
 
 function prepararAnios() {
-  const $sel = document.getElementById('morb-anio');
   const actual = new Date().getFullYear();
-  for (let a = actual; a >= actual - 5; a--) {
-    const opcion = document.createElement('option');
-    opcion.value = a;
-    opcion.textContent = a;
-    $sel.appendChild(opcion);
-  }
+  ['morb-anio', 'cons-anio'].forEach((id) => {
+    const $sel = document.getElementById(id);
+    for (let a = actual; a >= actual - 5; a--) {
+      const opcion = document.createElement('option');
+      opcion.value = a;
+      opcion.textContent = a;
+      $sel.appendChild(opcion);
+    }
+  });
 }
 
 /* ============================================
@@ -157,73 +161,158 @@ function pintarResumen() {
 }
 
 /* ============================================
-   Vista · Listado
+   Vista · Atenciones de hoy
    ============================================ */
 
-function pintarListado() {
-  const texto = document.getElementById('busqueda').value.trim().toLowerCase();
-  const periodo = document.getElementById('filtro-periodo').value;
-  const $cuerpo = document.getElementById('cuerpo-listado');
+function pintarHoy() {
+  const hoy = HOY();
+  const $cuerpo = document.getElementById('cuerpo-hoy');
 
-  const hoy = new Date();
-  const anio = hoy.getFullYear();
-  const mes = hoy.getMonth() + 1;
+  document.getElementById('dia-fecha').textContent =
+    new Date().toLocaleDateString('es-EC', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+    });
+
+  const visibles = estado.atenciones.filter((a) => a.fecha === hoy);
+  document.getElementById('dia-contador').textContent = visibles.length;
+
+  $cuerpo.innerHTML = '';
+  document.getElementById('vacio-hoy').hidden = visibles.length > 0;
+
+  const frag = document.createDocumentFragment();
+  visibles.forEach((a) => frag.appendChild(filaAtencion(a, true)));
+  $cuerpo.appendChild(frag);
+}
+
+/* ============================================
+   Vista · Consolidado
+   ============================================ */
+
+/** Alimenta el filtro de diagnósticos con los realmente usados */
+function llenarFiltroDx() {
+  const $sel = document.getElementById('cons-dx');
+  const previo = $sel.value;
+
+  const mapa = new Map();
+  estado.atenciones.forEach((a) => {
+    if (a.cie10_principal && !mapa.has(a.cie10_principal)) {
+      mapa.set(a.cie10_principal, a.diagnostico_principal);
+    }
+  });
+
+  const items = [...mapa.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+
+  $sel.innerHTML = '<option value="">Todos los diagnósticos</option>';
+  items.forEach(([codigo, descripcion]) => {
+    const opcion = document.createElement('option');
+    opcion.value = codigo;
+    opcion.textContent = `${codigo} · ${descripcion || ''}`.trim();
+    $sel.appendChild(opcion);
+  });
+
+  if (previo && mapa.has(previo)) $sel.value = previo;
+}
+
+function pintarConsolidado() {
+  const anio = parseInt(document.getElementById('cons-anio').value, 10);
+  const mes = parseInt(document.getElementById('cons-mes').value, 10);
+  const dx = document.getElementById('cons-dx').value;
+  const texto = document.getElementById('cons-busqueda').value.trim().toLowerCase();
+  const $cuerpo = document.getElementById('cuerpo-consolidado');
 
   const visibles = estado.atenciones.filter((a) => {
     const f = new Date(a.fecha + 'T00:00');
-    if (periodo === 'mes' && (f.getFullYear() !== anio || f.getMonth() + 1 !== mes)) return false;
-    if (periodo === 'anio' && f.getFullYear() !== anio) return false;
+    if (f.getFullYear() !== anio) return false;
+    if (mes !== 0 && f.getMonth() + 1 !== mes) return false;
+    if (dx && a.cie10_principal !== dx) return false;
 
     if (!texto) return true;
-    return [String(a.codigo_trabajador), a.nombre_completo, a.cedula,
-            a.diagnostico_principal, a.cie10_principal]
+    return [String(a.codigo_trabajador), a.nombre_completo, a.cedula]
       .filter(Boolean).some((c) => String(c).toLowerCase().includes(texto));
   });
 
+  /* Resumen del filtro aplicado */
+  const $resumen = document.getElementById('cons-resumen');
+  if (dx || mes !== 0 || texto) {
+    const partes = [`${visibles.length} atención${visibles.length === 1 ? '' : 'es'}`];
+    if (mes !== 0) partes.push(`en ${MESES[mes]} ${anio}`);
+    else partes.push(`en ${anio}`);
+    if (dx) {
+      const desc = estado.atenciones.find((a) => a.cie10_principal === dx)?.diagnostico_principal;
+      partes.push(`por ${dx}${desc ? ' · ' + desc : ''}`);
+    }
+    const personas = new Set(visibles.map((a) => a.trabajador_id)).size;
+    partes.push(`· ${personas} trabajador${personas === 1 ? '' : 'es'}`);
+
+    document.getElementById('cons-resumen-texto').textContent = partes.join(' ');
+    $resumen.hidden = false;
+  } else {
+    $resumen.hidden = true;
+  }
+
   $cuerpo.innerHTML = '';
-  document.getElementById('vacio-listado').hidden = visibles.length > 0;
+  document.getElementById('vacio-consolidado').hidden = visibles.length > 0;
 
   const frag = document.createDocumentFragment();
-
-  visibles.forEach((a) => {
-    const fila = document.createElement('tr');
-
-    fila.innerHTML = `
-      <td class="celda-centro celda-mono">${formatearFecha(a.fecha)}</td>
-      <td class="celda-centro"><span class="codigo">${a.codigo_trabajador}</span></td>
-      <td>
-        <span class="principal">${escapar(a.nombre_completo)}</span>
-        ${a.cargo ? `<span class="secundario">${escapar(a.cargo)}</span>` : ''}
-      </td>
-      <td class="celda-centro">${a.edad_atencion ?? '—'}</td>
-      <td>
-        ${a.cie10_principal
-          ? `<span class="cie-chip">${escapar(a.cie10_principal)}</span>
-             <span class="secundario">${escapar(a.diagnostico_principal || '')}</span>`
-          : '<span class="celda-tenue">Sin diagnóstico</span>'}
-      </td>
-      <td class="celda-centro celda-tenue">${a.total_diagnosticos}</td>
-      <td class="celda-centro">
-        ${a.total_medicamentos > 0
-          ? `<span class="${a.medicamentos_no_entregados > 0 ? 'rx-parcial' : 'celda-tenue'}">
-               ${a.total_medicamentos}${a.medicamentos_no_entregados > 0 ? ' ⚠' : ''}
-             </span>`
-          : '—'}
-      </td>
-      <td class="celda-centro">${a.dias_reposo > 0 ? `<span class="reposo">${a.dias_reposo}</span>` : '—'}</td>
-      <td class="celda-derecha"></td>
-    `;
-
-    const ver = document.createElement('button');
-    ver.className = 'boton-icono';
-    ver.textContent = 'Ver';
-    ver.addEventListener('click', () => abrirDetalle(a));
-    fila.querySelector('td:last-child').appendChild(ver);
-
-    frag.appendChild(fila);
-  });
-
+  visibles.forEach((a) => frag.appendChild(filaAtencion(a, false)));
   $cuerpo.appendChild(frag);
+}
+
+function limpiarFiltrosConsolidado() {
+  document.getElementById('cons-mes').value = '0';
+  document.getElementById('cons-dx').value = '';
+  document.getElementById('cons-busqueda').value = '';
+  pintarConsolidado();
+}
+
+/* ============================================
+   Fila de atención · compartida
+   ============================================ */
+
+/**
+ * @param {object} a - atención
+ * @param {boolean} esHoy - muestra hora en vez de fecha
+ */
+function filaAtencion(a, esHoy) {
+  const fila = document.createElement('tr');
+
+  const primeraColumna = esHoy
+    ? new Date(a.creado_en).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })
+    : formatearFecha(a.fecha);
+
+  fila.innerHTML = `
+    <td class="celda-centro celda-mono">${primeraColumna}</td>
+    <td class="celda-centro"><span class="codigo">${a.codigo_trabajador}</span></td>
+    <td>
+      <span class="principal">${escapar(a.nombre_completo)}</span>
+      ${a.cargo ? `<span class="secundario">${escapar(a.cargo)}</span>` : ''}
+    </td>
+    <td class="celda-centro">${a.edad_atencion ?? '—'}</td>
+    <td>
+      ${a.cie10_principal
+        ? `<span class="cie-chip">${escapar(a.cie10_principal)}</span>
+           <span class="secundario">${escapar(a.diagnostico_principal || '')}</span>`
+        : '<span class="celda-tenue">Sin diagnóstico</span>'}
+    </td>
+    <td class="celda-centro celda-tenue">${a.total_diagnosticos}</td>
+    <td class="celda-centro">
+      ${a.total_medicamentos > 0
+        ? `<span class="${a.medicamentos_no_entregados > 0 ? 'rx-parcial' : 'celda-tenue'}">
+             ${a.total_medicamentos}${a.medicamentos_no_entregados > 0 ? ' ⚠' : ''}
+           </span>`
+        : '—'}
+    </td>
+    <td class="celda-centro">${a.dias_reposo > 0 ? `<span class="reposo">${a.dias_reposo}</span>` : '—'}</td>
+    <td class="celda-derecha"></td>
+  `;
+
+  const ver = document.createElement('button');
+  ver.className = 'boton-icono';
+  ver.textContent = 'Ver';
+  ver.addEventListener('click', () => abrirDetalle(a));
+  fila.querySelector('td:last-child').appendChild(ver);
+
+  return fila;
 }
 
 /* ============================================
@@ -319,7 +408,7 @@ function abrirAtencion() {
 }
 
 function ocultarBloques() {
-  ['ficha', 'bloque-motivo', 'bloque-vitales', 'bloque-diagnosticos',
+  ['ficha', 'antecedente', 'bloque-motivo', 'bloque-vitales', 'bloque-diagnosticos',
    'bloque-medicamentos', 'bloque-cierre'].forEach((id) => {
     document.getElementById(id).hidden = true;
   });
@@ -372,11 +461,64 @@ const buscarTrabajador = retrasar(async () => {
 
   estado.trabajador = data;
   pintarFicha(data);
+  pintarAntecedente(data);
   mostrarBloques();
 
   /* Primer diagnóstico listo para capturar */
   if (estado.diagnosticos.length === 0) agregarDiagnostico();
 }, 400);
+
+/**
+ * Contexto clínico inmediato: última atención y frecuencia.
+ * Evita que el médico tenga que salir del formulario para
+ * saber si el trabajador ya consultó por lo mismo.
+ */
+function pintarAntecedente(t) {
+  const $ant = document.getElementById('antecedente');
+  const propias = estado.atenciones.filter((a) => a.trabajador_id === t.id);
+
+  if (propias.length === 0) {
+    $ant.innerHTML = '<span class="antecedente-vacio">Primera atención registrada</span>';
+    $ant.className = 'antecedente';
+    $ant.hidden = false;
+    return;
+  }
+
+  const ultima = propias[0];
+  const dias = Math.round((new Date() - new Date(ultima.fecha + 'T00:00')) / 86400000);
+
+  const anio = new Date().getFullYear();
+  const delAnio = propias.filter((a) => new Date(a.fecha + 'T00:00').getFullYear() === anio).length;
+
+  /* Reincidencia sobre el mismo diagnóstico */
+  const mismoDx = ultima.cie10_principal
+    ? propias.filter((a) => a.cie10_principal === ultima.cie10_principal).length
+    : 0;
+
+  const alerta = dias <= 30 || mismoDx >= 3;
+
+  $ant.className = 'antecedente' + (alerta ? ' antecedente-alerta' : '');
+  $ant.innerHTML = `
+    <div class="antecedente-linea">
+      <span class="antecedente-etiqueta">Última atención</span>
+      <span class="antecedente-valor">
+        ${formatearFecha(ultima.fecha)} · hace ${dias} día${dias === 1 ? '' : 's'}
+      </span>
+      ${ultima.cie10_principal
+        ? `<span class="cie-chip">${escapar(ultima.cie10_principal)}</span>
+           <span class="antecedente-dx">${escapar(ultima.diagnostico_principal || '')}</span>`
+        : ''}
+    </div>
+    <div class="antecedente-linea antecedente-meta">
+      <span>${propias.length} atención${propias.length === 1 ? '' : 'es'} en total</span>
+      <span>${delAnio} este año</span>
+      ${mismoDx >= 3
+        ? `<span class="antecedente-flag">${mismoDx} veces por ${escapar(ultima.cie10_principal)}</span>`
+        : ''}
+    </div>
+  `;
+  $ant.hidden = false;
+}
 
 function pintarFicha(t) {
   document.getElementById('f-nombre').textContent = t.nombre_completo;
@@ -859,6 +1001,306 @@ async function abrirDetalle(a) {
 }
 
 /* ============================================
+   Buscador de paciente · pestaña Atenciones
+   ============================================ */
+
+/** Búsqueda por código. Se dispara con Enter o con el botón. */
+async function buscarPaciente() {
+  const codigo = parseInt(document.getElementById('busca_codigo').value, 10);
+  const $ayuda = document.getElementById('ayuda-busca');
+
+  if (!codigo) {
+    $ayuda.textContent = 'Indique un código de trabajador';
+    $ayuda.className = 'ayuda ayuda-error';
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from('v_trabajadores')
+    .select('*')
+    .eq('empresa_id', estado.empresaId)
+    .eq('codigo', codigo)
+    .maybeSingle();
+
+  if (error || !data) {
+    $ayuda.textContent = 'No existe un trabajador con ese código en esta empresa';
+    $ayuda.className = 'ayuda ayuda-error';
+    limpiarPaciente();
+    return;
+  }
+
+  $ayuda.textContent = '';
+  document.getElementById('busca_nombre').value = '';
+  ocultarSugerencias();
+  mostrarPaciente(data);
+}
+
+/** Búsqueda por nombre o cédula: devuelve sugerencias */
+const buscarPorNombre = retrasar(async () => {
+  const texto = document.getElementById('busca_nombre').value.trim();
+  const $sug = document.getElementById('busca_sugerencias');
+
+  if (texto.length < 2) { ocultarSugerencias(); return; }
+
+  const { data, error } = await supabase
+    .from('v_trabajadores')
+    .select('id, codigo, cedula, nombre_completo, activo')
+    .eq('empresa_id', estado.empresaId)
+    .or(`nombre_completo.ilike.%${texto}%,cedula.ilike.${texto}%`)
+    .order('apellidos')
+    .limit(12);
+
+  if (error || !data || data.length === 0) {
+    $sug.innerHTML = '<p class="sugerencia-vacia">Sin coincidencias</p>';
+    $sug.hidden = false;
+    return;
+  }
+
+  $sug.innerHTML = '';
+  const frag = document.createDocumentFragment();
+
+  data.forEach((t) => {
+    const item = document.createElement('button');
+    item.className = 'sugerencia';
+    item.type = 'button';
+    item.innerHTML = `
+      <span class="codigo">${t.codigo}</span>
+      <span class="sugerencia-nombre">${escapar(t.nombre_completo)}</span>
+      <span class="sugerencia-meta">${escapar(t.cedula)}</span>
+      ${!t.activo ? '<span class="insignia insignia-inactiva">Inactivo</span>' : ''}
+    `;
+    item.addEventListener('click', () => {
+      document.getElementById('busca_codigo').value = t.codigo;
+      document.getElementById('busca_nombre').value = '';
+      ocultarSugerencias();
+      buscarPaciente();
+    });
+    frag.appendChild(item);
+  });
+
+  $sug.appendChild(frag);
+  $sug.hidden = false;
+}, 300);
+
+function ocultarSugerencias() {
+  document.getElementById('busca_sugerencias').hidden = true;
+}
+
+function limpiarPaciente() {
+  estado.paciente = null;
+  estado.histAbierto = false;
+  document.getElementById('paciente').hidden = true;
+}
+
+/** Pinta la ficha del paciente localizado */
+function mostrarPaciente(t) {
+  estado.paciente = t;
+  estado.histAbierto = false;
+
+  document.getElementById('paciente').hidden = false;
+  document.getElementById('p-historial').hidden = true;
+  document.getElementById('btn-historial').textContent = 'Historial';
+
+  document.getElementById('p-nombre').textContent = t.nombre_completo;
+  document.getElementById('p-meta').textContent =
+    [t.cargo, t.area, t.sucursal].filter(Boolean).join(' · ') || 'Sin cargo asignado';
+  document.getElementById('p-codigo').textContent = t.codigo;
+  document.getElementById('p-cedula').textContent = t.cedula;
+  document.getElementById('p-edad').textContent = t.edad != null ? `${t.edad} años` : '—';
+  document.getElementById('p-sexo').textContent =
+    t.sexo === 'M' ? 'Masculino' : t.sexo === 'F' ? 'Femenino' : '—';
+  document.getElementById('p-cargo').textContent = textoOGuion(t.cargo);
+  document.getElementById('p-sangre').textContent = textoOGuion(t.tipo_sangre);
+
+  document.getElementById('p-estado').innerHTML = t.activo
+    ? '<span class="insignia insignia-activa">Activo</span>'
+    : '<span class="insignia insignia-inactiva">Inactivo</span>';
+
+  const propias = estado.atenciones.filter((a) => a.trabajador_id === t.id);
+  document.getElementById('p-total').textContent = propias.length;
+
+  const $alergias = document.getElementById('p-alergias');
+  if (t.alergias) {
+    $alergias.textContent = `⚠ Alergias: ${t.alergias}`;
+    $alergias.hidden = false;
+  } else {
+    $alergias.hidden = true;
+  }
+}
+
+/* ============================================
+   Historial embebido
+   ============================================ */
+
+async function alternarHistorial() {
+  const $hist = document.getElementById('p-historial');
+  const $btn = document.getElementById('btn-historial');
+
+  if (estado.histAbierto) {
+    $hist.hidden = true;
+    $btn.textContent = 'Historial';
+    estado.histAbierto = false;
+    return;
+  }
+
+  const t = estado.paciente;
+  if (!t) return;
+
+  const $lista = document.getElementById('p-lista');
+  $lista.innerHTML = '<p class="pista">Cargando…</p>';
+  $hist.hidden = false;
+  $btn.textContent = 'Ocultar historial';
+  estado.histAbierto = true;
+
+  const propias = estado.atenciones.filter((a) => a.trabajador_id === t.id);
+
+  pintarRecurrencia(propias);
+
+  if (propias.length === 0) {
+    $lista.innerHTML = '<p class="pista">Este trabajador no registra atenciones.</p>';
+    return;
+  }
+
+  const ids = propias.map((a) => a.id);
+
+  const [dx, rx] = await Promise.all([
+    supabase.from('atencion_diagnosticos')
+      .select('atencion_id, codigo_cie10, orden, observacion, cie10(descripcion)')
+      .in('atencion_id', ids).order('orden'),
+    supabase.from('atencion_medicamentos')
+      .select('atencion_id, cantidad, indicacion, entregado, medicamentos(nombre_generico, concentracion)')
+      .in('atencion_id', ids)
+  ]);
+
+  const porDx = agrupar(dx.data || [], 'atencion_id');
+  const porRx = agrupar(rx.data || [], 'atencion_id');
+
+  /* Agrupar por año */
+  const porAnio = new Map();
+  propias.forEach((a) => {
+    const anio = new Date(a.fecha + 'T00:00').getFullYear();
+    if (!porAnio.has(anio)) porAnio.set(anio, []);
+    porAnio.get(anio).push(a);
+  });
+
+  const anios = [...porAnio.keys()].sort((a, b) => b - a);
+
+  $lista.innerHTML = anios.map((anio) => `
+    <div class="anio-bloque">
+      <div class="anio-marca">
+        <span class="anio-numero">${anio}</span>
+        <span class="anio-conteo">${porAnio.get(anio).length} atención${porAnio.get(anio).length === 1 ? '' : 'es'}</span>
+      </div>
+      ${porAnio.get(anio).map((a) => pintarEventoTimeline(a, porDx, porRx)).join('')}
+    </div>
+  `).join('');
+}
+
+/**
+ * Detecta diagnósticos repetidos.
+ * La reincidencia sobre un mismo código es señal de vigilancia:
+ * puede indicar exposición no controlada o enfermedad ocupacional.
+ */
+function pintarRecurrencia(atenciones) {
+  const $panel = document.getElementById('p-recurrencia');
+  const $chips = document.getElementById('p-chips');
+  const $nota = document.getElementById('p-nota-recurrencia');
+
+  if (atenciones.length === 0) { $panel.hidden = true; return; }
+
+  const conteo = new Map();
+  atenciones.forEach((a) => {
+    if (!a.cie10_principal) return;
+    if (!conteo.has(a.cie10_principal)) {
+      conteo.set(a.cie10_principal, {
+        codigo: a.cie10_principal, descripcion: a.diagnostico_principal, veces: 0
+      });
+    }
+    conteo.get(a.cie10_principal).veces++;
+  });
+
+  const items = [...conteo.values()].sort((a, b) => b.veces - a.veces);
+  if (items.length === 0) { $panel.hidden = true; return; }
+
+  $chips.innerHTML = items.map((i) => `
+    <span class="chip ${i.veces >= 3 ? 'chip-alerta' : ''}">
+      <span class="cie-chip">${escapar(i.codigo)}</span>
+      <span class="chip-desc">${escapar(i.descripcion || '')}</span>
+      <span class="chip-conteo">${i.veces}</span>
+    </span>
+  `).join('');
+
+  const reincidentes = items.filter((i) => i.veces >= 3);
+  if (reincidentes.length > 0) {
+    $nota.textContent = 'Diagnóstico repetido tres o más veces. Considere evaluar exposición ' +
+                        'laboral y pertinencia de vigilancia específica.';
+    $nota.className = 'nota nota-alerta';
+  } else {
+    $nota.textContent = 'Conteo por diagnóstico principal.';
+    $nota.className = 'nota';
+  }
+
+  $panel.hidden = false;
+}
+
+function pintarEventoTimeline(a, porDx, porRx) {
+  const diagnosticos = porDx[a.id] || [];
+  const medicamentos = porRx[a.id] || [];
+
+  return `
+    <article class="evento">
+      <div class="evento-fecha">
+        <span class="evento-dia">${formatearFecha(a.fecha)}</span>
+        ${a.dias_reposo > 0 ? `<span class="reposo">${a.dias_reposo} d</span>` : ''}
+      </div>
+
+      <div class="evento-cuerpo">
+        ${a.motivo_consulta
+          ? `<p class="evento-motivo">${escapar(a.motivo_consulta)}</p>`
+          : ''}
+
+        ${diagnosticos.map((d) => `
+          <div class="evento-dx">
+            <span class="cie-chip">${escapar(d.codigo_cie10)}</span>
+            <span>${escapar(d.cie10?.descripcion || '')}</span>
+            ${d.orden === 1 ? '<span class="etiqueta-principal">Principal</span>' : ''}
+          </div>
+        `).join('')}
+
+        ${medicamentos.length > 0 ? `
+          <div class="evento-rx">
+            ${medicamentos.map((m) => `
+              <span class="rx-item ${m.entregado ? '' : 'rx-no-entregado'}">
+                ${escapar(m.medicamentos?.nombre_generico || '')} ${escapar(m.medicamentos?.concentracion || '')}
+                × ${m.cantidad}${m.entregado ? '' : ' · no entregado'}
+              </span>
+            `).join('')}
+          </div>` : ''}
+
+        ${a.observacion ? `<p class="evento-obs">${escapar(a.observacion)}</p>` : ''}
+      </div>
+    </article>
+  `;
+}
+
+function agrupar(lista, clave) {
+  return lista.reduce((acc, item) => {
+    (acc[item[clave]] ||= []).push(item);
+    return acc;
+  }, {});
+}
+
+/** Abre el formulario con el paciente ya cargado */
+function nuevaAtencionDesdeFicha() {
+  const t = estado.paciente;
+  if (!t) return;
+
+  abrirAtencion();
+  document.getElementById('at_codigo').value = t.codigo;
+  buscarTrabajador();
+}
+
+/* ============================================
    Pestañas y empresa
    ============================================ */
 
@@ -867,10 +1309,12 @@ function cambiarVista(vista) {
   document.querySelectorAll('.pestana').forEach((p) => {
     p.classList.toggle('activa', p.dataset.vista === vista);
   });
-  ['listado', 'morbilidad'].forEach((v) => {
+  ['atenciones', 'consolidado', 'morbilidad'].forEach((v) => {
     document.getElementById('vista-' + v).hidden = v !== vista;
   });
   if (vista === 'morbilidad') pintarMorbilidad();
+  if (vista === 'consolidado') pintarConsolidado();
+  if (vista === 'atenciones') document.getElementById('busca_codigo').focus();
 }
 
 async function seleccionarEmpresa() {
@@ -893,8 +1337,18 @@ async function seleccionarEmpresa() {
 async function recargar() {
   await Promise.all([cargarAtenciones(), cargarMedicamentos(), cargarMorbilidad()]);
   pintarResumen();
-  pintarListado();
+  pintarHoy();
+  llenarFiltroDx();
+
+  if (estado.vista === 'consolidado') pintarConsolidado();
   if (estado.vista === 'morbilidad') pintarMorbilidad();
+
+  /* Si hay una ficha abierta, reflejar la nueva atención */
+  if (estado.paciente) {
+    const abierto = estado.histAbierto;
+    mostrarPaciente(estado.paciente);
+    if (abierto) await alternarHistorial();
+  }
 }
 
 /* ============================================
@@ -914,13 +1368,31 @@ function conectarEventos() {
     });
   });
 
-  document.getElementById('btn-nueva').addEventListener('click', abrirAtencion);
+  /* --- Buscador de paciente --- */
+  document.getElementById('btn-buscar').addEventListener('click', buscarPaciente);
+  document.getElementById('busca_codigo').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); buscarPaciente(); }
+  });
+  document.getElementById('busca_nombre').addEventListener('input', buscarPorNombre);
+  document.getElementById('btn-nueva-atencion').addEventListener('click', nuevaAtencionDesdeFicha);
+  document.getElementById('btn-historial').addEventListener('click', alternarHistorial);
+
+  /* Cerrar sugerencias al hacer clic fuera */
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#busca_nombre') && !e.target.closest('#busca_sugerencias')) {
+      ocultarSugerencias();
+    }
+  });
+
+  /* --- Formulario de atención --- */
   document.getElementById('btn-guardar-atencion').addEventListener('click', guardarAtencion);
   document.getElementById('at_codigo').addEventListener('input', buscarTrabajador);
-
   document.getElementById('btn-add-diagnostico').addEventListener('click', agregarDiagnostico);
   document.getElementById('btn-add-medicamento').addEventListener('click', agregarMedicamento);
+  document.getElementById('at_peso').addEventListener('input', calcularImc);
+  document.getElementById('at_talla').addEventListener('input', calcularImc);
 
+  /* --- Buscador CIE-10 --- */
   document.getElementById('cie-busqueda').addEventListener('input', buscarCie);
   document.getElementById('btn-crear-cie').addEventListener('click', crearCie);
   document.getElementById('btn-mostrar-agregar').addEventListener('click', () => {
@@ -929,18 +1401,21 @@ function conectarEventos() {
     if (!$a.hidden) document.getElementById('nuevo_cie_codigo').focus();
   });
 
-  document.getElementById('at_peso').addEventListener('input', calcularImc);
-  document.getElementById('at_talla').addEventListener('input', calcularImc);
+  /* --- Consolidado --- */
+  document.getElementById('cons-anio').addEventListener('change', pintarConsolidado);
+  document.getElementById('cons-mes').addEventListener('change', pintarConsolidado);
+  document.getElementById('cons-dx').addEventListener('change', pintarConsolidado);
+  document.getElementById('cons-busqueda').addEventListener('input', retrasar(pintarConsolidado, 200));
+  document.getElementById('cons-limpiar').addEventListener('click', limpiarFiltrosConsolidado);
 
-  document.getElementById('busqueda').addEventListener('input', retrasar(pintarListado, 200));
-  document.getElementById('filtro-periodo').addEventListener('change', pintarListado);
+  /* --- Morbilidad --- */
   document.getElementById('morb-anio').addEventListener('change', pintarMorbilidad);
   document.getElementById('morb-mes').addEventListener('change', pintarMorbilidad);
   document.getElementById('morb-tipo').addEventListener('change', pintarMorbilidad);
 
+  /* Escape cierra el modal superior */
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
-    /* Cerrar solo el modal superior */
     const orden = ['modal-cie', 'modal-detalle', 'modal-atencion'];
     for (const id of orden) {
       const $m = document.getElementById(id);
