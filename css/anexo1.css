@@ -722,3 +722,310 @@
   .capac-resumen .resumen-item { min-width: 120px; }
   .pista-inline { margin: 0.5rem 0 0; }
 }
+
+/* ============================================
+   EVENTOS
+   ============================================ */
+
+.entrada-mes { width: 130px; }
+
+.ev-tarjetas {
+  display: flex;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.ev-tarjetas .resumen-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  justify-content: center;
+  padding: 0.85rem 1rem;
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+}
+
+.resumen-alerta {
+  border-color: rgba(245, 160, 94, 0.4);
+  background: rgba(245, 160, 94, 0.05);
+}
+
+.resumen-alerta .resumen-valor { color: #f5a05e; }
+
+/* --- Distribuciones --- */
+
+.distribucion {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.distribucion-doble { grid-template-columns: 1fr; }
+
+.distrib-caja {
+  padding: 1rem 1.15rem;
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+}
+
+.distrib-titulo {
+  margin: 0 0 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-texto-tenue);
+}
+
+.barras {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.barra-fila {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.78rem;
+}
+
+.barra-etiqueta {
+  width: 68px;
+  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-texto-tenue);
+}
+
+.barra-pista {
+  flex: 1;
+  height: 7px;
+  background: var(--color-fondo);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.barra-relleno {
+  height: 100%;
+  background: var(--color-acento);
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+
+.barra-valor {
+  width: 26px;
+  flex-shrink: 0;
+  text-align: right;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-weight: 700;
+}
+
+.barra-pct {
+  width: 34px;
+  flex-shrink: 0;
+  text-align: right;
+  font-size: 0.7rem;
+  color: var(--color-texto-tenue);
+}
+
+.barras-vacio {
+  margin: 0;
+  padding: 0.75rem 0;
+  text-align: center;
+  font-size: 0.76rem;
+  color: var(--color-texto-tenue);
+}
+
+/* --- Tabla --- */
+
+.celda-detalle {
+  max-width: 280px;
+  font-size: 0.82rem;
+}
+
+.insignia-critica {
+  color: #f57373;
+  background: rgba(245, 115, 115, 0.12);
+}
+
+.chip-registro-est {
+  display: inline-block;
+  padding: 0.18rem 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #7ee2a8;
+  background: rgba(126, 226, 168, 0.1);
+  border-radius: 4px;
+}
+
+/* --- Modal --- */
+
+.opciones {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.opcion {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.7rem 0.85rem;
+  background: var(--color-fondo);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.opcion:hover { border-color: var(--color-acento); }
+
+.opcion:has(input:checked) {
+  border-color: var(--color-acento);
+  background: rgba(47, 129, 247, 0.06);
+}
+
+.opcion input { margin-top: 0.15rem; flex-shrink: 0; }
+
+.opcion-cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.opcion-titulo {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.opcion-nota {
+  font-size: 0.7rem;
+  color: var(--color-texto-tenue);
+}
+
+.gestion-fila {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  padding: 0.75rem 0.9rem;
+  margin-bottom: 1rem;
+  background: var(--color-fondo);
+  border-radius: var(--radio);
+}
+
+.campo-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.campo-inline .etiqueta { margin: 0; white-space: nowrap; }
+.campo-inline .entrada { width: auto; }
+
+.pie-espacio { flex: 1; }
+
+.boton-eliminar {
+  padding: 0.55rem 1rem;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #f57373;
+  background: transparent;
+  border: 1px solid rgba(245, 115, 115, 0.35);
+  border-radius: var(--radio);
+  cursor: pointer;
+}
+
+.boton-eliminar:hover { background: rgba(245, 115, 115, 0.08); }
+
+/* ============================================
+   ATENCIONES OCUPACIONALES
+   ============================================ */
+
+.tabla-matriz { font-size: 0.8rem; }
+
+.tabla-matriz .cabecera-sub th {
+  padding-top: 0.2rem;
+  padding-bottom: 0.4rem;
+  font-size: 0.66rem;
+  font-weight: 500;
+  color: var(--color-texto-tenue);
+  border-bottom: 1px solid var(--color-borde);
+}
+
+.tabla-matriz thead tr:first-child th {
+  border-bottom: none;
+  border-left: 1px solid var(--color-borde);
+}
+
+.tabla-matriz thead tr:first-child th:first-child { border-left: none; }
+
+.celda-mes {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.celda-cero { color: var(--color-borde); }
+
+.celda-subtotal {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-weight: 600;
+  border-right: 1px solid var(--color-borde);
+}
+
+.celda-total {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-weight: 700;
+  color: var(--color-acento);
+}
+
+.fila-editable { cursor: pointer; }
+.fila-editable:hover { background: rgba(47, 129, 247, 0.05); }
+
+.fila-totales td {
+  padding-top: 0.6rem;
+  font-weight: 700;
+  border-top: 2px solid var(--color-borde);
+}
+
+.ao-grupo {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.7rem 0.9rem;
+  margin-bottom: 0.5rem;
+  background: var(--color-fondo);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+}
+
+.ao-tipo {
+  flex: 1;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.ao-entradas {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.campo-mini { width: 84px; }
+.campo-mini .entrada { padding: 0.35rem 0.5rem; text-align: center; }
+
+@media (max-width: 980px) {
+  .distribucion { grid-template-columns: 1fr; }
+  .ev-tarjetas { flex-wrap: wrap; }
+  .ev-tarjetas .resumen-item { min-width: 110px; }
+  .opciones { flex-direction: column; }
+  .campo-inline { margin-left: 0; width: 100%; }
+}
