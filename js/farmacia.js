@@ -478,16 +478,11 @@ function abrirIngreso() {
   document.getElementById('ing_tipo').value = 'inventario_inicial';
   document.getElementById('ing_fecha').value = HOY();
   document.getElementById('ing_cantidad').value = '';
-  document.getElementById('ing_numero_lote').value = '';
   document.getElementById('ing_caducidad').value = '';
-  document.getElementById('ing_registro').value = '';
-  document.getElementById('ing_proveedor').value = '';
-  document.getElementById('ing_documento').value = '';
   document.getElementById('ing_observacion').value = '';
-  document.getElementById('ing_lote_existente').innerHTML = '<option value="">— Nuevo lote —</option>';
+  document.getElementById('ayuda-caducidad').textContent = '';
 
   actualizarAyudaTipoIngreso();
-  alternarCamposLote(true);
   document.getElementById('alerta-ingreso').hidden = true;
   document.getElementById('modal-ingreso').hidden = false;
 }
@@ -504,29 +499,13 @@ function llenarSelectMedicamentos(idSelect) {
   });
 }
 
-/** Al elegir medicamento, ofrece sus lotes vigentes */
-function cargarLotesDeIngreso() {
-  const medId = document.getElementById('ing_medicamento').value;
-  const $sel = document.getElementById('ing_lote_existente');
-  $sel.innerHTML = '<option value="">— Nuevo lote —</option>';
-
-  if (!medId) return;
-
-  estado.lotes
-    .filter((l) => l.medicamento_id === medId && l.estado_caducidad !== 'caducado')
-    .forEach((l) => {
-      const opcion = document.createElement('option');
-      opcion.value = l.lote_id;
-      opcion.textContent = `${l.numero_lote} · vence ${formatearFecha(l.fecha_caducidad)} · saldo ${l.saldo}`;
-      $sel.appendChild(opcion);
-    });
-}
-
-/** Alterna entre lote nuevo y lote existente */
-function alternarCamposLote(nuevo) {
-  document.getElementById('campo-lote-nuevo').hidden = !nuevo;
-  document.getElementById('campo-caducidad-nueva').hidden = !nuevo;
-  document.getElementById('campo-registro').hidden = !nuevo;
+/**
+ * Deriva el identificador de lote desde la fecha de caducidad.
+ * El usuario no registra lotes: el sistema los agrupa por caducidad,
+ * que es el único dato que sostiene las alertas sanitarias.
+ */
+function loteDesdeCaducidad(caducidad) {
+  return 'C' + caducidad.replace(/-/g, '');
 }
 
 function actualizarAyudaTipoIngreso() {
@@ -564,54 +543,41 @@ async function guardarIngreso() {
   const tipo = document.getElementById('ing_tipo').value;
   const fecha = document.getElementById('ing_fecha').value;
   const cantidad = parseInt(document.getElementById('ing_cantidad').value, 10);
-  const loteExistente = document.getElementById('ing_lote_existente').value;
+  const caducidad = document.getElementById('ing_caducidad').value;
 
   if (!medId) return alertaIngreso('Seleccione el medicamento');
   if (!fecha) return alertaIngreso('Indique la fecha');
   if (!cantidad || cantidad < 1) return alertaIngreso('La cantidad debe ser mayor a cero');
+  if (!caducidad) return alertaIngreso('Indique la fecha de caducidad');
+  if (new Date(caducidad) < new Date(HOY())) {
+    return alertaIngreso('No se puede ingresar un medicamento ya caducado');
+  }
 
   const $btn = document.getElementById('btn-guardar-ingreso');
   $btn.disabled = true;
 
-  let loteId = loteExistente;
+  /* El lote se agrupa por caducidad. Si ya existe uno con esa
+     fecha para este medicamento, se reutiliza; si no, se crea. */
+  let loteId = estado.lotes.find(
+    (l) => l.medicamento_id === medId && l.fecha_caducidad === caducidad
+  )?.lote_id;
 
-  /* Lote nuevo: crearlo antes del movimiento */
   if (!loteId) {
-    const numero = document.getElementById('ing_numero_lote').value.trim();
-    const caducidad = document.getElementById('ing_caducidad').value;
-
-    if (!numero) { $btn.disabled = false; return alertaIngreso('Indique el número de lote'); }
-    if (!caducidad) { $btn.disabled = false; return alertaIngreso('Indique la fecha de caducidad'); }
-
     const { data: lote, error: errorLote } = await supabase
       .from('lotes')
       .insert({
         medicamento_id: medId,
-        numero_lote: numero,
-        fecha_caducidad: caducidad,
-        registro_sanitario: document.getElementById('ing_registro').value.trim() || null
+        numero_lote: loteDesdeCaducidad(caducidad),
+        fecha_caducidad: caducidad
       })
       .select('id')
       .single();
 
     if (errorLote) {
       $btn.disabled = false;
-      /* El lote ya existía: recuperarlo en vez de fallar */
-      if (errorLote.code === '23505') {
-        const existente = estado.lotes.find(
-          (l) => l.medicamento_id === medId && l.numero_lote === numero
-        );
-        if (existente) {
-          loteId = existente.lote_id;
-        } else {
-          return alertaIngreso('Ese lote ya existe con otra fecha de caducidad');
-        }
-      } else {
-        return alertaIngreso('No fue posible registrar el lote: ' + errorLote.message);
-      }
-    } else {
-      loteId = lote.id;
+      return alertaIngreso('No fue posible registrar el lote: ' + errorLote.message);
     }
+    loteId = lote.id;
   }
 
   const { error } = await supabase.from('kardex').insert({
@@ -621,8 +587,6 @@ async function guardarIngreso() {
     tipo,
     fecha,
     cantidad,
-    proveedor: document.getElementById('ing_proveedor').value.trim() || null,
-    documento: document.getElementById('ing_documento').value.trim() || null,
     observacion: document.getElementById('ing_observacion').value.trim() || null
   });
 
@@ -873,12 +837,8 @@ function conectarEventos() {
   /* Ingreso */
   document.getElementById('btn-ingreso').addEventListener('click', abrirIngreso);
   document.getElementById('btn-guardar-ingreso').addEventListener('click', guardarIngreso);
-  document.getElementById('ing_medicamento').addEventListener('change', cargarLotesDeIngreso);
   document.getElementById('ing_tipo').addEventListener('change', actualizarAyudaTipoIngreso);
   document.getElementById('ing_caducidad').addEventListener('change', evaluarCaducidad);
-  document.getElementById('ing_lote_existente').addEventListener('change', (e) => {
-    alternarCamposLote(!e.target.value);
-  });
 
   /* Salida */
   document.getElementById('btn-salida').addEventListener('click', abrirSalida);
