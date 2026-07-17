@@ -611,3 +611,114 @@
   .evidencia { flex-wrap: wrap; }
   .evidencia-acciones { width: 100%; margin-left: 1.9rem; }
 }
+
+/* ============================================
+   CAPACITACIONES
+   ============================================ */
+
+.capac-resumen {
+  display: flex;
+  align-items: stretch;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.capac-anio {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  justify-content: center;
+  padding: 0.85rem 1rem;
+  background: var(--color-superficie);
+  border: 1px solid var(--color-acento);
+  border-radius: var(--radio);
+}
+
+.entrada-anio {
+  width: 92px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 0.3rem 0.4rem;
+}
+
+.capac-resumen .resumen-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  justify-content: center;
+  padding: 0.85rem 1rem;
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+}
+
+.resumen-destacado { border-color: var(--color-acento); }
+.resumen-destacado .resumen-valor { color: var(--color-acento); }
+
+.capac-anio-marca {
+  padding: 0.15rem 0.45rem;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-acento);
+  background: rgba(47, 129, 247, 0.12);
+  border-radius: 4px;
+}
+
+.pista-inline {
+  margin: 0 0 0 auto;
+  font-size: 0.74rem;
+  font-style: italic;
+  color: var(--color-texto-tenue);
+  align-self: center;
+}
+
+.fila-inactiva { opacity: 0.5; }
+
+.asistentes {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  padding: 0.15rem 0.4rem;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: var(--color-fondo);
+  border-radius: 4px;
+}
+
+.chip-registro {
+  display: inline-block;
+  padding: 0.18rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #7ee2a8;
+  background: rgba(126, 226, 168, 0.1);
+  border: 1px solid rgba(126, 226, 168, 0.3);
+  border-radius: 4px;
+  text-decoration: none;
+}
+
+.chip-registro:hover { background: rgba(126, 226, 168, 0.18); }
+
+.chip-falta {
+  display: inline-block;
+  padding: 0.18rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #f5a05e;
+  background: rgba(245, 160, 94, 0.1);
+  border: 1px solid rgba(245, 160, 94, 0.3);
+  border-radius: 4px;
+  cursor: help;
+}
+
+@media (max-width: 980px) {
+  .capac-resumen { flex-wrap: wrap; }
+  .capac-anio { width: 100%; }
+  .capac-resumen .resumen-item { min-width: 120px; }
+  .pista-inline { margin: 0.5rem 0 0; }
+}
