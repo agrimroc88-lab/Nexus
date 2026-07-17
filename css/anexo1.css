@@ -1,0 +1,549 @@
+/* ============================================
+   NEXUS · anexo1.css
+   Cumplimiento del Anexo 1 · A.M. MDT-2024-196
+   Compartido por Salud Ocupacional y Seguridad Industrial.
+   ============================================ */
+
+/* ============================================
+   MEDIDOR
+   ============================================ */
+
+.medidor-panel {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+}
+
+.medidor {
+  position: relative;
+  flex-shrink: 0;
+  width: 130px;
+  height: 130px;
+}
+
+.medidor-svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.medidor-fondo {
+  fill: none;
+  stroke: var(--color-borde);
+  stroke-width: 9;
+}
+
+.medidor-trazo {
+  fill: none;
+  stroke: var(--color-texto-tenue);
+  stroke-width: 9;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.6s ease, stroke 0.3s;
+}
+
+.trazo-bajo  { stroke: #f57373; }
+.trazo-medio { stroke: #f5d76e; }
+.trazo-alto  { stroke: #7ee2a8; }
+
+.medidor-centro {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+}
+
+.medidor-valor {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 1.65rem;
+  font-weight: 700;
+}
+
+.medidor-etiqueta {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-texto-tenue);
+}
+
+/* --- Detalle --- */
+
+.medidor-detalle {
+  flex: 1;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.estado-fila {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.84rem;
+}
+
+.estado-fila-tenue { opacity: 0.6; }
+
+.punto {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.punto-cumplido  { background: #7ee2a8; }
+.punto-proceso   { background: #f5d76e; }
+.punto-pendiente { background: var(--color-texto-tenue); }
+.punto-na        { background: transparent; border: 1px solid var(--color-texto-tenue); }
+
+.estado-texto { flex: 1; color: var(--color-texto-tenue); }
+
+.estado-num {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-weight: 700;
+}
+
+.estado-separador {
+  height: 1px;
+  margin: 0.35rem 0;
+  background: var(--color-borde);
+}
+
+/* --- Alertas --- */
+
+.medidor-alertas {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  flex-shrink: 0;
+  min-width: 150px;
+}
+
+.alerta-caja {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--radio);
+  border: 1px solid var(--color-borde);
+}
+
+.alerta-critica {
+  border-color: rgba(245, 115, 115, 0.4);
+  background: rgba(245, 115, 115, 0.06);
+}
+
+.alerta-aviso {
+  border-color: rgba(245, 215, 110, 0.4);
+  background: rgba(245, 215, 110, 0.05);
+}
+
+.alerta-neutra { background: var(--color-fondo); }
+
+.alerta-num {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.alerta-critica .alerta-num { color: #f57373; }
+.alerta-aviso .alerta-num   { color: #f5d76e; }
+.alerta-neutra .alerta-num  { color: var(--color-acento); }
+
+.alerta-texto {
+  font-size: 0.72rem;
+  line-height: 1.3;
+  color: var(--color-texto-tenue);
+}
+
+/* ============================================
+   SECCIONES
+   ============================================ */
+
+.seccion-bloque { margin-bottom: 1.75rem; }
+
+.seccion-titulo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--color-borde);
+}
+
+.seccion-nombre {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-texto-tenue);
+}
+
+.seccion-conteo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 0.35rem;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--color-texto-tenue);
+  background: var(--color-superficie);
+  border-radius: 4px;
+}
+
+.seccion-pct {
+  margin-left: auto;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--color-acento);
+}
+
+/* ============================================
+   TARJETA DE REQUISITO
+   ============================================ */
+
+.req-tarjeta {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+  padding: 0.95rem 1.15rem;
+  margin-bottom: 0.5rem;
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-left: 3px solid transparent;
+  border-radius: var(--radio);
+  transition: border-color 0.15s;
+}
+
+.req-tarjeta:hover { border-left-color: var(--color-acento); }
+
+.req-na { opacity: 0.45; }
+.req-na:hover { border-left-color: var(--color-borde); }
+
+.req-vencido { border-left-color: rgba(245, 115, 115, 0.6); }
+
+.req-cuerpo { flex: 1; min-width: 0; }
+
+.req-encabezado {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.3rem;
+}
+
+.req-codigo {
+  display: inline-block;
+  padding: 0.12rem 0.4rem;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--color-texto-tenue);
+  background: var(--color-fondo);
+  border: 1px solid var(--color-borde);
+  border-radius: 4px;
+}
+
+.req-compartido {
+  padding: 0.1rem 0.35rem;
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #7cc4f5;
+  background: rgba(124, 196, 245, 0.12);
+  border-radius: 3px;
+}
+
+.req-descripcion {
+  margin: 0 0 0.4rem;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.req-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  font-size: 0.74rem;
+  color: var(--color-texto-tenue);
+}
+
+.req-fecha { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+.req-fecha-vencida { color: #f57373; font-weight: 600; }
+.req-fecha-aviso   { color: #f5d76e; font-weight: 600; }
+
+.req-evidencias { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+.req-evidencias-parcial { color: #f5d76e; font-weight: 600; }
+
+.req-motivo {
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 320px;
+}
+
+.req-acciones {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-shrink: 0;
+}
+
+.insignia-na {
+  color: var(--color-texto-tenue);
+  background: transparent;
+  border: 1px dashed var(--color-borde);
+}
+
+.boton-gestionar {
+  padding: 0.4rem 0.8rem;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--color-texto-tenue);
+  background: transparent;
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.boton-gestionar:hover {
+  color: var(--color-acento);
+  border-color: var(--color-acento);
+}
+
+/* ============================================
+   MODAL
+   ============================================ */
+
+.modal-encabezado {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.modal-encabezado .modal-titulo {
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.normativa-caja {
+  padding: 0.8rem 1rem;
+  margin-bottom: 1.15rem;
+  background: var(--color-fondo);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+}
+
+.normativa-etiqueta {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-texto-tenue);
+}
+
+.normativa-texto {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.nota-aplicabilidad {
+  margin: 0 0 1.15rem;
+  padding: 0.6rem 0.85rem;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: #f5d76e;
+  background: rgba(245, 215, 110, 0.06);
+  border: 1px solid rgba(245, 215, 110, 0.3);
+  border-radius: var(--radio);
+}
+
+.estado-actual {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+  background: var(--color-fondo);
+  border-radius: var(--radio);
+}
+
+.estado-etiqueta {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-texto-tenue);
+}
+
+.estado-fraccion {
+  margin-left: auto;
+  font-size: 0.76rem;
+  color: var(--color-texto-tenue);
+}
+
+/* ============================================
+   EVIDENCIAS
+   ============================================ */
+
+.evidencia {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  margin-bottom: 0.5rem;
+  background: var(--color-fondo);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+}
+
+.evidencia-lista { border-color: rgba(126, 226, 168, 0.35); }
+
+.evidencia-marca {
+  flex-shrink: 0;
+  width: 18px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-texto-tenue);
+  text-align: center;
+}
+
+.evidencia-lista .evidencia-marca { color: #7ee2a8; }
+
+.evidencia-cuerpo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.evidencia-etiqueta {
+  font-size: 0.84rem;
+  font-weight: 500;
+}
+
+.evidencia-enlace {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.72rem;
+  color: var(--color-acento);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.evidencia-enlace:hover { text-decoration: underline; }
+
+.evidencia-falta {
+  font-size: 0.72rem;
+  color: var(--color-texto-tenue);
+}
+
+.evidencia-obs {
+  font-size: 0.72rem;
+  font-style: italic;
+  color: var(--color-texto-tenue);
+}
+
+.evidencia-acciones {
+  display: flex;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.enlace-evidencia {
+  margin: 0 0 1.15rem;
+  padding-bottom: 0.85rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-bottom: 1px solid var(--color-borde);
+}
+
+/* ============================================
+   FECHAS Y NO APLICA
+   ============================================ */
+
+.boton-enlace {
+  margin-top: 0.6rem;
+  padding: 0;
+  font-family: inherit;
+  font-size: 0.76rem;
+  color: var(--color-acento);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.boton-enlace:hover { opacity: 0.8; }
+
+.na-advertencia {
+  margin: 0 0 0.85rem;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--color-texto-tenue);
+}
+
+.na-acciones {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 0.85rem;
+}
+
+.boton-na {
+  padding: 0.55rem 1rem;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #f5a05e;
+  background: rgba(245, 160, 94, 0.08);
+  border: 1px solid rgba(245, 160, 94, 0.35);
+  border-radius: var(--radio);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.boton-na:hover { background: rgba(245, 160, 94, 0.16); }
+
+/* ============================================
+   RESPONSIVO
+   ============================================ */
+
+@media (max-width: 980px) {
+  .medidor-panel { flex-wrap: wrap; gap: 1.5rem; }
+  .medidor-alertas { flex-direction: row; width: 100%; }
+  .alerta-caja { flex: 1; }
+}
+
+@media (max-width: 720px) {
+  .medidor-panel { flex-direction: column; align-items: stretch; }
+  .medidor { align-self: center; }
+  .medidor-alertas { flex-direction: column; }
+  .req-tarjeta { flex-direction: column; gap: 0.75rem; }
+  .req-acciones { width: 100%; justify-content: space-between; }
+  .req-motivo { max-width: none; white-space: normal; }
+  .evidencia { flex-wrap: wrap; }
+  .evidencia-acciones { width: 100%; margin-left: 1.9rem; }
+}
