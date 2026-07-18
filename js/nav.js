@@ -22,7 +22,7 @@ export const MODULOS = [
   { id: 'trabajadores',  texto: 'Trabajadores',         archivo: 'trabajadores.html',         listo: true  },
   { id: 'salud_ocup',    texto: 'Salud ocupacional',    archivo: 'salud-ocupacional.html',    listo: true,
     roles: ['admin', 'medico_ocupacional', 'enfermeria'] },
-  { id: 'psicologia',    texto: 'Psicología',           archivo: 'psicologia.html',           listo: false,
+  { id: 'psicologia',    texto: 'Psicología',           archivo: 'psicologia.html',           listo: true,
     roles: ['admin', 'psicologo', 'psico_social'] },
   { id: 'seguridad_ind', texto: 'Seguridad industrial', archivo: 'seguridad-industrial.html', listo: true,
     roles: ['admin', 'tecnico_sst'] },
