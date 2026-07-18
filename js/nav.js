@@ -5,23 +5,33 @@
    para el catálogo de módulos del sistema.
    ============================================ */
 
-import { cerrarSesion, puedeVerClinica } from './auth.js';
+import { cerrarSesion, puedeVerModulo } from './auth.js';
 
 /* --- Catálogo de módulos ---
-   listo   : habilita el enlace. Cambiar a true al construir el módulo.
-   clinico : oculto para roles sin permiso clínico (secreto médico).
-   admin   : visible solo para administradores.                        */
+   Orden de aparición en el sidebar = orden de este arreglo.
+
+   listo : habilita el enlace. Cambiar a true al construir el módulo.
+           Mientras sea false, el enlace se muestra en gris (inactivo).
+   roles : lista de roles que VEN el módulo. Si se omite, lo ven todos.
+           La ESCRITURA real la impone siempre la RLS de PostgreSQL;
+           esta lista solo controla la visibilidad del enlace.          */
 
 export const MODULOS = [
-  { id: 'dashboard',    texto: 'Panel general',      archivo: 'dashboard.html',         listo: true,  clinico: false },
-  { id: 'empresas',     texto: 'Empresas',           archivo: 'empresas.html',          listo: true,  clinico: false },
-  { id: 'trabajadores', texto: 'Trabajadores',       archivo: 'trabajadores.html',      listo: true,  clinico: false },
-  { id: 'atenciones',   texto: 'Atenciones médicas', archivo: 'atenciones.html',        listo: true,  clinico: true  },
-  { id: 'farmacia',     texto: 'Farmacia',           archivo: 'farmacia.html',          listo: true,  clinico: true  },
-  { id: 'salud_ocup',   texto: 'Salud ocupacional',  archivo: 'salud-ocupacional.html', listo: true,  clinico: true  },
-  { id: 'seguridad_ind',texto: 'Seguridad industrial', archivo: 'seguridad-industrial.html', listo: true, clinico: false },
-  { id: 'ergonomia',    texto: 'Ergonomía',          archivo: 'ergonomia.html',         listo: false, clinico: false },
-  { id: 'inspecciones', texto: 'Inspecciones',       archivo: 'inspecciones.html',      listo: false, clinico: false }
+  { id: 'dashboard',     texto: 'Panel general',        archivo: 'dashboard.html',            listo: true  },
+  { id: 'empresas',      texto: 'Empresas',             archivo: 'empresas.html',             listo: true  },
+  { id: 'trabajadores',  texto: 'Trabajadores',         archivo: 'trabajadores.html',         listo: true  },
+  { id: 'salud_ocup',    texto: 'Salud ocupacional',    archivo: 'salud-ocupacional.html',    listo: true,
+    roles: ['admin', 'medico_ocupacional', 'enfermeria'] },
+  { id: 'psicologia',    texto: 'Psicología',           archivo: 'psicologia.html',           listo: false,
+    roles: ['admin', 'psicologo', 'psico_social'] },
+  { id: 'seguridad_ind', texto: 'Seguridad industrial', archivo: 'seguridad-industrial.html', listo: true,
+    roles: ['admin', 'tecnico_sst'] },
+  { id: 'trabajo_social',texto: 'Trabajo Social',       archivo: 'trabajo-social.html',       listo: false,
+    roles: ['admin', 'trabajo_social', 'psico_social', 'medico_ocupacional'] },
+  { id: 'atenciones',    texto: 'Atenciones médicas',   archivo: 'atenciones.html',           listo: true,
+    roles: ['admin', 'medico_ocupacional', 'enfermeria'] },
+  { id: 'farmacia',      texto: 'Farmacia',             archivo: 'farmacia.html',             listo: true,
+    roles: ['admin', 'enfermeria'] }
 ];
 
 /**
@@ -49,7 +59,9 @@ function pintarEnlaces(perfil, moduloActivo) {
   const fragmento = document.createDocumentFragment();
 
   MODULOS.forEach((modulo) => {
-    if (modulo.clinico && !puedeVerClinica(perfil.rol)) return;
+    // Filtro de visibilidad por rol. Si el módulo no declara `roles`,
+    // puedeVerModulo() devuelve true y lo ven todos.
+    if (!puedeVerModulo(perfil.rol, modulo)) return;
 
     const enlace = document.createElement('a');
     enlace.className = 'nav-enlace';

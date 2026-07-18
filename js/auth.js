@@ -7,18 +7,28 @@
 import { supabase } from './supabase.js';
 
 /* --- Catálogo de roles ---
-   admin  : control total. Hereda permisos clínicos.
+   admin              : control total. Hereda permisos clínicos.
    medico_ocupacional : clínica, exámenes, aptitud, vigilancia.
-   tecnico_sst : riesgos, inspecciones. Sin acceso clínico.
-   ergonomo : evaluaciones ergonómicas.
-   consulta : solo lectura, sin datos clínicos.        */
+   tecnico_sst        : riesgos, inspecciones. Sin acceso clínico.
+   ergonomo           : (en desuso) evaluaciones ergonómicas.
+   consulta           : solo lectura, sin datos clínicos.
+   enfermeria         : farmacia (único rol que registra movimientos).
+   psicologo          : atención psicológica.
+   trabajo_social     : ficha socioeconómica.
+   psico_social       : temporal, une psicología + trabajo social
+                        en una sola persona. Al separarse las funciones
+                        se le cambia a un rol puro sin tocar código.     */
 
 export const ROLES = {
   ADMIN: 'admin',
   MEDICO: 'medico_ocupacional',
   TECNICO: 'tecnico_sst',
   ERGONOMO: 'ergonomo',
-  CONSULTA: 'consulta'
+  CONSULTA: 'consulta',
+  ENFERMERIA: 'enfermeria',
+  PSICOLOGO: 'psicologo',
+  TRABAJO_SOCIAL: 'trabajo_social',
+  PSICO_SOCIAL: 'psico_social'
 };
 
 /* Ruta base del proyecto en GitHub Pages */
@@ -74,11 +84,14 @@ export async function obtenerPerfil() {
    ============================================ */
 
 /**
- * Verdadero si el rol puede acceder a información clínica.
+ * Verdadero si el rol puede acceder a información clínica de
+ * atenciones médicas y salud ocupacional.
+ * Enfermería entra al círculo clínico: registra atenciones y
+ * gestiona salud ocupacional junto al médico.
  * Espeja la función tiene_permiso_clinico() de PostgreSQL.
  */
 export function puedeVerClinica(rol) {
-  return rol === ROLES.ADMIN || rol === ROLES.MEDICO;
+  return rol === ROLES.ADMIN || rol === ROLES.MEDICO || rol === ROLES.ENFERMERIA;
 }
 
 /**
@@ -86,6 +99,52 @@ export function puedeVerClinica(rol) {
  */
 export function esAdministrador(rol) {
   return rol === ROLES.ADMIN;
+}
+
+/**
+ * Verdadero si el rol registra movimientos de farmacia.
+ * La lectura del módulo se controla en nav.js (campo roles);
+ * la escritura real la impone la RLS de PostgreSQL.
+ */
+export function puedeGestionarFarmacia(rol) {
+  return rol === ROLES.ADMIN || rol === ROLES.ENFERMERIA;
+}
+
+/**
+ * Verdadero si el rol usa el módulo de Psicología.
+ */
+export function puedeVerPsicologia(rol) {
+  return rol === ROLES.ADMIN || rol === ROLES.PSICOLOGO || rol === ROLES.PSICO_SOCIAL;
+}
+
+/**
+ * Verdadero si el rol usa el módulo de Trabajo Social.
+ * El médico entra solo en lectura (dato sensible del hogar).
+ */
+export function puedeVerTrabajoSocial(rol) {
+  return rol === ROLES.ADMIN || rol === ROLES.TRABAJO_SOCIAL ||
+         rol === ROLES.PSICO_SOCIAL || rol === ROLES.MEDICO;
+}
+
+/**
+ * Verdadero si el rol puede ESCRIBIR en Trabajo Social.
+ * El médico ve pero no edita.
+ */
+export function puedeEditarTrabajoSocial(rol) {
+  return rol === ROLES.ADMIN || rol === ROLES.TRABAJO_SOCIAL ||
+         rol === ROLES.PSICO_SOCIAL;
+}
+
+/**
+ * Evalúa si un rol puede ver un módulo del catálogo (nav.js).
+ * Si el módulo declara una lista `roles`, se exige pertenencia.
+ * Si no la declara, el módulo es visible para cualquier rol.
+ * @param {string} rol - rol del perfil
+ * @param {object} modulo - entrada del catálogo MODULOS
+ */
+export function puedeVerModulo(rol, modulo) {
+  if (!modulo.roles || modulo.roles.length === 0) return true;
+  return modulo.roles.includes(rol);
 }
 
 /* ============================================
