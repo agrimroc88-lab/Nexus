@@ -1,0 +1,120 @@
+/* ============================================
+   NEXUS · psicologia.css
+   Estilos propios del módulo Psicología.
+   Reutiliza la mayoría de clases de atenciones.css
+   (pestañas, tarjeta-trabajador, ficha, modales).
+   Aquí solo lo específico + la hoja de impresión.
+   ============================================ */
+
+/* --- Etiquetas de tipo de atención en el historial --- */
+.etiqueta-tipo {
+  display: inline-block;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  background: var(--color-primario-suave, #e8eef7);
+  color: var(--color-primario, #1f4e79);
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.evento-estado {
+  font-size: 0.82rem;
+  color: var(--color-texto-tenue, #667);
+  margin: 0.35rem 0 0.5rem;
+}
+
+/* --- Fila de totales en la tabla de producción --- */
+.fila-total td {
+  border-top: 2px solid var(--color-borde, #d5dae2);
+  background: var(--color-fondo-suave, #f7f9fc);
+}
+
+/* --- Modal Ver ficha --- */
+.ver-datos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.5rem 1.25rem;
+  padding: 0.5rem 0 1rem;
+  border-bottom: 1px solid var(--color-borde, #e2e6ec);
+  margin-bottom: 1rem;
+}
+.ver-datos > div { font-size: 0.9rem; }
+
+.ver-etiqueta {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-texto-tenue, #8a93a0);
+  font-weight: 600;
+}
+
+.ver-campo { margin-bottom: 0.9rem; }
+.ver-texto {
+  margin: 0.15rem 0 0;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.boton-compacto { padding: 0.3rem 0.75rem; font-size: 0.8rem; margin-top: 0.4rem; }
+
+/* ============================================
+   ZONA DE IMPRESIÓN
+   Oculta en pantalla, visible solo al imprimir.
+   ============================================ */
+
+.zona-impresion { display: none; }
+
+@media print {
+  /* Ocultar toda la aplicación */
+  body.app > .barra-lateral,
+  body.app > .contenedor,
+  .modal {
+    display: none !important;
+  }
+
+  /* Mostrar solo la hoja */
+  .zona-impresion {
+    display: block !important;
+    position: static;
+    margin: 0;
+    padding: 0;
+  }
+
+  @page { margin: 2cm; }
+
+  .hoja { font-family: 'Times New Roman', Georgia, serif; color: #000; font-size: 12pt; }
+
+  .hoja-cabecera {
+    text-align: center;
+    border-bottom: 2px solid #000;
+    padding-bottom: 0.6rem;
+    margin-bottom: 1.2rem;
+  }
+  .hoja-cabecera h1 { font-size: 15pt; margin: 0 0 0.4rem; text-transform: uppercase; }
+  .hoja-cabecera p { margin: 0.15rem 0; font-size: 10.5pt; }
+
+  .hoja-bloque { margin-bottom: 0.9rem; page-break-inside: avoid; }
+  .hoja-bloque h2 {
+    font-size: 11pt;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-bottom: 1px solid #999;
+    margin: 0 0 0.3rem;
+    padding-bottom: 0.1rem;
+  }
+  .hoja-bloque p { margin: 0; white-space: pre-wrap; line-height: 1.5; text-align: justify; }
+
+  .hoja-firma {
+    margin-top: 3.5rem;
+    text-align: center;
+    page-break-inside: avoid;
+  }
+  .firma-linea {
+    width: 60%;
+    margin: 0 auto 0.3rem;
+    border-top: 1px solid #000;
+  }
+  .hoja-firma p { margin: 0; font-size: 10.5pt; }
+}
