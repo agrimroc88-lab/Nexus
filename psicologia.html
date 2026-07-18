@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Psicología · NEXUS</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/empresas.css">
+  <link rel="stylesheet" href="css/trabajadores.css">
+  <link rel="stylesheet" href="css/atenciones.css">
+  <link rel="stylesheet" href="css/psicologia.css">
+</head>
+<body class="app">
+
+  <aside class="barra-lateral" id="barra-lateral">
+    <div class="lateral-marca">NEXUS</div>
+    <nav class="lateral-nav" id="lateral-nav"></nav>
+    <button class="lateral-salir" id="btn-salir" type="button">Cerrar sesión</button>
+  </aside>
+
+  <div class="contenedor">
+
+    <header class="cabecera">
+      <button class="cabecera-menu" id="btn-menu" type="button" aria-label="Menú">☰</button>
+      <h1 class="cabecera-titulo">Psicología</h1>
+      <div class="cabecera-usuario">
+        <span class="usuario-nombre" id="usuario-nombre">—</span>
+        <span class="usuario-rol" id="usuario-rol">—</span>
+      </div>
+    </header>
+
+    <main class="contenido">
+
+      <section class="selector-empresa">
+        <label class="etiqueta" for="empresa-activa">Empresa</label>
+        <select class="entrada" id="empresa-activa">
+          <option value="">— Seleccione una empresa —</option>
+        </select>
+      </section>
+
+      <div id="area-trabajo" hidden>
+
+        <section class="resumen">
+          <article class="resumen-item">
+            <span class="resumen-etiqueta">Fichas del mes</span>
+            <span class="resumen-valor" id="kpi-mes">0</span>
+          </article>
+          <article class="resumen-item">
+            <span class="resumen-etiqueta">Fichas del año</span>
+            <span class="resumen-valor" id="kpi-anio">0</span>
+          </article>
+          <article class="resumen-item">
+            <span class="resumen-etiqueta">Trabajadores atendidos</span>
+            <span class="resumen-valor" id="kpi-personas">0</span>
+          </article>
+          <article class="resumen-item resumen-aviso">
+            <span class="resumen-etiqueta">Casos abiertos</span>
+            <span class="resumen-valor" id="kpi-abiertos">0</span>
+          </article>
+        </section>
+
+        <nav class="pestanas">
+          <button class="pestana activa" data-vista="fichas" type="button">Fichas</button>
+          <button class="pestana" data-vista="atenciones" type="button">Atenciones</button>
+        </nav>
+
+        <!-- ============ Vista: Fichas ============ -->
+        <section class="vista" id="vista-fichas">
+
+          <!-- Buscador de trabajador -->
+          <section class="buscador-panel">
+            <div class="buscador-fila">
+              <div class="campo campo-codigo">
+                <label class="etiqueta" for="busca_codigo">Código de trabajador</label>
+                <input class="entrada entrada-destacada" id="busca_codigo" type="number"
+                       min="1" max="3000" placeholder="1830" autocomplete="off">
+              </div>
+              <button class="boton-primario boton-buscar" id="btn-buscar" type="button">Buscar</button>
+              <div class="campo campo-crece">
+                <label class="etiqueta" for="busca_nombre">O buscar por nombre o cédula</label>
+                <input class="entrada" id="busca_nombre" type="search"
+                       placeholder="Apellidos, nombres o cédula" autocomplete="off">
+                <div class="sugerencias" id="busca_sugerencias" hidden></div>
+              </div>
+            </div>
+            <span class="ayuda" id="ayuda-busca"></span>
+          </section>
+
+          <!-- Ficha del trabajador localizado -->
+          <section class="tarjeta-trabajador" id="paciente" hidden>
+            <div class="trabajador-cabecera">
+              <div class="trabajador-identidad">
+                <h2 class="trabajador-nombre" id="p-nombre">—</h2>
+                <p class="trabajador-meta" id="p-meta">—</p>
+              </div>
+              <div class="trabajador-acciones">
+                <button class="boton-primario" id="btn-nueva-ficha" type="button">
+                  + Nueva ficha
+                </button>
+                <button class="boton-secundario" id="btn-historial" type="button">
+                  Historial
+                </button>
+              </div>
+            </div>
+
+            <div class="ficha-datos">
+              <div class="ficha-item">
+                <span class="ficha-etiqueta">Código</span>
+                <span class="ficha-valor" id="p-codigo">—</span>
+              </div>
+              <div class="ficha-item">
+                <span class="ficha-etiqueta">Cédula</span>
+                <span class="ficha-valor celda-mono" id="p-cedula">—</span>
+              </div>
+              <div class="ficha-item">
+                <span class="ficha-etiqueta">Edad</span>
+                <span class="ficha-valor" id="p-edad">—</span>
+              </div>
+              <div class="ficha-item">
+                <span class="ficha-etiqueta">Sexo</span>
+                <span class="ficha-valor" id="p-sexo">—</span>
+              </div>
+              <div class="ficha-item">
+                <span class="ficha-etiqueta">Cargo</span>
+                <span class="ficha-valor" id="p-cargo">—</span>
+              </div>
+              <div class="ficha-item">
+                <span class="ficha-etiqueta">Fichas</span>
+                <span class="ficha-valor" id="p-total">—</span>
+              </div>
+            </div>
+
+            <!-- Historial desplegable -->
+            <div class="historial-embebido" id="p-historial" hidden>
+              <h3 class="panel-titulo">Historial de fichas</h3>
+              <div id="p-lista"></div>
+            </div>
+          </section>
+
+          <p class="aviso-inicial" id="aviso-fichas">
+            Busque un trabajador por su código para ver o crear su ficha psicológica.
+          </p>
+        </section>
+
+        <!-- ============ Vista: Atenciones (conteo) ============ -->
+        <section class="vista" id="vista-atenciones" hidden>
+
+          <div class="herramientas">
+            <select class="entrada filtro" id="at-anio"></select>
+          </div>
+
+          <div class="panel">
+            <div class="tabla-envoltura">
+              <table class="tabla">
+                <thead>
+                  <tr>
+                    <th>Mes</th>
+                    <th class="celda-centro">Ingreso</th>
+                    <th class="celda-centro">Periódica</th>
+                    <th class="celda-centro">Asistencial</th>
+                    <th class="celda-centro">Seguimiento</th>
+                    <th class="celda-centro">Hombres</th>
+                    <th class="celda-centro">Mujeres</th>
+                    <th class="celda-centro">Total</th>
+                  </tr>
+                </thead>
+                <tbody id="cuerpo-atenciones"></tbody>
+                <tfoot id="pie-atenciones"></tfoot>
+              </table>
+            </div>
+            <p class="vacio" id="vacio-atenciones" hidden>Sin fichas registradas en el año seleccionado.</p>
+          </div>
+        </section>
+
+      </div>
+
+      <p class="aviso-inicial" id="aviso-inicial">
+        Seleccione una empresa para registrar y consultar fichas psicológicas.
+      </p>
+
+    </main>
+  </div>
+
+  <!-- ============ Modal: Ficha psicológica ============ -->
+  <div class="modal" id="modal-ficha" hidden>
+    <div class="modal-caja modal-ancho" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo" id="ficha-modal-titulo">Nueva ficha psicológica</h2>
+        <button class="modal-cerrar" data-cierra="modal-ficha" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+
+        <!-- Identificación -->
+        <div class="rejilla">
+          <div class="campo">
+            <label class="etiqueta" for="fp_codigo">Código de trabajador <span class="obligatorio">*</span></label>
+            <input class="entrada entrada-destacada" id="fp_codigo" type="number" min="1" max="3000"
+                   placeholder="1830" autocomplete="off">
+            <span class="ayuda" id="ayuda-codigo"></span>
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="fp_fecha">Fecha <span class="obligatorio">*</span></label>
+            <input class="entrada" id="fp_fecha" type="date">
+          </div>
+        </div>
+
+        <!-- Ficha del trabajador -->
+        <div class="ficha" id="ficha" hidden>
+          <div class="ficha-datos">
+            <div class="ficha-item">
+              <span class="ficha-etiqueta">Nombre</span>
+              <span class="ficha-valor" id="f-nombre">—</span>
+            </div>
+            <div class="ficha-item">
+              <span class="ficha-etiqueta">Cédula</span>
+              <span class="ficha-valor celda-mono" id="f-cedula">—</span>
+            </div>
+            <div class="ficha-item">
+              <span class="ficha-etiqueta">Edad</span>
+              <span class="ficha-valor" id="f-edad">—</span>
+            </div>
+            <div class="ficha-item">
+              <span class="ficha-etiqueta">Sexo</span>
+              <span class="ficha-valor" id="f-sexo">—</span>
+            </div>
+            <div class="ficha-item">
+              <span class="ficha-etiqueta">Cargo</span>
+              <span class="ficha-valor" id="f-cargo">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Datos de la atención -->
+        <div class="rejilla" id="bloque-tipo" hidden>
+          <div class="campo">
+            <label class="etiqueta" for="fp_tipo">Tipo de atención <span class="obligatorio">*</span></label>
+            <select class="entrada" id="fp_tipo">
+              <option value="ingreso">Ingreso</option>
+              <option value="periodica">Periódica</option>
+              <option value="asistencial" selected>Asistencial</option>
+              <option value="seguimiento">Seguimiento</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="fp_modalidad">Modalidad</label>
+            <select class="entrada" id="fp_modalidad">
+              <option value="individual" selected>Individual</option>
+              <option value="grupal">Grupal</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="fp_remision">Motivo de remisión</label>
+            <select class="entrada" id="fp_remision">
+              <option value="">— Seleccione —</option>
+              <option value="Voluntario">Voluntario</option>
+              <option value="Referido por médico">Referido por médico</option>
+              <option value="Referido por jefatura">Referido por jefatura</option>
+              <option value="Evaluación ocupacional">Evaluación ocupacional</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Cuerpo clínico -->
+        <div id="bloque-clinico" hidden>
+          <div class="campo campo-ancho">
+            <label class="etiqueta" for="fp_motivo">Motivo de consulta</label>
+            <textarea class="entrada area" id="fp_motivo" rows="2"
+                      placeholder="Motivo referido por el trabajador"></textarea>
+          </div>
+          <div class="campo campo-ancho">
+            <label class="etiqueta" for="fp_antecedentes">Antecedentes</label>
+            <textarea class="entrada area" id="fp_antecedentes" rows="3"
+                      placeholder="Antecedentes personales, familiares y laborales relevantes"></textarea>
+          </div>
+          <div class="campo campo-ancho">
+            <label class="etiqueta" for="fp_evaluacion">Evaluación / observaciones</label>
+            <textarea class="entrada area" id="fp_evaluacion" rows="4"
+                      placeholder="Estado mental, pruebas aplicadas, observaciones clínicas"></textarea>
+          </div>
+          <div class="campo campo-ancho">
+            <label class="etiqueta" for="fp_impresion">Impresión diagnóstica</label>
+            <textarea class="entrada area" id="fp_impresion" rows="2"
+                      placeholder="Impresión diagnóstica en texto libre"></textarea>
+          </div>
+          <div class="campo campo-ancho">
+            <label class="etiqueta" for="fp_plan">Plan / intervención</label>
+            <textarea class="entrada area" id="fp_plan" rows="3"
+                      placeholder="Plan terapéutico, recomendaciones, derivaciones"></textarea>
+          </div>
+
+          <div class="rejilla">
+            <div class="campo">
+              <label class="etiqueta" for="fp_proxima">Próxima cita</label>
+              <input class="entrada" id="fp_proxima" type="date">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="fp_estado">Estado del caso</label>
+              <select class="entrada" id="fp_estado">
+                <option value="abierto" selected>Abierto</option>
+                <option value="cerrado">Cerrado</option>
+                <option value="derivado">Derivado</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <p class="alerta" id="alerta-ficha" role="alert" hidden></p>
+
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" data-cierra="modal-ficha" type="button">Cancelar</button>
+        <button class="boton-primario" id="btn-guardar-ficha" type="button">Guardar ficha</button>
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- ============ Modal: Alta de trabajador ============ -->
+  <div class="modal" id="modal-alta" hidden>
+    <div class="modal-caja" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo">Registrar trabajador</h2>
+        <button class="modal-cerrar" data-cierra="modal-alta" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+        <p class="nota">Este trabajador no existe en la empresa. Regístrelo para poder crearle la ficha; quedará disponible para los demás módulos.</p>
+        <div class="rejilla">
+          <div class="campo">
+            <label class="etiqueta" for="al_codigo">Código <span class="obligatorio">*</span></label>
+            <input class="entrada entrada-destacada" id="al_codigo" type="number" min="1" max="3000">
+            <span class="ayuda" id="ayuda-alta-codigo"></span>
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="al_cedula">Cédula <span class="obligatorio">*</span></label>
+            <input class="entrada celda-mono" id="al_cedula" type="text" maxlength="10" placeholder="0102030405">
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="al_apellidos">Apellidos <span class="obligatorio">*</span></label>
+            <input class="entrada" id="al_apellidos" type="text">
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="al_nombres">Nombres <span class="obligatorio">*</span></label>
+            <input class="entrada" id="al_nombres" type="text">
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="al_sexo">Sexo</label>
+            <select class="entrada" id="al_sexo">
+              <option value="">—</option>
+              <option value="M">Masculino</option>
+              <option value="F">Femenino</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="al_nacimiento">Fecha de nacimiento</label>
+            <input class="entrada" id="al_nacimiento" type="date">
+          </div>
+        </div>
+        <p class="alerta" id="alerta-alta" role="alert" hidden></p>
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" data-cierra="modal-alta" type="button">Cancelar</button>
+        <button class="boton-primario" id="btn-guardar-alta" type="button">Registrar y continuar</button>
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- ============ Modal: Ver ficha (detalle + imprimir) ============ -->
+  <div class="modal" id="modal-ver" hidden>
+    <div class="modal-caja modal-ancho" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo" id="ver-titulo">Ficha psicológica</h2>
+        <button class="modal-cerrar" data-cierra="modal-ver" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo" id="ver-cuerpo"></div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" data-cierra="modal-ver" type="button">Cerrar</button>
+        <button class="boton-primario" id="btn-imprimir" type="button">Imprimir</button>
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- Área de impresión: se llena al imprimir y solo es visible en @media print -->
+  <div id="zona-impresion" class="zona-impresion" aria-hidden="true"></div>
+
+  <script type="module" src="js/psicologia.js"></script>
+</body>
+</html>
