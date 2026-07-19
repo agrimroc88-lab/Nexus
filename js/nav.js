@@ -43,9 +43,37 @@ export const MODULOS = [
  * @param {string} moduloActivo - id del módulo actual
  */
 export function montarNavegacion(perfil, moduloActivo) {
+  pintarMarca();
+  pintarTituloEmpresa();
   pintarUsuario(perfil);
   pintarEnlaces(perfil, moduloActivo);
   conectarEventos();
+}
+
+/* Logo de Agrimroc en el sidebar (reemplaza el texto NEXUS).
+   Ruta relativa: logo.png en la raíz del repo. */
+function pintarMarca() {
+  const $marca = document.querySelector('.lateral-marca');
+  if (!$marca) return;
+  $marca.innerHTML =
+    '<img src="logo.png" alt="Minera Agrimroc S.A." class="lateral-logo">';
+}
+
+/* Título centrado en la cabecera: AGRIMROC S.A + USSO. */
+function pintarTituloEmpresa() {
+  const $cab = document.querySelector('.cabecera');
+  if (!$cab || document.querySelector('.empresa-titulo')) return;
+
+  const div = document.createElement('div');
+  div.className = 'empresa-titulo';
+  div.innerHTML =
+    '<span class="empresa-nombre">AGRIMROC S.A.</span>' +
+    '<span class="empresa-sub">USSO · Unidad de Seguridad y Salud Ocupacional</span>';
+
+  // Insertar centrado: después del título del módulo
+  const $titulo = $cab.querySelector('.cabecera-titulo');
+  if ($titulo) $titulo.after(div);
+  else $cab.appendChild(div);
 }
 
 function pintarUsuario(perfil) {
