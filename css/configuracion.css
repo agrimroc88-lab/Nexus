@@ -103,3 +103,37 @@
 @media (max-width: 900px) {
   .config-grid { grid-template-columns: 1fr; }
 }
+
+/* --- Logo redimensionable con tirador de esquina --- */
+.logo-redimensionable {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+}
+.logo-redimensionable .previa-logo {
+  display: block;
+  max-width: none;  /* el tamaño lo controla el JS con width */
+}
+.tirador {
+  position: absolute;
+  right: -7px;
+  bottom: -7px;
+  width: 18px;
+  height: 18px;
+  background: var(--color-acento, #1b5e20);
+  border: 2px solid #fff;
+  border-radius: 50%;
+  cursor: nwse-resize;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  touch-action: none;
+}
+.tirador:hover { background: var(--color-acento-oscuro, #00450d); }
+
+/* Marco de la previa del logo con un guía sutil */
+.logo-redimensionable::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px dashed var(--color-borde);
+  pointer-events: none;
+}
