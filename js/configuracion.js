@@ -111,4 +111,52 @@ function conectar() {
     }));
   document.getElementById('btn-guardar-config').addEventListener('click', guardar);
   document.getElementById('btn-restaurar').addEventListener('click', restaurar);
+
+  conectarTirador();
+}
+
+/* Arrastrar la esquina del logo para redimensionarlo,
+   como en Word o PowerPoint. */
+function conectarTirador() {
+  const $tirador = document.getElementById('tirador');
+  const $caja = document.getElementById('logo-caja');
+  if (!$tirador || !$caja) return;
+
+  let arrastrando = false;
+  let inicioX = 0;
+  let anchoInicial = 0;
+
+  const MIN = 60, MAX = 600;
+
+  function empezar(e) {
+    arrastrando = true;
+    inicioX = (e.touches ? e.touches[0].clientX : e.clientX);
+    anchoInicial = estado.logo_tam;
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  }
+
+  function mover(e) {
+    if (!arrastrando) return;
+    const x = (e.touches ? e.touches[0].clientX : e.clientX);
+    let nuevo = anchoInicial + (x - inicioX);
+    nuevo = Math.max(MIN, Math.min(MAX, Math.round(nuevo)));
+    estado.logo_tam = nuevo;
+    document.getElementById('val-logo-tam').textContent = nuevo;
+    document.getElementById('cfg-logo-tam').value = nuevo;
+    aplicarPrevia();
+  }
+
+  function terminar() {
+    arrastrando = false;
+    document.body.style.userSelect = '';
+  }
+
+  $tirador.addEventListener('mousedown', empezar);
+  document.addEventListener('mousemove', mover);
+  document.addEventListener('mouseup', terminar);
+
+  $tirador.addEventListener('touchstart', empezar, { passive: false });
+  document.addEventListener('touchmove', mover, { passive: false });
+  document.addEventListener('touchend', terminar);
 }
