@@ -37,9 +37,10 @@
           <h2 class="panel-titulo">Apariencia de la marca</h2>
 
           <div class="control">
-            <label class="etiqueta" for="cfg-logo-tam">
+            <label class="etiqueta">
               Tamaño del logo · <span id="val-logo-tam">200</span> px
             </label>
+            <p class="ayuda">Arrastre la esquina del logo en la vista previa para agrandarlo o achicarlo. También puede usar el deslizador:</p>
             <input type="range" id="cfg-logo-tam" min="60" max="600" value="200" step="5" class="deslizador">
           </div>
 
@@ -72,7 +73,10 @@
           <h2 class="panel-titulo">Vista previa</h2>
           <div class="previa-marco">
             <div class="previa-sidebar">
-              <img src="logo.png" alt="Logo" class="previa-logo" id="previa-logo">
+              <div class="logo-redimensionable" id="logo-caja">
+                <img src="logo.png" alt="Logo" class="previa-logo" id="previa-logo">
+                <span class="tirador" id="tirador" title="Arrastre para redimensionar"></span>
+              </div>
             </div>
             <div class="previa-cabecera">
               <div class="previa-titulo-empresa" id="previa-titulo">
