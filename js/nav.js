@@ -81,6 +81,18 @@ function pintarUsuario(perfil) {
   const $rol = document.getElementById('usuario-rol');
   if ($nombre) $nombre.textContent = `${perfil.nombres} ${perfil.apellidos}`;
   if ($rol) $rol.textContent = perfil.rol.replace(/_/g, ' ');
+
+  // Botón de cerrar sesión en la cabecera, debajo del nombre
+  const $usuario = document.querySelector('.cabecera-usuario');
+  if ($usuario && !document.getElementById('btn-salir-cabecera')) {
+    const btn = document.createElement('button');
+    btn.id = 'btn-salir-cabecera';
+    btn.className = 'btn-salir-cabecera';
+    btn.type = 'button';
+    btn.textContent = 'Cerrar sesión';
+    btn.addEventListener('click', cerrarSesion);
+    $usuario.appendChild(btn);
+  }
 }
 
 function pintarEnlaces(perfil, moduloActivo) {
