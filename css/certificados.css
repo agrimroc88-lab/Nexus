@@ -1,0 +1,117 @@
+/* ============================================
+   NEXUS · certificados.css
+   Reutiliza clases de atenciones.css.
+   Solo lo específico + hoja de impresión.
+   ============================================ */
+
+/* Chips de origen */
+.origen-chip {
+  display: inline-block;
+  padding: 0.12rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.origen-interno    { background: #e8eef7; color: #1f4e79; }
+.origen-msp        { background: #e6f4ea; color: #1e7d34; }
+.origen-iess       { background: #fdeee6; color: #b5531a; }
+.origen-particular { background: #efeaf5; color: #5b3a86; }
+
+.chip-reubica {
+  display: inline-block;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  background: #fdeee6;
+  color: #b5531a;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.chip-alerta {
+  display: inline-block;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  background: #fbe4e4;
+  color: #a12020;
+  font-size: 0.72rem;
+  font-weight: 600;
+  margin: 0.1rem 0;
+}
+
+.reposo-fin {
+  margin: 0.35rem 0 0;
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--color-primario, #1f4e79);
+}
+
+/* Reubicación */
+.reubicacion {
+  border: 1px solid var(--color-borde, #e2e6ec);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin: 0.5rem 0 1rem;
+}
+.check-linea {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.check-linea input { width: 1.1rem; height: 1.1rem; }
+
+/* Configuración */
+.panel-config { max-width: 720px; }
+.panel-config .panel-titulo { margin-top: 1.25rem; }
+.panel-config .panel-titulo:first-child { margin-top: 0; }
+.config-acciones {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.modal-pie-spacer { flex: 1; }
+
+/* Ver certificado */
+.ver-datos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.5rem 1.25rem;
+  padding: 0.5rem 0 1rem;
+  border-bottom: 1px solid var(--color-borde, #e2e6ec);
+  margin-bottom: 1rem;
+}
+.ver-datos > div { font-size: 0.9rem; }
+.ver-etiqueta {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-texto-tenue, #8a93a0);
+  font-weight: 600;
+}
+.ver-campo { margin-bottom: 0.9rem; }
+.ver-texto { margin: 0.15rem 0 0; white-space: pre-wrap; line-height: 1.5; }
+
+/* Impresión */
+.zona-impresion { display: none; }
+@media print {
+  body.app > .barra-lateral,
+  body.app > .contenedor,
+  .modal { display: none !important; }
+  .zona-impresion { display: block !important; }
+  @page { margin: 2cm; }
+  .hoja { font-family: 'Times New Roman', Georgia, serif; color: #000; font-size: 12pt; }
+  .hoja-cabecera { text-align: center; border-bottom: 2px solid #000; padding-bottom: 0.6rem; margin-bottom: 1.2rem; }
+  .hoja-cabecera h1 { font-size: 15pt; margin: 0 0 0.4rem; text-transform: uppercase; }
+  .hoja-cabecera p { margin: 0.15rem 0; font-size: 10.5pt; }
+  .hoja-bloque { margin-bottom: 0.9rem; page-break-inside: avoid; }
+  .hoja-bloque h2 { font-size: 11pt; text-transform: uppercase; border-bottom: 1px solid #999; margin: 0 0 0.3rem; padding-bottom: 0.1rem; }
+  .hoja-bloque p { margin: 0; white-space: pre-wrap; line-height: 1.5; text-align: justify; }
+  .hoja-firma { margin-top: 3.5rem; text-align: center; page-break-inside: avoid; }
+  .firma-linea { width: 60%; margin: 0 auto 0.3rem; border-top: 1px solid #000; }
+  .hoja-firma p { margin: 0; font-size: 10.5pt; }
+}
