@@ -156,8 +156,15 @@ export function puedeVerModulo(rol, modulo) {
  * @returns {Promise<{ok: boolean, mensaje: string}>}
  */
 export async function iniciarSesion(correo, clave) {
+  // Si el usuario escribe solo su cédula (10 dígitos, sin @),
+  // se completa con el dominio interno. Si escribe un correo
+  // real (con @), se usa tal cual. Así conviven ambos.
+  const identificador = correo.includes('@')
+    ? correo
+    : correo.replace(/\D/g, '') + '@nexus.local';
+
   const { error } = await supabase.auth.signInWithPassword({
-    email: correo,
+    email: identificador,
     password: clave
   });
 

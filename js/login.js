@@ -36,7 +36,7 @@ async function procesarIngreso() {
   ocultarMensaje();
 
   if (!correo || !clave) {
-    mostrarMensaje('Ingrese correo y contraseña');
+    mostrarMensaje('Ingrese su cédula y contraseña');
     return;
   }
 

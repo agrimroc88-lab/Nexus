@@ -32,7 +32,9 @@ export const MODULOS = [
     roles: ['admin', 'medico_ocupacional', 'enfermeria'] },
   { id: 'farmacia',      texto: 'Farmacia',             archivo: 'farmacia.html',             listo: true,
     roles: ['admin', 'enfermeria'] },
-  { id: 'certificados',  texto: 'Certificados médicos', archivo: 'certificados.html',         listo: true }
+  { id: 'certificados',  texto: 'Certificados médicos', archivo: 'certificados.html',         listo: true },
+  { id: 'usuarios',      texto: 'Usuarios',             archivo: 'usuarios.html',             listo: true,
+    roles: ['admin'] }
 ];
 
 /**
