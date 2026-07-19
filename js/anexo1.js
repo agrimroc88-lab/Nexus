@@ -1362,6 +1362,7 @@ async function abrirEvento(e) {
     document.getElementById('ev_codigo').value = e.codigo_trabajador ?? '';
     document.getElementById('ev_sexo').value = e.sexo ?? 'M';
     document.getElementById('ev_dias').value = e.dias_baja ?? 0;
+    document.getElementById('ev_reposo_inicio').value = e.reposo_inicio ?? '';
     document.getElementById('ev_reportado').checked = e.reportado_iess ?? false;
     document.getElementById('ev_fecha_reporte').value = e.fecha_reporte ?? '';
     document.getElementById('ev_url').value = e.url_informe ?? '';
@@ -1402,6 +1403,7 @@ function limpiarFormEvento() {
   });
 
   document.getElementById('ev_fecha').value = HOY();
+  document.getElementById('ev_reposo_inicio').value = HOY();
   document.getElementById('ev_turno').value = 'dia';
   document.getElementById('ev_area').value = '';
   document.getElementById('ev_sexo').value = 'M';
@@ -1424,11 +1426,10 @@ function leerRadio(nombre) {
 
 /** Muestra u oculta campos según el tipo o estado elegido */
 function ajustarCamposEvento() {
+  /* El reposo (días + inicio) se puede registrar en cualquier tipo
+     de evento y en enfermedad profesional: el campo queda siempre visible. */
   if (AMBITO === 'seguridad') {
-    const tipo = leerRadio('ev_tipo');
-    const conBaja = tipo === 'accidente_baja';
-    document.getElementById('ev-campo-dias').hidden = !conBaja;
-    if (!conBaja) document.getElementById('ev_dias').value = 0;
+    document.getElementById('ev-campo-dias').hidden = false;
   } else {
     const est = leerRadio('ev_estado');
     document.getElementById('ev-campo-dictamen').hidden = est === 'presuncion';
@@ -1436,6 +1437,28 @@ function ajustarCamposEvento() {
 
   document.getElementById('ev-campo-freporte').hidden =
     !document.getElementById('ev_reportado').checked;
+
+  calcularReposoFin();
+}
+
+/* Último día de reposo = inicio + días - 1.
+   Si no hay inicio, se usa la fecha del evento. Al día
+   siguiente del último día, el trabajador se reincorpora. */
+function calcularReposoFin() {
+  const $fin = document.getElementById('ev-reposo-fin');
+  if (!$fin) return;
+
+  const dias = parseInt(document.getElementById('ev_dias').value, 10) || 0;
+  const inicioStr = document.getElementById('ev_reposo_inicio').value
+    || document.getElementById('ev_fecha').value;
+
+  if (dias < 1 || !inicioStr) { $fin.textContent = '—'; return; }
+
+  const inicio = new Date(inicioStr + 'T00:00');
+  inicio.setDate(inicio.getDate() + dias - 1);
+  $fin.textContent = inicio.toLocaleDateString('es-EC', {
+    day: '2-digit', month: '2-digit', year: 'numeric'
+  });
 }
 
 /** Las áreas cuelgan de sucursal; se unen por empresa */
@@ -1563,8 +1586,14 @@ async function guardarEvento() {
 
     if (!desc) return alertaEvento('Describa lo ocurrido');
     if (tipo === 'accidente_baja' && dias < 1) {
-      return alertaEvento('El accidente con baja requiere al menos un día perdido');
+      return alertaEvento('El accidente con baja requiere al menos un día de reposo');
     }
+
+    /* El reposo se puede registrar en cualquier tipo. Su inicio
+       solo se guarda si hay al menos un día de reposo. */
+    const reposoInicio = dias > 0
+      ? (document.getElementById('ev_reposo_inicio').value || fecha)
+      : null;
 
     datos = {
       ...base,
@@ -1573,7 +1602,8 @@ async function guardarEvento() {
       descripcion: desc,
       parte_cuerpo: document.getElementById('ev_parte').value.trim() || null,
       agente: document.getElementById('ev_agente').value.trim() || null,
-      dias_baja: tipo === 'accidente_baja' ? dias : 0,
+      dias_baja: dias,
+      reposo_inicio: reposoInicio,
       investigado: document.getElementById('ev_investigado').checked
     };
   } else {
@@ -1586,6 +1616,11 @@ async function guardarEvento() {
       return alertaEvento('Un caso calificado o descartado exige la fecha del dictamen');
     }
 
+    const diasEp = parseInt(document.getElementById('ev_dias').value, 10) || 0;
+    const reposoInicioEp = diasEp > 0
+      ? (document.getElementById('ev_reposo_inicio').value || fecha)
+      : null;
+
     datos = {
       ...base,
       estado: est,
@@ -1593,7 +1628,8 @@ async function guardarEvento() {
       diagnostico: dx,
       agente_causal: document.getElementById('ev_agente_causal').value.trim() || null,
       fecha_dictamen: dictamen,
-      dias_baja: parseInt(document.getElementById('ev_dias').value, 10) || 0
+      dias_baja: diasEp,
+      reposo_inicio: reposoInicioEp
     };
   }
 
@@ -1974,6 +2010,11 @@ function conectarEventos() {
 
   document.querySelectorAll('input[name="ev_tipo"], input[name="ev_estado"]')
     .forEach((r) => r.addEventListener('change', ajustarCamposEvento));
+
+  /* Recalcular el último día de reposo en vivo */
+  document.getElementById('ev_dias').addEventListener('input', calcularReposoFin);
+  document.getElementById('ev_reposo_inicio').addEventListener('change', calcularReposoFin);
+  document.getElementById('ev_fecha').addEventListener('change', calcularReposoFin);
 
   /* El área escrita y la seleccionada se excluyen */
   document.getElementById('ev_area').addEventListener('change', () => {
