@@ -1,0 +1,31 @@
+/* ============================================
+   NEXUS · usuarios.css
+   ============================================ */
+
+.rol-chip {
+  display: inline-block;
+  padding: 0.12rem 0.6rem;
+  border-radius: 999px;
+  background: #e8eef7;
+  color: #1f4e79;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.estado-punto {
+  display: inline-block;
+  padding: 0.12rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.estado-activo   { background: #e6f4ea; color: #1e7d34; }
+.estado-inactivo { background: #f1f1f1; color: #888; }
+
+.fila-inactiva { opacity: 0.6; }
+
+.boton-peligro-txt { color: #c0392b; }
+
+.modal-angosto { max-width: 420px; }
+
+.nota { color: var(--color-texto-tenue, #667); font-size: 0.9rem; margin: 0 0 0.75rem; }
