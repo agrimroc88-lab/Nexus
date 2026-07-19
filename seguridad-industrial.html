@@ -711,8 +711,22 @@
             </select>
           </div>
           <div class="campo" id="ev-campo-dias">
-            <label class="etiqueta" for="ev_dias">Días de baja</label>
+            <label class="etiqueta" for="ev_dias">Días de reposo</label>
             <input class="entrada" id="ev_dias" type="number" min="0" value="0">
+          </div>
+        </div>
+
+        <!-- Reposo / descanso médico -->
+        <div class="rejilla" id="ev-bloque-reposo">
+          <div class="campo">
+            <label class="etiqueta" for="ev_reposo_inicio">Inicio del reposo</label>
+            <input class="entrada" id="ev_reposo_inicio" type="date">
+            <span class="ayuda">Por defecto la fecha del evento</span>
+          </div>
+          <div class="campo">
+            <label class="etiqueta">Último día de reposo</label>
+            <p id="ev-reposo-fin" style="margin:0.35rem 0 0;font-weight:600;font-size:1.05rem;color:var(--color-primario,#1f4e79);">—</p>
+            <span class="ayuda">Al día siguiente se reincorpora</span>
           </div>
         </div>
 
