@@ -1,0 +1,105 @@
+/* ============================================
+   NEXUS · configuracion.css
+   ============================================ */
+
+.config-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.panel {
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  padding: 1.5rem;
+  box-shadow: var(--sombra-tarjeta, 0 1px 3px rgba(20,40,20,0.06));
+}
+
+.panel-titulo {
+  margin: 0 0 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-acento-oscuro, #00450d);
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--color-acento-suave, #e6f0e6);
+}
+
+.control { margin-bottom: 1.5rem; }
+
+.deslizador {
+  width: 100%;
+  margin-top: 0.5rem;
+  accent-color: var(--color-acento, #1b5e20);
+  cursor: pointer;
+}
+
+.opciones-pos {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.pos-btn {
+  flex: 1;
+  padding: 0.55rem;
+  font-family: inherit;
+  font-size: 0.85rem;
+  color: var(--color-texto-tenue);
+  background: var(--color-fondo);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.pos-btn.activa {
+  background: var(--color-acento-suave, #e6f0e6);
+  color: var(--color-acento-oscuro, #00450d);
+  border-color: var(--color-acento, #1b5e20);
+  font-weight: 600;
+}
+
+.config-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+/* Vista previa */
+.previa-marco {
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  overflow: hidden;
+}
+.previa-sidebar {
+  background: var(--color-superficie);
+  border-bottom: 1px solid var(--color-borde);
+  padding: 1.25rem;
+  display: flex;
+  justify-content: center;
+}
+.previa-logo { max-width: 100%; height: auto; display: block; }
+.previa-cabecera {
+  padding: 1rem;
+  background: var(--color-fondo);
+}
+.previa-titulo-empresa {
+  display: flex;
+  flex-direction: column;
+}
+.previa-nombre {
+  font-weight: 700;
+  color: var(--color-acento-oscuro, #00450d);
+  line-height: 1.15;
+}
+.previa-sub {
+  font-size: 0.72rem;
+  color: var(--color-texto-tenue);
+}
+
+@media (max-width: 900px) {
+  .config-grid { grid-template-columns: 1fr; }
+}

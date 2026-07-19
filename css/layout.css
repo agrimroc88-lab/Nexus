@@ -217,3 +217,10 @@
 
 /* Ocultar el botón de salir viejo del sidebar */
 .lateral-salir { display: none !important; }
+
+/* Enlace de Configuración empujado al fondo del sidebar */
+.nav-abajo {
+  margin-top: auto;
+  border-top: 1px solid var(--color-borde);
+  padding-top: 0.75rem;
+}
