@@ -1,23 +1,14 @@
 /* ============================================
    NEXUS · auth.js
    Sesión, roles y guardia de acceso.
+   MÉTODO SIMPLE: login con cédula + contraseña
+   comparadas contra la tabla usuarios_app.
+   La sesión se guarda en localStorage para
+   persistir entre las distintas páginas.
    ARCHIVO COMPARTIDO — no modificar por módulo.
    ============================================ */
 
 import { supabase } from './supabase.js';
-
-/* --- Catálogo de roles ---
-   admin              : control total. Hereda permisos clínicos.
-   medico_ocupacional : clínica, exámenes, aptitud, vigilancia.
-   tecnico_sst        : riesgos, inspecciones. Sin acceso clínico.
-   ergonomo           : (en desuso) evaluaciones ergonómicas.
-   consulta           : solo lectura, sin datos clínicos.
-   enfermeria         : farmacia (único rol que registra movimientos).
-   psicologo          : atención psicológica.
-   trabajo_social     : ficha socioeconómica.
-   psico_social       : temporal, une psicología + trabajo social
-                        en una sola persona. Al separarse las funciones
-                        se le cambia a un rol puro sin tocar código.     */
 
 export const ROLES = {
   ADMIN: 'admin',
@@ -31,154 +22,105 @@ export const ROLES = {
   PSICO_SOCIAL: 'psico_social'
 };
 
-/* Ruta base del proyecto en GitHub Pages */
 const BASE = '/Nexus/';
+const CLAVE_SESION = 'nexus_sesion';
 
 /* ============================================
-   Sesión
+   Sesión (localStorage)
    ============================================ */
 
-/**
- * Devuelve la sesión activa o null.
- */
-export async function obtenerSesion() {
-  const { data, error } = await supabase.auth.getSession();
-  if (error) {
-    console.error('[auth] Error al obtener sesión:', error.message);
+/** Devuelve el perfil guardado en la sesión local, o null. */
+export function sesionActual() {
+  try {
+    const s = localStorage.getItem(CLAVE_SESION);
+    return s ? JSON.parse(s) : null;
+  } catch {
     return null;
   }
-  return data.session;
+}
+
+function guardarSesion(perfil) {
+  localStorage.setItem(CLAVE_SESION, JSON.stringify(perfil));
+}
+
+function borrarSesion() {
+  localStorage.removeItem(CLAVE_SESION);
 }
 
 /**
- * Devuelve el usuario autenticado o null.
- */
-export async function obtenerUsuario() {
-  const sesion = await obtenerSesion();
-  return sesion ? sesion.user : null;
-}
-
-/**
- * Devuelve el perfil extendido del usuario (incluye rol).
- * Consulta la tabla `perfiles`, creada en 001_tablas.sql.
+ * Perfil del usuario en sesión. Se mantiene por compatibilidad
+ * con los módulos que llaman a obtenerPerfil().
  */
 export async function obtenerPerfil() {
-  const usuario = await obtenerUsuario();
-  if (!usuario) return null;
-
-  const { data, error } = await supabase
-    .from('perfiles')
-    .select('id, nombres, apellidos, rol, activo')
-    .eq('id', usuario.id)
-    .single();
-
-  if (error) {
-    console.error('[auth] Error al obtener perfil:', error.message);
-    return null;
-  }
-  return data;
+  return sesionActual();
 }
 
 /* ============================================
-   Permisos
+   Permisos (idénticos a antes)
    ============================================ */
 
-/**
- * Verdadero si el rol puede acceder a información clínica de
- * atenciones médicas y salud ocupacional.
- * Enfermería entra al círculo clínico: registra atenciones y
- * gestiona salud ocupacional junto al médico.
- * Espeja la función tiene_permiso_clinico() de PostgreSQL.
- */
 export function puedeVerClinica(rol) {
   return rol === ROLES.ADMIN || rol === ROLES.MEDICO || rol === ROLES.ENFERMERIA;
 }
-
-/**
- * Verdadero si el rol administra el sistema.
- */
 export function esAdministrador(rol) {
   return rol === ROLES.ADMIN;
 }
-
-/**
- * Verdadero si el rol registra movimientos de farmacia.
- * La lectura del módulo se controla en nav.js (campo roles);
- * la escritura real la impone la RLS de PostgreSQL.
- */
 export function puedeGestionarFarmacia(rol) {
   return rol === ROLES.ADMIN || rol === ROLES.ENFERMERIA;
 }
-
-/**
- * Verdadero si el rol usa el módulo de Psicología.
- */
 export function puedeVerPsicologia(rol) {
   return rol === ROLES.ADMIN || rol === ROLES.PSICOLOGO || rol === ROLES.PSICO_SOCIAL;
 }
-
-/**
- * Verdadero si el rol usa el módulo de Trabajo Social.
- * El médico entra solo en lectura (dato sensible del hogar).
- */
 export function puedeVerTrabajoSocial(rol) {
   return rol === ROLES.ADMIN || rol === ROLES.TRABAJO_SOCIAL ||
          rol === ROLES.PSICO_SOCIAL || rol === ROLES.MEDICO;
 }
-
-/**
- * Verdadero si el rol puede ESCRIBIR en Trabajo Social.
- * El médico ve pero no edita.
- */
 export function puedeEditarTrabajoSocial(rol) {
   return rol === ROLES.ADMIN || rol === ROLES.TRABAJO_SOCIAL ||
          rol === ROLES.PSICO_SOCIAL;
 }
-
-/**
- * Evalúa si un rol puede ver un módulo del catálogo (nav.js).
- * Si el módulo declara una lista `roles`, se exige pertenencia.
- * Si no la declara, el módulo es visible para cualquier rol.
- * @param {string} rol - rol del perfil
- * @param {object} modulo - entrada del catálogo MODULOS
- */
 export function puedeVerModulo(rol, modulo) {
   if (!modulo.roles || modulo.roles.length === 0) return true;
   return modulo.roles.includes(rol);
 }
 
 /* ============================================
-   Autenticación
+   Autenticación (método simple)
    ============================================ */
 
 /**
- * Inicia sesión con correo y contraseña.
+ * Inicia sesión comparando cédula + contraseña contra usuarios_app.
+ * @param {string} cedula
+ * @param {string} clave
  * @returns {Promise<{ok: boolean, mensaje: string}>}
  */
-export async function iniciarSesion(correo, clave) {
-  // Si el usuario escribe solo su cédula (10 dígitos, sin @),
-  // se completa con el dominio interno. Si escribe un correo
-  // real (con @), se usa tal cual. Así conviven ambos.
-  const identificador = correo.includes('@')
-    ? correo
-    : correo.replace(/\D/g, '') + '@nexus.local';
+export async function iniciarSesion(cedula, clave) {
+  const ced = String(cedula).replace(/\D/g, '');
 
-  const { error } = await supabase.auth.signInWithPassword({
-    email: identificador,
-    password: clave
-  });
+  const { data, error } = await supabase
+    .from('usuarios_app')
+    .select('id, cedula, nombres, apellidos, rol, activo')
+    .eq('cedula', ced)
+    .eq('pass', clave)
+    .maybeSingle();
 
   if (error) {
-    return { ok: false, mensaje: traducirError(error.message) };
+    return { ok: false, mensaje: 'Error de conexión. Intente de nuevo.' };
   }
+  if (!data) {
+    return { ok: false, mensaje: 'Cédula o contraseña incorrectas' };
+  }
+  if (!data.activo) {
+    return { ok: false, mensaje: 'Usuario desactivado. Contacte al administrador.' };
+  }
+
+  guardarSesion(data);
   return { ok: true, mensaje: 'Sesión iniciada' };
 }
 
-/**
- * Cierra la sesión y redirige al login.
- */
+/** Cierra la sesión y vuelve al login. */
 export async function cerrarSesion() {
-  await supabase.auth.signOut();
+  borrarSesion();
   window.location.href = BASE + 'login.html';
 }
 
@@ -187,53 +129,44 @@ export async function cerrarSesion() {
    ============================================ */
 
 /**
- * Protege una página. Si no hay sesión, redirige al login.
- * Si se indican roles permitidos, valida el rol del perfil.
- * @param {string[]} rolesPermitidos - vacío = cualquier autenticado
- * @returns {Promise<object|null>} perfil del usuario
+ * Protege una página. Sin sesión → login.
+ * Con roles indicados, valida el rol.
+ * @param {string[]} rolesPermitidos - vacío = cualquiera con sesión
+ * @returns {Promise<object|null>} perfil
  */
 export async function protegerPagina(rolesPermitidos = []) {
-  const sesion = await obtenerSesion();
+  const perfil = sesionActual();
 
-  if (!sesion) {
+  if (!perfil) {
     window.location.href = BASE + 'login.html';
     return null;
   }
 
-  const perfil = await obtenerPerfil();
+  // Revalidar contra la base: si lo desactivaron, sacarlo.
+  const { data } = await supabase
+    .from('usuarios_app')
+    .select('id, cedula, nombres, apellidos, rol, activo')
+    .eq('id', perfil.id)
+    .maybeSingle();
 
-  if (!perfil || perfil.activo === false) {
-    await supabase.auth.signOut();
+  if (!data || data.activo === false) {
+    borrarSesion();
     window.location.href = BASE + 'login.html';
     return null;
   }
 
-  if (rolesPermitidos.length > 0 && !rolesPermitidos.includes(perfil.rol)) {
+  // Actualizar la sesión por si cambió el rol
+  guardarSesion(data);
+
+  if (rolesPermitidos.length > 0 && !rolesPermitidos.includes(data.rol)) {
     window.location.href = BASE + 'dashboard.html';
     return null;
   }
 
-  return perfil;
+  return data;
 }
 
-/**
- * Si ya hay sesión activa, envía al dashboard.
- * Se usa únicamente en login.html.
- */
+/** Si ya hay sesión, va al dashboard. Se usa en login.html. */
 export async function redirigirSiAutenticado() {
-  const sesion = await obtenerSesion();
-  if (sesion) window.location.href = BASE + 'dashboard.html';
-}
-
-/* ============================================
-   Utilidad interna
-   ============================================ */
-
-function traducirError(mensaje) {
-  const mapa = {
-    'Invalid login credentials': 'Credenciales incorrectas',
-    'Email not confirmed': 'Correo no confirmado',
-    'User not found': 'Usuario no encontrado'
-  };
-  return mapa[mensaje] || 'No fue posible iniciar sesión';
+  if (sesionActual()) window.location.href = BASE + 'dashboard.html';
 }

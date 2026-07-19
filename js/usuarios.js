@@ -1,9 +1,8 @@
 /* ============================================
    NEXUS · usuarios.js
-   Gestión de usuarios (solo admin).
-   Crear usuarios y reiniciar contraseñas vía
-   Edge Functions seguras. Cambiar rol y activar/
-   desactivar directamente sobre la tabla perfiles.
+   Gestión de usuarios (solo admin) — MÉTODO SIMPLE.
+   Crea/edita/borra filas en la tabla usuarios_app
+   directamente, sin Edge Functions.
    ============================================ */
 
 import { supabase } from './supabase.js';
@@ -26,30 +25,25 @@ const ROLES_TXT = {
 const estado = {
   perfil: null,
   usuarios: [],
-  editId: null,     // id del usuario en edición (null = nuevo)
-  claveId: null     // id del usuario cuya clave se reinicia
+  editId: null
 };
 
 iniciar();
 
 async function iniciar() {
-  // Solo admin entra a este módulo
   const perfil = await protegerPagina(['admin']);
   if (!perfil) return;
-
   estado.perfil = perfil;
   montarNavegacion(perfil, 'usuarios');
-
   await cargarUsuarios();
   conectarEventos();
 }
 
 async function cargarUsuarios() {
   const { data, error } = await supabase
-    .from('perfiles')
-    .select('id, nombres, apellidos, cedula, rol, registro_msp, activo')
+    .from('usuarios_app')
+    .select('id, cedula, nombres, apellidos, rol, registro_msp, activo')
     .order('apellidos');
-
   estado.usuarios = error ? [] : (data || []);
   pintar();
 }
@@ -71,7 +65,6 @@ function pintar() {
 
   $cuerpo.innerHTML = '';
   document.getElementById('vacio-usuarios').hidden = visibles.length > 0;
-
   const frag = document.createDocumentFragment();
   visibles.forEach((u) => frag.appendChild(fila(u)));
   $cuerpo.appendChild(frag);
@@ -98,20 +91,14 @@ function fila(u) {
     <td class="celda-derecha"></td>`;
 
   const acc = tr.querySelector('td:last-child');
+  acc.appendChild(boton('Editar', () => abrirEditar(u)));
 
-  const bRol = boton('Editar', () => abrirEditar(u));
-  acc.appendChild(bRol);
-
-  const bClave = boton('Clave', () => abrirClave(u));
-  acc.appendChild(bClave);
-
-  // No permitir que el admin se desactive a sí mismo
   if (!esYo) {
     const bEstado = boton(u.activo ? 'Desactivar' : 'Activar', () => alternarActivo(u));
     if (u.activo) bEstado.classList.add('boton-peligro-txt');
     acc.appendChild(bEstado);
+    acc.appendChild(boton('Eliminar', () => eliminar(u)));
   }
-
   return tr;
 }
 
@@ -124,22 +111,20 @@ function boton(texto, fn) {
   return b;
 }
 
-/* ============================================
-   Crear / editar
-   ============================================ */
+/* --- Crear / editar --- */
 
 function abrirNuevo() {
   estado.editId = null;
   document.getElementById('us-modal-titulo').textContent = 'Nuevo usuario';
   document.getElementById('btn-guardar-usuario').textContent = 'Crear usuario';
   document.getElementById('us-campo-clave').hidden = false;
+  document.getElementById('us_clave').placeholder = 'Mínimo 6 caracteres';
 
   ['us_cedula', 'us_nombres', 'us_apellidos', 'us_msp', 'us_clave']
     .forEach((id) => { document.getElementById(id).value = ''; });
   document.getElementById('us_rol').value = 'medico_ocupacional';
   document.getElementById('us_cedula').disabled = false;
   document.getElementById('alerta-usuario').hidden = true;
-
   document.getElementById('modal-usuario').hidden = false;
   document.getElementById('us_cedula').focus();
 }
@@ -148,17 +133,18 @@ function abrirEditar(u) {
   estado.editId = u.id;
   document.getElementById('us-modal-titulo').textContent = 'Editar usuario';
   document.getElementById('btn-guardar-usuario').textContent = 'Guardar cambios';
-  // Al editar no se cambia la clave aquí (hay botón aparte)
-  document.getElementById('us-campo-clave').hidden = true;
+  // Al editar, la clave es opcional (si se deja vacía, no se cambia)
+  document.getElementById('us-campo-clave').hidden = false;
+  document.getElementById('us_clave').placeholder = 'Dejar vacío para no cambiarla';
 
   document.getElementById('us_cedula').value = u.cedula ?? '';
-  document.getElementById('us_cedula').disabled = true; // la cédula es la llave de acceso
+  document.getElementById('us_cedula').disabled = false;
   document.getElementById('us_nombres').value = u.nombres ?? '';
   document.getElementById('us_apellidos').value = u.apellidos ?? '';
   document.getElementById('us_msp').value = u.registro_msp ?? '';
   document.getElementById('us_rol').value = u.rol ?? 'consulta';
+  document.getElementById('us_clave').value = '';
   document.getElementById('alerta-usuario').hidden = true;
-
   document.getElementById('modal-usuario').hidden = false;
 }
 
@@ -169,91 +155,68 @@ async function guardarUsuario() {
   const apellidos = document.getElementById('us_apellidos').value.trim();
   const rol = document.getElementById('us_rol').value;
   const msp = document.getElementById('us_msp').value.trim() || null;
+  const clave = document.getElementById('us_clave').value;
 
+  if (!/^[0-9]{10}$/.test(cedula)) return err($alerta, 'La cédula debe tener 10 dígitos.');
   if (!nombres || !apellidos) return err($alerta, 'Nombres y apellidos son obligatorios.');
 
   const $btn = document.getElementById('btn-guardar-usuario');
   $btn.disabled = true;
 
   if (estado.editId) {
-    // Edición: actualiza perfil (no toca auth)
-    const { error } = await supabase.from('perfiles')
-      .update({ nombres, apellidos, rol, registro_msp: msp })
-      .eq('id', estado.editId);
+    const patch = { cedula, nombres, apellidos, rol, registro_msp: msp };
+    if (clave) {
+      if (clave.length < 6) { $btn.disabled = false; return err($alerta, 'La clave debe tener al menos 6 caracteres.'); }
+      patch.pass = clave;
+    }
+    const { error } = await supabase.from('usuarios_app').update(patch).eq('id', estado.editId);
     $btn.disabled = false;
-    if (error) return err($alerta, 'No fue posible guardar: ' + error.message);
+    if (error) return err($alerta, traducir(error));
   } else {
-    // Nuevo: Edge Function crear-usuario
-    const clave = document.getElementById('us_clave').value;
-    if (!/^[0-9]{10}$/.test(cedula)) { $btn.disabled = false; return err($alerta, 'La cédula debe tener 10 dígitos.'); }
     if (clave.length < 6) { $btn.disabled = false; return err($alerta, 'La clave debe tener al menos 6 caracteres.'); }
-
-    const { data, error } = await supabase.functions.invoke('crear-usuario', {
-      body: { cedula, clave, nombres, apellidos, rol, registro_msp: msp }
+    const { error } = await supabase.from('usuarios_app').insert({
+      cedula, pass: clave, nombres, apellidos, rol, registro_msp: msp, activo: true
     });
     $btn.disabled = false;
-
-    if (error || data?.error) {
-      return err($alerta, data?.error || 'No fue posible crear el usuario.');
-    }
+    if (error) return err($alerta, traducir(error));
   }
 
   document.getElementById('modal-usuario').hidden = true;
   await cargarUsuarios();
 }
 
-/* ============================================
-   Activar / desactivar
-   ============================================ */
+function traducir(error) {
+  const m = error.message || '';
+  if (m.includes('usuarios_app_cedula_key') || m.includes('duplicate')) return 'Ya existe un usuario con esa cédula.';
+  if (m.includes('ck_cedula_app')) return 'La cédula debe tener 10 dígitos.';
+  return 'No fue posible guardar: ' + m;
+}
+
+/* --- Activar / desactivar --- */
 
 async function alternarActivo(u) {
   const accion = u.activo ? 'desactivar' : 'activar';
   if (!confirm(`¿Seguro que desea ${accion} a ${u.nombres} ${u.apellidos}?` +
     (u.activo ? '\n\nNo podrá iniciar sesión, pero sus registros se conservan.' : ''))) return;
 
-  const { error } = await supabase.from('perfiles')
+  const { error } = await supabase.from('usuarios_app')
     .update({ activo: !u.activo }).eq('id', u.id);
-
   if (error) { alert('No fue posible cambiar el estado: ' + error.message); return; }
   await cargarUsuarios();
 }
 
-/* ============================================
-   Reset de clave
-   ============================================ */
+/* --- Eliminar --- */
 
-function abrirClave(u) {
-  estado.claveId = u.id;
-  document.getElementById('clave-persona').textContent =
-    `Nueva contraseña para ${u.nombres} ${u.apellidos} (cédula ${u.cedula ?? '—'}).`;
-  document.getElementById('rc_clave').value = '';
-  document.getElementById('alerta-clave').hidden = true;
-  document.getElementById('modal-clave').hidden = false;
-  document.getElementById('rc_clave').focus();
+async function eliminar(u) {
+  if (!confirm(`¿ELIMINAR a ${u.nombres} ${u.apellidos}?\n\nEsta acción no se puede deshacer. ` +
+    `Si la persona registró atenciones o certificados, es mejor DESACTIVAR en vez de eliminar.`)) return;
+
+  const { error } = await supabase.from('usuarios_app').delete().eq('id', u.id);
+  if (error) { alert('No fue posible eliminar: ' + error.message); return; }
+  await cargarUsuarios();
 }
 
-async function guardarClave() {
-  const $alerta = document.getElementById('alerta-clave');
-  const clave = document.getElementById('rc_clave').value;
-  if (clave.length < 6) return err($alerta, 'La clave debe tener al menos 6 caracteres.');
-
-  const $btn = document.getElementById('btn-guardar-clave');
-  $btn.disabled = true;
-
-  const { data, error } = await supabase.functions.invoke('reset-clave', {
-    body: { id: estado.claveId, clave }
-  });
-  $btn.disabled = false;
-
-  if (error || data?.error) return err($alerta, data?.error || 'No fue posible reiniciar la contraseña.');
-
-  document.getElementById('modal-clave').hidden = true;
-  alert('Contraseña actualizada. Entréguesela a la persona.');
-}
-
-/* ============================================
-   Utilidades
-   ============================================ */
+/* --- Utilidades --- */
 
 function err($el, msg) {
   $el.textContent = msg;
@@ -266,16 +229,14 @@ function conectarEventos() {
   document.getElementById('us-estado').addEventListener('change', pintar);
   document.getElementById('btn-nuevo-usuario').addEventListener('click', abrirNuevo);
   document.getElementById('btn-guardar-usuario').addEventListener('click', guardarUsuario);
-  document.getElementById('btn-guardar-clave').addEventListener('click', guardarClave);
 
   document.querySelectorAll('[data-cierra]').forEach((b) =>
     b.addEventListener('click', () => { document.getElementById(b.dataset.cierra).hidden = true; }));
 
   document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape') return;
-    for (const id of ['modal-clave', 'modal-usuario']) {
-      const $m = document.getElementById(id);
-      if (!$m.hidden) { $m.hidden = true; return; }
+    if (e.key === 'Escape') {
+      const $m = document.getElementById('modal-usuario');
+      if (!$m.hidden) $m.hidden = true;
     }
   });
 }
