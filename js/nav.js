@@ -6,6 +6,7 @@
    ============================================ */
 
 import { cerrarSesion, puedeVerModulo } from './auth.js';
+import { supabase } from './supabase.js';
 
 /* --- Catálogo de módulos ---
    Orden de aparición en el sidebar = orden de este arreglo.
@@ -34,7 +35,9 @@ export const MODULOS = [
     roles: ['admin', 'enfermeria'] },
   { id: 'certificados',  texto: 'Certificados médicos', archivo: 'certificados.html',         listo: true },
   { id: 'usuarios',      texto: 'Usuarios',             archivo: 'usuarios.html',             listo: true,
-    roles: ['admin'] }
+    roles: ['admin'] },
+  { id: 'configuracion', texto: 'Configuración',        archivo: 'configuracion.html',        listo: true,
+    roles: ['admin'], abajo: true }
 ];
 
 /**
@@ -48,6 +51,46 @@ export function montarNavegacion(perfil, moduloActivo) {
   pintarUsuario(perfil);
   pintarEnlaces(perfil, moduloActivo);
   conectarEventos();
+  aplicarConfigVisual();  // lee config_sistema y ajusta tamaños (asíncrono)
+}
+
+/* Lee la configuración visual guardada y la aplica al logo
+   y al nombre en TODAS las páginas. Si falla, deja los valores
+   por defecto del CSS. */
+async function aplicarConfigVisual() {
+  try {
+    const { data } = await supabase
+      .from('config_sistema').select('*').eq('id', 1).maybeSingle();
+    if (!data) return;
+
+    const $logo = document.querySelector('.lateral-logo');
+    if ($logo && data.logo_tam) $logo.style.maxWidth = data.logo_tam + 'px';
+
+    const $nombre = document.querySelector('.empresa-nombre');
+    if ($nombre && data.nombre_tam) $nombre.style.fontSize = data.nombre_tam + 'px';
+
+    const $tit = document.querySelector('.empresa-titulo');
+    if ($tit && data.nombre_pos) {
+      // Reposicionar el título en la cabecera
+      if (data.nombre_pos === 'izquierda') {
+        $tit.style.left = '4.5rem';
+        $tit.style.transform = 'none';
+        $tit.style.textAlign = 'left';
+        $tit.style.alignItems = 'flex-start';
+      } else if (data.nombre_pos === 'derecha') {
+        $tit.style.left = 'auto';
+        $tit.style.right = '14rem';
+        $tit.style.transform = 'none';
+        $tit.style.textAlign = 'right';
+        $tit.style.alignItems = 'flex-end';
+      } else {
+        $tit.style.left = '50%';
+        $tit.style.transform = 'translateX(-50%)';
+        $tit.style.textAlign = 'center';
+        $tit.style.alignItems = 'center';
+      }
+    }
+  } catch (_) { /* silencioso: usa defaults */ }
 }
 
 /* Logo de Agrimroc en el sidebar (reemplaza el texto NEXUS).
@@ -108,6 +151,8 @@ function pintarEnlaces(perfil, moduloActivo) {
 
     const enlace = document.createElement('a');
     enlace.className = 'nav-enlace';
+    // Los que llevan `abajo: true` se empujan al fondo del sidebar
+    if (modulo.abajo) enlace.classList.add('nav-abajo');
     enlace.textContent = modulo.texto;
 
     if (modulo.listo) {
