@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Usuarios · NEXUS</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/empresas.css">
+  <link rel="stylesheet" href="css/trabajadores.css">
+  <link rel="stylesheet" href="css/atenciones.css">
+  <link rel="stylesheet" href="css/usuarios.css">
+</head>
+<body class="app">
+
+  <aside class="barra-lateral" id="barra-lateral">
+    <div class="lateral-marca">NEXUS</div>
+    <nav class="lateral-nav" id="lateral-nav"></nav>
+    <button class="lateral-salir" id="btn-salir" type="button">Cerrar sesión</button>
+  </aside>
+
+  <div class="contenedor">
+
+    <header class="cabecera">
+      <button class="cabecera-menu" id="btn-menu" type="button" aria-label="Menú">☰</button>
+      <h1 class="cabecera-titulo">Usuarios del sistema</h1>
+      <div class="cabecera-usuario">
+        <span class="usuario-nombre" id="usuario-nombre">—</span>
+        <span class="usuario-rol" id="usuario-rol">—</span>
+      </div>
+    </header>
+
+    <main class="contenido">
+
+      <div class="herramientas">
+        <input class="busqueda" id="us-busqueda" type="search"
+               placeholder="Buscar por nombre o cédula…">
+        <select class="entrada filtro" id="us-rol">
+          <option value="">Todos los roles</option>
+          <option value="admin">Administrador</option>
+          <option value="medico_ocupacional">Médico ocupacional</option>
+          <option value="enfermeria">Enfermería</option>
+          <option value="psicologo">Psicólogo</option>
+          <option value="trabajo_social">Trabajo social</option>
+          <option value="psico_social">Psico-social</option>
+          <option value="tecnico_sst">Técnico SST</option>
+          <option value="consulta">Consulta</option>
+        </select>
+        <select class="entrada filtro" id="us-estado">
+          <option value="">Todos</option>
+          <option value="activo">Activos</option>
+          <option value="inactivo">Inactivos</option>
+        </select>
+        <button class="boton-primario" id="btn-nuevo-usuario" type="button">+ Nuevo usuario</button>
+      </div>
+
+      <div class="panel">
+        <div class="tabla-envoltura">
+          <table class="tabla">
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th class="celda-centro">Cédula</th>
+                <th>Rol</th>
+                <th class="celda-centro">Estado</th>
+                <th class="celda-derecha">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="cuerpo-usuarios"></tbody>
+          </table>
+        </div>
+        <p class="vacio" id="vacio-usuarios" hidden>Sin usuarios que coincidan.</p>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ============ Modal: Nuevo / editar usuario ============ -->
+  <div class="modal" id="modal-usuario" hidden>
+    <div class="modal-caja" role="dialog" aria-modal="true">
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo" id="us-modal-titulo">Nuevo usuario</h2>
+        <button class="modal-cerrar" data-cierra="modal-usuario" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+        <div class="rejilla">
+          <div class="campo">
+            <label class="etiqueta" for="us_cedula">Cédula <span class="obligatorio">*</span></label>
+            <input class="entrada celda-mono" id="us_cedula" type="text" maxlength="10" placeholder="0102030405">
+            <span class="ayuda">Con esta cédula iniciará sesión</span>
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="us_rol">Rol <span class="obligatorio">*</span></label>
+            <select class="entrada" id="us_rol">
+              <option value="medico_ocupacional">Médico ocupacional</option>
+              <option value="enfermeria">Enfermería</option>
+              <option value="psicologo">Psicólogo</option>
+              <option value="trabajo_social">Trabajo social</option>
+              <option value="psico_social">Psico-social (psicología + trabajo social)</option>
+              <option value="tecnico_sst">Técnico SST</option>
+              <option value="admin">Administrador</option>
+              <option value="consulta">Consulta (solo lectura)</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="us_nombres">Nombres <span class="obligatorio">*</span></label>
+            <input class="entrada" id="us_nombres" type="text">
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="us_apellidos">Apellidos <span class="obligatorio">*</span></label>
+            <input class="entrada" id="us_apellidos" type="text">
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="us_msp">Registro MSP</label>
+            <input class="entrada" id="us_msp" type="text" placeholder="Opcional (médicos)">
+          </div>
+          <div class="campo" id="us-campo-clave">
+            <label class="etiqueta" for="us_clave">Contraseña <span class="obligatorio">*</span></label>
+            <input class="entrada" id="us_clave" type="text" placeholder="Mínimo 6 caracteres">
+            <span class="ayuda">Anótela y entréguesela a la persona</span>
+          </div>
+        </div>
+        <p class="alerta" id="alerta-usuario" role="alert" hidden></p>
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" data-cierra="modal-usuario" type="button">Cancelar</button>
+        <button class="boton-primario" id="btn-guardar-usuario" type="button">Crear usuario</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- ============ Modal: Reset de clave ============ -->
+  <div class="modal" id="modal-clave" hidden>
+    <div class="modal-caja modal-angosto" role="dialog" aria-modal="true">
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo">Reiniciar contraseña</h2>
+        <button class="modal-cerrar" data-cierra="modal-clave" type="button" aria-label="Cerrar">×</button>
+      </header>
+      <div class="modal-cuerpo">
+        <p class="nota" id="clave-persona">—</p>
+        <div class="campo">
+          <label class="etiqueta" for="rc_clave">Nueva contraseña <span class="obligatorio">*</span></label>
+          <input class="entrada" id="rc_clave" type="text" placeholder="Mínimo 6 caracteres">
+          <span class="ayuda">Anótela y entréguesela a la persona</span>
+        </div>
+        <p class="alerta" id="alerta-clave" role="alert" hidden></p>
+      </div>
+      <footer class="modal-pie">
+        <button class="boton-secundario" data-cierra="modal-clave" type="button">Cancelar</button>
+        <button class="boton-primario" id="btn-guardar-clave" type="button">Reiniciar contraseña</button>
+      </footer>
+    </div>
+  </div>
+
+  <script type="module" src="js/usuarios.js"></script>
+</body>
+</html>
