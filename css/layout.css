@@ -153,3 +153,43 @@
   .cabecera-menu { display: block; }
   .contenido { padding: 1.25rem; }
 }
+
+/* --- Logo Agrimroc en el sidebar --- */
+.lateral-logo {
+  display: block;
+  max-width: 150px;
+  width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+/* --- Título de empresa centrado en la cabecera --- */
+.empresa-titulo {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  pointer-events: none;
+}
+.empresa-nombre {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--color-acento-oscuro, #00450d);
+  line-height: 1.2;
+}
+.empresa-sub {
+  font-size: 0.68rem;
+  color: var(--color-texto-tenue);
+  letter-spacing: 0.02em;
+}
+
+/* La cabecera necesita position relative para centrar el título */
+.cabecera { position: relative; }
+
+@media (max-width: 820px) {
+  .empresa-titulo { display: none; }  /* en móvil se oculta para no chocar con el menú */
+}
