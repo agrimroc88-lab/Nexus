@@ -31,7 +31,8 @@ export const MODULOS = [
   { id: 'atenciones',    texto: 'Atenciones médicas',   archivo: 'atenciones.html',           listo: true,
     roles: ['admin', 'medico_ocupacional', 'enfermeria'] },
   { id: 'farmacia',      texto: 'Farmacia',             archivo: 'farmacia.html',             listo: true,
-    roles: ['admin', 'enfermeria'] }
+    roles: ['admin', 'enfermeria'] },
+  { id: 'certificados',  texto: 'Certificados médicos', archivo: 'certificados.html',         listo: true }
 ];
 
 /**

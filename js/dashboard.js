@@ -16,6 +16,7 @@ import { supabase } from './supabase.js';
 import { protegerPagina } from './auth.js';
 import { montarNavegacion } from './nav.js';
 import { escapar, formatearFecha } from './utils.js';
+import { mostrarAvisosCertificados } from './avisos-certificados.js';
 
 /* --- Estado --- */
 const estado = {
@@ -68,6 +69,9 @@ async function iniciar() {
   prepararAnios();
   await cargarEmpresas();
   conectarEventos();
+
+  /* Notificación de reposos/reubicaciones por vencer (todos los roles) */
+  mostrarAvisosCertificados();
 }
 
 function prepararAnios() {
