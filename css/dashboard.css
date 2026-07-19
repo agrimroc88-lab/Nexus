@@ -1,7 +1,26 @@
 /* ============================================
    NEXUS · dashboard.css
-   Tablero de indicadores.
+   Estilo Agrimroc · tarjetas bento verde bosque.
    ============================================ */
+
+/* --- Tarjetas con sombra suave y hover sutil (estilo bento) --- */
+.medidor-caja,
+.cifra,
+.indice-caja,
+.grafico-caja {
+  box-shadow: var(--sombra-tarjeta, 0 1px 3px rgba(20,40,20,0.06));
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.medidor-caja:hover,
+.cifra:hover,
+.indice-caja:hover,
+.grafico-caja:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(20, 60, 20, 0.10);
+}
+
+/* --- Título de bloque con acento verde --- */
+
 
 /* ============================================
    CONTROLES
@@ -42,8 +61,8 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--color-texto-tenue);
-  border-bottom: 1px solid var(--color-borde);
+  color: var(--color-acento-oscuro, #00450d);
+  border-bottom: 2px solid var(--color-acento-suave, #e6f0e6);
 }
 
 /* ============================================

@@ -2,17 +2,26 @@
    NEXUS · base.css
    Variables globales, reset y tipografía.
    Archivo compartido. No modificar por módulo.
+   Paleta: verde bosque Agrimroc · tema claro.
    ============================================ */
 
 :root {
-  --color-fondo: #0f1720;
-  --color-superficie: #17222e;
-  --color-borde: #253244;
-  --color-texto: #e6edf3;
-  --color-texto-tenue: #8b9bb0;
-  --color-acento: #2f81f7;
+  /* --- Paleta Agrimroc (verde bosque, tema claro) --- */
+  --color-fondo: #fcf9f8;           /* fondo general, casi blanco cálido */
+  --color-superficie: #ffffff;      /* tarjetas y paneles */
+  --color-superficie-alt: #f0eded;  /* superficies alternas / encabezados de tabla */
+  --color-borde: #d8e0d5;           /* bordes suaves verdosos */
+  --color-texto: #1b1c1c;           /* texto principal */
+  --color-texto-tenue: #52605a;     /* texto secundario */
+  --color-acento: #1b5e20;          /* verde bosque principal */
+  --color-acento-oscuro: #00450d;   /* verde más profundo (títulos) */
+  --color-acento-suave: #e6f0e6;    /* verde muy claro para fondos de chip */
+  --color-primario: #1b5e20;        /* alias usado por algunos módulos */
+  --color-primario-suave: #e6f0e6;
+
   --fuente-base: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --radio: 8px;
+  --radio: 12px;                    /* esquinas redondeadas tipo bento */
+  --sombra-tarjeta: 0 1px 3px rgba(20, 40, 20, 0.06);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
