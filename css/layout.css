@@ -19,15 +19,16 @@
   padding: 1.25rem 1rem;
   background: var(--color-superficie);
   border-right: 1px solid var(--color-borde);
+  box-shadow: 1px 0 3px rgba(20, 40, 20, 0.04);
 }
 
 .lateral-marca {
   margin-bottom: 1.75rem;
   padding-left: 0.5rem;
-  font-size: 1.35rem;
+  font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: 0.14em;
-  color: var(--color-acento);
+  color: var(--color-acento-oscuro, #00450d);
 }
 
 .lateral-nav {
@@ -47,14 +48,16 @@
 }
 
 .nav-enlace:hover {
-  background: var(--color-fondo);
-  color: var(--color-texto);
+  background: var(--color-acento-suave, #e6f0e6);
+  color: var(--color-acento-oscuro, #00450d);
 }
 
 .nav-enlace.activo {
-  background: var(--color-fondo);
-  color: var(--color-acento);
+  background: var(--color-acento-suave, #e6f0e6);
+  color: var(--color-acento-oscuro, #00450d);
   font-weight: 600;
+  border-left: 3px solid var(--color-acento);
+  padding-left: calc(0.75rem - 3px);
 }
 
 .nav-enlace.inactivo {
