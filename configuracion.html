@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configuración · NEXUS</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/empresas.css">
+  <link rel="stylesheet" href="css/configuracion.css">
+</head>
+<body class="app">
+
+  <aside class="barra-lateral" id="barra-lateral">
+    <div class="lateral-marca">NEXUS</div>
+    <nav class="lateral-nav" id="lateral-nav"></nav>
+    <button class="lateral-salir" id="btn-salir" type="button">Cerrar sesión</button>
+  </aside>
+
+  <div class="contenedor">
+
+    <header class="cabecera">
+      <button class="cabecera-menu" id="btn-menu" type="button" aria-label="Menú">☰</button>
+      <h1 class="cabecera-titulo">Configuración</h1>
+      <div class="cabecera-usuario">
+        <span class="usuario-nombre" id="usuario-nombre">—</span>
+        <span class="usuario-rol" id="usuario-rol">—</span>
+      </div>
+    </header>
+
+    <main class="contenido">
+
+      <div class="config-grid">
+
+        <!-- Controles -->
+        <section class="panel panel-controles">
+          <h2 class="panel-titulo">Apariencia de la marca</h2>
+
+          <div class="control">
+            <label class="etiqueta" for="cfg-logo-tam">
+              Tamaño del logo · <span id="val-logo-tam">200</span> px
+            </label>
+            <input type="range" id="cfg-logo-tam" min="60" max="400" value="200" step="5" class="deslizador">
+          </div>
+
+          <div class="control">
+            <label class="etiqueta" for="cfg-nombre-tam">
+              Tamaño del nombre · <span id="val-nombre-tam">26</span> px
+            </label>
+            <input type="range" id="cfg-nombre-tam" min="12" max="48" value="26" step="1" class="deslizador">
+          </div>
+
+          <div class="control">
+            <label class="etiqueta">Posición del nombre</label>
+            <div class="opciones-pos">
+              <button class="pos-btn" data-pos="izquierda" type="button">Izquierda</button>
+              <button class="pos-btn activa" data-pos="centro" type="button">Centro</button>
+              <button class="pos-btn" data-pos="derecha" type="button">Derecha</button>
+            </div>
+          </div>
+
+          <div class="config-acciones">
+            <button class="boton-primario" id="btn-guardar-config" type="button">Guardar cambios</button>
+            <button class="boton-secundario" id="btn-restaurar" type="button">Restaurar valores por defecto</button>
+            <span class="ayuda" id="config-guardado"></span>
+          </div>
+          <p class="alerta" id="alerta-config" role="alert" hidden></p>
+        </section>
+
+        <!-- Vista previa -->
+        <section class="panel panel-previa">
+          <h2 class="panel-titulo">Vista previa</h2>
+          <div class="previa-marco">
+            <div class="previa-sidebar">
+              <img src="logo.png" alt="Logo" class="previa-logo" id="previa-logo">
+            </div>
+            <div class="previa-cabecera">
+              <div class="previa-titulo-empresa" id="previa-titulo">
+                <span class="previa-nombre" id="previa-nombre">AGRIMROC S.A.</span>
+                <span class="previa-sub">USSO · Unidad de Seguridad y Salud Ocupacional</span>
+              </div>
+            </div>
+          </div>
+          <p class="ayuda">Los cambios se aplican a todo el sistema al guardar.</p>
+        </section>
+
+      </div>
+
+    </main>
+  </div>
+
+  <script type="module" src="js/configuracion.js"></script>
+</body>
+</html>
