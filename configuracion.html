@@ -30,6 +30,13 @@
 
     <main class="contenido">
 
+      <nav class="pestanas">
+        <button class="pestana activa" data-vista="apariencia" type="button">Apariencia</button>
+        <button class="pestana" data-vista="cargos" type="button">Sucursales y cargos</button>
+      </nav>
+
+      <!-- ===== Vista: Apariencia ===== -->
+      <section class="vista" id="vista-apariencia">
       <div class="config-grid">
 
         <!-- Controles -->
@@ -89,6 +96,50 @@
         </section>
 
       </div>
+      </section>
+
+      <!-- ===== Vista: Sucursales y cargos ===== -->
+      <section class="vista" id="vista-cargos" hidden>
+
+        <section class="selector-empresa">
+          <label class="etiqueta" for="cfg-empresa">Empresa</label>
+          <select class="entrada" id="cfg-empresa">
+            <option value="">— Seleccione una empresa —</option>
+          </select>
+        </section>
+
+        <div class="cargos-grid" id="cargos-area" hidden>
+
+          <!-- Sucursales -->
+          <section class="panel">
+            <div class="col-cabecera">
+              <h2 class="panel-titulo">Sucursales</h2>
+            </div>
+            <div class="agregar-fila">
+              <input class="entrada" id="suc-nombre" type="text" placeholder="Nombre de la sucursal">
+              <button class="boton-primario boton-mini" id="btn-add-suc" type="button">Agregar</button>
+            </div>
+            <div class="lista" id="lista-suc"></div>
+          </section>
+
+          <!-- Cargos -->
+          <section class="panel">
+            <div class="col-cabecera">
+              <h2 class="panel-titulo">Cargos</h2>
+            </div>
+            <div class="agregar-fila">
+              <input class="entrada" id="cargo-nombre" type="text" placeholder="Nombre del cargo">
+              <select class="entrada" id="cargo-area">
+                <option value="Operativo">Operativo</option>
+                <option value="Administrativo">Administrativo</option>
+              </select>
+              <button class="boton-primario boton-mini" id="btn-add-cargo" type="button">Agregar</button>
+            </div>
+            <div class="lista" id="lista-cargos"></div>
+          </section>
+
+        </div>
+      </section>
 
     </main>
   </div>
