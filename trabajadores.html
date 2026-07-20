@@ -8,6 +8,28 @@
   <link rel="stylesheet" href="css/layout.css">
   <link rel="stylesheet" href="css/empresas.css">
   <link rel="stylesheet" href="css/trabajadores.css">
+  <style>
+    /* Modal de trabajador: altura controlada, la sub-área queda visible */
+    #modal .modal-caja { max-height: 92vh; display: flex; flex-direction: column; }
+    #modal .modal-cuerpo { overflow-y: auto; flex: 1; }
+    /* Vinculación laboral compacta: campos en fila */
+    #bloque-vinculacion .rejilla {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+    #bloque-vinculacion .subtitulo { margin: 0.75rem 0 0.5rem; }
+    #campo-subarea { margin-top: 0; }
+    /* Selectores compactos: altura fija, no se estiran, texto recortado */
+    #bloque-vinculacion select,
+    #sucursal_id, #subarea_id, #cargo_id {
+      height: 40px;
+      max-width: 100%;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+  </style>
 </head>
 <body class="app">
 
@@ -301,6 +323,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/trabajadores.js?v=5"></script>
+  <script type="module" src="js/trabajadores.js?v=7"></script>
 </body>
 </html>
