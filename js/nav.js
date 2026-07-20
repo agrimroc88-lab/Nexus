@@ -21,6 +21,7 @@ export const MODULOS = [
   { id: 'dashboard',     texto: 'Panel general',        archivo: 'dashboard.html',            listo: true  },
   { id: 'empresas',      texto: 'Empresas',             archivo: 'empresas.html',             listo: true  },
   { id: 'trabajadores',  texto: 'Trabajadores',         archivo: 'trabajadores.html',         listo: true  },
+  { id: 'estructura',    texto: 'Estructura',           archivo: 'estructura.html',           listo: true },
   { id: 'salud_ocup',    texto: 'Salud ocupacional',    archivo: 'salud-ocupacional.html',    listo: true,
     roles: ['admin', 'medico_ocupacional', 'enfermeria'] },
   { id: 'psicologia',    texto: 'Psicología',           archivo: 'psicologia.html',           listo: true,
