@@ -1,0 +1,64 @@
+/* ============================================
+   NEXUS · estructura.css
+   ============================================ */
+
+.estructura-cols {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.col {
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  padding: 1rem;
+  box-shadow: var(--sombra-tarjeta, 0 1px 3px rgba(20,40,20,0.06));
+}
+
+.col-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+.col-cabecera h2 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--color-acento-oscuro, #00450d);
+}
+
+.boton-mini { padding: 0.3rem 0.7rem; font-size: 0.8rem; }
+
+.col-contexto {
+  font-size: 0.82rem;
+  color: var(--color-texto-tenue);
+  font-style: italic;
+  margin: 0 0 0.5rem;
+}
+
+.lista { display: flex; flex-direction: column; gap: 0.4rem; }
+.lista-vacia { font-size: 0.85rem; color: var(--color-texto-tenue); margin: 0.25rem 0; }
+
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--color-borde);
+  border-radius: 8px;
+  background: var(--color-fondo);
+}
+.item-sel {
+  border-color: var(--color-acento, #1b5e20);
+  background: var(--color-acento-suave, #e6f0e6);
+}
+.item-inactivo { opacity: 0.5; }
+.item-nombre { font-size: 0.9rem; font-weight: 500; }
+.item-acc { display: flex; gap: 0.25rem; }
+
+@media (max-width: 820px) {
+  .estructura-cols { grid-template-columns: 1fr; }
+}
