@@ -68,22 +68,18 @@ export function validarRuc(ruc) {
 
   /* --- Sociedad privada --- */
   if (tercerDigito === 9) {
-    const valido = verificarModulo11(ruc, [4, 3, 2, 7, 6, 5, 4, 3, 2], 9);
-    return {
-      valido,
-      tipo: 'privada',
-      mensaje: valido ? 'RUC de sociedad privada' : 'Dígito verificador incorrecto'
-    };
+    if (ruc.substring(10) !== '001') {
+      return { valido: false, tipo: 'privada', mensaje: 'El RUC debe terminar en 001' };
+    }
+    return { valido: true, tipo: 'privada', mensaje: 'RUC de sociedad privada' };
   }
 
   /* --- Sector público --- */
   if (tercerDigito === 6) {
-    const valido = verificarModulo11(ruc, [3, 2, 7, 6, 5, 4, 3, 2], 8);
-    return {
-      valido,
-      tipo: 'publica',
-      mensaje: valido ? 'RUC de entidad pública' : 'Dígito verificador incorrecto'
-    };
+    if (ruc.substring(9) !== '0001') {
+      return { valido: false, tipo: 'publica', mensaje: 'El RUC debe terminar en 0001' };
+    }
+    return { valido: true, tipo: 'publica', mensaje: 'RUC de entidad pública' };
   }
 
   return { valido: false, tipo: '', mensaje: 'Tercer dígito inválido' };
