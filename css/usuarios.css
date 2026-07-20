@@ -29,3 +29,25 @@
 .modal-angosto { max-width: 420px; }
 
 .nota { color: var(--color-texto-tenue, #667); font-size: 0.9rem; margin: 0 0 0.75rem; }
+
+/* Lista de empresas con casillas en el modal de usuario */
+.lista-empresas {
+  margin-top: 0.5rem;
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  padding: 0.5rem;
+}
+.check-empresa {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.check-empresa:hover { background: var(--color-acento-suave, #e6f0e6); }
+.check-empresa input { width: 1.05rem; height: 1.05rem; accent-color: var(--color-acento, #1b5e20); }
+.campo-ancho { grid-column: 1 / -1; }
