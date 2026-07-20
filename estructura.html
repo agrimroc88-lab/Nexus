@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estructura · NEXUS</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/empresas.css">
+  <link rel="stylesheet" href="css/estructura.css">
+</head>
+<body class="app">
+
+  <aside class="barra-lateral" id="barra-lateral">
+    <div class="lateral-marca">NEXUS</div>
+    <nav class="lateral-nav" id="lateral-nav"></nav>
+    <button class="lateral-salir" id="btn-salir" type="button">Cerrar sesión</button>
+  </aside>
+
+  <div class="contenedor">
+
+    <header class="cabecera">
+      <button class="cabecera-menu" id="btn-menu" type="button" aria-label="Menú">☰</button>
+      <h1 class="cabecera-titulo">Estructura de la empresa</h1>
+      <div class="cabecera-usuario">
+        <span class="usuario-nombre" id="usuario-nombre">—</span>
+        <span class="usuario-rol" id="usuario-rol">—</span>
+      </div>
+    </header>
+
+    <main class="contenido">
+
+      <section class="selector-empresa">
+        <label class="etiqueta" for="empresa-activa">Empresa</label>
+        <select class="entrada" id="empresa-activa">
+          <option value="">— Seleccione una empresa —</option>
+        </select>
+      </section>
+
+      <div id="area-trabajo" hidden>
+        <p class="nota">Cree la estructura en cascada: primero <strong>sucursales</strong>, dentro de cada una las <strong>áreas</strong>, y dentro de cada área los <strong>cargos</strong>. Los cargos son los que luego asigna a los trabajadores.</p>
+
+        <div class="estructura-cols">
+
+          <!-- Sucursales -->
+          <section class="col">
+            <div class="col-cabecera">
+              <h2>Sucursales</h2>
+              <button class="boton-primario boton-mini" id="btn-add-sucursal" type="button">+ Añadir</button>
+            </div>
+            <div class="lista" id="lista-sucursales"></div>
+          </section>
+
+          <!-- Áreas -->
+          <section class="col">
+            <div class="col-cabecera">
+              <h2>Áreas</h2>
+              <button class="boton-primario boton-mini" id="btn-add-area" type="button" disabled>+ Añadir</button>
+            </div>
+            <p class="col-contexto" id="ctx-area">Seleccione una sucursal</p>
+            <div class="lista" id="lista-areas"></div>
+          </section>
+
+          <!-- Cargos -->
+          <section class="col">
+            <div class="col-cabecera">
+              <h2>Cargos</h2>
+              <button class="boton-primario boton-mini" id="btn-add-cargo" type="button" disabled>+ Añadir</button>
+            </div>
+            <p class="col-contexto" id="ctx-cargo">Seleccione un área</p>
+            <div class="lista" id="lista-cargos"></div>
+          </section>
+
+        </div>
+      </div>
+
+      <p class="aviso-inicial" id="aviso-inicial">Seleccione una empresa para gestionar su estructura.</p>
+    </main>
+  </div>
+
+  <!-- Modal genérico para crear/editar -->
+  <div class="modal" id="modal" hidden>
+    <div class="modal-caja" role="dialog" aria-modal="true">
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo" id="modal-titulo">Nuevo</h2>
+        <button class="modal-cerrar" id="btn-cerrar" type="button" aria-label="Cerrar">×</button>
+      </header>
+      <div class="modal-cuerpo">
+        <div class="campo">
+          <label class="etiqueta" for="f_nombre">Nombre <span class="obligatorio">*</span></label>
+          <input class="entrada" id="f_nombre" type="text">
+        </div>
+        <div class="campo" id="campo-extra1" hidden>
+          <label class="etiqueta" id="lbl-extra1" for="f_extra1">Descripción</label>
+          <input class="entrada" id="f_extra1" type="text">
+        </div>
+        <div class="campo" id="campo-extra2" hidden>
+          <label class="etiqueta" id="lbl-extra2" for="f_extra2">Provincia</label>
+          <input class="entrada" id="f_extra2" type="text">
+        </div>
+        <p class="alerta" id="alerta" role="alert" hidden></p>
+      </div>
+      <footer class="modal-pie">
+        <button class="boton-secundario" id="btn-cancelar" type="button">Cancelar</button>
+        <button class="boton-primario" id="btn-guardar" type="button">Guardar</button>
+      </footer>
+    </div>
+  </div>
+
+  <script type="module" src="js/estructura.js"></script>
+</body>
+</html>
