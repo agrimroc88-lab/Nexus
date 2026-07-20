@@ -25,6 +25,8 @@ const ROLES_TXT = {
 const estado = {
   perfil: null,
   usuarios: [],
+  empresas: [],       // todas las empresas activas
+  asignadas: new Set(), // empresas marcadas en el modal
   editId: null
 };
 
@@ -36,7 +38,41 @@ async function iniciar() {
   estado.perfil = perfil;
   montarNavegacion(perfil, 'usuarios');
   await cargarUsuarios();
+  await cargarEmpresas();
   conectarEventos();
+}
+
+async function cargarEmpresas() {
+  const { data } = await supabase
+    .from('empresas').select('id, razon_social')
+    .eq('activo', true).order('razon_social');
+  estado.empresas = data || [];
+}
+
+function pintarEmpresasModal() {
+  const $cont = document.getElementById('us-empresas');
+  if (estado.empresas.length === 0) {
+    $cont.innerHTML = '<p class="ayuda">No hay empresas registradas.</p>';
+    return;
+  }
+  $cont.innerHTML = '';
+  estado.empresas.forEach((e) => {
+    const lab = document.createElement('label');
+    lab.className = 'check-empresa';
+    const chk = document.createElement('input');
+    chk.type = 'checkbox';
+    chk.value = e.id;
+    chk.checked = estado.asignadas.has(e.id);
+    chk.addEventListener('change', () => {
+      if (chk.checked) estado.asignadas.add(e.id);
+      else estado.asignadas.delete(e.id);
+    });
+    lab.appendChild(chk);
+    const span = document.createElement('span');
+    span.textContent = e.razon_social;
+    lab.appendChild(span);
+    $cont.appendChild(lab);
+  });
 }
 
 async function cargarUsuarios() {
@@ -125,6 +161,8 @@ function abrirNuevo() {
   document.getElementById('us_rol').value = 'medico_ocupacional';
   document.getElementById('us_cedula').disabled = false;
   document.getElementById('alerta-usuario').hidden = true;
+  estado.asignadas = new Set();
+  pintarEmpresasModal();
   document.getElementById('modal-usuario').hidden = false;
   document.getElementById('us_cedula').focus();
 }
@@ -145,6 +183,15 @@ function abrirEditar(u) {
   document.getElementById('us_rol').value = u.rol ?? 'consulta';
   document.getElementById('us_clave').value = '';
   document.getElementById('alerta-usuario').hidden = true;
+
+  // Cargar empresas asignadas a este usuario
+  estado.asignadas = new Set();
+  supabase.from('usuario_empresas').select('empresa_id').eq('usuario_id', u.id)
+    .then(({ data }) => {
+      (data || []).forEach((a) => estado.asignadas.add(a.empresa_id));
+      pintarEmpresasModal();
+    });
+
   document.getElementById('modal-usuario').hidden = false;
 }
 
@@ -159,6 +206,9 @@ async function guardarUsuario() {
 
   if (!/^[0-9]{10}$/.test(cedula)) return err($alerta, 'La cédula debe tener 10 dígitos.');
   if (!nombres || !apellidos) return err($alerta, 'Nombres y apellidos son obligatorios.');
+  if (rol !== 'admin' && estado.asignadas.size === 0) {
+    return err($alerta, 'Marque al menos una empresa donde trabajará esta persona.');
+  }
 
   const $btn = document.getElementById('btn-guardar-usuario');
   $btn.disabled = true;
@@ -170,19 +220,32 @@ async function guardarUsuario() {
       patch.pass = clave;
     }
     const { error } = await supabase.from('usuarios_app').update(patch).eq('id', estado.editId);
+    if (error) { $btn.disabled = false; return err($alerta, traducir(error)); }
+    await guardarEmpresas(estado.editId);
     $btn.disabled = false;
-    if (error) return err($alerta, traducir(error));
   } else {
     if (clave.length < 6) { $btn.disabled = false; return err($alerta, 'La clave debe tener al menos 6 caracteres.'); }
-    const { error } = await supabase.from('usuarios_app').insert({
+    const { data: creado, error } = await supabase.from('usuarios_app').insert({
       cedula, pass: clave, nombres, apellidos, rol, registro_msp: msp, activo: true
-    });
+    }).select('id').single();
+    if (error) { $btn.disabled = false; return err($alerta, traducir(error)); }
+    await guardarEmpresas(creado.id);
     $btn.disabled = false;
-    if (error) return err($alerta, traducir(error));
   }
 
   document.getElementById('modal-usuario').hidden = true;
   await cargarUsuarios();
+}
+
+async function guardarEmpresas(usuarioId) {
+  // Reemplazar el conjunto de empresas del usuario
+  await supabase.from('usuario_empresas').delete().eq('usuario_id', usuarioId);
+  const filas = [...estado.asignadas].map((empresa_id) => ({
+    usuario_id: usuarioId, empresa_id
+  }));
+  if (filas.length > 0) {
+    await supabase.from('usuario_empresas').insert(filas);
+  }
 }
 
 function traducir(error) {

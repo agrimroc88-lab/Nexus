@@ -5,7 +5,7 @@
    ============================================ */
 
 import { supabase } from './supabase.js';
-import { protegerPagina } from './auth.js';
+import { protegerPagina, empresasPermitidas } from './auth.js';
 import { montarNavegacion } from './nav.js';
 import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js';
 
@@ -68,9 +68,8 @@ function prepararAnios() {
    ============================================ */
 
 async function cargarEmpresas() {
-  const { data, error } = await supabase
-    .from('empresas').select('id, razon_social')
-    .eq('activo', true).order('razon_social');
+  const data = await empresasPermitidas(estado.perfil);
+  const error = null;
 
   if (error) { alert('No fue posible cargar las empresas: ' + error.message); return; }
 

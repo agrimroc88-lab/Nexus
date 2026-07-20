@@ -170,3 +170,46 @@ export async function protegerPagina(rolesPermitidos = []) {
 export async function redirigirSiAutenticado() {
   if (sesionActual()) window.location.href = BASE + 'dashboard.html';
 }
+
+/* ============================================
+   Empresas permitidas por usuario
+   ============================================ */
+
+/**
+ * Devuelve las empresas que el usuario puede ver.
+ * - Admin: todas las empresas activas.
+ * - Otros roles: solo las asignadas en usuario_empresas.
+ * Cada módulo la usa para poblar su selector de empresa.
+ * @param {object} perfil - perfil en sesión (de protegerPagina)
+ * @returns {Promise<Array<{id, razon_social}>>}
+ */
+export async function empresasPermitidas(perfil) {
+  const { supabase } = await import('./supabase.js');
+
+  // Admin ve todas
+  if (perfil.rol === 'admin') {
+    const { data } = await supabase
+      .from('empresas')
+      .select('id, razon_social')
+      .eq('activo', true)
+      .order('razon_social');
+    return data || [];
+  }
+
+  // Otros: solo las asignadas
+  const { data: asign } = await supabase
+    .from('usuario_empresas')
+    .select('empresa_id')
+    .eq('usuario_id', perfil.id);
+
+  const ids = (asign || []).map((a) => a.empresa_id);
+  if (ids.length === 0) return [];
+
+  const { data } = await supabase
+    .from('empresas')
+    .select('id, razon_social')
+    .in('id', ids)
+    .eq('activo', true)
+    .order('razon_social');
+  return data || [];
+}

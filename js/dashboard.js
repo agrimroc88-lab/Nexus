@@ -13,7 +13,7 @@
    ============================================ */
 
 import { supabase } from './supabase.js';
-import { protegerPagina } from './auth.js';
+import { protegerPagina, empresasPermitidas } from './auth.js';
 import { montarNavegacion } from './nav.js';
 import { escapar, formatearFecha } from './utils.js';
 import { mostrarAvisosCertificados } from './avisos-certificados.js';
@@ -93,9 +93,19 @@ function prepararAnios() {
 }
 
 async function cargarEmpresas() {
+  // Empresas que este usuario puede ver (admin: todas; otros: asignadas)
+  const permitidas = await empresasPermitidas(estado.perfil);
+  const idsPermitidos = permitidas.map((e) => e.id);
+
+  if (idsPermitidos.length === 0) {
+    // Usuario sin empresas asignadas: no muestra nada
+    return;
+  }
+
   const { data, error } = await supabase
     .from('empresas')
     .select('id, razon_social, num_trabajadores')
+    .in('id', idsPermitidos)
     .eq('activo', true)
     .order('razon_social');
 
