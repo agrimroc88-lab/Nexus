@@ -45,7 +45,7 @@ async function iniciar() {
 async function cargarEmpresas() {
   const { data } = await supabase
     .from('empresas').select('id, razon_social')
-    .eq('activo', true).order('razon_social');
+    .order('razon_social');
   estado.empresas = data || [];
 }
 
