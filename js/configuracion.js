@@ -9,6 +9,7 @@ import { supabase } from './supabase.js';
 import { protegerPagina } from './auth.js';
 import { montarNavegacion } from './nav.js';
 import { empresasPermitidas, sesionActual } from './auth.js';
+import { escapar } from './utils.js';
 
 const estado = {
   logo_tam: 200,
