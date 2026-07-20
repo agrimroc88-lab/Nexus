@@ -537,6 +537,10 @@ async function abrirModal(trabajador = null) {
     await precargarVinculacion(trabajador.id);
   }
 
+  // Asegurar que el cambio de sucursal muestre/oculte la sub-área
+  const $sucSel = document.getElementById('sucursal_id');
+  if ($sucSel) $sucSel.onchange = alCambiarSucursal;
+
   document.getElementById('btn-guardar').hidden = false;
   $modal.hidden = false;
   document.getElementById(trabajador ? 'apellidos' : 'cedula').focus();
