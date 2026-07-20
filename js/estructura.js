@@ -181,6 +181,26 @@ async function guardar() {
   const extra2 = document.getElementById('f_extra2').value.trim() || null;
   const item = estado.editando;
 
+  // Validaciones de contexto con mensajes claros
+  if (estado.modo === 'area' && !estado.sucursalSel) {
+    $alerta.textContent = 'Primero haga clic en una sucursal de la lista.';
+    $alerta.hidden = false; return;
+  }
+  if (estado.modo === 'cargo' && !estado.areaSel) {
+    $alerta.textContent = 'Primero haga clic en un área de la lista.';
+    $alerta.hidden = false; return;
+  }
+  if (estado.modo === 'sucursal' && !estado.empresaId) {
+    $alerta.textContent = 'No hay empresa seleccionada.';
+    $alerta.hidden = false; return;
+  }
+
+  // Respaldo: si por algún motivo estado.empresaId está vacío,
+  // tomarlo directamente del selector.
+  if (!estado.empresaId) {
+    estado.empresaId = document.getElementById('empresa-activa').value || null;
+  }
+
   let tabla, fila;
   if (estado.modo === 'sucursal') {
     tabla = 'sucursales';
