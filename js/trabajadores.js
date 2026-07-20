@@ -105,12 +105,11 @@ async function cargarEmpresas() {
 }
 
 async function cargarCargos() {
-  /* Cargos de la empresa, atravesando sucursales y áreas */
+  /* Cargos simples (vista v_cargos_simple: cargo + área Admin/Operativo) */
   const { data, error } = await supabase
-    .from('cargos')
-    .select('id, nombre, areas!inner(nombre, sucursales!inner(nombre, empresa_id))')
-    .eq('areas.sucursales.empresa_id', estado.empresaId)
-    .eq('activo', true)
+    .from('v_cargos_simple')
+    .select('id, nombre, area')
+    .eq('empresa_id', estado.empresaId)
     .order('nombre');
 
   estado.cargos = error ? [] : (data || []);
@@ -121,15 +120,44 @@ async function cargarCargos() {
   estado.cargos.forEach((c) => {
     const opcion = document.createElement('option');
     opcion.value = c.id;
-    opcion.textContent = `${c.nombre} · ${c.areas.nombre}`;
+    opcion.textContent = `${c.nombre} · ${c.area}`;
     $cargo.appendChild(opcion);
   });
 
   const $ayuda = document.getElementById('ayuda-cargo');
   if (estado.cargos.length === 0) {
-    $ayuda.textContent = 'Esta empresa aún no tiene cargos registrados';
+    $ayuda.textContent = 'Registre cargos en Configuración → Sucursales y cargos';
     $ayuda.className = 'ayuda ayuda-aviso';
   } else {
+    $ayuda.textContent = '';
+    $ayuda.className = 'ayuda';
+  }
+
+  // Cargar también las sucursales reales
+  await cargarSucursales();
+}
+
+async function cargarSucursales() {
+  const { data } = await supabase
+    .from('v_sucursales_reales')
+    .select('id, nombre')
+    .eq('empresa_id', estado.empresaId)
+    .order('nombre');
+
+  const $suc = document.getElementById('sucursal_id');
+  if (!$suc) return;
+  $suc.innerHTML = '<option value="">— Seleccionar —</option>';
+  (data || []).forEach((s) => {
+    const o = document.createElement('option');
+    o.value = s.id; o.textContent = s.nombre;
+    $suc.appendChild(o);
+  });
+
+  const $ayuda = document.getElementById('ayuda-sucursal');
+  if ($ayuda && (!data || data.length === 0)) {
+    $ayuda.textContent = 'Registre sucursales en Configuración → Sucursales y cargos';
+    $ayuda.className = 'ayuda ayuda-aviso';
+  } else if ($ayuda) {
     $ayuda.textContent = '';
     $ayuda.className = 'ayuda';
   }
@@ -198,6 +226,7 @@ async function guardarTrabajador() {
     .insert({
       trabajador_id: nuevo.id,
       cargo_id: document.getElementById('cargo_id').value || null,
+      sucursal_id: document.getElementById('sucursal_id').value || null,
       fecha_ingreso: document.getElementById('fecha_ingreso').value
     });
 
@@ -230,7 +259,7 @@ async function registrarReingreso() {
   bloquear(true);
   const { error } = await supabase
     .from('periodos_laborales')
-    .insert({ trabajador_id: t.id, cargo_id: cargoId, fecha_ingreso: ingreso });
+    .insert({ trabajador_id: t.id, cargo_id: cargoId, sucursal_id: document.getElementById('sucursal_id').value || null, fecha_ingreso: ingreso });
   bloquear(false);
 
   if (error) {
@@ -399,6 +428,7 @@ async function abrirModal(trabajador = null) {
   /* La vinculación solo se define al crear */
   document.getElementById('bloque-vinculacion').hidden = Boolean(trabajador);
   document.getElementById('cargo_id').value = '';
+  if (document.getElementById('sucursal_id')) document.getElementById('sucursal_id').value = '';
   document.getElementById('fecha_ingreso').value = '';
 
   $hallazgo.hidden = true;
@@ -432,6 +462,7 @@ async function abrirReingreso(trabajador) {
 
   document.getElementById('bloque-vinculacion').hidden = false;
   document.getElementById('cargo_id').value = '';
+  if (document.getElementById('sucursal_id')) document.getElementById('sucursal_id').value = '';
   document.getElementById('fecha_ingreso').value = '';
 
   await cargarCargos();

@@ -8,6 +8,7 @@
 import { supabase } from './supabase.js';
 import { protegerPagina } from './auth.js';
 import { montarNavegacion } from './nav.js';
+import { empresasPermitidas, sesionActual } from './auth.js';
 
 const estado = {
   logo_tam: 200,
@@ -160,3 +161,115 @@ function conectarTirador() {
   document.addEventListener('touchmove', mover, { passive: false });
   document.addEventListener('touchend', terminar);
 }
+
+/* ============================================
+   Pestaña: Sucursales y cargos
+   ============================================ */
+
+
+const cargosEstado = { empresaId: null };
+
+async function initCargos() {
+  // Pestañas
+  document.querySelectorAll('.pestana').forEach((p) =>
+    p.addEventListener('click', () => {
+      const v = p.dataset.vista;
+      document.querySelectorAll('.pestana').forEach((x) => x.classList.toggle('activa', x === p));
+      document.getElementById('vista-apariencia').hidden = v !== 'apariencia';
+      document.getElementById('vista-cargos').hidden = v !== 'cargos';
+      if (v === 'cargos') cargarEmpresasCargos();
+    }));
+
+  document.getElementById('cfg-empresa').addEventListener('change', (e) => {
+    cargosEstado.empresaId = e.target.value || null;
+    document.getElementById('cargos-area').hidden = !cargosEstado.empresaId;
+    if (cargosEstado.empresaId) { cargarSuc(); cargarCargos(); }
+  });
+
+  document.getElementById('btn-add-suc').addEventListener('click', addSucursal);
+  document.getElementById('btn-add-cargo').addEventListener('click', addCargo);
+}
+
+let empresasCargadasCargos = false;
+async function cargarEmpresasCargos() {
+  if (empresasCargadasCargos) return;
+  const perfil = sesionActual() || { rol: 'admin' };
+  const data = await empresasPermitidas(perfil);
+  const $s = document.getElementById('cfg-empresa');
+  (data || []).forEach((e) => {
+    const o = document.createElement('option');
+    o.value = e.id; o.textContent = e.razon_social;
+    $s.appendChild(o);
+  });
+  empresasCargadasCargos = true;
+}
+
+async function cargarSuc() {
+  const { data } = await supabase.from('v_sucursales_reales')
+    .select('id, nombre').eq('empresa_id', cargosEstado.empresaId).order('nombre');
+  const $l = document.getElementById('lista-suc');
+  $l.innerHTML = '';
+  if (!data || data.length === 0) { $l.innerHTML = '<p class="lista-vacia">Sin sucursales aún.</p>'; return; }
+  data.forEach((s) => {
+    const d = document.createElement('div');
+    d.className = 'item';
+    d.innerHTML = `<span class="item-nombre">${escapar(s.nombre)}</span>`;
+    const b = document.createElement('button');
+    b.className = 'boton-icono'; b.textContent = 'Eliminar';
+    b.addEventListener('click', async () => {
+      if (!confirm('¿Eliminar la sucursal ' + s.nombre + '?')) return;
+      await supabase.from('sucursales').delete().eq('id', s.id);
+      cargarSuc();
+    });
+    d.appendChild(b);
+    $l.appendChild(d);
+  });
+}
+
+async function addSucursal() {
+  const nombre = document.getElementById('suc-nombre').value.trim();
+  if (!nombre) return;
+  const { error } = await supabase.from('sucursales')
+    .insert({ empresa_id: cargosEstado.empresaId, nombre });
+  if (error) { alert('No se pudo agregar: ' + error.message); return; }
+  document.getElementById('suc-nombre').value = '';
+  cargarSuc();
+}
+
+async function cargarCargos() {
+  const { data } = await supabase.from('v_cargos_simple')
+    .select('id, nombre, area').eq('empresa_id', cargosEstado.empresaId).order('nombre');
+  const $l = document.getElementById('lista-cargos');
+  $l.innerHTML = '';
+  if (!data || data.length === 0) { $l.innerHTML = '<p class="lista-vacia">Sin cargos aún.</p>'; return; }
+  data.forEach((c) => {
+    const d = document.createElement('div');
+    d.className = 'item';
+    d.innerHTML = `<span class="item-nombre">${escapar(c.nombre)} <small style="color:#667">· ${escapar(c.area)}</small></span>`;
+    const b = document.createElement('button');
+    b.className = 'boton-icono'; b.textContent = 'Eliminar';
+    b.addEventListener('click', async () => {
+      if (!confirm('¿Eliminar el cargo ' + c.nombre + '?')) return;
+      await supabase.from('cargos').delete().eq('id', c.id);
+      cargarCargos();
+    });
+    d.appendChild(b);
+    $l.appendChild(d);
+  });
+}
+
+async function addCargo() {
+  const nombre = document.getElementById('cargo-nombre').value.trim();
+  const tipo = document.getElementById('cargo-area').value;
+  if (!nombre) return;
+  // Obtener el área (Admin/Operativo) vía función SQL
+  const { data: areaId, error: e1 } = await supabase
+    .rpc('area_para_cargo', { p_empresa: cargosEstado.empresaId, p_tipo: tipo });
+  if (e1) { alert('Error: ' + e1.message); return; }
+  const { error } = await supabase.from('cargos').insert({ area_id: areaId, nombre });
+  if (error) { alert('No se pudo agregar: ' + error.message); return; }
+  document.getElementById('cargo-nombre').value = '';
+  cargarCargos();
+}
+
+initCargos();
