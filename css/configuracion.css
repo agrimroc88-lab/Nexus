@@ -137,3 +137,29 @@
   border: 1px dashed var(--color-borde);
   pointer-events: none;
 }
+
+/* Sucursales y cargos */
+.cargos-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+.col-cabecera { margin-bottom: 0.75rem; }
+.agregar-fila {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+.agregar-fila .entrada { flex: 1; min-width: 120px; }
+.boton-mini { padding: 0.5rem 0.9rem; font-size: 0.85rem; white-space: nowrap; }
+.lista { display: flex; flex-direction: column; gap: 0.4rem; }
+.lista-vacia { font-size: 0.85rem; color: var(--color-texto-tenue); }
+.item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.5rem 0.65rem; border: 1px solid var(--color-borde);
+  border-radius: 8px; background: var(--color-fondo);
+}
+.item-nombre { font-size: 0.9rem; }
+@media (max-width: 820px) { .cargos-grid { grid-template-columns: 1fr; } }
