@@ -105,35 +105,29 @@ async function cargarEmpresas() {
 }
 
 async function cargarCargos() {
-  /* Cargos simples (vista v_cargos_simple: cargo + área Admin/Operativo) */
-  const { data, error } = await supabase
-    .from('v_cargos_simple')
-    .select('id, nombre, area')
+  /* Cargos del catálogo de la empresa */
+  const { data } = await supabase
+    .from('cargos_catalogo')
+    .select('id, nombre')
     .eq('empresa_id', estado.empresaId)
+    .eq('activo', true)
     .order('nombre');
 
-  estado.cargos = error ? [] : (data || []);
-
+  estado.cargos = data || [];
   const $cargo = document.getElementById('cargo_id');
   $cargo.innerHTML = '<option value="">— Seleccionar —</option>';
-
   estado.cargos.forEach((c) => {
-    const opcion = document.createElement('option');
-    opcion.value = c.id;
-    opcion.textContent = `${c.nombre} · ${c.area}`;
-    $cargo.appendChild(opcion);
+    const o = document.createElement('option');
+    o.value = c.id; o.textContent = c.nombre;
+    $cargo.appendChild(o);
   });
 
   const $ayuda = document.getElementById('ayuda-cargo');
-  if (estado.cargos.length === 0) {
-    $ayuda.textContent = 'Registre cargos en Configuración → Sucursales y cargos';
-    $ayuda.className = 'ayuda ayuda-aviso';
-  } else {
-    $ayuda.textContent = '';
+  if ($ayuda) {
+    $ayuda.textContent = estado.cargos.length === 0 ? 'Use el botón + para agregar un cargo' : '';
     $ayuda.className = 'ayuda';
   }
 
-  // Cargar también las sucursales reales
   await cargarSucursales();
 }
 
@@ -150,17 +144,71 @@ async function cargarSucursales() {
   (data || []).forEach((s) => {
     const o = document.createElement('option');
     o.value = s.id; o.textContent = s.nombre;
+    o.dataset.nombre = s.nombre;
     $suc.appendChild(o);
   });
 
   const $ayuda = document.getElementById('ayuda-sucursal');
   if ($ayuda && (!data || data.length === 0)) {
-    $ayuda.textContent = 'Registre sucursales en Configuración → Sucursales y cargos';
+    $ayuda.textContent = 'Ejecute el SQL de sucursales';
     $ayuda.className = 'ayuda ayuda-aviso';
-  } else if ($ayuda) {
-    $ayuda.textContent = '';
-    $ayuda.className = 'ayuda';
+  } else if ($ayuda) { $ayuda.textContent = ''; $ayuda.className = 'ayuda'; }
+}
+
+/* Sub-áreas (Litoteca/Mina/Planta) solo para Mina Las Paralelas */
+async function cargarSubareas(sucursalId) {
+  const { data } = await supabase
+    .from('v_subareas')
+    .select('id, nombre')
+    .eq('sucursal_id', sucursalId)
+    .order('nombre');
+  const $sa = document.getElementById('subarea_id');
+  $sa.innerHTML = '<option value="">— Seleccionar —</option>';
+  (data || []).forEach((a) => {
+    const o = document.createElement('option');
+    o.value = a.id; o.textContent = a.nombre;
+    $sa.appendChild(o);
+  });
+}
+
+/* Al cambiar sucursal: mostrar sub-área solo si es Mina Las Paralelas */
+function alCambiarSucursal() {
+  const $suc = document.getElementById('sucursal_id');
+  const opt = $suc.options[$suc.selectedIndex];
+  const nombre = opt ? (opt.dataset.nombre || opt.textContent) : '';
+  const esMina = nombre.toLowerCase().includes('paralelas');
+  document.getElementById('campo-subarea').hidden = !esMina;
+  if (esMina) cargarSubareas($suc.value);
+}
+
+/* Agregar cargo nuevo al vuelo */
+async function agregarCargoNuevo() {
+  const nombre = prompt('Nombre del nuevo cargo:');
+  if (!nombre || !nombre.trim()) return;
+  const limpio = nombre.trim().toUpperCase();
+  const { data, error } = await supabase.from('cargos_catalogo')
+    .insert({ empresa_id: estado.empresaId, nombre: limpio })
+    .select('id, nombre').single();
+  if (error) {
+    if (error.message.includes('duplicate')) { alert('Ese cargo ya existe.'); }
+    else { alert('No se pudo agregar: ' + error.message); }
+    return;
   }
+  await cargarCargos();
+  document.getElementById('cargo_id').value = data.id;
+}
+
+/* Agregar sub-área nueva a Mina Las Paralelas */
+async function agregarSubareaNueva() {
+  const $suc = document.getElementById('sucursal_id');
+  const nombre = prompt('Nombre de la nueva área (ej. Bodega, Taller):');
+  if (!nombre || !nombre.trim()) return;
+  const { data, error } = await supabase.from('areas')
+    .insert({ sucursal_id: $suc.value, nombre: nombre.trim() })
+    .select('id, nombre').single();
+  if (error) { alert('No se pudo agregar: ' + error.message); return; }
+  await cargarSubareas($suc.value);
+  document.getElementById('subarea_id').value = data.id;
 }
 
 /* ============================================
@@ -180,6 +228,20 @@ async function cargarTrabajadores() {
   }
 
   estado.trabajadores = data || [];
+
+  // Traer el cargo (cargo_texto) del periodo vigente de cada trabajador
+  const ids = estado.trabajadores.map((t) => t.id);
+  if (ids.length > 0) {
+    const { data: periodos } = await supabase
+      .from('periodos_laborales')
+      .select('trabajador_id, cargo_texto, fecha_ingreso')
+      .in('trabajador_id', ids)
+      .is('fecha_salida', null);
+    const mapa = {};
+    (periodos || []).forEach((p) => { mapa[p.trabajador_id] = p.cargo_texto; });
+    estado.trabajadores.forEach((t) => { t.cargo = mapa[t.id] || t.cargo || null; });
+  }
+
   pintarResumen();
   pintarTabla();
 }
@@ -225,8 +287,9 @@ async function guardarTrabajador() {
     .from('periodos_laborales')
     .insert({
       trabajador_id: nuevo.id,
-      cargo_id: document.getElementById('cargo_id').value || null,
+      cargo_texto: obtenerCargoTexto(),
       sucursal_id: document.getElementById('sucursal_id').value || null,
+      area_id: obtenerSubareaId(),
       fecha_ingreso: document.getElementById('fecha_ingreso').value
     });
 
@@ -259,7 +322,7 @@ async function registrarReingreso() {
   bloquear(true);
   const { error } = await supabase
     .from('periodos_laborales')
-    .insert({ trabajador_id: t.id, cargo_id: cargoId, sucursal_id: document.getElementById('sucursal_id').value || null, fecha_ingreso: ingreso });
+    .insert({ trabajador_id: t.id, cargo_texto: obtenerCargoTexto(), sucursal_id: document.getElementById('sucursal_id').value || null, area_id: obtenerSubareaId(), fecha_ingreso: ingreso });
   bloquear(false);
 
   if (error) {
@@ -797,8 +860,26 @@ function traducirBd(error) {
    Eventos
    ============================================ */
 
+function obtenerCargoTexto() {
+  const $c = document.getElementById('cargo_id');
+  const opt = $c.options[$c.selectedIndex];
+  return opt && opt.value ? opt.textContent : null;
+}
+
+function obtenerSubareaId() {
+  const $campo = document.getElementById('campo-subarea');
+  if ($campo.hidden) return null;
+  return document.getElementById('subarea_id').value || null;
+}
+
 function conectarEventos() {
   $empresa.addEventListener('change', seleccionarEmpresa);
+  const $suc = document.getElementById('sucursal_id');
+  if ($suc) $suc.addEventListener('change', alCambiarSucursal);
+  const $bc = document.getElementById('btn-add-cargo-nuevo');
+  if ($bc) $bc.addEventListener('click', agregarCargoNuevo);
+  const $bs = document.getElementById('btn-add-subarea');
+  if ($bs) $bs.addEventListener('click', agregarSubareaNueva);
   $btnNuevo.addEventListener('click', () => abrirModal());
 
   document.getElementById('btn-cerrar').addEventListener('click', cerrarModal);
