@@ -237,20 +237,21 @@ async function addSucursal() {
 }
 
 async function cargarCargos() {
-  const { data } = await supabase.from('v_cargos_simple')
-    .select('id, nombre, area').eq('empresa_id', cargosEstado.empresaId).order('nombre');
+  const { data } = await supabase.from('cargos_catalogo')
+    .select('id, nombre').eq('empresa_id', cargosEstado.empresaId)
+    .eq('activo', true).order('nombre');
   const $l = document.getElementById('lista-cargos');
   $l.innerHTML = '';
   if (!data || data.length === 0) { $l.innerHTML = '<p class="lista-vacia">Sin cargos aún.</p>'; return; }
   data.forEach((c) => {
     const d = document.createElement('div');
     d.className = 'item';
-    d.innerHTML = `<span class="item-nombre">${escapar(c.nombre)} <small style="color:#667">· ${escapar(c.area)}</small></span>`;
+    d.innerHTML = `<span class="item-nombre">${escapar(c.nombre)}</span>`;
     const b = document.createElement('button');
     b.className = 'boton-icono'; b.textContent = 'Eliminar';
     b.addEventListener('click', async () => {
       if (!confirm('¿Eliminar el cargo ' + c.nombre + '?')) return;
-      await supabase.from('cargos').delete().eq('id', c.id);
+      await supabase.from('cargos_catalogo').delete().eq('id', c.id);
       cargarCargos();
     });
     d.appendChild(b);
@@ -260,14 +261,14 @@ async function cargarCargos() {
 
 async function addCargo() {
   const nombre = document.getElementById('cargo-nombre').value.trim();
-  const tipo = document.getElementById('cargo-area').value;
   if (!nombre) return;
-  // Obtener el área (Admin/Operativo) vía función SQL
-  const { data: areaId, error: e1 } = await supabase
-    .rpc('area_para_cargo', { p_empresa: cargosEstado.empresaId, p_tipo: tipo });
-  if (e1) { alert('Error: ' + e1.message); return; }
-  const { error } = await supabase.from('cargos').insert({ area_id: areaId, nombre });
-  if (error) { alert('No se pudo agregar: ' + error.message); return; }
+  const { error } = await supabase.from('cargos_catalogo')
+    .insert({ empresa_id: cargosEstado.empresaId, nombre: nombre.toUpperCase() });
+  if (error) {
+    if (error.message.includes('duplicate')) alert('Ese cargo ya existe.');
+    else alert('No se pudo agregar: ' + error.message);
+    return;
+  }
   document.getElementById('cargo-nombre').value = '';
   cargarCargos();
 }
