@@ -9,10 +9,10 @@
   <link rel="stylesheet" href="css/empresas.css">
   <link rel="stylesheet" href="css/trabajadores.css">
   <style>
-    /* Modal de trabajador: altura controlada, la sub-área queda visible */
+    /* Modal de trabajador: altura controlada, sin desborde horizontal */
     #modal .modal-caja { max-height: 92vh; display: flex; flex-direction: column; }
-    #modal .modal-cuerpo { overflow-y: auto; flex: 1; }
-    /* Vinculación laboral compacta: campos en fila */
+    #modal .modal-cuerpo { overflow-y: auto; overflow-x: hidden; flex: 1; }
+    /* Vinculación laboral: campos en fila que se ajustan al ancho */
     #bloque-vinculacion .rejilla {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -20,15 +20,24 @@
     }
     #bloque-vinculacion .subtitulo { margin: 0.75rem 0 0.5rem; }
     #campo-subarea { margin-top: 0; }
-    /* Selectores compactos: altura fija, no se estiran, texto recortado */
+    /* Todo dentro del modal respeta el ancho, nada se desborda */
+    #modal .modal-cuerpo * { max-width: 100%; box-sizing: border-box; }
     #bloque-vinculacion select,
     #sucursal_id, #subarea_id, #cargo_id {
       height: 40px;
-      max-width: 100%;
+      width: 100%;
+      min-width: 0;
       text-overflow: ellipsis;
-      white-space: nowrap;
-      overflow: hidden;
     }
+    /* Los campos con botón + (sub-área y cargo): el select se encoge, el botón fijo */
+    #campo-subarea > div,
+    #bloque-vinculacion .rejilla > div > div[style*="flex"] {
+      display: flex;
+      gap: 0.4rem;
+      min-width: 0;
+    }
+    #campo-subarea select, #bloque-vinculacion .rejilla select { flex: 1; min-width: 0; }
+    #btn-add-subarea, #btn-add-cargo-nuevo { flex-shrink: 0; width: 40px; }
   </style>
 </head>
 <body class="app">
@@ -323,6 +332,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/trabajadores.js?v=7"></script>
+  <script type="module" src="js/trabajadores.js?v=8"></script>
 </body>
 </html>
