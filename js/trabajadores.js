@@ -254,7 +254,7 @@ async function guardarTrabajador() {
 
   bloquear(true);
 
-  /* --- Edición: solo datos personales --- */
+  /* --- Edición: datos personales + vinculación --- */
   if (estado.editandoId) {
     const { codigo, cedula, ...personales } = datos;
     const { error } = await supabase
@@ -262,9 +262,38 @@ async function guardarTrabajador() {
       .update(personales)
       .eq('id', estado.editandoId);
 
-    bloquear(false);
-    if (error) { mostrarAlerta(traducirBd(error)); return; }
+    if (error) { bloquear(false); mostrarAlerta(traducirBd(error)); return; }
 
+    // Actualizar (o crear) el periodo vigente con cargo/sucursal/sub-área
+    const vinc = {
+      cargo_texto: obtenerCargoTexto(),
+      sucursal_id: document.getElementById('sucursal_id').value || null,
+      area_id: obtenerSubareaId()
+    };
+    const fIng = document.getElementById('fecha_ingreso').value;
+    if (fIng) vinc.fecha_ingreso = fIng;
+
+    // ¿Existe periodo vigente?
+    const { data: per } = await supabase
+      .from('periodos_laborales')
+      .select('id')
+      .eq('trabajador_id', estado.editandoId)
+      .is('fecha_salida', null)
+      .order('fecha_ingreso', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (per) {
+      await supabase.from('periodos_laborales').update(vinc).eq('id', per.id);
+    } else if (vinc.sucursal_id || vinc.cargo_texto) {
+      await supabase.from('periodos_laborales').insert({
+        trabajador_id: estado.editandoId,
+        fecha_ingreso: fIng || new Date().toISOString().slice(0, 10),
+        ...vinc
+      });
+    }
+
+    bloquear(false);
     cerrarModal();
     await cargarTrabajadores();
     return;
@@ -489,7 +518,7 @@ async function abrirModal(trabajador = null) {
   document.getElementById('codigo').readOnly = Boolean(trabajador);
 
   /* La vinculación solo se define al crear */
-  document.getElementById('bloque-vinculacion').hidden = Boolean(trabajador);
+  document.getElementById('bloque-vinculacion').hidden = false;
   document.getElementById('cargo_id').value = '';
   if (document.getElementById('sucursal_id')) document.getElementById('sucursal_id').value = '';
   document.getElementById('fecha_ingreso').value = '';
@@ -498,14 +527,55 @@ async function abrirModal(trabajador = null) {
   ocultarAlerta();
   limpiarAyudas();
 
+  // Cargar sucursales y cargos SIEMPRE (crear y editar)
+  await cargarCargos();
+
   if (!trabajador) {
     await sugerirCodigo();
-    await cargarCargos();
+  } else {
+    // Precargar la sucursal, sub-área y cargo actuales del trabajador
+    await precargarVinculacion(trabajador.id);
   }
 
   document.getElementById('btn-guardar').hidden = false;
   $modal.hidden = false;
   document.getElementById(trabajador ? 'apellidos' : 'cedula').focus();
+}
+
+/* Carga el periodo vigente del trabajador y rellena sucursal/sub-área/cargo */
+async function precargarVinculacion(trabajadorId) {
+  const { data } = await supabase
+    .from('periodos_laborales')
+    .select('cargo_texto, sucursal_id, area_id, fecha_ingreso')
+    .eq('trabajador_id', trabajadorId)
+    .is('fecha_salida', null)
+    .order('fecha_ingreso', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!data) return;
+
+  // Sucursal
+  const $suc = document.getElementById('sucursal_id');
+  if (data.sucursal_id) {
+    $suc.value = data.sucursal_id;
+    alCambiarSucursal();  // muestra sub-área si es la mina
+    // Sub-área
+    if (data.area_id) {
+      setTimeout(() => { document.getElementById('subarea_id').value = data.area_id; }, 300);
+    }
+  }
+
+  // Cargo: buscar la opción cuyo texto coincida con cargo_texto
+  if (data.cargo_texto) {
+    const $cargo = document.getElementById('cargo_id');
+    for (const opt of $cargo.options) {
+      if (opt.textContent === data.cargo_texto) { $cargo.value = opt.value; break; }
+    }
+  }
+
+  // Fecha de ingreso
+  if (data.fecha_ingreso) document.getElementById('fecha_ingreso').value = data.fecha_ingreso;
 }
 
 async function abrirReingreso(trabajador) {
