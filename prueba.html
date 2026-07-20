@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prueba de conexión · NEXUS</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 20px; background: #f0f0f0; }
+    h1 { color: #1b5e20; font-size: 20px; }
+    .paso { background: #fff; border: 1px solid #ccc; border-radius: 8px; padding: 12px; margin: 10px 0; }
+    .ok { color: #0a0; font-weight: bold; }
+    .error { color: #c00; font-weight: bold; word-break: break-all; }
+    .cargando { color: #888; }
+    pre { background: #f8f8f8; padding: 8px; border-radius: 6px; overflow-x: auto; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Prueba de conexión NEXUS</h1>
+  <p>Esta página revisa paso a paso qué funciona y qué falla. Espera unos segundos.</p>
+
+  <div class="paso" id="p1"><span class="cargando">1. Cargando librería de Supabase...</span></div>
+  <div class="paso" id="p2"><span class="cargando">2. Esperando...</span></div>
+  <div class="paso" id="p3"><span class="cargando">3. Esperando...</span></div>
+  <div class="paso" id="p4"><span class="cargando">4. Esperando...</span></div>
+
+  <script type="module">
+    const p1 = document.getElementById('p1');
+    const p2 = document.getElementById('p2');
+    const p3 = document.getElementById('p3');
+    const p4 = document.getElementById('p4');
+
+    // Paso 1: cargar la librería
+    let createClient;
+    try {
+      const mod = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+      createClient = mod.createClient;
+      p1.innerHTML = '<span class="ok">1. ✓ Librería de Supabase cargó bien</span>';
+    } catch (e) {
+      p1.innerHTML = '<span class="error">1. ✗ FALLÓ cargar la librería: ' + e.message + '</span>';
+      throw e;
+    }
+
+    // Paso 2: crear el cliente
+    let supabase;
+    try {
+      const URL = 'https://ydqwkxpkjwydxownwapv.supabase.co';
+      const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlkcXdreHBrand5ZHhvd253YXB2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyMzY4ODQsImV4cCI6MjA5OTgxMjg4NH0.QWuQaipGukrMipJ1Z3TmP3t66ggsHzb1Fe-QROJiXrw';
+      supabase = createClient(URL, KEY);
+      p2.innerHTML = '<span class="ok">2. ✓ Cliente creado</span>';
+    } catch (e) {
+      p2.innerHTML = '<span class="error">2. ✗ FALLÓ crear cliente: ' + e.message + '</span>';
+      throw e;
+    }
+
+    // Paso 3: consultar empresas
+    try {
+      const { data, error } = await supabase.from('empresas').select('id, razon_social');
+      if (error) {
+        p3.innerHTML = '<span class="error">3. ✗ La consulta dio ERROR: ' + JSON.stringify(error) + '</span>';
+      } else {
+        p3.innerHTML = '<span class="ok">3. ✓ Empresas recibidas: ' + (data ? data.length : 0) + '</span><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+      }
+    } catch (e) {
+      p3.innerHTML = '<span class="error">3. ✗ FALLÓ la consulta: ' + e.message + '</span>';
+    }
+
+    // Paso 4: revisar sesión guardada
+    try {
+      const sesion = localStorage.getItem('nexus_sesion');
+      if (sesion) {
+        const perfil = JSON.parse(sesion);
+        p4.innerHTML = '<span class="ok">4. ✓ Sesión guardada: ' + perfil.nombres + ' (rol: ' + perfil.rol + ')</span>';
+      } else {
+        p4.innerHTML = '<span class="error">4. ⚠ No hay sesión guardada en este navegador. Inicie sesión primero en NEXUS y vuelva a abrir esta prueba.</span>';
+      }
+    } catch (e) {
+      p4.innerHTML = '<span class="error">4. ✗ Error leyendo sesión: ' + e.message + '</span>';
+    }
+  </script>
+</body>
+</html>
