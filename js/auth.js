@@ -184,8 +184,6 @@ export async function redirigirSiAutenticado() {
  * @returns {Promise<Array<{id, razon_social}>>}
  */
 export async function empresasPermitidas(perfil) {
-  const { supabase } = await import('./supabase.js');
-
   // Admin ve todas
   if (perfil.rol === 'admin') {
     const { data } = await supabase
