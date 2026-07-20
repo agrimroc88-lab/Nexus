@@ -189,18 +189,32 @@
           <div class="rejilla">
 
             <div class="campo">
-              <label class="etiqueta" for="sucursal_id">Sucursal</label>
+              <label class="etiqueta" for="sucursal_id">Sucursal / lugar de trabajo</label>
               <select class="entrada" id="sucursal_id">
                 <option value="">— Seleccionar —</option>
               </select>
               <span class="ayuda" id="ayuda-sucursal"></span>
             </div>
 
+            <div class="campo" id="campo-subarea" hidden>
+              <label class="etiqueta" for="subarea_id">Área (Mina Las Paralelas)</label>
+              <div style="display:flex; gap:0.4rem;">
+                <select class="entrada" id="subarea_id" style="flex:1;">
+                  <option value="">— Seleccionar —</option>
+                </select>
+                <button class="boton-secundario" id="btn-add-subarea" type="button" title="Agregar área">+</button>
+              </div>
+              <span class="ayuda" id="ayuda-subarea"></span>
+            </div>
+
             <div class="campo">
               <label class="etiqueta" for="cargo_id">Cargo</label>
-              <select class="entrada" id="cargo_id">
-                <option value="">— Seleccionar —</option>
-              </select>
+              <div style="display:flex; gap:0.4rem;">
+                <select class="entrada" id="cargo_id" style="flex:1;">
+                  <option value="">— Seleccionar —</option>
+                </select>
+                <button class="boton-secundario" id="btn-add-cargo-nuevo" type="button" title="Agregar cargo nuevo">+</button>
+              </div>
               <span class="ayuda" id="ayuda-cargo"></span>
             </div>
 
@@ -287,6 +301,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/trabajadores.js"></script>
+  <script type="module" src="js/trabajadores.js?v=3"></script>
 </body>
 </html>
