@@ -330,9 +330,9 @@ function conectarEventos() {
   document.getElementById('num_trabajadores').addEventListener('input', evaluarDelegado);
 
   /* Cerrar con clic fuera o tecla Escape */
-  $modal.addEventListener('click', (e) => {
-    if (e.target === $modal) cerrarModal();
-  });
+  // El modal NO se cierra al hacer clic en el fondo (evita cierres
+  // accidentales al seleccionar texto o soltar el mouse fuera).
+  // Solo se cierra con los botones X / Cancelar o la tecla Escape.
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && !$modal.hidden) cerrarModal();
   });
