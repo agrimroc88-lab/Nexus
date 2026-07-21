@@ -74,7 +74,7 @@ function conectarEventos() {
   document.querySelectorAll('[data-cierra]').forEach((b) =>
     b.addEventListener('click', () => document.getElementById(b.dataset.cierra).hidden = true));
 
-  document.getElementById('ts-buscar').addEventListener('input', buscarTrabajador);
+  document.getElementById('ts-buscar').addEventListener('input', (e) => buscarTrabajador(e));
   document.getElementById('ts_codigo').addEventListener('input', retrasar(buscarPorCodigo, 350));
   document.getElementById('guardar-ficha').addEventListener('click', guardarFicha);
   document.getElementById('btn-add-familiar').addEventListener('click', () => agregarFilaFamiliar());
