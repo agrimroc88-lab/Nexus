@@ -783,6 +783,11 @@ function alertaSalida(texto) {
 
 let insumoActual = null;
 
+function rolEscribeFarmacia() {
+  const rol = estado.perfil ? estado.perfil.rol : '';
+  return ['admin', 'enfermeria', 'medico_ocupacional'].includes(rol);
+}
+
 function pintarInsumos() {
   const filtro = (document.getElementById('filtro-insumo').value || '').toLowerCase();
   const lista = (estado.insumos || []).filter((i) => i.nombre.toLowerCase().includes(filtro));
@@ -805,7 +810,7 @@ function pintarInsumos() {
       `<td class="celda-derecha"></td>`;
     const acc = tr.querySelector('td:last-child');
 
-    if (puedeEscribir()) {
+    if (rolEscribeFarmacia()) {
       const rep = document.createElement('button');
       rep.className = 'boton-icono'; rep.textContent = 'Reponer';
       rep.addEventListener('click', () => reponerInsumo(i));
@@ -829,7 +834,7 @@ function abrirInsumo(insumo) {
   document.getElementById('ins_minimo').value = insumo ? insumo.stock_minimo : 0;
   document.getElementById('ins_optimo').value = insumo ? insumo.stock_optimo : 0;
   document.getElementById('alerta-insumo').hidden = true;
-  document.getElementById('btn-eliminar-insumo').hidden = !insumo || !puedeEscribir();
+  document.getElementById('btn-eliminar-insumo').hidden = !insumo || !rolEscribeFarmacia();
   document.getElementById('modal-insumo').hidden = false;
 }
 
