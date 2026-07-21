@@ -64,12 +64,11 @@
       .doc-firma-linea { border-top: 1px solid #000; margin-bottom: 0.25rem; }
       .doc-firma p { margin: 0; font-size: 11pt; }
 
-      /* Foto carnet (registro personal) */
-      .doc-foto { width: 3cm; height: 4cm; border: 1px solid #333;
+      /* Foto carnet (registro personal): va dentro del encabezado, alineada a la derecha */
+      .doc-foto { width: 2.8cm; height: 3.5cm; border: 1px solid #333; flex: 0 0 auto;
         display: flex; align-items: center; justify-content: center; text-align: center;
-        font-size: 8pt; color: #999; position: absolute; top: 1.5cm; right: 0; background: #fff;
+        font-size: 8pt; color: #999; background: #fff;
         -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .doc-registro { position: relative; padding-top: 0; }
 
       /* ===== Colores por documento ===== */
       /* Ficha Social: azul */
@@ -80,7 +79,8 @@
       .doc-social .doc-lbl { background: #dbeaf5; }
 
       /* Registro de Personal: gris/verde sobrio */
-      .doc-registro .doc-encabezado { border-bottom-color: #1b5e20; padding-right: 3.4cm; }
+      .doc-registro .doc-encabezado { border-bottom-color: #1b5e20; align-items: flex-start; }
+      .doc-registro .doc-encabezado .doc-titulo-empresa { flex: 1; }
       .doc-registro .doc-titulo-empresa strong,
       .doc-registro .doc-titulo-empresa h1 { color: #1b5e20; }
       .doc-registro .doc-seccion-h { background: #1b5e20; }
@@ -376,6 +376,6 @@
   <!-- Zona de impresión (fuera de todo) -->
   <div id="zona-impresion" class="zona-impresion" aria-hidden="true"></div>
 
-  <script type="module" src="js/trabajo-social.js?v=6"></script>
+  <script type="module" src="js/trabajo-social.js?v=7"></script>
 </body>
 </html>
