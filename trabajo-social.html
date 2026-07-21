@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trabajo Social · NEXUS</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/empresas.css">
+  <link rel="stylesheet" href="css/trabajadores.css">
+  <link rel="stylesheet" href="css/atenciones.css">
+  <link rel="stylesheet" href="css/psicologia.css">
+  <style>
+    .seccion-titulo {
+      font-size: 0.95rem;
+      color: var(--color-acento-oscuro, #00450d);
+      border-bottom: 1px solid var(--color-borde, #e2e8e2);
+      padding-bottom: 0.3rem;
+      margin: 1.25rem 0 0.75rem;
+    }
+    .ts-check-fila { display: flex; flex-wrap: wrap; gap: 1rem; margin: 0.3rem 0; }
+    .ts-check-fila label { display: flex; align-items: center; gap: 0.35rem; font-size: 0.9rem; }
+    .familiar-tabla { width: 100%; border-collapse: collapse; margin: 0.5rem 0; font-size: 0.85rem; }
+    .familiar-tabla th, .familiar-tabla td { border: 1px solid var(--color-borde, #e2e8e2); padding: 3px; }
+    .familiar-tabla input, .familiar-tabla select { width: 100%; border: none; font-size: 0.85rem; padding: 2px; }
+
+    /* ===== Impresión: común a ambos documentos ===== */
+    .doc-hoja { display: none; }
+    @media print {
+      body > .barra-lateral,
+      body > .contenedor,
+      .modal { display: none !important; }
+      .zona-impresion { display: block !important; }
+      @page { margin: 2cm 1cm 2cm 3cm; size: A4 portrait; }
+
+      .doc-hoja { display: block !important; width: 100%; font-family: Arial, Helvetica, sans-serif; color: #000; font-size: 11pt; }
+      .doc-encabezado { display: flex; align-items: center; gap: 0.8rem; padding-bottom: 0.35rem; margin-bottom: 0.4rem; border-bottom: 2px solid #333; }
+      .doc-logo { height: 68px; width: auto; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .doc-titulo-empresa { display: flex; flex-direction: column; line-height: 1.15; }
+      .doc-titulo-empresa strong { font-size: 15pt; }
+      .doc-titulo-empresa span { font-size: 11pt; }
+      .doc-titulo-empresa h1 { font-size: 15pt; margin: 0.1rem 0 0; text-align: left; }
+
+      .doc-seccion-h { color: #fff; font-weight: bold; padding: 2px 8px; margin: 0.4rem 0 0; font-size: 12pt;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .doc-tabla { width: 100%; border-collapse: collapse; margin-bottom: 0.15rem; table-layout: fixed; }
+      .doc-tabla td { border: 1px solid #333; padding: 2px 5px; vertical-align: top;
+        word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal; }
+      .doc-lbl { font-weight: bold; white-space: normal; width: 130px;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .doc-campo-largo { border: 1px solid #333; padding: 3px 6px; margin: 0.2rem 0;
+        word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; }
+      .doc-campo-largo strong { display: block; margin-bottom: 1px; }
+      .doc-campo-largo p { margin: 0; min-height: 18px; white-space: pre-wrap;
+        word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; }
+      .doc-firma { margin-top: 2rem; text-align: center; width: 55%; margin-left: auto; margin-right: auto; }
+      .doc-firma-linea { border-top: 1px solid #000; margin-bottom: 0.25rem; }
+      .doc-firma p { margin: 0; font-size: 11pt; }
+
+      /* Foto carnet (registro personal) */
+      .doc-foto { width: 3cm; height: 4cm; border: 1px solid #333; float: right;
+        display: flex; align-items: center; justify-content: center; font-size: 8pt; color: #999; }
+
+      /* ===== Colores por documento ===== */
+      /* Ficha Social: azul */
+      .doc-social .doc-encabezado { border-bottom-color: #2b6ca3; }
+      .doc-social .doc-titulo-empresa strong,
+      .doc-social .doc-titulo-empresa h1 { color: #2b6ca3; }
+      .doc-social .doc-seccion-h { background: #4a90c2; }
+      .doc-social .doc-lbl { background: #dbeaf5; }
+
+      /* Registro de Personal: gris/verde sobrio */
+      .doc-registro .doc-encabezado { border-bottom-color: #1b5e20; }
+      .doc-registro .doc-titulo-empresa strong,
+      .doc-registro .doc-titulo-empresa h1 { color: #1b5e20; }
+      .doc-registro .doc-seccion-h { background: #1b5e20; }
+      .doc-registro .doc-lbl { background: #e6f0e6; }
+    }
+  </style>
+</head>
+<body class="app">
+
+  <aside class="barra-lateral" id="barra-lateral">
+    <div class="lateral-marca">NEXUS</div>
+    <nav class="lateral-nav" id="lateral-nav"></nav>
+    <button class="lateral-salir" id="btn-salir" type="button">Cerrar sesión</button>
+  </aside>
+
+  <div class="contenedor">
+
+    <header class="cabecera">
+      <button class="cabecera-menu" id="btn-menu" type="button" aria-label="Menú">☰</button>
+      <h1 class="cabecera-titulo">Trabajo Social</h1>
+      <div class="cabecera-usuario">
+        <span class="usuario-nombre" id="usuario-nombre">—</span>
+        <span class="usuario-rol" id="usuario-rol">—</span>
+      </div>
+    </header>
+
+    <main class="contenido">
+
+      <!-- Selector de empresa -->
+      <section class="tablero-controles">
+        <div class="campo campo-empresa">
+          <label class="etiqueta" for="empresa-activa">Empresa</label>
+          <select class="entrada" id="empresa-activa">
+            <option value="">— Seleccione una empresa —</option>
+          </select>
+        </div>
+      </section>
+
+      <!-- Pestañas -->
+      <div class="pestanas" id="pestanas" hidden>
+        <button class="pestana activa" data-vista="ficha" type="button">Ficha</button>
+        <button class="pestana" data-vista="registros" type="button">Registros</button>
+      </div>
+
+      <!-- ============ Vista: Ficha ============ -->
+      <section class="vista" id="vista-ficha" hidden>
+        <div class="herramientas">
+          <input class="entrada filtro" id="ts-buscar" type="search"
+                 placeholder="Buscar trabajador por nombre o código…" autocomplete="off">
+          <button class="boton-primario" id="btn-nueva-ficha" type="button" hidden>+ Nueva ficha</button>
+        </div>
+        <div class="sugerencias" id="ts-sugerencias" hidden></div>
+
+        <p class="aviso-inicial" id="aviso-ficha">
+          Busque un trabajador para crear o ver su ficha social.
+        </p>
+      </section>
+
+      <!-- ============ Vista: Registros ============ -->
+      <section class="vista" id="vista-registros" hidden>
+        <div class="panel">
+          <div class="tabla-envoltura">
+            <table class="tabla">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Trabajador</th>
+                  <th>Cédula</th>
+                  <th class="celda-derecha">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="cuerpo-registros"></tbody>
+            </table>
+          </div>
+          <p class="vacio" id="vacio-registros" hidden>Sin fichas registradas.</p>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ============ Modal: Ficha social + registro ============ -->
+  <div class="modal" id="modal-ficha" hidden>
+    <div class="modal-caja modal-ancho" role="dialog" aria-modal="true">
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo" id="titulo-modal">Ficha de Trabajo Social</h2>
+        <button class="modal-cerrar" data-cierra="modal-ficha" type="button" aria-label="Cerrar">×</button>
+      </header>
+      <div class="modal-cuerpo">
+
+        <!-- Identificación -->
+        <div class="rejilla">
+          <div class="campo">
+            <label class="etiqueta" for="ts_codigo">Código de trabajador <span class="obligatorio">*</span></label>
+            <input class="entrada entrada-destacada" id="ts_codigo" type="number" min="1" max="3000" autocomplete="off">
+            <span class="ayuda" id="ts-ayuda"></span>
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="ts_fecha">Fecha <span class="obligatorio">*</span></label>
+            <input class="entrada" id="ts_fecha" type="date">
+          </div>
+        </div>
+
+        <!-- Ficha del trabajador -->
+        <div class="ficha" id="ts-ficha" hidden>
+          <div class="ficha-datos">
+            <div class="ficha-item"><span class="ficha-etiqueta">Nombre</span><span class="ficha-valor" id="tf-nombre">—</span></div>
+            <div class="ficha-item"><span class="ficha-etiqueta">Cédula</span><span class="ficha-valor celda-mono" id="tf-cedula">—</span></div>
+            <div class="ficha-item"><span class="ficha-etiqueta">Edad</span><span class="ficha-valor" id="tf-edad">—</span></div>
+            <div class="ficha-item"><span class="ficha-etiqueta">Sexo</span><span class="ficha-valor" id="tf-sexo">—</span></div>
+            <div class="ficha-item"><span class="ficha-etiqueta">Cargo</span><span class="ficha-valor" id="tf-cargo">—</span></div>
+          </div>
+        </div>
+
+        <!-- Cuerpo del formulario -->
+        <div id="ts-bloque" hidden>
+
+          <h3 class="seccion-titulo">Datos de identificación</h3>
+          <div class="rejilla">
+            <div class="campo"><label class="etiqueta" for="ts_nacionalidad">Nacionalidad</label><input class="entrada" id="ts_nacionalidad" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_lugar_nac">Lugar de nacimiento</label><input class="entrada" id="ts_lugar_nac" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_estado_civil">Estado civil</label><input class="entrada" id="ts_estado_civil" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_experiencia">Experiencia</label><input class="entrada" id="ts_experiencia" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_correo">Correo electrónico</label><input class="entrada" id="ts_correo" type="email"></div>
+            <div class="campo"><label class="etiqueta" for="ts_estatura">Estatura</label><input class="entrada" id="ts_estatura" type="text" placeholder="1.70 m"></div>
+            <div class="campo"><label class="etiqueta" for="ts_instruccion">Nivel de instrucción</label><input class="entrada" id="ts_instruccion" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_titulo">Título obtenido</label><input class="entrada" id="ts_titulo" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_etnico">Grupo étnico</label><input class="entrada" id="ts_etnico" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_religion">Religión</label><input class="entrada" id="ts_religion" type="text"></div>
+            <div class="campo campo-ancho"><label class="etiqueta" for="ts_domicilio">Domicilio actual</label><input class="entrada" id="ts_domicilio" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_provincia">Provincia</label><input class="entrada" id="ts_provincia" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_canton">Cantón</label><input class="entrada" id="ts_canton" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_parroquia">Parroquia</label><input class="entrada" id="ts_parroquia" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_convencional">Teléfono convencional</label><input class="entrada" id="ts_convencional" type="text"></div>
+          </div>
+
+          <h3 class="seccion-titulo">Familiar con discapacidad</h3>
+          <div class="rejilla">
+            <div class="campo"><label class="etiqueta" for="ts_disc_familiar">Familiar con discapacidad</label><input class="entrada" id="ts_disc_familiar" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_disc_tipo">Tipo de discapacidad</label><input class="entrada" id="ts_disc_tipo" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_disc_porcentaje">Porcentaje</label><input class="entrada" id="ts_disc_porcentaje" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_disc_codigo">Código</label><input class="entrada" id="ts_disc_codigo" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_disc_telefono">Teléfono</label><input class="entrada" id="ts_disc_telefono" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_disc_convencional">Convencional</label><input class="entrada" id="ts_disc_convencional" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_disc_sangre">Tipo sanguíneo</label><input class="entrada" id="ts_disc_sangre" type="text"></div>
+          </div>
+
+          <h3 class="seccion-titulo">Ubicación de domicilio</h3>
+          <div class="rejilla">
+            <div class="campo"><label class="etiqueta" for="ts_resp_nombre">Persona responsable</label><input class="entrada" id="ts_resp_nombre" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_resp_parentesco">Parentesco</label><input class="entrada" id="ts_resp_parentesco" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_resp_telefono">Teléfono</label><input class="entrada" id="ts_resp_telefono" type="text"></div>
+          </div>
+          <div class="campo campo-ancho"><label class="etiqueta" for="ts_dom_descripcion">Descripción de domicilio / vivienda</label><textarea class="entrada area" id="ts_dom_descripcion" rows="2"></textarea></div>
+          <div class="campo campo-ancho"><label class="etiqueta" for="ts_dom_referencias">Sitios de referencia del domicilio</label><textarea class="entrada area" id="ts_dom_referencias" rows="2"></textarea></div>
+
+          <h3 class="seccion-titulo">Datos familiares</h3>
+          <table class="familiar-tabla" id="tabla-familiares">
+            <thead>
+              <tr>
+                <th style="width:24%">Apellidos y nombres</th>
+                <th>Parentesco</th>
+                <th>Sexo</th>
+                <th>Edad</th>
+                <th>Estudia</th>
+                <th>Nivel</th>
+                <th>Grado</th>
+                <th>Trabaja</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="cuerpo-familiares"></tbody>
+          </table>
+          <button class="boton-secundario boton-compacto" id="btn-add-familiar" type="button">+ Agregar familiar</button>
+
+          <h3 class="seccion-titulo">Datos de la vivienda</h3>
+          <div class="rejilla">
+            <div class="campo"><label class="etiqueta" for="ts_viv_tenencia">Tenencia</label>
+              <select class="entrada" id="ts_viv_tenencia">
+                <option value="">—</option><option>Propia</option><option>Arriendo</option><option>Mixta</option>
+              </select>
+            </div>
+            <div class="campo"><label class="etiqueta" for="ts_viv_construccion">Construcción</label>
+              <select class="entrada" id="ts_viv_construccion">
+                <option value="">—</option><option>Cemento</option><option>Mixta</option><option>Madera</option>
+              </select>
+            </div>
+          </div>
+          <label class="etiqueta">Servicios básicos</label>
+          <div class="ts-check-fila">
+            <label><input type="checkbox" id="ts_viv_luz"> Luz</label>
+            <label><input type="checkbox" id="ts_viv_agua"> Agua</label>
+            <label><input type="checkbox" id="ts_viv_alcantarillado"> Alcantarillado</label>
+          </div>
+          <div class="campo campo-ancho"><label class="etiqueta" for="ts_viv_obs">Observaciones de vivienda</label><textarea class="entrada area" id="ts_viv_obs" rows="2"></textarea></div>
+
+          <h3 class="seccion-titulo">Situación económica</h3>
+          <div class="rejilla">
+            <div class="campo"><label class="etiqueta" for="ts_ingreso">Ingreso mensual familiar</label><input class="entrada" id="ts_ingreso" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_otros_ingresos">Otros ingresos</label><input class="entrada" id="ts_otros_ingresos" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_movilizacion">Cómo se moviliza al trabajo</label><input class="entrada" id="ts_movilizacion" type="text" placeholder="Transporte público, propio…"></div>
+          </div>
+          <div class="campo campo-ancho"><label class="etiqueta" for="ts_observacion">Observación</label><textarea class="entrada area" id="ts_observacion" rows="3"></textarea></div>
+
+          <h3 class="seccion-titulo">Registro de personal · contactos</h3>
+          <div class="rejilla">
+            <div class="campo"><label class="etiqueta" for="ts_fam1_nombre">Familiar cercano 1 · nombre</label><input class="entrada" id="ts_fam1_nombre" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_fam1_conv">Convencional</label><input class="entrada" id="ts_fam1_conv" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_fam1_cel">Celular</label><input class="entrada" id="ts_fam1_cel" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_fam2_nombre">Familiar cercano 2 · nombre</label><input class="entrada" id="ts_fam2_nombre" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_fam2_conv">Convencional</label><input class="entrada" id="ts_fam2_conv" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_fam2_cel">Celular</label><input class="entrada" id="ts_fam2_cel" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_contacto_nombre">Contacto · nombre</label><input class="entrada" id="ts_contacto_nombre" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_contacto_correo">Contacto · correo</label><input class="entrada" id="ts_contacto_correo" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_contacto_cel">Contacto · celular</label><input class="entrada" id="ts_contacto_cel" type="text"></div>
+          </div>
+
+          <h3 class="seccion-titulo">Cargas familiares y datos laborales</h3>
+          <div class="rejilla">
+            <div class="campo"><label class="etiqueta" for="ts_cargas">¿Tiene cargas familiares?</label>
+              <select class="entrada" id="ts_cargas"><option value="">—</option><option>Sí</option><option>No</option></select>
+            </div>
+            <div class="campo"><label class="etiqueta" for="ts_num_cargas">N° de cargas</label><input class="entrada" id="ts_num_cargas" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_parentesco_cargas">Parentesco de cargas</label><input class="entrada" id="ts_parentesco_cargas" type="text" placeholder="Esposa, hijo, hija…"></div>
+            <div class="campo"><label class="etiqueta" for="ts_sueldo">Sueldo</label><input class="entrada" id="ts_sueldo" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_fecha_salida">Fecha de salida</label><input class="entrada" id="ts_fecha_salida" type="date"></div>
+          </div>
+
+          <h3 class="seccion-titulo">Experiencia laboral (última)</h3>
+          <div class="rejilla">
+            <div class="campo"><label class="etiqueta" for="ts_exp_empresa">Nombre de la empresa</label><input class="entrada" id="ts_exp_empresa" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_exp_cargo">Cargo ocupado</label><input class="entrada" id="ts_exp_cargo" type="text"></div>
+          </div>
+
+        </div>
+
+        <p class="alerta" id="alerta-ficha" hidden></p>
+      </div>
+      <footer class="modal-pie">
+        <button class="boton-secundario" data-cierra="modal-ficha" type="button">Cancelar</button>
+        <button class="boton-primario" id="guardar-ficha" type="button">Guardar</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- ============ Modal: Ver ficha ============ -->
+  <div class="modal" id="modal-ver" hidden>
+    <div class="modal-caja modal-ancho" role="dialog" aria-modal="true">
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo" id="ver-titulo">Ficha</h2>
+        <button class="modal-cerrar" data-cierra="modal-ver" type="button" aria-label="Cerrar">×</button>
+      </header>
+      <div class="modal-cuerpo" id="ver-cuerpo"></div>
+      <footer class="modal-pie">
+        <button class="boton-secundario" data-cierra="modal-ver" type="button">Cerrar</button>
+        <button class="boton-secundario" id="btn-imprimir-social" type="button">Imprimir Ficha Social</button>
+        <button class="boton-secundario" id="btn-imprimir-registro" type="button">Imprimir Registro de Personal</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Zona de impresión (fuera de todo) -->
+  <div id="zona-impresion" class="zona-impresion" aria-hidden="true"></div>
+
+  <script type="module" src="js/trabajo-social.js?v=1"></script>
+</body>
+</html>
