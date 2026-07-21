@@ -300,6 +300,13 @@
       <div class="modal-cuerpo">
 
         <!-- Identificación -->
+        <div class="campo" style="position:relative;">
+          <label class="etiqueta" for="ce_buscar_nombre">Buscar trabajador por nombre</label>
+          <input class="entrada" id="ce_buscar_nombre" type="text"
+                 placeholder="Escriba el nombre o apellido…" autocomplete="off">
+          <div class="sugerencias" id="ce_nombre_sug" hidden></div>
+        </div>
+
         <div class="rejilla">
           <div class="campo">
             <label class="etiqueta" for="ce_codigo">Código de trabajador <span class="obligatorio">*</span></label>
@@ -438,6 +445,6 @@
 
   <div id="zona-impresion" class="zona-impresion" aria-hidden="true"></div>
 
-  <script type="module" src="js/certificados.js?v=6"></script>
+  <script type="module" src="js/certificados.js?v=7"></script>
 </body>
 </html>
