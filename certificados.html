@@ -102,6 +102,7 @@
         <nav class="pestanas">
           <button class="pestana activa" data-vista="certificados" type="button">Certificados</button>
           <button class="pestana" data-vista="ausentismo" type="button">Ausentismo</button>
+          <button class="pestana" data-vista="estadisticas" type="button">Estadísticas</button>
           <button class="pestana" data-vista="config" type="button">Configuración</button>
         </nav>
 
@@ -175,6 +176,65 @@
               </table>
             </div>
             <p class="vacio" id="vacio-ausentismo" hidden>Sin trabajadores en alerta de ausentismo.</p>
+          </div>
+        </section>
+
+        <!-- ============ Vista: Estadísticas ============ -->
+        <section class="vista" id="vista-estadisticas" hidden>
+          <div class="est-barra-acciones">
+            <div class="est-periodo">
+              <label class="etiqueta" for="est-anio">Año</label>
+              <select class="entrada" id="est-anio"></select>
+            </div>
+            <button class="boton-secundario" id="btn-imprimir-est" type="button">Imprimir</button>
+          </div>
+
+          <div id="est-contenido">
+            <!-- Tarjetas resumen -->
+            <div class="est-tarjetas">
+              <div class="est-tarjeta">
+                <span class="est-numero" id="est-total">0</span>
+                <span class="est-etiqueta">Certificados</span>
+              </div>
+              <div class="est-tarjeta">
+                <span class="est-numero" id="est-reposo">0</span>
+                <span class="est-etiqueta">Días de reposo</span>
+              </div>
+              <div class="est-tarjeta">
+                <span class="est-numero" id="est-reubicaciones">0</span>
+                <span class="est-etiqueta">Reubicaciones</span>
+              </div>
+              <div class="est-tarjeta">
+                <span class="est-numero" id="est-trabajadores">0</span>
+                <span class="est-etiqueta">Trabajadores afectados</span>
+              </div>
+            </div>
+
+            <div class="est-columnas">
+              <!-- Diagnósticos frecuentes -->
+              <section class="est-bloque">
+                <h3 class="est-titulo">Diagnósticos más frecuentes</h3>
+                <div id="est-diagnosticos"></div>
+              </section>
+
+              <!-- Por origen -->
+              <section class="est-bloque">
+                <h3 class="est-titulo">Por origen</h3>
+                <div id="est-origen"></div>
+              </section>
+            </div>
+
+            <!-- Certificados por mes -->
+            <section class="est-bloque">
+              <h3 class="est-titulo">Certificados por mes</h3>
+              <div id="est-meses"></div>
+            </section>
+
+            <!-- Trabajadores con más certificados -->
+            <section class="est-bloque">
+              <h3 class="est-titulo">Trabajadores con más certificados</h3>
+              <div id="est-top-trab"></div>
+            </section>
           </div>
         </section>
 
@@ -378,6 +438,6 @@
 
   <div id="zona-impresion" class="zona-impresion" aria-hidden="true"></div>
 
-  <script type="module" src="js/certificados.js?v=5"></script>
+  <script type="module" src="js/certificados.js?v=6"></script>
 </body>
 </html>
