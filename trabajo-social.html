@@ -124,15 +124,46 @@
 
       <!-- ============ Vista: Ficha ============ -->
       <section class="vista" id="vista-ficha" hidden>
-        <div class="herramientas">
-          <input class="entrada filtro" id="ts-buscar" type="search"
-                 placeholder="Buscar trabajador por nombre o código…" autocomplete="off">
-          <button class="boton-primario" id="btn-nueva-ficha" type="button" hidden>+ Nueva ficha</button>
-        </div>
-        <div class="sugerencias" id="ts-sugerencias" hidden></div>
+
+        <!-- Buscador de trabajador -->
+        <section class="buscador-panel">
+          <div class="buscador-fila">
+            <div class="campo campo-codigo">
+              <label class="etiqueta" for="busca_codigo">Código de trabajador</label>
+              <input class="entrada entrada-destacada" id="busca_codigo" type="number"
+                     min="1" max="3000" placeholder="1830" autocomplete="off">
+            </div>
+            <button class="boton-primario boton-buscar" id="btn-buscar" type="button">Buscar</button>
+            <div class="campo campo-crece">
+              <label class="etiqueta" for="busca_nombre">O buscar por nombre o cédula</label>
+              <input class="entrada" id="busca_nombre" type="search"
+                     placeholder="Apellidos, nombres o cédula" autocomplete="off">
+              <div class="sugerencias" id="busca_sugerencias" hidden></div>
+            </div>
+          </div>
+          <span class="ayuda" id="ayuda-busca"></span>
+        </section>
+
+        <!-- Ficha del trabajador localizado -->
+        <section class="tarjeta-trabajador" id="paciente" hidden>
+          <div class="trabajador-cabecera">
+            <div class="trabajador-identidad">
+              <h2 class="trabajador-nombre" id="p-nombre">—</h2>
+              <p class="trabajador-meta" id="p-meta">—</p>
+            </div>
+            <div class="trabajador-acciones">
+              <button class="boton-primario" id="btn-nueva-ficha" type="button">+ Nueva ficha</button>
+              <button class="boton-secundario" id="btn-historial" type="button">Historial</button>
+            </div>
+          </div>
+          <div class="historial-embebido" id="p-historial" hidden>
+            <h3 class="panel-titulo">Historial de fichas</h3>
+            <div id="p-lista"></div>
+          </div>
+        </section>
 
         <p class="aviso-inicial" id="aviso-ficha">
-          Busque un trabajador para crear o ver su ficha social.
+          Busque un trabajador por su código o nombre para crear o ver su ficha social.
         </p>
       </section>
 
@@ -342,6 +373,6 @@
   <!-- Zona de impresión (fuera de todo) -->
   <div id="zona-impresion" class="zona-impresion" aria-hidden="true"></div>
 
-  <script type="module" src="js/trabajo-social.js?v=4"></script>
+  <script type="module" src="js/trabajo-social.js?v=5"></script>
 </body>
 </html>
