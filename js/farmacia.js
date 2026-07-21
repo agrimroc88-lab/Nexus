@@ -765,6 +765,118 @@ function alertaSalida(texto) {
    Pestañas
    ============================================ */
 
+/* ============================================
+   Orden de compra (reposición)
+   ============================================ */
+
+function medicamentosAReponer() {
+  // Bajo mínimo: stock disponible <= stock mínimo. Cantidad para llegar al óptimo.
+  return (estado.medicamentos || [])
+    .filter((m) => Number(m.stock_disponible) <= Number(m.stock_minimo))
+    .map((m) => {
+      const optimo = Number(m.stock_optimo) || 0;
+      const actual = Number(m.stock_disponible) || 0;
+      const pedir = Math.max(0, optimo - actual);
+      return { ...m, pedir };
+    })
+    .filter((m) => m.pedir > 0)
+    .sort((a, b) => a.nombre_generico.localeCompare(b.nombre_generico));
+}
+
+function pintarOrden() {
+  const lista = medicamentosAReponer();
+  const $cuerpo = document.getElementById('cuerpo-orden');
+  const $vacio = document.getElementById('vacio-orden');
+  $cuerpo.innerHTML = '';
+
+  if (lista.length === 0) {
+    $vacio.hidden = false;
+    return;
+  }
+  $vacio.hidden = true;
+
+  lista.forEach((m) => {
+    const tr = document.createElement('tr');
+    const presentacion = `${m.concentracion || ''} ${m.forma || ''}`.trim();
+    tr.innerHTML =
+      `<td><span class="principal">${escapar(m.nombre_generico)}</span>` +
+      (m.nombre_comercial ? `<br><span class="secundario">${escapar(m.nombre_comercial)}</span>` : '') + `</td>` +
+      `<td class="celda-tenue">${escapar(presentacion)}</td>` +
+      `<td class="celda-centro">${m.stock_disponible}</td>` +
+      `<td class="celda-centro celda-tenue">${m.stock_minimo}</td>` +
+      `<td class="celda-centro celda-tenue">${m.stock_optimo}</td>` +
+      `<td class="celda-centro"><strong>${m.pedir}</strong></td>`;
+    $cuerpo.appendChild(tr);
+  });
+}
+
+function imprimirOrden() {
+  const lista = medicamentosAReponer();
+  if (lista.length === 0) {
+    alert('No hay medicamentos por debajo del mínimo para pedir.');
+    return;
+  }
+
+  const empresaNombre = ($empresa.options[$empresa.selectedIndex] || {}).textContent || 'Empresa';
+  const hoy = new Date();
+  const fecha = hoy.toLocaleDateString('es-EC', { year: 'numeric', month: 'long', day: 'numeric' });
+  const numOrden = 'OC-' + hoy.getFullYear() +
+    String(hoy.getMonth() + 1).padStart(2, '0') +
+    String(hoy.getDate()).padStart(2, '0') +
+    '-' + String(hoy.getHours()).padStart(2, '0') + String(hoy.getMinutes()).padStart(2, '0');
+
+  const filas = lista.map((m, i) => {
+    const presentacion = `${m.concentracion || ''} ${m.forma || ''}`.trim();
+    return `<tr>
+      <td style="text-align:center">${i + 1}</td>
+      <td>${escapar(m.nombre_generico)}${m.nombre_comercial ? ' (' + escapar(m.nombre_comercial) + ')' : ''}</td>
+      <td>${escapar(presentacion)}</td>
+      <td style="text-align:center">${m.stock_disponible}</td>
+      <td style="text-align:center"><strong>${m.pedir}</strong></td>
+    </tr>`;
+  }).join('');
+
+  const html = `
+    <div class="oc-hoja">
+      <div class="oc-cabecera">
+        <img src="logo.png" class="oc-logo" alt="">
+        <div>
+          <h1>ORDEN DE COMPRA / REPOSICIÓN DE MEDICAMENTOS</h1>
+          <p><strong>${escapar(empresaNombre)}</strong></p>
+          <p>Unidad de Seguridad y Salud Ocupacional</p>
+        </div>
+      </div>
+
+      <div class="oc-datos">
+        <span><strong>N° de orden:</strong> ${numOrden}</span>
+        <span><strong>Fecha:</strong> ${fecha}</span>
+      </div>
+
+      <table class="oc-tabla">
+        <thead>
+          <tr>
+            <th style="width:5%">#</th>
+            <th style="width:40%">Medicamento</th>
+            <th style="width:25%">Presentación</th>
+            <th style="width:15%">Stock actual</th>
+            <th style="width:15%">Cantidad a pedir</th>
+          </tr>
+        </thead>
+        <tbody>${filas}</tbody>
+      </table>
+
+      <div class="oc-firmas">
+        <div class="oc-firma"><div class="oc-linea"></div><p>Solicitado por</p></div>
+        <div class="oc-firma"><div class="oc-linea"></div><p>Autorizado por</p></div>
+      </div>
+    </div>`;
+
+  document.getElementById('orden-impresion').innerHTML = html;
+  document.body.classList.add('imprimiendo-orden');
+  window.print();
+  setTimeout(() => document.body.classList.remove('imprimiendo-orden'), 500);
+}
+
 function cambiarVista(vista) {
   estado.vista = vista;
 
@@ -772,9 +884,10 @@ function cambiarVista(vista) {
     p.classList.toggle('activa', p.dataset.vista === vista);
   });
 
-  ['existencias', 'lotes', 'kardex'].forEach((v) => {
+  ['existencias', 'lotes', 'kardex', 'orden'].forEach((v) => {
     document.getElementById('vista-' + v).hidden = v !== vista;
   });
+  if (vista === 'orden') pintarOrden();
 }
 
 /* ============================================
@@ -822,6 +935,9 @@ function conectarEventos() {
   document.querySelectorAll('.pestana').forEach((p) => {
     p.addEventListener('click', () => cambiarVista(p.dataset.vista));
   });
+
+  const $btnOrden = document.getElementById('btn-imprimir-orden');
+  if ($btnOrden) $btnOrden.addEventListener('click', imprimirOrden);
 
   /* Cierre genérico de modales */
   document.querySelectorAll('[data-cierra]').forEach((btn) => {
