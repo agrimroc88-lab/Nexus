@@ -19,6 +19,13 @@
       margin: 1.25rem 0 0.75rem;
     }
     .ts-check-fila { display: flex; flex-wrap: wrap; gap: 1rem; margin: 0.3rem 0; }
+    .sugerencias { position: relative; background: #fff; border: 1px solid var(--color-borde, #ccc);
+      border-radius: 8px; margin-top: 0.25rem; max-height: 320px; overflow-y: auto; z-index: 50; }
+    .sugerencia { display: block; width: 100%; text-align: left; padding: 0.5rem 0.75rem;
+      background: none; border: none; border-bottom: 1px solid #eee; cursor: pointer; font-size: 0.9rem; }
+    .sugerencia:hover { background: #f0f6f0; }
+    .cie-chip { display: inline-block; background: #1b5e20; color: #fff; border-radius: 4px;
+      padding: 1px 6px; font-size: 0.78rem; margin-right: 0.4rem; }
     .ts-check-fila label { display: flex; align-items: center; gap: 0.35rem; font-size: 0.9rem; }
     .familiar-tabla { width: 100%; border-collapse: collapse; margin: 0.5rem 0; font-size: 0.85rem; }
     .familiar-tabla th, .familiar-tabla td { border: 1px solid var(--color-borde, #e2e8e2); padding: 3px; }
@@ -335,6 +342,6 @@
   <!-- Zona de impresión (fuera de todo) -->
   <div id="zona-impresion" class="zona-impresion" aria-hidden="true"></div>
 
-  <script type="module" src="js/trabajo-social.js?v=3"></script>
+  <script type="module" src="js/trabajo-social.js?v=4"></script>
 </body>
 </html>
