@@ -99,10 +99,12 @@
 /* Impresión */
 .zona-impresion { display: none; }
 @media print {
-  body.app > .barra-lateral,
-  body.app > .contenedor,
+  /* Impresión de un certificado individual (zona-impresion).
+     No aplica cuando se imprimen estadísticas. */
+  body.app:not(.imprimiendo-est) > .barra-lateral,
+  body.app:not(.imprimiendo-est) > .contenedor,
   .modal { display: none !important; }
-  .zona-impresion { display: block !important; }
+  body:not(.imprimiendo-est) .zona-impresion { display: block !important; }
   @page { margin: 2cm; }
   .hoja { font-family: 'Times New Roman', Georgia, serif; color: #000; font-size: 12pt; }
   .hoja-cabecera { text-align: center; border-bottom: 2px solid #000; padding-bottom: 0.6rem; margin-bottom: 1.2rem; }
@@ -172,8 +174,20 @@
 
 /* Impresión: solo la vista de estadísticas */
 @media print {
-  .barra-lateral, .cabecera, .pestanas, .est-barra-acciones,
-  .selector-empresa, #btn-nuevo-cert { display: none !important; }
-  .est-tarjeta, .est-bloque { break-inside: avoid; box-shadow: none; }
-  body, .app, .contenido { background: #fff !important; }
+  body.imprimiendo-est > .contenedor { display: block !important; }
+  body.imprimiendo-est .barra-lateral,
+  body.imprimiendo-est .cabecera,
+  body.imprimiendo-est .pestanas,
+  body.imprimiendo-est .est-barra-acciones,
+  body.imprimiendo-est .selector-empresa,
+  body.imprimiendo-est #btn-nuevo-cert,
+  body.imprimiendo-est #vista-certificados,
+  body.imprimiendo-est #vista-ausentismo,
+  body.imprimiendo-est #vista-config { display: none !important; }
+  body.imprimiendo-est #vista-estadisticas { display: block !important; }
+  body.imprimiendo-est .est-tarjeta,
+  body.imprimiendo-est .est-bloque { break-inside: avoid; box-shadow: none; border: 1px solid #ccc; }
+  body.imprimiendo-est .est-tarjetas { display: grid !important; grid-template-columns: repeat(4, 1fr) !important; }
+  body.imprimiendo-est, body.imprimiendo-est .app, body.imprimiendo-est .contenido { background: #fff !important; }
+  body.imprimiendo-est .est-fila-relleno { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
