@@ -20,6 +20,7 @@ const estado = {
   perfil: null,
   empresaId: null,
   medicamentos: [],
+  insumos: [],
   lotes: [],
   kardex: [],
   trabajadores: [],
@@ -103,7 +104,8 @@ async function cargarTodo() {
     cargarMedicamentos(),
     cargarLotes(),
     cargarKardex(),
-    cargarTrabajadores()
+    cargarTrabajadores(),
+    cargarInsumos()
   ]);
   pintarResumen();
   pintarExistencias();
@@ -120,6 +122,16 @@ async function cargarMedicamentos() {
     .order('nombre_generico');
 
   estado.medicamentos = error ? [] : (data || []);
+}
+
+async function cargarInsumos() {
+  const { data, error } = await supabase
+    .from('insumos')
+    .select('*')
+    .eq('empresa_id', estado.empresaId)
+    .eq('activo', true)
+    .order('nombre');
+  estado.insumos = error ? [] : (data || []);
 }
 
 async function cargarLotes() {
@@ -766,6 +778,121 @@ function alertaSalida(texto) {
    ============================================ */
 
 /* ============================================
+   Insumos
+   ============================================ */
+
+let insumoActual = null;
+
+function pintarInsumos() {
+  const filtro = (document.getElementById('filtro-insumo').value || '').toLowerCase();
+  const lista = (estado.insumos || []).filter((i) => i.nombre.toLowerCase().includes(filtro));
+  const $cuerpo = document.getElementById('cuerpo-insumos');
+  const $vacio = document.getElementById('vacio-insumos');
+  $cuerpo.innerHTML = '';
+
+  if (lista.length === 0) { $vacio.hidden = false; return; }
+  $vacio.hidden = true;
+
+  lista.forEach((i) => {
+    const bajo = Number(i.stock_disponible) <= Number(i.stock_minimo);
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      `<td><span class="principal">${escapar(i.nombre)}</span></td>` +
+      `<td class="celda-tenue">${escapar(i.unidad || 'unidad')}</td>` +
+      `<td class="celda-centro"><span class="saldo ${bajo ? 'saldo-cero' : ''}">${i.stock_disponible}</span></td>` +
+      `<td class="celda-centro celda-tenue">${i.stock_minimo}</td>` +
+      `<td class="celda-centro celda-tenue">${i.stock_optimo}</td>` +
+      `<td class="celda-derecha"></td>`;
+    const acc = tr.querySelector('td:last-child');
+
+    if (puedeEscribir()) {
+      const rep = document.createElement('button');
+      rep.className = 'boton-icono'; rep.textContent = 'Reponer';
+      rep.addEventListener('click', () => reponerInsumo(i));
+      acc.appendChild(rep);
+
+      const ed = document.createElement('button');
+      ed.className = 'boton-icono'; ed.textContent = 'Editar';
+      ed.addEventListener('click', () => abrirInsumo(i));
+      acc.appendChild(ed);
+    }
+    $cuerpo.appendChild(tr);
+  });
+}
+
+function abrirInsumo(insumo) {
+  insumoActual = insumo || null;
+  document.getElementById('titulo-modal-insumo').textContent = insumo ? 'Editar insumo' : 'Nuevo insumo';
+  document.getElementById('ins_nombre').value = insumo ? insumo.nombre : '';
+  document.getElementById('ins_unidad').value = insumo ? (insumo.unidad || '') : 'unidad';
+  document.getElementById('ins_disponible').value = insumo ? insumo.stock_disponible : 0;
+  document.getElementById('ins_minimo').value = insumo ? insumo.stock_minimo : 0;
+  document.getElementById('ins_optimo').value = insumo ? insumo.stock_optimo : 0;
+  document.getElementById('alerta-insumo').hidden = true;
+  document.getElementById('btn-eliminar-insumo').hidden = !insumo || !puedeEscribir();
+  document.getElementById('modal-insumo').hidden = false;
+}
+
+async function reponerInsumo(insumo) {
+  const cant = prompt(`Reponer "${insumo.nombre}". ¿Cuántas unidades ingresan?`);
+  if (cant === null) return;
+  const n = parseInt(cant, 10);
+  if (isNaN(n) || n <= 0) { alert('Cantidad no válida.'); return; }
+  const nuevo = Number(insumo.stock_disponible) + n;
+  const { error } = await supabase.from('insumos').update({ stock_disponible: nuevo }).eq('id', insumo.id);
+  if (error) { alert('No se pudo reponer: ' + error.message); return; }
+  await supabase.from('insumos_kardex').insert({ insumo_id: insumo.id, tipo: 'entrada', cantidad: n, nota: 'Reposición' });
+  await cargarInsumos();
+  pintarInsumos();
+}
+
+async function guardarInsumo() {
+  const $alerta = document.getElementById('alerta-insumo');
+  const nombre = document.getElementById('ins_nombre').value.trim();
+  if (!nombre) { $alerta.textContent = 'El nombre es obligatorio.'; $alerta.hidden = false; return; }
+
+  const fila = {
+    nombre: nombre.toUpperCase(),
+    unidad: document.getElementById('ins_unidad').value.trim() || 'unidad',
+    stock_disponible: parseInt(document.getElementById('ins_disponible').value, 10) || 0,
+    stock_minimo: parseInt(document.getElementById('ins_minimo').value, 10) || 0,
+    stock_optimo: parseInt(document.getElementById('ins_optimo').value, 10) || 0
+  };
+
+  let error;
+  if (insumoActual) {
+    ({ error } = await supabase.from('insumos').update(fila).eq('id', insumoActual.id));
+  } else {
+    fila.empresa_id = estado.empresaId;
+    ({ error } = await supabase.from('insumos').insert(fila));
+  }
+  if (error) {
+    $alerta.textContent = error.message.includes('duplicate') ? 'Ese insumo ya existe.' : 'No se pudo guardar: ' + error.message;
+    $alerta.hidden = false; return;
+  }
+  document.getElementById('modal-insumo').hidden = true;
+  await cargarInsumos();
+  pintarInsumos();
+}
+
+async function eliminarInsumo() {
+  if (!insumoActual) return;
+  if (!confirm('¿Eliminar el insumo ' + insumoActual.nombre + '?')) return;
+  await supabase.from('insumos').update({ activo: false }).eq('id', insumoActual.id);
+  document.getElementById('modal-insumo').hidden = true;
+  await cargarInsumos();
+  pintarInsumos();
+}
+
+function insumosAReponer() {
+  return (estado.insumos || [])
+    .filter((i) => Number(i.stock_disponible) <= Number(i.stock_minimo))
+    .map((i) => ({ ...i, pedir: Math.max(0, Number(i.stock_optimo) - Number(i.stock_disponible)) }))
+    .filter((i) => i.pedir > 0)
+    .sort((a, b) => a.nombre.localeCompare(b.nombre));
+}
+
+/* ============================================
    Orden de compra (reposición)
    ============================================ */
 
@@ -791,29 +918,52 @@ function pintarOrden() {
 
   if (lista.length === 0) {
     $vacio.hidden = false;
-    return;
+  } else {
+    $vacio.hidden = true;
+    lista.forEach((m) => {
+      const tr = document.createElement('tr');
+      const presentacion = `${m.concentracion || ''} ${m.forma || ''}`.trim();
+      tr.innerHTML =
+        `<td><span class="principal">${escapar(m.nombre_generico)}</span>` +
+        (m.nombre_comercial ? `<br><span class="secundario">${escapar(m.nombre_comercial)}</span>` : '') + `</td>` +
+        `<td class="celda-tenue">${escapar(presentacion)}</td>` +
+        `<td class="celda-centro">${m.stock_disponible}</td>` +
+        `<td class="celda-centro celda-tenue">${m.stock_minimo}</td>` +
+        `<td class="celda-centro celda-tenue">${m.stock_optimo}</td>` +
+        `<td class="celda-centro"><strong>${m.pedir}</strong></td>`;
+      $cuerpo.appendChild(tr);
+    });
   }
-  $vacio.hidden = true;
 
-  lista.forEach((m) => {
-    const tr = document.createElement('tr');
-    const presentacion = `${m.concentracion || ''} ${m.forma || ''}`.trim();
-    tr.innerHTML =
-      `<td><span class="principal">${escapar(m.nombre_generico)}</span>` +
-      (m.nombre_comercial ? `<br><span class="secundario">${escapar(m.nombre_comercial)}</span>` : '') + `</td>` +
-      `<td class="celda-tenue">${escapar(presentacion)}</td>` +
-      `<td class="celda-centro">${m.stock_disponible}</td>` +
-      `<td class="celda-centro celda-tenue">${m.stock_minimo}</td>` +
-      `<td class="celda-centro celda-tenue">${m.stock_optimo}</td>` +
-      `<td class="celda-centro"><strong>${m.pedir}</strong></td>`;
-    $cuerpo.appendChild(tr);
-  });
+  // Insumos a reponer
+  const insumos = insumosAReponer();
+  const $ci = document.getElementById('cuerpo-orden-insumos');
+  const $vi = document.getElementById('vacio-orden-insumos');
+  if ($ci) {
+    $ci.innerHTML = '';
+    if (insumos.length === 0) { $vi.hidden = false; }
+    else {
+      $vi.hidden = true;
+      insumos.forEach((i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+          `<td><span class="principal">${escapar(i.nombre)}</span></td>` +
+          `<td class="celda-tenue">${escapar(i.unidad || 'unidad')}</td>` +
+          `<td class="celda-centro">${i.stock_disponible}</td>` +
+          `<td class="celda-centro celda-tenue">${i.stock_minimo}</td>` +
+          `<td class="celda-centro celda-tenue">${i.stock_optimo}</td>` +
+          `<td class="celda-centro"><strong>${i.pedir}</strong></td>`;
+        $ci.appendChild(tr);
+      });
+    }
+  }
 }
 
 function imprimirOrden() {
   const lista = medicamentosAReponer();
-  if (lista.length === 0) {
-    alert('No hay medicamentos por debajo del mínimo para pedir.');
+  const insumos = insumosAReponer();
+  if (lista.length === 0 && insumos.length === 0) {
+    alert('No hay medicamentos ni insumos por debajo del mínimo para pedir.');
     return;
   }
 
@@ -825,7 +975,7 @@ function imprimirOrden() {
     String(hoy.getDate()).padStart(2, '0') +
     '-' + String(hoy.getHours()).padStart(2, '0') + String(hoy.getMinutes()).padStart(2, '0');
 
-  const filas = lista.map((m, i) => {
+  const filasMed = lista.map((m, i) => {
     const presentacion = `${m.concentracion || ''} ${m.forma || ''}`.trim();
     return `<tr>
       <td style="text-align:center">${i + 1}</td>
@@ -836,22 +986,18 @@ function imprimirOrden() {
     </tr>`;
   }).join('');
 
-  const html = `
-    <div class="oc-hoja">
-      <div class="oc-cabecera">
-        <img src="logo.png" class="oc-logo" alt="">
-        <div>
-          <h1>ORDEN DE COMPRA / REPOSICIÓN DE MEDICAMENTOS</h1>
-          <p><strong>${escapar(empresaNombre)}</strong></p>
-          <p>Unidad de Seguridad y Salud Ocupacional</p>
-        </div>
-      </div>
+  const filasIns = insumos.map((it, i) => {
+    return `<tr>
+      <td style="text-align:center">${i + 1}</td>
+      <td>${escapar(it.nombre)}</td>
+      <td>${escapar(it.unidad || 'unidad')}</td>
+      <td style="text-align:center">${it.stock_disponible}</td>
+      <td style="text-align:center"><strong>${it.pedir}</strong></td>
+    </tr>`;
+  }).join('');
 
-      <div class="oc-datos">
-        <span><strong>N° de orden:</strong> ${numOrden}</span>
-        <span><strong>Fecha:</strong> ${fecha}</span>
-      </div>
-
+  const seccionMed = lista.length > 0 ? `
+      <h2 class="oc-seccion">Medicamentos</h2>
       <table class="oc-tabla">
         <thead>
           <tr>
@@ -862,8 +1008,42 @@ function imprimirOrden() {
             <th style="width:15%">Cantidad a pedir</th>
           </tr>
         </thead>
-        <tbody>${filas}</tbody>
-      </table>
+        <tbody>${filasMed}</tbody>
+      </table>` : '';
+
+  const seccionIns = insumos.length > 0 ? `
+      <h2 class="oc-seccion">Insumos</h2>
+      <table class="oc-tabla">
+        <thead>
+          <tr>
+            <th style="width:5%">#</th>
+            <th style="width:45%">Insumo</th>
+            <th style="width:20%">Unidad</th>
+            <th style="width:15%">Stock actual</th>
+            <th style="width:15%">Cantidad a pedir</th>
+          </tr>
+        </thead>
+        <tbody>${filasIns}</tbody>
+      </table>` : '';
+
+  const html = `
+    <div class="oc-hoja">
+      <div class="oc-cabecera">
+        <img src="logo.png" class="oc-logo" alt="">
+        <div>
+          <h1>ORDEN DE COMPRA / REPOSICIÓN DE MEDICAMENTOS E INSUMOS</h1>
+          <p><strong>${escapar(empresaNombre)}</strong></p>
+          <p>Unidad de Seguridad y Salud Ocupacional</p>
+        </div>
+      </div>
+
+      <div class="oc-datos">
+        <span><strong>N° de orden:</strong> ${numOrden}</span>
+        <span><strong>Fecha:</strong> ${fecha}</span>
+      </div>
+
+      ${seccionMed}
+      ${seccionIns}
 
       <div class="oc-firmas">
         <div class="oc-firma"><div class="oc-linea"></div><p>Solicitado por</p></div>
@@ -884,10 +1064,11 @@ function cambiarVista(vista) {
     p.classList.toggle('activa', p.dataset.vista === vista);
   });
 
-  ['existencias', 'lotes', 'kardex', 'orden'].forEach((v) => {
+  ['existencias', 'lotes', 'kardex', 'insumos', 'orden'].forEach((v) => {
     document.getElementById('vista-' + v).hidden = v !== vista;
   });
   if (vista === 'orden') pintarOrden();
+  if (vista === 'insumos') pintarInsumos();
 }
 
 /* ============================================
@@ -938,6 +1119,20 @@ function conectarEventos() {
 
   const $btnOrden = document.getElementById('btn-imprimir-orden');
   if ($btnOrden) $btnOrden.addEventListener('click', imprimirOrden);
+
+  // Insumos
+  const $bni = document.getElementById('btn-nuevo-insumo');
+  if ($bni) $bni.addEventListener('click', () => abrirInsumo(null));
+  const $fi = document.getElementById('filtro-insumo');
+  if ($fi) $fi.addEventListener('input', pintarInsumos);
+  const $gi = document.getElementById('guardar-insumo');
+  if ($gi) $gi.addEventListener('click', guardarInsumo);
+  const $ci2 = document.getElementById('cancelar-insumo');
+  if ($ci2) $ci2.addEventListener('click', () => document.getElementById('modal-insumo').hidden = true);
+  const $cei = document.getElementById('cerrar-insumo');
+  if ($cei) $cei.addEventListener('click', () => document.getElementById('modal-insumo').hidden = true);
+  const $eli = document.getElementById('btn-eliminar-insumo');
+  if ($eli) $eli.addEventListener('click', eliminarInsumo);
 
   /* Cierre genérico de modales */
   document.querySelectorAll('[data-cierra]').forEach((btn) => {
