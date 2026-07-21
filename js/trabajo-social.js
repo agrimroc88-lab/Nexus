@@ -38,10 +38,10 @@ async function iniciar() {
   }
   estado.perfil = perfil;
 
-  montarNavegacion(perfil, 'trabajo_social');
-
   await cargarEmpresas();
   conectarEventos();
+
+  try { montarNavegacion(perfil, 'trabajo_social'); } catch (e) { console.warn('nav:', e); }
 }
 
 async function cargarEmpresas() {
