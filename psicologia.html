@@ -10,6 +10,18 @@
   <link rel="stylesheet" href="css/trabajadores.css">
   <link rel="stylesheet" href="css/atenciones.css">
   <link rel="stylesheet" href="css/psicologia.css">
+  <style>
+    .membrete { display: none; }
+    @media print {
+      .membrete { display: flex !important; align-items: center; gap: 1rem;
+        border-bottom: 2px solid #1b5e20; padding-bottom: 0.7rem; margin-bottom: 1rem; }
+      .membrete-logo { height: 65px; width: auto;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .membrete-datos { display: flex; flex-direction: column; }
+      .membrete-datos strong { font-size: 13pt; color: #1b5e20; }
+      .membrete-datos span { font-size: 10pt; color: #333; }
+    }
+  </style>
 </head>
 <body class="app">
 
@@ -394,6 +406,6 @@
   <!-- Área de impresión: se llena al imprimir y solo es visible en @media print -->
   <div id="zona-impresion" class="zona-impresion" aria-hidden="true"></div>
 
-  <script type="module" src="js/psicologia.js"></script>
+  <script type="module" src="js/psicologia.js?v=2"></script>
 </body>
 </html>

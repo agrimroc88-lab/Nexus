@@ -9,6 +9,14 @@
   <link rel="stylesheet" href="css/empresas.css">
   <link rel="stylesheet" href="css/anexo1.css">
   <link rel="stylesheet" href="css/dashboard.css">
+  <style>
+    .impresion-logo { display: none; }
+    @media print {
+      .impresion-cabecera { display: flex !important; align-items: center; gap: 1rem; }
+      .impresion-logo { display: block !important; height: 60px; width: auto;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
 </head>
 <body class="app">
 
@@ -58,6 +66,7 @@
 
         <!-- Encabezado de impresión -->
         <header class="impresion-cabecera">
+          <img src="logo.png" class="impresion-logo" alt="">
           <div>
             <h2 class="impresion-titulo" id="imp-empresa">—</h2>
             <p class="impresion-sub" id="imp-periodo">—</p>
@@ -218,6 +227,6 @@
     </main>
   </div>
 
-  <script type="module" src="js/dashboard.js"></script>
+  <script type="module" src="js/dashboard.js?v=2"></script>
 </body>
 </html>
