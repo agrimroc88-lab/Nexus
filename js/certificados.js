@@ -329,6 +329,10 @@ async function abrirCertificado(c) {
 function limpiarForm() {
   ['ce_cie', 'ce_diagnostico', 'ce_rot_detalle', 'ce_medico', 'ce_url', 'ce_observacion']
     .forEach((id) => { document.getElementById(id).value = ''; });
+  const $bn = document.getElementById('ce_buscar_nombre');
+  if ($bn) $bn.value = '';
+  const $ns = document.getElementById('ce_nombre_sug');
+  if ($ns) $ns.hidden = true;
   document.getElementById('ce_reposo_dias').value = 0;
   document.getElementById('ce_rot_dias').value = 0;
   document.getElementById('ce_rot_inicio').value = '';
@@ -347,6 +351,37 @@ function limpiarForm() {
   document.querySelectorAll('#modal-cert input, #modal-cert select, #modal-cert textarea')
     .forEach((i) => { i.disabled = !escribible; });
 }
+
+/* Buscar trabajador por NOMBRE al crear certificado.
+   Al elegir, llena el código y carga la ficha completa. */
+const buscarNombreCert = retrasar(async () => {
+  const texto = document.getElementById('ce_buscar_nombre').value.trim();
+  const $sug = document.getElementById('ce_nombre_sug');
+  if (texto.length < 2) { $sug.hidden = true; return; }
+
+  const { data } = await supabase
+    .from('v_trabajadores').select('codigo, nombre_completo, cedula, cargo')
+    .eq('empresa_id', estado.empresaId)
+    .or(`nombres.ilike.%${texto}%,apellidos.ilike.%${texto}%,cedula.ilike.%${texto}%`)
+    .limit(8);
+
+  if (!data || data.length === 0) { $sug.hidden = true; return; }
+  $sug.innerHTML = '';
+  data.forEach((t) => {
+    const b = document.createElement('button');
+    b.className = 'sugerencia'; b.type = 'button';
+    b.innerHTML = `<span class="cie-chip">${t.codigo}</span>
+                   <span class="sugerencia-nombre">${escapar(t.nombre_completo)} · ${escapar(t.cedula || '')}</span>`;
+    b.addEventListener('click', () => {
+      document.getElementById('ce_codigo').value = t.codigo;
+      document.getElementById('ce_buscar_nombre').value = t.nombre_completo;
+      $sug.hidden = true;
+      buscarTrabajadorCert();  // carga la ficha completa por código
+    });
+    $sug.appendChild(b);
+  });
+  $sug.hidden = false;
+}, 350);
 
 const buscarTrabajadorCert = retrasar(async () => {
   const codigo = parseInt(document.getElementById('ce_codigo').value, 10);
@@ -737,6 +772,8 @@ function conectarEventos() {
   document.querySelectorAll('.pestana').forEach((p) =>
     p.addEventListener('click', () => cambiarVista(p.dataset.vista)));
 
+  const $bn = document.getElementById('ce_buscar_nombre');
+  if ($bn) $bn.addEventListener('input', buscarNombreCert);
   const $estAnio = document.getElementById('est-anio');
   if ($estAnio) $estAnio.addEventListener('change', pintarEstadisticas);
   const $btnImpEst = document.getElementById('btn-imprimir-est');
