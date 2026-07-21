@@ -408,12 +408,23 @@ const buscarCieCert = retrasar(async () => {
   const $sug = document.getElementById('ce_cie_sug');
   if (texto.length < 2) { $sug.hidden = true; return; }
 
-  const { data } = await supabase
-    .from('cie10').select('codigo, descripcion')
-    .or(`codigo.ilike.${texto}%,descripcion.ilike.%${texto}%`)
-    .order('codigo').limit(8);
+  // Buscar por código (empieza con) o por descripción (contiene), en dos
+  // consultas y combinando, porque el .or() con % no siempre funciona.
+  const patronDesc = '%' + texto + '%';
+  const patronCod = texto + '%';
 
-  if (!data || data.length === 0) { $sug.hidden = true; return; }
+  const [porCodigo, porDesc] = await Promise.all([
+    supabase.from('cie10').select('codigo, descripcion').ilike('codigo', patronCod).limit(8),
+    supabase.from('cie10').select('codigo, descripcion').ilike('descripcion', patronDesc).limit(8)
+  ]);
+
+  // Combinar resultados sin duplicados
+  const mapa = new Map();
+  (porCodigo.data || []).forEach((c) => mapa.set(c.codigo, c));
+  (porDesc.data || []).forEach((c) => mapa.set(c.codigo, c));
+  const data = [...mapa.values()].slice(0, 8);
+
+  if (data.length === 0) { $sug.hidden = true; return; }
   $sug.innerHTML = '';
   data.forEach((c) => {
     const b = document.createElement('button');
