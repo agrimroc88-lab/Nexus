@@ -437,9 +437,7 @@ function abrirFichaNueva() {
     document.getElementById('fp_tipo').value = 'seguimiento';
     document.getElementById('fp_modalidad').value = previa.modalidad || 'individual';
     document.getElementById('fp_remision').value = previa.motivo_remision || '';
-    document.getElementById('fp_antecedentes').value = previa.antecedentes || '';
     document.getElementById('fp_impresion').value = previa.impresion_dx || '';
-    document.getElementById('fp_plan').value = previa.plan_intervencion || '';
   }
 
   mostrarFichaTrabajador(estado.paciente);
@@ -455,6 +453,14 @@ function mostrarFichaTrabajador(t) {
   document.getElementById('f-edad').textContent = t.edad != null ? `${t.edad} años` : '—';
   document.getElementById('f-sexo').textContent = t.sexo === 'M' ? 'Masculino' : t.sexo === 'F' ? 'Femenino' : '—';
   document.getElementById('f-cargo').textContent = textoOGuion(t.cargo);
+
+  // Autocompletar campos de la ficha con datos del trabajador (si están vacíos)
+  const setSiVacio = (id, val) => {
+    const el = document.getElementById(id);
+    if (el && !el.value && val) el.value = val;
+  };
+  setSiVacio('fp_nacionalidad', 'Ecuatoriano');
+  if (t.correo) setSiVacio('fp_correo', t.correo);
 }
 
 async function buscarTrabajadorFormulario() {
@@ -502,11 +508,46 @@ async function guardarFicha() {
     tipo: document.getElementById('fp_tipo').value,
     modalidad: document.getElementById('fp_modalidad').value || null,
     motivo_remision: valor('fp_remision'),
+    // Datos complementarios
+    nacionalidad: valor('fp_nacionalidad'),
+    lugar_nacimiento: valor('fp_lugar_nac'),
+    correo: valor('fp_correo'),
+    domicilio: valor('fp_domicilio'),
+    num_hijos: parseInt(document.getElementById('fp_hijos').value, 10) || null,
+    nivel_instruccion: valor('fp_instruccion'),
+    titulo_obtenido: valor('fp_titulo'),
+    grupo_etnico: valor('fp_etnico'),
+    religion: valor('fp_religion'),
+    // Antecedentes
+    app: valor('fp_app'),
+    apf: valor('fp_apf'),
+    aqt: valor('fp_aqt'),
+    apq: valor('fp_apq'),
+    tipo_discapacidad: valor('fp_discapacidad'),
+    porcentaje_discapacidad: valor('fp_porcentaje'),
+    // Hábitos
+    habito_alcohol: valor('fp_alcohol'),
+    habito_cigarrillo: valor('fp_cigarrillo'),
+    habito_drogas: valor('fp_drogas'),
+    habito_juegos: valor('fp_juegos'),
+    // Clínico
     motivo_consulta: valor('fp_motivo'),
-    antecedentes: valor('fp_antecedentes'),
-    evaluacion: valor('fp_evaluacion'),
+    entrevista: valor('fp_entrevista'),
+    // Evaluación mental
+    em_orientacion: valor('fp_orientacion'),
+    em_pensamiento: valor('fp_pensamiento'),
+    em_lenguaje: valor('fp_lenguaje'),
+    em_sensopercepciones: valor('fp_sensopercepciones'),
+    em_memoria: valor('fp_memoria'),
+    em_emociones: valor('fp_emociones'),
+    em_sueno: valor('fp_sueno'),
+    em_apetito: valor('fp_apetito'),
+    em_deseo_sexual: valor('fp_deseo_sexual'),
+    // Cierre
+    test_aplicados: valor('fp_tests'),
+    observaciones: valor('fp_observaciones'),
     impresion_dx: valor('fp_impresion'),
-    plan_intervencion: valor('fp_plan'),
+    recomendaciones: valor('fp_recomendaciones'),
     proxima_cita: document.getElementById('fp_proxima').value || null,
     estado: document.getElementById('fp_estado').value
   };
@@ -529,8 +570,16 @@ function valor(id) {
 }
 
 function limpiarFormulario() {
-  ['fp_motivo', 'fp_antecedentes', 'fp_evaluacion', 'fp_impresion', 'fp_plan',
-   'fp_proxima'].forEach((id) => { document.getElementById(id).value = ''; });
+  ['fp_motivo', 'fp_entrevista', 'fp_impresion', 'fp_proxima',
+   'fp_nacionalidad', 'fp_lugar_nac', 'fp_correo', 'fp_hijos', 'fp_instruccion',
+   'fp_titulo', 'fp_etnico', 'fp_religion', 'fp_domicilio',
+   'fp_app', 'fp_apf', 'fp_aqt', 'fp_apq', 'fp_discapacidad', 'fp_porcentaje',
+   'fp_alcohol', 'fp_cigarrillo', 'fp_drogas', 'fp_juegos',
+   'fp_orientacion', 'fp_pensamiento', 'fp_lenguaje', 'fp_sensopercepciones',
+   'fp_memoria', 'fp_emociones', 'fp_sueno', 'fp_apetito', 'fp_deseo_sexual',
+   'fp_tests', 'fp_observaciones', 'fp_recomendaciones'].forEach((id) => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
   document.getElementById('fp_tipo').value = 'asistencial';
   document.getElementById('fp_modalidad').value = 'individual';
   document.getElementById('fp_remision').value = '';
@@ -605,12 +654,41 @@ function imprimirFicha() {
         <p>Fecha: ${formatearFecha(f.fecha)} · Tipo: ${TIPOS[f.tipo] || f.tipo} · Modalidad: ${escapar(textoOGuion(f.modalidad))}</p>
       </header>
       ${bloqueImpr('Cargo', textoOGuion(f.cargo))}
+      ${bloqueImpr('Nacionalidad', f.nacionalidad)}
+      ${bloqueImpr('Lugar de nacimiento', f.lugar_nacimiento)}
+      ${bloqueImpr('Correo', f.correo)}
+      ${bloqueImpr('Domicilio', f.domicilio)}
+      ${f.num_hijos != null ? bloqueImpr('N° de hijos', String(f.num_hijos)) : ''}
+      ${bloqueImpr('Nivel de instrucción', f.nivel_instruccion)}
+      ${bloqueImpr('Título obtenido', f.titulo_obtenido)}
+      ${bloqueImpr('Grupo étnico', f.grupo_etnico)}
+      ${bloqueImpr('Religión', f.religion)}
+      ${bloqueImpr('APP · Personales patológicos', f.app)}
+      ${bloqueImpr('APF · Familiares', f.apf)}
+      ${bloqueImpr('AQT · Quirúrgicos / traumáticos', f.aqt)}
+      ${bloqueImpr('APQ · Psiquiátricos', f.apq)}
+      ${bloqueImpr('Tipo de discapacidad', f.tipo_discapacidad)}
+      ${bloqueImpr('Porcentaje discapacidad', f.porcentaje_discapacidad)}
+      ${bloqueImpr('Hábito · Alcohol', f.habito_alcohol)}
+      ${bloqueImpr('Hábito · Cigarrillo', f.habito_cigarrillo)}
+      ${bloqueImpr('Hábito · Drogas', f.habito_drogas)}
+      ${bloqueImpr('Hábito · Juegos de azar', f.habito_juegos)}
       ${bloqueImpr('Motivo de remisión', f.motivo_remision)}
       ${bloqueImpr('Motivo de consulta', f.motivo_consulta)}
-      ${bloqueImpr('Antecedentes', f.antecedentes)}
-      ${bloqueImpr('Evaluación / observaciones', f.evaluacion)}
-      ${bloqueImpr('Impresión diagnóstica', f.impresion_dx)}
-      ${bloqueImpr('Plan / intervención', f.plan_intervencion)}
+      ${bloqueImpr('Entrevista psicológica', f.entrevista)}
+      ${bloqueImpr('Orientación', f.em_orientacion)}
+      ${bloqueImpr('Pensamiento', f.em_pensamiento)}
+      ${bloqueImpr('Lenguaje', f.em_lenguaje)}
+      ${bloqueImpr('Sensopercepciones', f.em_sensopercepciones)}
+      ${bloqueImpr('Memoria', f.em_memoria)}
+      ${bloqueImpr('Emociones', f.em_emociones)}
+      ${bloqueImpr('Sueño', f.em_sueno)}
+      ${bloqueImpr('Apetito', f.em_apetito)}
+      ${bloqueImpr('Deseo sexual', f.em_deseo_sexual)}
+      ${bloqueImpr('Test aplicados', f.test_aplicados)}
+      ${bloqueImpr('Observaciones', f.observaciones)}
+      ${bloqueImpr('Diagnóstico presuntivo', f.impresion_dx)}
+      ${bloqueImpr('Recomendaciones', f.recomendaciones)}
       ${bloqueImpr('Estado del caso', f.estado)}
       ${f.proxima_cita ? bloqueImpr('Próxima cita', formatearFecha(f.proxima_cita)) : ''}
       <div class="hoja-firma">
