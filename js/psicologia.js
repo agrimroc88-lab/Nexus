@@ -592,6 +592,13 @@ function imprimirFicha() {
   const $zona = document.getElementById('zona-impresion');
   $zona.innerHTML = `
     <div class="hoja">
+      <div class="membrete">
+        <img src="logo.png" class="membrete-logo" alt="">
+        <div class="membrete-datos">
+          <strong>${escapar(f.empresa || 'AGRIMROC S.A.')}</strong>
+          <span>Unidad de Seguridad y Salud Ocupacional</span>
+        </div>
+      </div>
       <header class="hoja-cabecera">
         <h1>Ficha de Evaluación Psicológica Ocupacional</h1>
         <p>${escapar(f.nombre_completo)} · Código ${f.codigo_trabajador} · Cédula ${escapar(f.cedula)}</p>
