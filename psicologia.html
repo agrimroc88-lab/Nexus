@@ -27,27 +27,27 @@
       body > .contenedor,
       .modal { display: none !important; }
       .zona-impresion { display: block !important; }
-      @page { margin: 1.2cm; }
+      @page { margin: 0.8cm 1cm; }
       .membrete { display: none !important; }
-      .fp-hoja { display: block !important; font-family: Arial, Helvetica, sans-serif; color: #000; font-size: 9.5pt; }
-      .fp-encabezado { display: flex; align-items: center; gap: 1rem; border-bottom: 2px solid #1b5e20; padding-bottom: 0.5rem; margin-bottom: 0.6rem; }
-      .fp-logo { height: 60px; width: auto; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .fp-titulo-empresa { display: flex; flex-direction: column; line-height: 1.25; }
-      .fp-titulo-empresa strong { font-size: 13pt; color: #1b5e20; }
-      .fp-titulo-empresa span { font-size: 9pt; }
-      .fp-titulo-empresa h1 { font-size: 13pt; margin: 0.2rem 0 0; text-align: left; }
-      .fp-seccion-h { background: #1b5e20; color: #fff; font-weight: bold; padding: 3px 8px; margin: 0.6rem 0 0; font-size: 10pt;
+      .fp-hoja { display: block !important; font-family: Arial, Helvetica, sans-serif; color: #000; font-size: 9pt; }
+      .fp-encabezado { display: flex; align-items: center; gap: 0.8rem; border-bottom: 2px solid #1b5e20; padding-bottom: 0.35rem; margin-bottom: 0.4rem; }
+      .fp-logo { height: 52px; width: auto; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .fp-titulo-empresa { display: flex; flex-direction: column; line-height: 1.15; }
+      .fp-titulo-empresa strong { font-size: 12pt; color: #1b5e20; }
+      .fp-titulo-empresa span { font-size: 8.5pt; }
+      .fp-titulo-empresa h1 { font-size: 12pt; margin: 0.1rem 0 0; text-align: left; }
+      .fp-seccion-h { background: #1b5e20; color: #fff; font-weight: bold; padding: 2px 8px; margin: 0.35rem 0 0; font-size: 9.5pt;
         -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .fp-tabla { width: 100%; border-collapse: collapse; margin-bottom: 0.3rem; }
-      .fp-tabla td { border: 1px solid #333; padding: 3px 6px; vertical-align: top; }
+      .fp-tabla { width: 100%; border-collapse: collapse; margin-bottom: 0.15rem; }
+      .fp-tabla td { border: 1px solid #333; padding: 2px 5px; vertical-align: top; }
       .fp-lbl { background: #e6f0e6; font-weight: bold; white-space: nowrap; width: 1%;
         -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .fp-campo-largo { border: 1px solid #333; padding: 4px 6px; margin: 0.35rem 0; }
-      .fp-campo-largo strong { display: block; margin-bottom: 2px; }
-      .fp-campo-largo p { margin: 0; min-height: 18px; white-space: pre-wrap; }
-      .fp-firma { margin-top: 3rem; text-align: center; width: 60%; margin-left: auto; margin-right: auto; }
-      .fp-firma-linea { border-top: 1px solid #000; margin-bottom: 0.3rem; }
-      .fp-firma p { margin: 0; font-size: 10pt; }
+      .fp-campo-largo { border: 1px solid #333; padding: 3px 6px; margin: 0.2rem 0; }
+      .fp-campo-largo strong { display: block; margin-bottom: 1px; }
+      .fp-campo-largo p { margin: 0; min-height: 15px; white-space: pre-wrap; }
+      .fp-firma { margin-top: 1.8rem; text-align: center; width: 55%; margin-left: auto; margin-right: auto; }
+      .fp-firma-linea { border-top: 1px solid #000; margin-bottom: 0.25rem; }
+      .fp-firma p { margin: 0; font-size: 9.5pt; }
       /* Ocultar cualquier otra hoja al imprimir ficha */
       .hoja { display: none !important; }
     }
@@ -576,6 +576,6 @@
   <!-- Área de impresión: se llena al imprimir y solo es visible en @media print -->
   <div id="zona-impresion" class="zona-impresion" aria-hidden="true"></div>
 
-  <script type="module" src="js/psicologia.js?v=4"></script>
+  <script type="module" src="js/psicologia.js?v=5"></script>
 </body>
 </html>
