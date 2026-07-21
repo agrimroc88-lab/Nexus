@@ -38,10 +38,7 @@ async function iniciar() {
   }
   estado.perfil = perfil;
 
-  montarNavegacion();
-  document.getElementById('usuario-nombre').textContent =
-    [perfil.nombres, perfil.apellidos].filter(Boolean).join(' ') || perfil.cedula || '';
-  document.getElementById('usuario-rol').textContent = perfil.rol || '';
+  montarNavegacion(perfil, 'trabajo_social');
 
   await cargarEmpresas();
   conectarEventos();
@@ -73,14 +70,6 @@ function conectarEventos() {
 
   document.querySelectorAll('.pestana').forEach((p) =>
     p.addEventListener('click', () => cambiarVista(p.dataset.vista)));
-
-  document.getElementById('btn-salir').addEventListener('click', async () => {
-    const { cerrarSesion } = await import('./auth.js');
-    cerrarSesion();
-  });
-  const $menu = document.getElementById('btn-menu');
-  if ($menu) $menu.addEventListener('click', () =>
-    document.getElementById('barra-lateral').classList.toggle('abierta'));
 
   document.querySelectorAll('[data-cierra]').forEach((b) =>
     b.addEventListener('click', () => document.getElementById(b.dataset.cierra).hidden = true));
