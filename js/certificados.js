@@ -403,6 +403,35 @@ function finReposo(inicioStr, dias) {
   return d.toLocaleDateString('es-EC', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+/* Buscar por NOMBRE de la enfermedad en el campo diagnóstico.
+   Al elegir, llena la descripción Y el código CIE-10. */
+const buscarDiagCert = retrasar(async () => {
+  const texto = document.getElementById('ce_diagnostico').value.trim();
+  const $sug = document.getElementById('ce_diag_sug');
+  if (texto.length < 2) { $sug.hidden = true; return; }
+
+  const { data } = await supabase
+    .from('cie10').select('codigo, descripcion')
+    .ilike('descripcion', '%' + texto + '%')
+    .limit(8);
+
+  if (!data || data.length === 0) { $sug.hidden = true; return; }
+  $sug.innerHTML = '';
+  data.forEach((c) => {
+    const b = document.createElement('button');
+    b.className = 'sugerencia'; b.type = 'button';
+    b.innerHTML = `<span class="cie-chip">${escapar(c.codigo)}</span>
+                   <span class="sugerencia-nombre">${escapar(c.descripcion)}</span>`;
+    b.addEventListener('click', () => {
+      document.getElementById('ce_diagnostico').value = c.descripcion;
+      document.getElementById('ce_cie').value = c.codigo;  // llena el CIE-10
+      $sug.hidden = true;
+    });
+    $sug.appendChild(b);
+  });
+  $sug.hidden = false;
+}, 350);
+
 const buscarCieCert = retrasar(async () => {
   const texto = document.getElementById('ce_cie').value.trim();
   const $sug = document.getElementById('ce_cie_sug');
@@ -630,6 +659,7 @@ function conectarEventos() {
   document.getElementById('btn-eliminar-cert').addEventListener('click', eliminarCertificado);
   document.getElementById('ce_codigo').addEventListener('input', buscarTrabajadorCert);
   document.getElementById('ce_cie').addEventListener('input', buscarCieCert);
+  document.getElementById('ce_diagnostico').addEventListener('input', buscarDiagCert);
   document.getElementById('ce_reubica').addEventListener('change', ajustarReubica);
   document.getElementById('ce_reposo_dias').addEventListener('input', calcularReposoFin);
   document.getElementById('ce_reposo_inicio').addEventListener('change', calcularReposoFin);
