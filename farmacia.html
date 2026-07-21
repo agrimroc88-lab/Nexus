@@ -9,6 +9,40 @@
   <link rel="stylesheet" href="css/empresas.css">
   <link rel="stylesheet" href="css/trabajadores.css">
   <link rel="stylesheet" href="css/farmacia.css">
+  <style>
+    /* Orden de compra */
+    .orden-acciones {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;
+    }
+    .orden-info { font-size: 0.85rem; color: var(--color-texto-tenue, #667); margin: 0; flex: 1; min-width: 200px; }
+
+    /* Zona de impresión: oculta en pantalla */
+    .orden-impresion { display: none; }
+
+    @media print {
+      /* Al imprimir la orden, ocultar todo menos la hoja de la orden */
+      body.imprimiendo-orden > .barra-lateral,
+      body.imprimiendo-orden > .contenedor,
+      body.imprimiendo-orden .modal { display: none !important; }
+      body.imprimiendo-orden .orden-impresion { display: block !important; }
+      @page { margin: 1.5cm; }
+
+      .oc-hoja { font-family: 'Times New Roman', Georgia, serif; color: #000; }
+      .oc-cabecera { display: flex; align-items: center; gap: 1rem; border-bottom: 2px solid #1b5e20; padding-bottom: 0.8rem; margin-bottom: 1rem; }
+      .oc-logo { height: 70px; width: auto; }
+      .oc-cabecera h1 { font-size: 14pt; margin: 0 0 0.3rem; color: #1b5e20; }
+      .oc-cabecera p { margin: 0.1rem 0; font-size: 10.5pt; }
+      .oc-datos { display: flex; justify-content: space-between; margin-bottom: 1rem; font-size: 11pt; }
+      .oc-tabla { width: 100%; border-collapse: collapse; font-size: 10.5pt; }
+      .oc-tabla th, .oc-tabla td { border: 1px solid #333; padding: 6px 8px; }
+      .oc-tabla th { background: #e6f0e6; text-align: left; }
+      .oc-firmas { display: flex; justify-content: space-around; margin-top: 4rem; }
+      .oc-firma { text-align: center; width: 40%; }
+      .oc-linea { border-top: 1px solid #000; margin-bottom: 0.3rem; }
+      .oc-firma p { margin: 0; font-size: 10.5pt; }
+    }
+  </style>
 </head>
 <body class="app">
 
@@ -70,6 +104,7 @@
           <button class="pestana activa" data-vista="existencias" type="button">Existencias</button>
           <button class="pestana" data-vista="lotes" type="button">Lotes</button>
           <button class="pestana" data-vista="kardex" type="button">Kárdex</button>
+          <button class="pestana" data-vista="orden" type="button">Orden de compra</button>
         </nav>
 
         <!-- Vista: Existencias -->
@@ -186,6 +221,36 @@
             <p class="vacio" id="vacio-kardex" hidden>Sin movimientos registrados.</p>
           </div>
         </section>
+
+        <!-- Vista: Orden de compra -->
+        <section class="vista" id="vista-orden" hidden>
+          <div class="orden-acciones">
+            <p class="orden-info">Medicamentos por debajo del stock mínimo. La cantidad sugerida es la necesaria para alcanzar el stock óptimo.</p>
+            <button class="boton-secundario" id="btn-imprimir-orden" type="button">Imprimir orden</button>
+          </div>
+
+          <div class="panel">
+            <div class="tabla-envoltura">
+              <table class="tabla">
+                <thead>
+                  <tr>
+                    <th>Medicamento</th>
+                    <th>Presentación</th>
+                    <th class="celda-centro">Stock actual</th>
+                    <th class="celda-centro">Mínimo</th>
+                    <th class="celda-centro">Óptimo</th>
+                    <th class="celda-centro">Cantidad a pedir</th>
+                  </tr>
+                </thead>
+                <tbody id="cuerpo-orden"></tbody>
+              </table>
+            </div>
+            <p class="vacio" id="vacio-orden" hidden>No hay medicamentos por debajo del mínimo. El botiquín está abastecido.</p>
+          </div>
+        </section>
+
+        <!-- Zona de impresión de la orden (oculta en pantalla) -->
+        <div class="orden-impresion" id="orden-impresion"></div>
 
       </div>
 
@@ -425,6 +490,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/farmacia.js"></script>
+  <script type="module" src="js/farmacia.js?v=2"></script>
 </body>
 </html>
