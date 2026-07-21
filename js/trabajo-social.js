@@ -513,13 +513,13 @@ function htmlFichaSocial(f) {
 function htmlRegistroPersonal(f) {
   return `
   <div class="doc-hoja doc-registro">
-    <div class="doc-foto">FOTO<br>tamaño<br>carnet</div>
     <div class="doc-encabezado">
       <img src="logo.png" class="doc-logo" alt="">
       <div class="doc-titulo-empresa">
         <strong>AGRIMROC S.A.</strong>
         <h1>REGISTRO DE PERSONAL</h1>
       </div>
+      <div class="doc-foto">FOTO<br>tamaño<br>carnet</div>
     </div>
 
     <div class="doc-seccion-h">Datos Personales</div>
