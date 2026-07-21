@@ -74,11 +74,22 @@ function conectarEventos() {
   document.querySelectorAll('[data-cierra]').forEach((b) =>
     b.addEventListener('click', () => document.getElementById(b.dataset.cierra).hidden = true));
 
-  document.getElementById('ts-buscar').addEventListener('input', (e) => buscarTrabajador(e));
-  document.getElementById('ts_codigo').addEventListener('input', retrasar(buscarPorCodigo, 350));
+  document.getElementById('btn-buscar').addEventListener('click', buscarPaciente);
+  document.getElementById('busca_codigo').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') buscarPaciente();
+  });
+  document.getElementById('busca_nombre').addEventListener('input', retrasar(buscarPorNombre, 200));
+  document.getElementById('btn-nueva-ficha').addEventListener('click', abrirFichaNueva);
+  document.getElementById('btn-historial').addEventListener('click', alternarHistorial);
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#busca_nombre') && !e.target.closest('#busca_sugerencias')) {
+      document.getElementById('busca_sugerencias').hidden = true;
+    }
+  });
+
   document.getElementById('guardar-ficha').addEventListener('click', guardarFicha);
   document.getElementById('btn-add-familiar').addEventListener('click', () => agregarFilaFamiliar());
-
   document.getElementById('btn-imprimir-social').addEventListener('click', () => imprimirDocumento('social'));
   document.getElementById('btn-imprimir-registro').addEventListener('click', () => imprimirDocumento('registro'));
 }
@@ -102,59 +113,96 @@ function cambiarVista(v) {
 }
 
 /* ============================================
-   Buscar trabajador
+   Buscar trabajador (igual que psicología)
    ============================================ */
 
-const buscarTrabajador = retrasar(async () => {
-  const texto = document.getElementById('ts-buscar').value.trim();
-  const $sug = document.getElementById('ts-sugerencias');
-  if (texto.length < 2) { $sug.hidden = true; return; }
-
-  const { data } = await supabase
-    .from('v_trabajadores').select('id, codigo, nombre_completo, cedula, cargo')
-    .eq('empresa_id', estado.empresaId)
-    .or(`nombres.ilike.%${texto}%,apellidos.ilike.%${texto}%,cedula.ilike.%${texto}%`)
-    .limit(8);
-
-  if (!data || data.length === 0) { $sug.hidden = true; return; }
-  $sug.innerHTML = '';
-  data.forEach((t) => {
-    const b = document.createElement('button');
-    b.className = 'sugerencia'; b.type = 'button';
-    b.innerHTML = `<span class="cie-chip">${t.codigo}</span> ${escapar(t.nombre_completo)} · ${escapar(t.cedula || '')}`;
-    b.addEventListener('click', () => {
-      $sug.hidden = true;
-      document.getElementById('ts-buscar').value = t.nombre_completo;
-      abrirFicha(t.id);
-    });
-    $sug.appendChild(b);
-  });
-  $sug.hidden = false;
-}, 350);
-
-async function buscarPorCodigo() {
-  const codigo = parseInt(document.getElementById('ts_codigo').value, 10);
-  const $ayuda = document.getElementById('ts-ayuda');
-  if (!codigo) { ocultarFichaTrabajador(); return; }
+async function buscarPaciente() {
+  const codigo = parseInt(document.getElementById('busca_codigo').value, 10);
+  const $ayuda = document.getElementById('ayuda-busca');
+  if (!codigo) { $ayuda.textContent = 'Escriba un código.'; return; }
 
   const { data } = await supabase
     .from('v_trabajadores').select('*')
     .eq('empresa_id', estado.empresaId).eq('codigo', codigo).maybeSingle();
 
-  if (!data) {
-    $ayuda.textContent = 'No existe un trabajador con ese código.';
-    ocultarFichaTrabajador();
-    return;
-  }
+  if (!data) { $ayuda.textContent = 'No existe un trabajador con ese código.'; ocultarPaciente(); return; }
   $ayuda.textContent = '';
-  estado.paciente = data;
-  mostrarFichaTrabajador(data);
+  mostrarPaciente(data);
 }
 
-function ocultarFichaTrabajador() {
-  document.getElementById('ts-ficha').hidden = true;
-  document.getElementById('ts-bloque').hidden = true;
+async function buscarPorNombre() {
+  const texto = document.getElementById('busca_nombre').value.trim();
+  const $cont = document.getElementById('busca_sugerencias');
+  if (texto.length < 2) { $cont.hidden = true; return; }
+
+  const { data } = await supabase
+    .from('v_trabajadores').select('id, codigo, nombre_completo, cedula')
+    .eq('empresa_id', estado.empresaId)
+    .or(`nombres.ilike.%${texto}%,apellidos.ilike.%${texto}%,cedula.ilike.%${texto}%`)
+    .limit(8);
+
+  if (!data || data.length === 0) { $cont.hidden = true; return; }
+  $cont.innerHTML = '';
+  data.forEach((t) => {
+    const b = document.createElement('button');
+    b.className = 'sugerencia'; b.type = 'button';
+    b.dataset.codigo = t.codigo;
+    b.innerHTML = `<span class="cie-chip">${t.codigo}</span> ${escapar(t.nombre_completo)} · ${escapar(t.cedula || '')}`;
+    b.addEventListener('click', () => {
+      document.getElementById('busca_codigo').value = b.dataset.codigo;
+      document.getElementById('busca_nombre').value = '';
+      $cont.hidden = true;
+      buscarPaciente();
+    });
+    $cont.appendChild(b);
+  });
+  $cont.hidden = false;
+}
+
+function ocultarPaciente() {
+  document.getElementById('paciente').hidden = true;
   estado.paciente = null;
+}
+
+function mostrarPaciente(t) {
+  estado.paciente = t;
+  document.getElementById('paciente').hidden = false;
+  document.getElementById('aviso-ficha').hidden = true;
+  document.getElementById('p-nombre').textContent = t.nombre_completo;
+  document.getElementById('p-meta').textContent =
+    `Código ${t.codigo} · Cédula ${t.cedula || '—'} · ${t.edad != null ? t.edad + ' años' : ''} · ${textoOGuion(t.cargo)}`;
+  document.getElementById('p-historial').hidden = true;
+}
+
+function alternarHistorial() {
+  const $h = document.getElementById('p-historial');
+  $h.hidden = !$h.hidden;
+  if (!$h.hidden) pintarHistorial();
+}
+
+function pintarHistorial() {
+  const $lista = document.getElementById('p-lista');
+  const propias = estado.fichas.filter((f) => f.trabajador_id === estado.paciente.id);
+  if (propias.length === 0) { $lista.innerHTML = '<p class="ayuda">Sin fichas previas.</p>'; return; }
+  $lista.innerHTML = '';
+  propias.forEach((f) => {
+    const div = document.createElement('div');
+    div.className = 'evento-item';
+    div.innerHTML = `<span class="evento-dia">${formatearFecha(f.fecha)}</span>
+      <button class="boton-secundario boton-compacto" type="button">Ver / imprimir</button>`;
+    div.querySelector('button').addEventListener('click', () => verFicha(f.id));
+    $lista.appendChild(div);
+  });
+}
+
+function abrirFichaNueva() {
+  if (!estado.paciente) return;
+  limpiarFormulario();
+  document.getElementById('ts_codigo').value = estado.paciente.codigo;
+  document.getElementById('ts_fecha').value = HOY();
+  mostrarFichaTrabajador(estado.paciente);
+  document.getElementById('titulo-modal').textContent = 'Ficha de Trabajo Social · ' + estado.paciente.nombre_completo;
+  document.getElementById('modal-ficha').hidden = false;
 }
 
 function mostrarFichaTrabajador(t) {
@@ -170,24 +218,6 @@ function mostrarFichaTrabajador(t) {
   setSiVacio('ts_nacionalidad', 'Ecuatoriano');
   if (t.correo) setSiVacio('ts_correo', t.correo);
   if (t.tipo_sangre) setSiVacio('ts_disc_sangre', t.tipo_sangre);
-}
-
-/* ============================================
-   Abrir ficha (nueva) desde buscador de nombre
-   ============================================ */
-
-async function abrirFicha(trabajadorId) {
-  const { data } = await supabase
-    .from('v_trabajadores').select('*')
-    .eq('id', trabajadorId).maybeSingle();
-  if (!data) return;
-  estado.paciente = data;
-  limpiarFormulario();
-  document.getElementById('ts_codigo').value = data.codigo;
-  document.getElementById('ts_fecha').value = HOY();
-  mostrarFichaTrabajador(data);
-  document.getElementById('titulo-modal').textContent = 'Ficha de Trabajo Social · ' + data.nombre_completo;
-  document.getElementById('modal-ficha').hidden = false;
 }
 
 /* ============================================
