@@ -816,6 +816,11 @@ function pintarInsumos() {
       rep.addEventListener('click', () => reponerInsumo(i));
       acc.appendChild(rep);
 
+      const sal = document.createElement('button');
+      sal.className = 'boton-icono'; sal.textContent = 'Salida';
+      sal.addEventListener('click', () => salidaInsumo(i));
+      acc.appendChild(sal);
+
       const ed = document.createElement('button');
       ed.className = 'boton-icono'; ed.textContent = 'Editar';
       ed.addEventListener('click', () => abrirInsumo(i));
@@ -847,6 +852,37 @@ async function reponerInsumo(insumo) {
   const { error } = await supabase.from('insumos').update({ stock_disponible: nuevo }).eq('id', insumo.id);
   if (error) { alert('No se pudo reponer: ' + error.message); return; }
   await supabase.from('insumos_kardex').insert({ insumo_id: insumo.id, tipo: 'entrada', cantidad: n, nota: 'Reposición' });
+  await cargarInsumos();
+  pintarInsumos();
+}
+
+async function salidaInsumo(insumo) {
+  const motivos = { '1': 'Consumo', '2': 'Caducado', '3': 'Dañado', '4': 'Perdido' };
+  const op = prompt(
+    `Salida de "${insumo.nombre}" (stock actual: ${insumo.stock_disponible}).\n\n` +
+    `Motivo:\n1 = Consumo (usado en consulta)\n2 = Caducado\n3 = Dañado\n4 = Perdido\n\n` +
+    `Escriba el número del motivo:`);
+  if (op === null) return;
+  const motivo = motivos[op.trim()];
+  if (!motivo) { alert('Motivo no válido. Escriba 1, 2, 3 o 4.'); return; }
+
+  const cant = prompt(`¿Cuántas unidades salen por "${motivo}"?`);
+  if (cant === null) return;
+  const n = parseInt(cant, 10);
+  if (isNaN(n) || n <= 0) { alert('Cantidad no válida.'); return; }
+  if (n > Number(insumo.stock_disponible)) {
+    alert(`No puede sacar ${n}: solo hay ${insumo.stock_disponible} disponibles.`);
+    return;
+  }
+
+  const nuevo = Number(insumo.stock_disponible) - n;
+  const { error } = await supabase.from('insumos').update({ stock_disponible: nuevo }).eq('id', insumo.id);
+  if (error) { alert('No se pudo registrar la salida: ' + error.message); return; }
+  await supabase.from('insumos_kardex').insert({
+    insumo_id: insumo.id,
+    tipo: op.trim() === '1' ? 'salida_consumo' : 'baja_' + motivo.toLowerCase(),
+    cantidad: n, nota: motivo
+  });
   await cargarInsumos();
   pintarInsumos();
 }
