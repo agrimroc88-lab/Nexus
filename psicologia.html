@@ -11,6 +11,13 @@
   <link rel="stylesheet" href="css/atenciones.css">
   <link rel="stylesheet" href="css/psicologia.css">
   <style>
+    .seccion-titulo {
+      font-size: 0.95rem;
+      color: var(--color-acento-oscuro, #00450d);
+      border-bottom: 1px solid var(--color-borde, #e2e8e2);
+      padding-bottom: 0.3rem;
+      margin: 1.25rem 0 0.75rem;
+    }
     .membrete { display: none; }
     @media print {
       .membrete { display: flex !important; align-items: center; gap: 1rem;
@@ -277,30 +284,161 @@
 
         <!-- Cuerpo clínico -->
         <div id="bloque-clinico" hidden>
+
+          <h3 class="seccion-titulo">Datos complementarios</h3>
+          <div class="rejilla">
+            <div class="campo">
+              <label class="etiqueta" for="fp_nacionalidad">Nacionalidad</label>
+              <input class="entrada" id="fp_nacionalidad" type="text" placeholder="Ecuatoriano">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="fp_lugar_nac">Lugar de nacimiento</label>
+              <input class="entrada" id="fp_lugar_nac" type="text">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="fp_correo">Correo electrónico</label>
+              <input class="entrada" id="fp_correo" type="email">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="fp_hijos">N° de hijos</label>
+              <input class="entrada" id="fp_hijos" type="number" min="0">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="fp_instruccion">Nivel de instrucción</label>
+              <input class="entrada" id="fp_instruccion" type="text" placeholder="Primaria, secundaria, superior…">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="fp_titulo">Título o grado obtenido</label>
+              <input class="entrada" id="fp_titulo" type="text">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="fp_etnico">Grupo étnico</label>
+              <input class="entrada" id="fp_etnico" type="text">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="fp_religion">Religión</label>
+              <input class="entrada" id="fp_religion" type="text">
+            </div>
+            <div class="campo campo-ancho">
+              <label class="etiqueta" for="fp_domicilio">Domicilio actual</label>
+              <input class="entrada" id="fp_domicilio" type="text">
+            </div>
+          </div>
+
+          <h3 class="seccion-titulo">Antecedentes</h3>
+          <div class="rejilla">
+            <div class="campo">
+              <label class="etiqueta" for="fp_app">APP · Personales patológicos</label>
+              <input class="entrada" id="fp_app" type="text">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="fp_apf">APF · Familiares</label>
+              <input class="entrada" id="fp_apf" type="text">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="fp_aqt">AQT · Quirúrgicos / traumáticos</label>
+              <input class="entrada" id="fp_aqt" type="text">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="fp_apq">APQ · Psiquiátricos</label>
+              <input class="entrada" id="fp_apq" type="text">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="fp_discapacidad">Tipo de discapacidad</label>
+              <input class="entrada" id="fp_discapacidad" type="text">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="fp_porcentaje">Porcentaje</label>
+              <input class="entrada" id="fp_porcentaje" type="text" placeholder="%">
+            </div>
+          </div>
+
+          <h3 class="seccion-titulo">Hábitos</h3>
+          <div class="rejilla">
+            <div class="campo">
+              <label class="etiqueta" for="fp_alcohol">Alcohol</label>
+              <input class="entrada" id="fp_alcohol" type="text">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="fp_cigarrillo">Cigarrillo</label>
+              <input class="entrada" id="fp_cigarrillo" type="text">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="fp_drogas">Drogas</label>
+              <input class="entrada" id="fp_drogas" type="text">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="fp_juegos">Juegos de azar, etc.</label>
+              <input class="entrada" id="fp_juegos" type="text">
+            </div>
+          </div>
+
+          <h3 class="seccion-titulo">Evaluación clínica</h3>
           <div class="campo campo-ancho">
             <label class="etiqueta" for="fp_motivo">Motivo de consulta</label>
-            <textarea class="entrada area" id="fp_motivo" rows="2"
-                      placeholder="Motivo referido por el trabajador"></textarea>
+            <textarea class="entrada area" id="fp_motivo" rows="2"></textarea>
           </div>
           <div class="campo campo-ancho">
-            <label class="etiqueta" for="fp_antecedentes">Antecedentes</label>
-            <textarea class="entrada area" id="fp_antecedentes" rows="3"
-                      placeholder="Antecedentes personales, familiares y laborales relevantes"></textarea>
+            <label class="etiqueta" for="fp_entrevista">Entrevista psicológica</label>
+            <textarea class="entrada area" id="fp_entrevista" rows="3"></textarea>
+          </div>
+
+          <h3 class="seccion-titulo">Evaluación mental</h3>
+          <div class="rejilla">
+            <div class="campo">
+              <label class="etiqueta" for="fp_orientacion">Orientación</label>
+              <input class="entrada" id="fp_orientacion" type="text">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="fp_pensamiento">Pensamiento</label>
+              <input class="entrada" id="fp_pensamiento" type="text">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="fp_lenguaje">Lenguaje</label>
+              <input class="entrada" id="fp_lenguaje" type="text">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="fp_sensopercepciones">Sensopercepciones</label>
+              <input class="entrada" id="fp_sensopercepciones" type="text">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="fp_memoria">Memoria</label>
+              <input class="entrada" id="fp_memoria" type="text">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="fp_emociones">Emociones</label>
+              <input class="entrada" id="fp_emociones" type="text">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="fp_sueno">Sueño</label>
+              <input class="entrada" id="fp_sueno" type="text">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="fp_apetito">Apetito</label>
+              <input class="entrada" id="fp_apetito" type="text">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="fp_deseo_sexual">Deseo sexual</label>
+              <input class="entrada" id="fp_deseo_sexual" type="text">
+            </div>
+          </div>
+
+          <h3 class="seccion-titulo">Cierre</h3>
+          <div class="campo campo-ancho">
+            <label class="etiqueta" for="fp_tests">Test aplicados</label>
+            <textarea class="entrada area" id="fp_tests" rows="2"></textarea>
           </div>
           <div class="campo campo-ancho">
-            <label class="etiqueta" for="fp_evaluacion">Evaluación / observaciones</label>
-            <textarea class="entrada area" id="fp_evaluacion" rows="4"
-                      placeholder="Estado mental, pruebas aplicadas, observaciones clínicas"></textarea>
+            <label class="etiqueta" for="fp_observaciones">Observaciones</label>
+            <textarea class="entrada area" id="fp_observaciones" rows="2"></textarea>
           </div>
           <div class="campo campo-ancho">
-            <label class="etiqueta" for="fp_impresion">Impresión diagnóstica</label>
-            <textarea class="entrada area" id="fp_impresion" rows="2"
-                      placeholder="Impresión diagnóstica en texto libre"></textarea>
+            <label class="etiqueta" for="fp_impresion">Diagnóstico presuntivo</label>
+            <textarea class="entrada area" id="fp_impresion" rows="2"></textarea>
           </div>
           <div class="campo campo-ancho">
-            <label class="etiqueta" for="fp_plan">Plan / intervención</label>
-            <textarea class="entrada area" id="fp_plan" rows="3"
-                      placeholder="Plan terapéutico, recomendaciones, derivaciones"></textarea>
+            <label class="etiqueta" for="fp_recomendaciones">Recomendaciones</label>
+            <textarea class="entrada area" id="fp_recomendaciones" rows="3"></textarea>
           </div>
 
           <div class="rejilla">
@@ -406,6 +544,6 @@
   <!-- Área de impresión: se llena al imprimir y solo es visible en @media print -->
   <div id="zona-impresion" class="zona-impresion" aria-hidden="true"></div>
 
-  <script type="module" src="js/psicologia.js?v=2"></script>
+  <script type="module" src="js/psicologia.js?v=3"></script>
 </body>
 </html>
