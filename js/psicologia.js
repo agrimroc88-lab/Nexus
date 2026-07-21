@@ -549,7 +549,8 @@ async function guardarFicha() {
     impresion_dx: valor('fp_impresion'),
     recomendaciones: valor('fp_recomendaciones'),
     proxima_cita: document.getElementById('fp_proxima').value || null,
-    estado: document.getElementById('fp_estado').value
+    estado: document.getElementById('fp_estado').value,
+    registrado_por: nombrePsicologo()
   };
 
   const { error } = await supabase.from('fichas_psicologicas').insert(fila);
@@ -632,6 +633,13 @@ function cuerpoFicha(f) {
       ${f.proxima_cita ? `<div><span class="ver-etiqueta">Próxima cita</span> ${formatearFecha(f.proxima_cita)}</div>` : ''}
       ${f.registrado_por ? `<div><span class="ver-etiqueta">Registró</span> ${escapar(f.registrado_por)}</div>` : ''}
     </div>`;
+}
+
+function nombrePsicologo() {
+  const p = estado.perfil || {};
+  const nombre = [p.nombres, p.apellidos].filter(Boolean).join(' ').trim();
+  if (!nombre) return 'Psicólogo/a Clínico';
+  return p.registro_msp ? `${nombre} · Reg. ${p.registro_msp}` : nombre;
 }
 
 function imprimirFicha() {
@@ -733,7 +741,8 @@ function imprimirFicha() {
 
       <div class="fp-firma">
         <div class="fp-firma-linea"></div>
-        <p>${v(f.registrado_por || 'Psicólogo Clínico')}</p>
+        <p>${v(f.registrado_por || nombrePsicologo())}</p>
+        <p style="font-size:8.5pt; margin-top:2px;">Psicólogo/a Clínico</p>
       </div>
     </div>`;
   window.print();
