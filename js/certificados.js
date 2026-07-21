@@ -608,13 +608,102 @@ function bloque(etq, val) {
    Pestañas y empresa
    ============================================ */
 
+/* ============================================
+   Estadísticas
+   ============================================ */
+
+function poblarAniosEstadisticas() {
+  const $sel = document.getElementById('est-anio');
+  if ($sel.options.length > 0) return;  // ya poblado
+  const anios = new Set();
+  estado.certificados.forEach((c) => {
+    if (c.fecha_emision) anios.add(new Date(c.fecha_emision + 'T00:00').getFullYear());
+  });
+  const actual = new Date().getFullYear();
+  anios.add(actual);
+  [...anios].sort((a, b) => b - a).forEach((a) => {
+    const o = document.createElement('option');
+    o.value = a; o.textContent = a;
+    $sel.appendChild(o);
+  });
+  $sel.value = actual;
+}
+
+function pintarEstadisticas() {
+  poblarAniosEstadisticas();
+  const anio = parseInt(document.getElementById('est-anio').value, 10) || new Date().getFullYear();
+  const lista = estado.certificados.filter(
+    (c) => c.fecha_emision && new Date(c.fecha_emision + 'T00:00').getFullYear() === anio
+  );
+
+  // Tarjetas
+  const totalReposo = lista.reduce((s, c) => s + (parseInt(c.reposo_dias, 10) || 0), 0);
+  const reubic = lista.filter((c) => c.amerita_reubicacion).length;
+  const trabajadores = new Set(lista.map((c) => c.trabajador_id).filter(Boolean));
+
+  document.getElementById('est-total').textContent = lista.length;
+  document.getElementById('est-reposo').textContent = totalReposo;
+  document.getElementById('est-reubicaciones').textContent = reubic;
+  document.getElementById('est-trabajadores').textContent = trabajadores.size;
+
+  // Diagnósticos más frecuentes
+  const diag = {};
+  lista.forEach((c) => {
+    const clave = c.diagnostico || c.codigo_cie10 || 'Sin diagnóstico';
+    diag[clave] = (diag[clave] || 0) + 1;
+  });
+  pintarBarras('est-diagnosticos', Object.entries(diag).sort((a, b) => b[1] - a[1]).slice(0, 8), lista.length);
+
+  // Por origen
+  const orig = {};
+  lista.forEach((c) => { const o = ORIGENES[c.origen] || c.origen || 'Otro'; orig[o] = (orig[o] || 0) + 1; });
+  pintarBarras('est-origen', Object.entries(orig).sort((a, b) => b[1] - a[1]), lista.length);
+
+  // Por mes
+  const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+  const porMes = new Array(12).fill(0);
+  lista.forEach((c) => { porMes[new Date(c.fecha_emision + 'T00:00').getMonth()]++; });
+  const maxMes = Math.max(1, ...porMes);
+  pintarBarras('est-meses', meses.map((m, i) => [m, porMes[i]]), maxMes, true);
+
+  // Trabajadores con más certificados
+  const porTrab = {};
+  lista.forEach((c) => {
+    const nom = c.nombre_completo || ('Código ' + c.codigo_trabajador);
+    porTrab[nom] = (porTrab[nom] || 0) + 1;
+  });
+  pintarBarras('est-top-trab', Object.entries(porTrab).sort((a, b) => b[1] - a[1]).slice(0, 8), lista.length);
+}
+
+/* Dibuja una lista de barras horizontales simple (nombre + barra + número) */
+function pintarBarras(idCont, pares, maximo, mostrarTodos) {
+  const $c = document.getElementById(idCont);
+  $c.innerHTML = '';
+  const datos = mostrarTodos ? pares : pares.filter((p) => p[1] > 0);
+  if (datos.length === 0) {
+    $c.innerHTML = '<p class="est-vacio">Sin datos para este año.</p>';
+    return;
+  }
+  datos.forEach(([nombre, valor]) => {
+    const fila = document.createElement('div');
+    fila.className = 'est-fila';
+    const pct = maximo > 0 ? Math.round((valor / maximo) * 100) : 0;
+    fila.innerHTML =
+      `<span class="est-fila-nombre">${escapar(String(nombre))}</span>` +
+      `<span class="est-fila-barra"><span class="est-fila-relleno" style="width:${pct}%"></span></span>` +
+      `<span class="est-fila-valor">${valor}</span>`;
+    $c.appendChild(fila);
+  });
+}
+
 function cambiarVista(v) {
   estado.vista = v;
   document.querySelectorAll('.pestana').forEach((p) => p.classList.toggle('activa', p.dataset.vista === v));
-  ['certificados', 'ausentismo', 'config'].forEach((x) =>
+  ['certificados', 'ausentismo', 'estadisticas', 'config'].forEach((x) =>
     document.getElementById('vista-' + x).hidden = x !== v);
   if (v === 'certificados') pintarCertificados();
   if (v === 'ausentismo') pintarAusentismo();
+  if (v === 'estadisticas') pintarEstadisticas();
   if (v === 'config') pintarConfig();
 }
 
@@ -647,6 +736,11 @@ function conectarEventos() {
 
   document.querySelectorAll('.pestana').forEach((p) =>
     p.addEventListener('click', () => cambiarVista(p.dataset.vista)));
+
+  const $estAnio = document.getElementById('est-anio');
+  if ($estAnio) $estAnio.addEventListener('change', pintarEstadisticas);
+  const $btnImpEst = document.getElementById('btn-imprimir-est');
+  if ($btnImpEst) $btnImpEst.addEventListener('click', () => window.print());
 
   document.querySelectorAll('[data-cierra]').forEach((b) =>
     b.addEventListener('click', () => { document.getElementById(b.dataset.cierra).hidden = true; }));
