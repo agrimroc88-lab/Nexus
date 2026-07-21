@@ -638,62 +638,102 @@ function imprimirFicha() {
   const f = estado.fichas.find((x) => x.id === estado.verId);
   if (!f) return;
 
+  const v = (x) => escapar(x != null && x !== '' ? String(x) : '');
+  const sexo = f.sexo === 'M' ? 'M' : (f.sexo === 'F' ? 'F' : '');
+
   const $zona = document.getElementById('zona-impresion');
   $zona.innerHTML = `
-    <div class="hoja">
-      <div class="membrete">
-        <img src="logo.png" class="membrete-logo" alt="">
-        <div class="membrete-datos">
-          <strong>${escapar(f.empresa || 'AGRIMROC S.A.')}</strong>
-          <span>Unidad de Seguridad y Salud Ocupacional</span>
+    <div class="fp-hoja">
+      <div class="fp-encabezado">
+        <img src="logo.png" class="fp-logo" alt="">
+        <div class="fp-titulo-empresa">
+          <strong>AGRIMROC S.A.</strong>
+          <span>Departamento de Salud Mental y Apoyo Psicosocial</span>
+          <h1>FICHA PSICOLÓGICA</h1>
         </div>
       </div>
-      <header class="hoja-cabecera">
-        <h1>Ficha de Evaluación Psicológica Ocupacional</h1>
-        <p>${escapar(f.nombre_completo)} · Código ${f.codigo_trabajador} · Cédula ${escapar(f.cedula)}</p>
-        <p>Fecha: ${formatearFecha(f.fecha)} · Tipo: ${TIPOS[f.tipo] || f.tipo} · Modalidad: ${escapar(textoOGuion(f.modalidad))}</p>
-      </header>
-      ${bloqueImpr('Cargo', textoOGuion(f.cargo))}
-      ${bloqueImpr('Nacionalidad', f.nacionalidad)}
-      ${bloqueImpr('Lugar de nacimiento', f.lugar_nacimiento)}
-      ${bloqueImpr('Correo', f.correo)}
-      ${bloqueImpr('Domicilio', f.domicilio)}
-      ${f.num_hijos != null ? bloqueImpr('N° de hijos', String(f.num_hijos)) : ''}
-      ${bloqueImpr('Nivel de instrucción', f.nivel_instruccion)}
-      ${bloqueImpr('Título obtenido', f.titulo_obtenido)}
-      ${bloqueImpr('Grupo étnico', f.grupo_etnico)}
-      ${bloqueImpr('Religión', f.religion)}
-      ${bloqueImpr('APP · Personales patológicos', f.app)}
-      ${bloqueImpr('APF · Familiares', f.apf)}
-      ${bloqueImpr('AQT · Quirúrgicos / traumáticos', f.aqt)}
-      ${bloqueImpr('APQ · Psiquiátricos', f.apq)}
-      ${bloqueImpr('Tipo de discapacidad', f.tipo_discapacidad)}
-      ${bloqueImpr('Porcentaje discapacidad', f.porcentaje_discapacidad)}
-      ${bloqueImpr('Hábito · Alcohol', f.habito_alcohol)}
-      ${bloqueImpr('Hábito · Cigarrillo', f.habito_cigarrillo)}
-      ${bloqueImpr('Hábito · Drogas', f.habito_drogas)}
-      ${bloqueImpr('Hábito · Juegos de azar', f.habito_juegos)}
-      ${bloqueImpr('Motivo de remisión', f.motivo_remision)}
-      ${bloqueImpr('Motivo de consulta', f.motivo_consulta)}
-      ${bloqueImpr('Entrevista psicológica', f.entrevista)}
-      ${bloqueImpr('Orientación', f.em_orientacion)}
-      ${bloqueImpr('Pensamiento', f.em_pensamiento)}
-      ${bloqueImpr('Lenguaje', f.em_lenguaje)}
-      ${bloqueImpr('Sensopercepciones', f.em_sensopercepciones)}
-      ${bloqueImpr('Memoria', f.em_memoria)}
-      ${bloqueImpr('Emociones', f.em_emociones)}
-      ${bloqueImpr('Sueño', f.em_sueno)}
-      ${bloqueImpr('Apetito', f.em_apetito)}
-      ${bloqueImpr('Deseo sexual', f.em_deseo_sexual)}
-      ${bloqueImpr('Test aplicados', f.test_aplicados)}
-      ${bloqueImpr('Observaciones', f.observaciones)}
-      ${bloqueImpr('Diagnóstico presuntivo', f.impresion_dx)}
-      ${bloqueImpr('Recomendaciones', f.recomendaciones)}
-      ${bloqueImpr('Estado del caso', f.estado)}
-      ${f.proxima_cita ? bloqueImpr('Próxima cita', formatearFecha(f.proxima_cita)) : ''}
-      <div class="hoja-firma">
-        <div class="firma-linea"></div>
-        <p>${escapar(f.registrado_por || 'Profesional de Psicología')}</p>
+
+      <div class="fp-seccion-h">Datos de Identificación del Trabajador</div>
+      <table class="fp-tabla">
+        <tr>
+          <td class="fp-lbl">Apellidos y Nombres</td><td colspan="3">${v(f.nombre_completo)}</td>
+          <td class="fp-lbl">Cédula</td><td>${v(f.cedula)}</td>
+        </tr>
+        <tr>
+          <td class="fp-lbl">Nacionalidad</td><td>${v(f.nacionalidad)}</td>
+          <td class="fp-lbl">Lugar de Nacimiento</td><td>${v(f.lugar_nacimiento)}</td>
+          <td class="fp-lbl">N° de Celular</td><td>${v(f.telefono)}</td>
+        </tr>
+        <tr>
+          <td class="fp-lbl">Correo Electrónico</td><td colspan="3">${v(f.correo)}</td>
+          <td class="fp-lbl">Edad</td><td>${f.edad != null ? f.edad : ''}</td>
+        </tr>
+        <tr>
+          <td class="fp-lbl">Sexo</td><td>${sexo}</td>
+          <td class="fp-lbl">N° de hijos</td><td>${f.num_hijos != null ? f.num_hijos : ''}</td>
+          <td class="fp-lbl">Puesto de Trabajo</td><td>${v(f.cargo)}</td>
+        </tr>
+        <tr>
+          <td class="fp-lbl">Domicilio Actual</td><td colspan="5">${v(f.domicilio)}</td>
+        </tr>
+        <tr>
+          <td class="fp-lbl">Nivel de Instrucción</td><td>${v(f.nivel_instruccion)}</td>
+          <td class="fp-lbl">Título Obtenido</td><td>${v(f.titulo_obtenido)}</td>
+          <td class="fp-lbl">Grupo Étnico</td><td>${v(f.grupo_etnico)}</td>
+        </tr>
+        <tr>
+          <td class="fp-lbl">Religión</td><td colspan="5">${v(f.religion)}</td>
+        </tr>
+      </table>
+
+      <div class="fp-seccion-h">Antecedentes de alguna enfermedad</div>
+      <table class="fp-tabla">
+        <tr>
+          <td class="fp-lbl">APP</td><td>${v(f.app)}</td>
+          <td class="fp-lbl">APF</td><td>${v(f.apf)}</td>
+        </tr>
+        <tr>
+          <td class="fp-lbl">AQT</td><td>${v(f.aqt)}</td>
+          <td class="fp-lbl">APQ</td><td>${v(f.apq)}</td>
+        </tr>
+        <tr>
+          <td class="fp-lbl">Tipo de Discapacidad</td><td>${v(f.tipo_discapacidad)}</td>
+          <td class="fp-lbl">Porcentaje</td><td>${v(f.porcentaje_discapacidad)}</td>
+        </tr>
+      </table>
+
+      <div class="fp-seccion-h">Hábitos</div>
+      <table class="fp-tabla">
+        <tr><td class="fp-lbl">Alcohol</td><td>${v(f.habito_alcohol)}</td></tr>
+        <tr><td class="fp-lbl">Cigarrillo</td><td>${v(f.habito_cigarrillo)}</td></tr>
+        <tr><td class="fp-lbl">Drogas</td><td>${v(f.habito_drogas)}</td></tr>
+        <tr><td class="fp-lbl">Juegos de Azar, etc.</td><td>${v(f.habito_juegos)}</td></tr>
+      </table>
+
+      <div class="fp-campo-largo"><strong>Motivo de consulta:</strong><p>${v(f.motivo_consulta)}</p></div>
+      <div class="fp-campo-largo"><strong>Entrevista Psicológica:</strong><p>${v(f.entrevista)}</p></div>
+
+      <div class="fp-seccion-h">Evaluación Mental</div>
+      <table class="fp-tabla">
+        <tr><td class="fp-lbl">Orientación</td><td>${v(f.em_orientacion)}</td></tr>
+        <tr><td class="fp-lbl">Pensamiento</td><td>${v(f.em_pensamiento)}</td></tr>
+        <tr><td class="fp-lbl">Lenguaje</td><td>${v(f.em_lenguaje)}</td></tr>
+        <tr><td class="fp-lbl">Sensopercepciones</td><td>${v(f.em_sensopercepciones)}</td></tr>
+        <tr><td class="fp-lbl">Memoria</td><td>${v(f.em_memoria)}</td></tr>
+        <tr><td class="fp-lbl">Emociones</td><td>${v(f.em_emociones)}</td></tr>
+        <tr><td class="fp-lbl">Sueño</td><td>${v(f.em_sueno)}</td></tr>
+        <tr><td class="fp-lbl">Apetito</td><td>${v(f.em_apetito)}</td></tr>
+        <tr><td class="fp-lbl">Deseo Sexual</td><td>${v(f.em_deseo_sexual)}</td></tr>
+      </table>
+
+      <div class="fp-campo-largo"><strong>Test Aplicados:</strong><p>${v(f.test_aplicados)}</p></div>
+      <div class="fp-campo-largo"><strong>Observaciones:</strong><p>${v(f.observaciones)}</p></div>
+      <div class="fp-campo-largo"><strong>Diagnóstico Presuntivo:</strong><p>${v(f.impresion_dx)}</p></div>
+      <div class="fp-campo-largo"><strong>Recomendaciones:</strong><p>${v(f.recomendaciones)}</p></div>
+
+      <div class="fp-firma">
+        <div class="fp-firma-linea"></div>
+        <p>${v(f.registrado_por || 'Psicólogo Clínico')}</p>
       </div>
     </div>`;
   window.print();
