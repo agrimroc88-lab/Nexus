@@ -47,6 +47,7 @@
       .oc-tabla { width: 100%; border-collapse: collapse; font-size: 10.5pt; }
       .oc-tabla th, .oc-tabla td { border: 1px solid #333; padding: 6px 8px; }
       .oc-tabla th { background: #e6f0e6; text-align: left; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .oc-seccion { font-size: 12pt; color: #1b5e20; margin: 1rem 0 0.4rem; border-bottom: 1px solid #1b5e20; padding-bottom: 0.2rem; }
       .oc-firmas { display: flex; justify-content: space-around; margin-top: 4rem; }
       .oc-firma { text-align: center; width: 40%; }
       .oc-linea { border-top: 1px solid #000; margin-bottom: 0.3rem; }
@@ -114,6 +115,7 @@
           <button class="pestana activa" data-vista="existencias" type="button">Existencias</button>
           <button class="pestana" data-vista="lotes" type="button">Lotes</button>
           <button class="pestana" data-vista="kardex" type="button">Kárdex</button>
+          <button class="pestana" data-vista="insumos" type="button">Insumos</button>
           <button class="pestana" data-vista="orden" type="button">Orden de compra</button>
         </nav>
 
@@ -232,6 +234,32 @@
           </div>
         </section>
 
+        <!-- Vista: Insumos -->
+        <section class="vista" id="vista-insumos" hidden>
+          <div class="herramientas">
+            <input class="entrada filtro" id="filtro-insumo" type="search" placeholder="Buscar insumo…">
+            <button class="boton-primario" id="btn-nuevo-insumo" type="button">+ Nuevo insumo</button>
+          </div>
+          <div class="panel">
+            <div class="tabla-envoltura">
+              <table class="tabla">
+                <thead>
+                  <tr>
+                    <th>Insumo</th>
+                    <th>Unidad</th>
+                    <th class="celda-centro">Disponible</th>
+                    <th class="celda-centro">Mínimo</th>
+                    <th class="celda-centro">Óptimo</th>
+                    <th class="celda-derecha">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="cuerpo-insumos"></tbody>
+              </table>
+            </div>
+            <p class="vacio" id="vacio-insumos" hidden>Sin insumos registrados.</p>
+          </div>
+        </section>
+
         <!-- Vista: Orden de compra -->
         <section class="vista" id="vista-orden" hidden>
           <div class="orden-acciones">
@@ -257,6 +285,26 @@
             </div>
             <p class="vacio" id="vacio-orden" hidden>No hay medicamentos por debajo del mínimo. El botiquín está abastecido.</p>
           </div>
+
+          <div class="panel" id="panel-orden-insumos">
+            <h3 class="est-titulo" style="padding:0.5rem 1rem 0;">Insumos a reponer</h3>
+            <div class="tabla-envoltura">
+              <table class="tabla">
+                <thead>
+                  <tr>
+                    <th>Insumo</th>
+                    <th>Unidad</th>
+                    <th class="celda-centro">Stock actual</th>
+                    <th class="celda-centro">Mínimo</th>
+                    <th class="celda-centro">Óptimo</th>
+                    <th class="celda-centro">Cantidad a pedir</th>
+                  </tr>
+                </thead>
+                <tbody id="cuerpo-orden-insumos"></tbody>
+              </table>
+            </div>
+            <p class="vacio" id="vacio-orden-insumos" hidden>No hay insumos por debajo del mínimo.</p>
+          </div>
         </section>
 
         <!-- Zona de impresión de la orden (movida fuera de main) -->
@@ -268,6 +316,47 @@
       </p>
 
     </main>
+  </div>
+
+  <!-- ============ Modal: Insumo ============ -->
+  <div class="modal" id="modal-insumo" hidden>
+    <div class="modal-caja" role="dialog" aria-modal="true">
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo" id="titulo-modal-insumo">Nuevo insumo</h2>
+        <button class="modal-cerrar" id="cerrar-insumo" type="button" aria-label="Cerrar">×</button>
+      </header>
+      <div class="modal-cuerpo">
+        <div class="campo">
+          <label class="etiqueta" for="ins_nombre">Nombre <span class="obligatorio">*</span></label>
+          <input class="entrada" id="ins_nombre" type="text">
+        </div>
+        <div class="rejilla">
+          <div class="campo">
+            <label class="etiqueta" for="ins_unidad">Unidad</label>
+            <input class="entrada" id="ins_unidad" type="text" placeholder="unidad, caja, par…">
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="ins_disponible">Stock disponible</label>
+            <input class="entrada" id="ins_disponible" type="number" min="0" value="0">
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="ins_minimo">Stock mínimo</label>
+            <input class="entrada" id="ins_minimo" type="number" min="0" value="0">
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="ins_optimo">Stock óptimo</label>
+            <input class="entrada" id="ins_optimo" type="number" min="0" value="0">
+          </div>
+        </div>
+        <p class="alerta" id="alerta-insumo" hidden></p>
+      </div>
+      <footer class="modal-pie">
+        <button class="boton-icono-critico" id="btn-eliminar-insumo" type="button" hidden>Eliminar</button>
+        <div class="modal-pie-spacer"></div>
+        <button class="boton-secundario" id="cancelar-insumo" type="button">Cancelar</button>
+        <button class="boton-primario" id="guardar-insumo" type="button">Guardar</button>
+      </footer>
+    </div>
   </div>
 
   <!-- ============ Modal: Medicamento ============ -->
@@ -502,6 +591,6 @@
   <!-- Zona de impresión de la orden (fuera de todo, para que no la oculte main) -->
   <div class="orden-impresion" id="orden-impresion"></div>
 
-  <script type="module" src="js/farmacia.js?v=3"></script>
+  <script type="module" src="js/farmacia.js?v=4"></script>
 </body>
 </html>
