@@ -46,6 +46,7 @@ async function iniciar() {
 
   estado.perfil = perfil;
   estado.puedeEscribir = ROLES_ESCRITURA.includes(perfil.rol);
+  estado.esAdmin = perfil.rol === 'admin';
   montarNavegacion(perfil, 'certificados');
 
   prepararAnios();
@@ -189,7 +190,7 @@ function filaCertificado(c) {
   ver.addEventListener('click', () => verCertificado(c.id));
   acc.appendChild(ver);
 
-  if (estado.puedeEscribir) {
+  if (estado.esAdmin) {
     const ed = document.createElement('button');
     ed.className = 'boton-icono';
     ed.textContent = 'Editar';
@@ -301,7 +302,7 @@ async function abrirCertificado(c) {
   limpiarForm();
 
   document.getElementById('cert-modal-titulo').textContent = 'Editar certificado médico';
-  document.getElementById('btn-eliminar-cert').hidden = !estado.puedeEscribir;
+  document.getElementById('btn-eliminar-cert').hidden = !estado.esAdmin;
 
   document.getElementById('ce_codigo').value = c.codigo_trabajador ?? '';
   document.getElementById('ce_emision').value = c.fecha_emision ?? HOY();
@@ -527,6 +528,7 @@ async function guardarCertificado() {
 }
 
 async function eliminarCertificado() {
+  if (!estado.esAdmin) { alert('Solo el administrador puede eliminar certificados.'); return; }
   if (!estado.certActual) return;
   if (!confirm('¿Eliminar este certificado? Esta acción no se puede deshacer.')) return;
 
