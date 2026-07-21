@@ -21,11 +21,21 @@
     .orden-impresion { display: none; }
 
     @media print {
-      /* Al imprimir la orden, ocultar todo menos la hoja de la orden */
-      body.imprimiendo-orden > .barra-lateral,
-      body.imprimiendo-orden > .contenedor,
-      body.imprimiendo-orden .modal { display: none !important; }
-      body.imprimiendo-orden .orden-impresion { display: block !important; }
+      /* Ocultar TODO lo de la app al imprimir la orden */
+      body.imprimiendo-orden .barra-lateral,
+      body.imprimiendo-orden .contenedor,
+      body.imprimiendo-orden .cabecera,
+      body.imprimiendo-orden .modal,
+      body.imprimiendo-orden nav,
+      body.imprimiendo-orden main { display: none !important; }
+      /* Mostrar SOLO la hoja de la orden */
+      body.imprimiendo-orden .orden-impresion {
+        display: block !important;
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        width: 100%;
+        background: #fff;
+      }
       @page { margin: 1.5cm; }
 
       .oc-hoja { font-family: 'Times New Roman', Georgia, serif; color: #000; }
@@ -36,7 +46,7 @@
       .oc-datos { display: flex; justify-content: space-between; margin-bottom: 1rem; font-size: 11pt; }
       .oc-tabla { width: 100%; border-collapse: collapse; font-size: 10.5pt; }
       .oc-tabla th, .oc-tabla td { border: 1px solid #333; padding: 6px 8px; }
-      .oc-tabla th { background: #e6f0e6; text-align: left; }
+      .oc-tabla th { background: #e6f0e6; text-align: left; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .oc-firmas { display: flex; justify-content: space-around; margin-top: 4rem; }
       .oc-firma { text-align: center; width: 40%; }
       .oc-linea { border-top: 1px solid #000; margin-bottom: 0.3rem; }
@@ -249,8 +259,7 @@
           </div>
         </section>
 
-        <!-- Zona de impresión de la orden (oculta en pantalla) -->
-        <div class="orden-impresion" id="orden-impresion"></div>
+        <!-- Zona de impresión de la orden (movida fuera de main) -->
 
       </div>
 
@@ -490,6 +499,9 @@
     </div>
   </div>
 
-  <script type="module" src="js/farmacia.js?v=2"></script>
+  <!-- Zona de impresión de la orden (fuera de todo, para que no la oculte main) -->
+  <div class="orden-impresion" id="orden-impresion"></div>
+
+  <script type="module" src="js/farmacia.js?v=3"></script>
 </body>
 </html>
