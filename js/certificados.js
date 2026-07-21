@@ -777,7 +777,11 @@ function conectarEventos() {
   const $estAnio = document.getElementById('est-anio');
   if ($estAnio) $estAnio.addEventListener('change', pintarEstadisticas);
   const $btnImpEst = document.getElementById('btn-imprimir-est');
-  if ($btnImpEst) $btnImpEst.addEventListener('click', () => window.print());
+  if ($btnImpEst) $btnImpEst.addEventListener('click', () => {
+    document.body.classList.add('imprimiendo-est');
+    window.print();
+    setTimeout(() => document.body.classList.remove('imprimiendo-est'), 500);
+  });
 
   document.querySelectorAll('[data-cierra]').forEach((b) =>
     b.addEventListener('click', () => { document.getElementById(b.dataset.cierra).hidden = true; }));
