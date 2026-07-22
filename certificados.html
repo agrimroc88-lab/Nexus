@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Certificados médicos · NEXUS</title>
+  <link rel="icon" href="favicon.png">
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/layout.css">
   <link rel="stylesheet" href="css/empresas.css">
@@ -181,6 +182,16 @@
 
         <!-- ============ Vista: Estadísticas ============ -->
         <section class="vista" id="vista-estadisticas" hidden>
+          <!-- Membrete solo visible al imprimir -->
+          <div class="membrete membrete-print">
+            <img src="logo.png" class="membrete-logo" alt="">
+            <div class="membrete-datos">
+              <strong id="est-empresa-nombre">AGRIMROC S.A.</strong>
+              <span>Unidad de Seguridad y Salud Ocupacional</span>
+            </div>
+          </div>
+          <h1 class="est-titulo-print">ESTADÍSTICAS DE CERTIFICADOS MÉDICOS</h1>
+
           <div class="est-barra-acciones">
             <div class="est-periodo">
               <label class="etiqueta" for="est-anio">Año</label>
@@ -445,6 +456,6 @@
 
   <div id="zona-impresion" class="zona-impresion" aria-hidden="true"></div>
 
-  <script type="module" src="js/certificados.js?v=8"></script>
+  <script type="module" src="js/certificados.js?v=9"></script>
 </body>
 </html>
