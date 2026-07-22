@@ -1890,7 +1890,9 @@ function cambiarVista(vista) {
   });
   if (vista === 'capacitaciones') pintarCapacitaciones();
   if (vista === 'eventos') pintarEventos();
-  if (vista === 'ocupacionales') pintarOcupacionales();
+  if (vista === 'ocupacionales') {
+    cargarOcupacionales().then(pintarOcupacionales);
+  }
 }
 
 /** Atenciones ocupacionales solo existen en salud */
