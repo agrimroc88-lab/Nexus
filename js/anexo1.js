@@ -1701,6 +1701,114 @@ async function cargarOcupacionales() {
     estado.ocupacionales.length > 0 || !puedeEscribir();
 }
 
+/* ============================================
+   Gráfico de tendencia mensual · atenciones ocupacionales
+   Cuatro series (ingreso, periódica, reintegro, egreso) por mes.
+   SVG dibujado a mano, sin librerías.
+   ============================================ */
+
+const COLORES_AO = {
+  ingreso:   '#1b5e20',
+  periodica: '#2e86c1',
+  reintegro: '#e07b39',
+  egreso:    '#7d3c98'
+};
+
+function pintarTendenciaOcupacional() {
+  const $g = document.getElementById('ao-grafico');
+  const $l = document.getElementById('ao-leyenda');
+  if (!$g) return;
+
+  /* Sumar hombres + mujeres por mes y tipo */
+  const porTipo = {};
+  TIPOS_AO.forEach((t) => { porTipo[t.id] = new Array(12).fill(0); });
+
+  (estado.ocupacionales || []).forEach((a) => {
+    if (porTipo[a.tipo] && a.mes >= 1 && a.mes <= 12) {
+      porTipo[a.tipo][a.mes - 1] = (a.hombres ?? 0) + (a.mujeres ?? 0);
+    }
+  });
+
+  const series = TIPOS_AO.map((t) => ({
+    nombre: t.texto,
+    color: COLORES_AO[t.id] || '#888',
+    datos: porTipo[t.id]
+  }));
+
+  /* Leyenda */
+  if ($l) {
+    $l.innerHTML = series.map((s) =>
+      `<span class="leyenda-item">
+         <span class="leyenda-color" style="background:${s.color}"></span>${escapar(s.nombre)}
+       </span>`).join('');
+  }
+
+  const todoCero = series.every((s) => s.datos.every((d) => d === 0));
+  if (todoCero) {
+    $g.innerHTML = '<p class="grafico-vacio">Sin registros en el año seleccionado</p>';
+    return;
+  }
+
+  const etiquetas = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+                     'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+  const maximo = Math.max(1, ...series.flatMap((s) => s.datos));
+
+  const ancho = 760, alto = 260;
+  const margen = { arriba: 18, derecha: 14, abajo: 32, izquierda: 40 };
+  const util = {
+    ancho: ancho - margen.izquierda - margen.derecha,
+    alto: alto - margen.arriba - margen.abajo
+  };
+
+  const paso = util.ancho / (etiquetas.length - 1);
+  const escalaY = (v) => margen.arriba + util.alto * (1 - v / maximo);
+  const escalaX = (i) => margen.izquierda + paso * i;
+
+  /* Rejilla horizontal y eje Y */
+  let rejilla = '';
+  for (let i = 0; i <= 4; i++) {
+    const v = maximo * i / 4;
+    const y = escalaY(v);
+    rejilla += `
+      <line class="rejilla" x1="${margen.izquierda}" y1="${y}"
+            x2="${ancho - margen.derecha}" y2="${y}"></line>
+      <text class="eje-texto" x="${margen.izquierda - 6}" y="${y + 3}"
+            text-anchor="end">${Math.round(v)}</text>`;
+  }
+
+  /* Líneas y puntos */
+  let trazos = '';
+  series.forEach((s) => {
+    const puntos = s.datos.map((v, i) => `${escalaX(i)},${escalaY(v)}`).join(' ');
+    trazos += `<polyline points="${puntos}" fill="none" stroke="${s.color}"
+                 stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"></polyline>`;
+    s.datos.forEach((v, i) => {
+      if (v === 0) return;
+      trazos += `<circle cx="${escalaX(i)}" cy="${escalaY(v)}" r="3.5"
+                   fill="#fff" stroke="${s.color}" stroke-width="2">
+                   <title>${escapar(s.nombre)} · ${etiquetas[i]}: ${v}</title>
+                 </circle>`;
+    });
+  });
+
+  /* Eje X */
+  let ejeX = '';
+  etiquetas.forEach((et, i) => {
+    ejeX += `<text class="eje-texto" x="${escalaX(i)}" y="${alto - margen.abajo + 18}"
+               text-anchor="middle">${et}</text>`;
+  });
+
+  $g.innerHTML = `
+    <svg class="grafico" viewBox="0 0 ${ancho} ${alto}"
+         preserveAspectRatio="xMidYMid meet" role="img">
+      ${rejilla}
+      <line class="eje" x1="${margen.izquierda}" y1="${margen.arriba + util.alto}"
+            x2="${ancho - margen.derecha}" y2="${margen.arriba + util.alto}"></line>
+      ${trazos}
+      ${ejeX}
+    </svg>`;
+}
+
 function pintarOcupacionales() {
   const i = estado.indOcup;
 
@@ -1714,6 +1822,8 @@ function pintarOcupacionales() {
     { etiqueta: 'Hombres', valor: i?.hombres ?? 0 },
     { etiqueta: 'Mujeres', valor: i?.mujeres ?? 0 }
   ]);
+
+  pintarTendenciaOcupacional();
 
   const $cuerpo = document.getElementById('cuerpo-ocupacionales');
   const $pie = document.getElementById('pie-ocupacionales');
