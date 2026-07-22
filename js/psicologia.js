@@ -553,16 +553,26 @@ async function guardarFicha() {
     registrado_por: nombrePsicologo()
   };
 
-  const { error } = await supabase.from('fichas_psicologicas').insert(fila);
+  const { data: creada, error } = await supabase
+    .from('fichas_psicologicas').insert(fila).select('id').single();
 
   if (error) {
     $alerta.textContent = 'No fue posible guardar: ' + error.message;
     $alerta.hidden = false;
-    return;
+    return null;
   }
 
   document.getElementById('modal-ficha').hidden = true;
   await recargar();
+  return creada ? creada.id : null;
+}
+
+/* Guarda la ficha y abre directamente su impresión */
+async function guardarEImprimir() {
+  const id = await guardarFicha();
+  if (!id) return;
+  estado.verId = id;
+  imprimirFicha();
 }
 
 function valor(id) {
@@ -835,6 +845,7 @@ function conectarEventos() {
 
   /* --- Formulario de ficha --- */
   document.getElementById('btn-guardar-ficha').addEventListener('click', guardarFicha);
+  document.getElementById('btn-guardar-imprimir').addEventListener('click', guardarEImprimir);
   document.getElementById('fp_codigo').addEventListener('input', retrasar(buscarTrabajadorFormulario, 300));
 
   /* --- Alta de trabajador --- */

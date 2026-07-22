@@ -89,6 +89,15 @@ function conectarEventos() {
   });
 
   document.getElementById('guardar-ficha').addEventListener('click', guardarFicha);
+  document.getElementById('btn-guardar-imprimir').addEventListener('click', guardarEImprimir);
+  document.getElementById('op-social').addEventListener('click', () => {
+    document.getElementById('modal-elegir-doc').hidden = true;
+    imprimirDocumento('social');
+  });
+  document.getElementById('op-registro').addEventListener('click', () => {
+    document.getElementById('modal-elegir-doc').hidden = true;
+    imprimirDocumento('registro');
+  });
   document.getElementById('btn-add-familiar').addEventListener('click', () => agregarFilaFamiliar());
   document.getElementById('btn-imprimir-social').addEventListener('click', () => imprimirDocumento('social'));
   document.getElementById('btn-imprimir-registro').addEventListener('click', () => imprimirDocumento('registro'));
@@ -336,15 +345,25 @@ async function guardarFicha() {
     registrado_por: nombreTS()
   };
 
-  const { error } = await supabase.from('fichas_sociales').insert(fila);
+  const { data: creada, error } = await supabase
+    .from('fichas_sociales').insert(fila).select('id').single();
   if (error) {
     $alerta.textContent = 'No fue posible guardar: ' + error.message;
     $alerta.hidden = false;
-    return;
+    return null;
   }
   document.getElementById('modal-ficha').hidden = true;
   await cargarFichas();
   cambiarVista('registros');
+  return creada ? creada.id : null;
+}
+
+/* Guarda y luego pregunta qué documento imprimir */
+async function guardarEImprimir() {
+  const id = await guardarFicha();
+  if (!id) return;
+  estado.verId = id;
+  document.getElementById('modal-elegir-doc').hidden = false;
 }
 
 function nombreTS() {
