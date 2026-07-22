@@ -49,6 +49,14 @@
     /* El campo contenedor debe permitir el desplegable posicionado */
     .campo:has(#ce_cie) { position: relative; }
     .campo:has(#ce_diagnostico) { position: relative; }
+    /* Opción "agregar código nuevo" dentro de las sugerencias */
+    .sugerencia-alta { border-top: 1px dashed #c9d6c9; }
+    .sugerencia-alta .sugerencia-nombre { font-style: italic; color: #1b5e20; }
+    .cie-chip-alta { background: #e07b39; }
+    .sugerencia-vacia {
+      padding: 0.5rem 0.75rem; font-size: 0.82rem;
+      color: var(--color-texto-tenue, #8a938a);
+    }
   </style>
 </head>
 <body class="app">
@@ -439,6 +447,37 @@
     </div>
   </div>
 
+  <!-- ============ Modal: Nuevo código CIE-10 ============ -->
+  <div class="modal" id="modal-cie" hidden>
+    <div class="modal-caja" role="dialog" aria-modal="true" style="max-width:520px">
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo">Agregar código CIE-10</h2>
+        <button class="modal-cerrar" id="cerrar-cie" type="button" aria-label="Cerrar">×</button>
+      </header>
+      <div class="modal-cuerpo">
+        <p class="ayuda">
+          El código quedará guardado en el catálogo y estará disponible
+          para los siguientes certificados.
+        </p>
+        <div class="campo">
+          <label class="etiqueta" for="cie_codigo">Código <span class="obligatorio">*</span></label>
+          <input class="entrada entrada-destacada" id="cie_codigo" type="text"
+                 placeholder="K35.8" autocomplete="off" style="text-transform:uppercase">
+        </div>
+        <div class="campo">
+          <label class="etiqueta" for="cie_descripcion">Descripción <span class="obligatorio">*</span></label>
+          <input class="entrada" id="cie_descripcion" type="text"
+                 placeholder="Apendicitis aguda no especificada" autocomplete="off">
+        </div>
+        <p class="alerta" id="alerta-cie" hidden></p>
+      </div>
+      <footer class="modal-pie">
+        <button class="boton-secundario" id="cancelar-cie" type="button">Cancelar</button>
+        <button class="boton-primario" id="guardar-cie" type="button">Guardar código</button>
+      </footer>
+    </div>
+  </div>
+
   <!-- ============ Modal: Ver certificado (imprimir) ============ -->
   <div class="modal" id="modal-ver-cert" hidden>
     <div class="modal-caja modal-ancho" role="dialog" aria-modal="true">
@@ -456,6 +495,6 @@
 
   <div id="zona-impresion" class="zona-impresion" aria-hidden="true"></div>
 
-  <script type="module" src="js/certificados.js?v=9"></script>
+  <script type="module" src="js/certificados.js?v=10"></script>
 </body>
 </html>
