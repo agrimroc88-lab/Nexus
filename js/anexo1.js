@@ -1958,6 +1958,13 @@ function traducirBd(error) {
    Eventos
    ============================================ */
 
+/* Conecta un evento solo si el elemento existe (evita romper la página
+   cuando un módulo comparte este JS pero no tiene todos los campos). */
+function enEl(id, evento, fn) {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener(evento, fn);
+}
+
 function conectarEventos() {
   $empresa.addEventListener('change', seleccionarEmpresa);
 
@@ -1967,21 +1974,21 @@ function conectarEventos() {
     });
   });
 
-  document.getElementById('btn-abrir').addEventListener('click', abrirRequisitos);
-  document.getElementById('btn-guardar-req').addEventListener('click', guardarRequisito);
-  document.getElementById('btn-marcar-na').addEventListener('click', marcarNoAplica);
-  document.getElementById('btn-quitar-na').addEventListener('click', quitarNoAplica);
-  document.getElementById('btn-guardar-enlace').addEventListener('click', guardarEnlace);
-  document.getElementById('btn-un-anio').addEventListener('click', aplicarUnAnio);
+  enEl('btn-abrir', 'click', abrirRequisitos);
+  enEl('btn-guardar-req', 'click', guardarRequisito);
+  enEl('btn-marcar-na', 'click', marcarNoAplica);
+  enEl('btn-quitar-na', 'click', quitarNoAplica);
+  enEl('btn-guardar-enlace', 'click', guardarEnlace);
+  enEl('btn-un-anio', 'click', aplicarUnAnio);
 
-  document.getElementById('e_fecha_caducidad').addEventListener('change', evaluarCaducidad);
-  document.getElementById('e_fecha_registro').addEventListener('change', () => {
+  enEl('e_fecha_caducidad', 'change', evaluarCaducidad);
+  enEl('e_fecha_registro', 'change', () => {
     if (!document.getElementById('e_fecha_caducidad').value) aplicarUnAnio();
   });
 
-  document.getElementById('busqueda').addEventListener('input', retrasar(pintarLista, 200));
-  document.getElementById('filtro-estado').addEventListener('change', pintarLista);
-  document.getElementById('ocultar-na').addEventListener('change', pintarLista);
+  enEl('busqueda', 'input', retrasar(pintarLista, 200));
+  enEl('filtro-estado', 'change', pintarLista);
+  enEl('ocultar-na', 'change', pintarLista);
 
   /* Pestañas */
   document.querySelectorAll('.pestana').forEach((p) => {
@@ -1989,37 +1996,37 @@ function conectarEventos() {
   });
 
   /* Capacitaciones */
-  document.getElementById('capac-anio').addEventListener('change', cambiarAnio);
-  document.getElementById('btn-abrir-anio').addEventListener('click', abrirAnio);
-  document.getElementById('btn-nuevo-tema').addEventListener('click', abrirTema);
-  document.getElementById('btn-guardar-capac').addEventListener('click', guardarCapacitacion);
-  document.getElementById('btn-guardar-tema').addEventListener('click', guardarTema);
+  enEl('capac-anio', 'change', cambiarAnio);
+  enEl('btn-abrir-anio', 'click', abrirAnio);
+  enEl('btn-nuevo-tema', 'click', abrirTema);
+  enEl('btn-guardar-capac', 'click', guardarCapacitacion);
+  enEl('btn-guardar-tema', 'click', guardarTema);
 
   /* Cierre por defecto: un año cubre a todo el personal */
-  document.getElementById('c_fecha_inicio').addEventListener('change', () => {
+  enEl('c_fecha_inicio', 'change', () => {
     const $fin = document.getElementById('c_fecha_fin');
     if (!$fin.value) $fin.value = document.getElementById('c_fecha_inicio').value;
   });
 
   /* Eventos */
-  document.getElementById('ev-anio').addEventListener('change', recargarEventos);
-  document.getElementById('ev-mes').addEventListener('change', recargarEventos);
-  document.getElementById('btn-nuevo-evento').addEventListener('click', () => abrirEvento(null));
-  document.getElementById('btn-guardar-evento').addEventListener('click', guardarEvento);
-  document.getElementById('btn-eliminar-evento').addEventListener('click', eliminarEvento);
-  document.getElementById('ev_codigo').addEventListener('input', buscarTrabajadorEvento);
-  document.getElementById('ev_reportado').addEventListener('change', ajustarCamposEvento);
+  enEl('ev-anio', 'change', recargarEventos);
+  enEl('ev-mes', 'change', recargarEventos);
+  enEl('btn-nuevo-evento', 'click', () => abrirEvento(null));
+  enEl('btn-guardar-evento', 'click', guardarEvento);
+  enEl('btn-eliminar-evento', 'click', eliminarEvento);
+  enEl('ev_codigo', 'input', buscarTrabajadorEvento);
+  enEl('ev_reportado', 'change', ajustarCamposEvento);
 
   document.querySelectorAll('input[name="ev_tipo"], input[name="ev_estado"]')
     .forEach((r) => r.addEventListener('change', ajustarCamposEvento));
 
   /* Recalcular el último día de reposo en vivo */
-  document.getElementById('ev_dias').addEventListener('input', calcularReposoFin);
-  document.getElementById('ev_reposo_inicio').addEventListener('change', calcularReposoFin);
-  document.getElementById('ev_fecha').addEventListener('change', calcularReposoFin);
+  enEl('ev_dias', 'input', calcularReposoFin);
+  enEl('ev_reposo_inicio', 'change', calcularReposoFin);
+  enEl('ev_fecha', 'change', calcularReposoFin);
 
   /* El área escrita y la seleccionada se excluyen */
-  document.getElementById('ev_area').addEventListener('change', () => {
+  enEl('ev_area', 'change', () => {
     if (document.getElementById('ev_area').value) {
       document.getElementById('ev_area_texto').value = '';
     }
@@ -2042,8 +2049,8 @@ function conectarEventos() {
       await cargarOcupacionales();
       pintarOcupacionales();
     });
-    document.getElementById('btn-abrir-ao').addEventListener('click', abrirAnioOcupacional);
-    document.getElementById('btn-guardar-ao').addEventListener('click', guardarOcupacional);
+    enEl('btn-abrir-ao', 'click', abrirAnioOcupacional);
+    enEl('btn-guardar-ao', 'click', guardarOcupacional);
   }
 
   document.addEventListener('keydown', (e) => {
