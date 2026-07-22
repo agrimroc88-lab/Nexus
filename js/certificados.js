@@ -12,6 +12,15 @@ import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js';
 /* Roles que pueden registrar. El técnico solo lee. */
 const ROLES_ESCRITURA = ['admin', 'medico_ocupacional', 'enfermeria', 'psicologo', 'trabajo_social'];
 
+const PARENTESCOS = {
+  conyuge:  'Cónyuge / conviviente',
+  hijo:     'Hijo/a',
+  padre:    'Padre',
+  madre:    'Madre',
+  hermano:  'Hermano/a',
+  otro:     'Otro'
+};
+
 const ORIGENES = {
   interno: 'Interno de la empresa',
   msp: 'Ministerio de Salud Pública',
@@ -176,7 +185,7 @@ function filaCertificado(c) {
       <span class="principal">${escapar(c.nombre_completo)}</span>
       ${c.cargo ? `<span class="secundario">${escapar(c.cargo)}</span>` : ''}
     </td>
-    <td><span class="origen-chip origen-${c.origen}">${ORIGENES[c.origen] || c.origen}</span></td>
+    <td><span class="origen-chip origen-${c.origen}">${ORIGENES[c.origen] || c.origen}</span>${c.beneficiario === 'familiar' ? ` <span class="chip-familiar" title="${escapar(PARENTESCOS[c.parentesco] || '')}">Familiar</span>` : ''}</td>
     <td>${c.diagnostico ? escapar(c.diagnostico) : '<span class="celda-tenue">—</span>'}</td>
     <td class="celda-centro">${c.reposo_dias > 0 ? `<span class="reposo">${c.reposo_dias}</span>` : '—'}</td>
     <td class="celda-centro celda-mono">${c.reposo_fin ? formatearFecha(c.reposo_fin) : '—'}</td>
@@ -307,6 +316,10 @@ async function abrirCertificado(c) {
   document.getElementById('ce_codigo').value = c.codigo_trabajador ?? '';
   document.getElementById('ce_emision').value = c.fecha_emision ?? HOY();
   document.getElementById('ce_origen').value = c.origen ?? 'particular';
+  document.getElementById('ce_beneficiario').value = c.beneficiario ?? 'trabajador';
+  document.getElementById('ce_parentesco').value = c.parentesco ?? '';
+  document.getElementById('ce_familiar').value = c.familiar_nombre ?? '';
+  ajustarBeneficiario();
   document.getElementById('ce_cie').value = c.codigo_cie10 ?? '';
   document.getElementById('ce_diagnostico').value = c.diagnostico ?? '';
   document.getElementById('ce_reposo_inicio').value = c.reposo_inicio ?? '';
@@ -337,6 +350,10 @@ function limpiarForm() {
   document.getElementById('ce_rot_dias').value = 0;
   document.getElementById('ce_rot_inicio').value = '';
   document.getElementById('ce_origen').value = 'particular';
+  document.getElementById('ce_beneficiario').value = 'trabajador';
+  document.getElementById('ce_parentesco').value = '';
+  document.getElementById('ce_familiar').value = '';
+  ajustarBeneficiario();
   document.getElementById('ce_reubica').checked = false;
   document.getElementById('ce-ficha').hidden = true;
   document.getElementById('ce-bloque').hidden = true;
@@ -469,6 +486,18 @@ const buscarDiagCert = retrasar(async () => {
   $sug.hidden = false;
 }, 350);
 
+/* Muestra u oculta los campos de familiar según a quién
+   corresponda el certificado. */
+function ajustarBeneficiario() {
+  const esFamiliar = document.getElementById('ce_beneficiario').value === 'familiar';
+  document.getElementById('campo-parentesco').hidden = !esFamiliar;
+  document.getElementById('campo-familiar').hidden = !esFamiliar;
+  if (!esFamiliar) {
+    document.getElementById('ce_parentesco').value = '';
+    document.getElementById('ce_familiar').value = '';
+  }
+}
+
 /* ============================================
    Alta de códigos CIE-10 al vuelo
    Cuando un diagnóstico no está en el catálogo, se agrega
@@ -587,6 +616,12 @@ async function guardarCertificado() {
     $alerta.hidden = false; return;
   }
 
+  if (document.getElementById('ce_beneficiario').value === 'familiar'
+      && !document.getElementById('ce_parentesco').value) {
+    $alerta.textContent = 'Indique el parentesco del familiar.';
+    $alerta.hidden = false; return;
+  }
+
   const reposoDias = parseInt(document.getElementById('ce_reposo_dias').value, 10) || 0;
   const emision = document.getElementById('ce_emision').value || HOY();
   const url = document.getElementById('ce_url').value.trim() || null;
@@ -599,6 +634,11 @@ async function guardarCertificado() {
     empresa_id: estado.empresaId,
     trabajador_id: estado.trabajador.id,
     origen: document.getElementById('ce_origen').value,
+    beneficiario: document.getElementById('ce_beneficiario').value,
+    parentesco: document.getElementById('ce_beneficiario').value === 'familiar'
+      ? (document.getElementById('ce_parentesco').value || null) : null,
+    familiar_nombre: document.getElementById('ce_beneficiario').value === 'familiar'
+      ? (document.getElementById('ce_familiar').value.trim() || null) : null,
     fecha_emision: emision,
     codigo_cie10: document.getElementById('ce_cie').value.trim() || null,
     diagnostico: document.getElementById('ce_diagnostico').value.trim() || null,
@@ -694,6 +734,7 @@ function imprimirCertificado() {
         <h1>Certificado Médico</h1>
         <p>${escapar(c.nombre_completo)} · Código ${c.codigo_trabajador} · Cédula ${escapar(c.cedula)}</p>
         <p>Origen: ${ORIGENES[c.origen] || c.origen} · Emisión: ${formatearFecha(c.fecha_emision)}</p>
+        ${c.beneficiario === 'familiar' ? `<p><strong>Calamidad doméstica</strong> · ${escapar(PARENTESCOS[c.parentesco] || c.parentesco || '')}${c.familiar_nombre ? ': ' + escapar(c.familiar_nombre) : ''}</p>` : ''}
       </header>
       ${c.cargo ? bloque('Cargo', c.cargo) : ''}
       ${c.diagnostico ? bloque('Diagnóstico', (c.codigo_cie10 ? c.codigo_cie10 + ' · ' : '') + c.diagnostico) : ''}
@@ -771,6 +812,23 @@ function pintarEstadisticas() {
   const orig = {};
   lista.forEach((c) => { const o = ORIGENES[c.origen] || c.origen || 'Otro'; orig[o] = (orig[o] || 0) + 1; });
   pintarBarras('est-origen', Object.entries(orig).sort((a, b) => b[1] - a[1]), lista.length);
+
+  // Trabajador vs familiar
+  const benef = { 'Del trabajador': 0, 'De un familiar': 0 };
+  lista.forEach((c) => {
+    if (c.beneficiario === 'familiar') benef['De un familiar']++;
+    else benef['Del trabajador']++;
+  });
+  pintarBarras('est-beneficiario', Object.entries(benef), lista.length);
+
+  // Parentesco (solo los de familiar)
+  const par = {};
+  lista.filter((c) => c.beneficiario === 'familiar').forEach((c) => {
+    const p = PARENTESCOS[c.parentesco] || c.parentesco || 'Sin especificar';
+    par[p] = (par[p] || 0) + 1;
+  });
+  pintarBarras('est-parentesco', Object.entries(par).sort((a, b) => b[1] - a[1]),
+               Math.max(1, ...Object.values(par)));
 
   // Por mes
   const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -874,6 +932,7 @@ function conectarEventos() {
   document.getElementById('btn-eliminar-cert').addEventListener('click', eliminarCertificado);
   document.getElementById('ce_codigo').addEventListener('input', buscarTrabajadorCert);
   document.getElementById('ce_cie').addEventListener('input', buscarCieCert);
+  document.getElementById('ce_beneficiario').addEventListener('change', ajustarBeneficiario);
 
   // Alta de códigos CIE-10
   document.getElementById('guardar-cie').addEventListener('click', guardarCieNuevo);
