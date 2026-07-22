@@ -536,10 +536,30 @@ function abrirAltaCie(codigo, descripcion) {
   document.getElementById('cie_codigo').focus();
 }
 
+/* Deja la descripción con solo la primera letra en mayúscula,
+   respetando siglas médicas conocidas (VIH, TBC, HTA…). */
+const SIGLAS_MEDICAS = ['VIH', 'SIDA', 'TBC', 'HTA', 'EPOC', 'IVU', 'IRA', 'EDA',
+                        'DM', 'IAM', 'ACV', 'ITU', 'ERC', 'VPH', 'ITS'];
+
+function normalizarDescripcion(texto) {
+  const limpio = (texto || '').trim().replace(/\s+/g, ' ');
+  if (!limpio) return '';
+
+  const palabras = limpio.split(' ').map((p) => {
+    const sinPuntos = p.replace(/[.,;:()]/g, '');
+    return SIGLAS_MEDICAS.includes(sinPuntos.toUpperCase()) && p === p.toUpperCase()
+      ? p
+      : p.toLowerCase();
+  });
+
+  palabras[0] = palabras[0].charAt(0).toUpperCase() + palabras[0].slice(1);
+  return palabras.join(' ');
+}
+
 async function guardarCieNuevo() {
   const $alerta = document.getElementById('alerta-cie');
   const codigo = document.getElementById('cie_codigo').value.trim().toUpperCase();
-  const descripcion = document.getElementById('cie_descripcion').value.trim();
+  const descripcion = normalizarDescripcion(document.getElementById('cie_descripcion').value);
 
   if (!codigo || !descripcion) {
     $alerta.textContent = 'El código y la descripción son obligatorios.';
@@ -860,7 +880,7 @@ function pintarBarras(idCont, pares, maximo, mostrarTodos) {
     fila.className = 'est-fila';
     const pct = maximo > 0 ? Math.round((valor / maximo) * 100) : 0;
     fila.innerHTML =
-      `<span class="est-fila-nombre">${escapar(String(nombre))}</span>` +
+      `<span class="est-fila-nombre" title="${escapar(String(nombre))}">${escapar(String(nombre))}</span>` +
       `<span class="est-fila-barra"><span class="est-fila-relleno" style="width:${pct}%"></span></span>` +
       `<span class="est-fila-valor">${valor}</span>`;
     $c.appendChild(fila);
