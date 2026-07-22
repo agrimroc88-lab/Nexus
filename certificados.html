@@ -243,6 +243,20 @@
               </section>
             </div>
 
+            <div class="est-columnas">
+              <!-- Trabajador vs familiar -->
+              <section class="est-bloque">
+                <h3 class="est-titulo">¿A quién corresponde?</h3>
+                <div id="est-beneficiario"></div>
+              </section>
+
+              <!-- Parentesco (calamidad doméstica) -->
+              <section class="est-bloque">
+                <h3 class="est-titulo">Calamidad doméstica · parentesco</h3>
+                <div id="est-parentesco"></div>
+              </section>
+            </div>
+
             <!-- Certificados por mes -->
             <section class="est-bloque">
               <h3 class="est-titulo">Certificados por mes</h3>
@@ -345,6 +359,29 @@
               <option value="iess">IESS</option>
               <option value="particular" selected>Particular</option>
             </select>
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="ce_beneficiario">¿A quién corresponde? <span class="obligatorio">*</span></label>
+            <select class="entrada" id="ce_beneficiario">
+              <option value="trabajador" selected>Al trabajador</option>
+              <option value="familiar">A un familiar (calamidad doméstica)</option>
+            </select>
+          </div>
+          <div class="campo" id="campo-parentesco" hidden>
+            <label class="etiqueta" for="ce_parentesco">Parentesco <span class="obligatorio">*</span></label>
+            <select class="entrada" id="ce_parentesco">
+              <option value="">— Seleccione —</option>
+              <option value="conyuge">Cónyuge / conviviente</option>
+              <option value="hijo">Hijo/a</option>
+              <option value="padre">Padre</option>
+              <option value="madre">Madre</option>
+              <option value="hermano">Hermano/a</option>
+              <option value="otro">Otro</option>
+            </select>
+          </div>
+          <div class="campo" id="campo-familiar" hidden>
+            <label class="etiqueta" for="ce_familiar">Nombre del familiar</label>
+            <input class="entrada" id="ce_familiar" type="text" placeholder="Apellidos y nombres">
           </div>
         </div>
 
@@ -495,6 +532,6 @@
 
   <div id="zona-impresion" class="zona-impresion" aria-hidden="true"></div>
 
-  <script type="module" src="js/certificados.js?v=10"></script>
+  <script type="module" src="js/certificados.js?v=11"></script>
 </body>
 </html>
