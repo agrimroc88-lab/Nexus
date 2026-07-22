@@ -19,6 +19,13 @@
       margin: 1.25rem 0 0.75rem;
     }
     .ts-check-fila { display: flex; flex-wrap: wrap; gap: 1rem; margin: 0.3rem 0; }
+    .doc-opciones { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .doc-opcion { display: flex; flex-direction: column; gap: 0.35rem; align-items: center;
+      padding: 1.5rem 1rem; border: 2px solid var(--color-borde, #d8e2d8); border-radius: 12px;
+      background: #fff; cursor: pointer; text-align: center; transition: border-color .15s, background .15s; }
+    .doc-opcion:hover { border-color: var(--color-acento, #1b5e20); background: #f2f8f2; }
+    .doc-opcion strong { font-size: 1rem; color: var(--color-acento-oscuro, #00450d); }
+    .doc-opcion span { font-size: 0.8rem; color: var(--color-texto-tenue, #667); }
     .sugerencias { position: relative; background: #fff; border: 1px solid var(--color-borde, #ccc);
       border-radius: 8px; margin-top: 0.25rem; max-height: 320px; overflow-y: auto; z-index: 50; }
     .sugerencia { display: block; width: 100%; text-align: left; padding: 0.5rem 0.75rem;
@@ -353,6 +360,7 @@
       <footer class="modal-pie">
         <button class="boton-secundario" data-cierra="modal-ficha" type="button">Cancelar</button>
         <button class="boton-primario" id="guardar-ficha" type="button">Guardar</button>
+        <button class="boton-secundario" id="btn-guardar-imprimir" type="button">Imprimir</button>
       </footer>
     </div>
   </div>
@@ -373,9 +381,34 @@
     </div>
   </div>
 
+  <!-- ============ Modal: elegir documento a imprimir ============ -->
+  <div class="modal" id="modal-elegir-doc" hidden>
+    <div class="modal-caja" role="dialog" aria-modal="true" style="max-width:520px">
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo">¿Qué documento desea imprimir?</h2>
+        <button class="modal-cerrar" data-cierra="modal-elegir-doc" type="button" aria-label="Cerrar">×</button>
+      </header>
+      <div class="modal-cuerpo">
+        <div class="doc-opciones">
+          <button class="doc-opcion" id="op-social" type="button">
+            <strong>Ficha Socioeconómica</strong>
+            <span>Departamento de Trabajo Social</span>
+          </button>
+          <button class="doc-opcion" id="op-registro" type="button">
+            <strong>Registro de Personal</strong>
+            <span>Datos personales y laborales</span>
+          </button>
+        </div>
+      </div>
+      <footer class="modal-pie">
+        <button class="boton-secundario" data-cierra="modal-elegir-doc" type="button">Cerrar</button>
+      </footer>
+    </div>
+  </div>
+
   <!-- Zona de impresión (fuera de todo) -->
   <div id="zona-impresion" class="zona-impresion" aria-hidden="true"></div>
 
-  <script type="module" src="js/trabajo-social.js?v=10"></script>
+  <script type="module" src="js/trabajo-social.js?v=11"></script>
 </body>
 </html>
