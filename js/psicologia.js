@@ -144,6 +144,107 @@ function pintarResumen() {
    Vista · Atenciones (conteo de producción)
    ============================================ */
 
+/* ============================================
+   Gráfico de tendencia mensual · tipos de atención
+   Cuatro series por mes. SVG a mano, sin librerías.
+   ============================================ */
+
+const COLORES_TIPO = {
+  ingreso:     '#1b5e20',
+  periodica:   '#2e86c1',
+  asistencial: '#e07b39',
+  seguimiento: '#7d3c98'
+};
+
+function pintarTendenciaAtenciones(fichasDelAnio) {
+  const $g = document.getElementById('at-grafico');
+  const $l = document.getElementById('at-leyenda');
+  if (!$g) return;
+
+  const ids = ['ingreso', 'periodica', 'asistencial', 'seguimiento'];
+  const porTipo = {};
+  ids.forEach((id) => { porTipo[id] = new Array(12).fill(0); });
+
+  (fichasDelAnio || []).forEach((f) => {
+    const m = new Date(f.fecha + 'T00:00').getMonth();
+    if (porTipo[f.tipo]) porTipo[f.tipo][m]++;
+  });
+
+  const series = ids.map((id) => ({
+    nombre: TIPOS[id] || id,
+    color: COLORES_TIPO[id],
+    datos: porTipo[id]
+  }));
+
+  if ($l) {
+    $l.innerHTML = series.map((s) =>
+      `<span class="leyenda-item">
+         <span class="leyenda-color" style="background:${s.color}"></span>${escapar(s.nombre)}
+       </span>`).join('');
+  }
+
+  const todoCero = series.every((s) => s.datos.every((d) => d === 0));
+  if (todoCero) {
+    $g.innerHTML = '<p class="grafico-vacio">Sin fichas en el año seleccionado</p>';
+    return;
+  }
+
+  const etiquetas = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+                     'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+  const maximo = Math.max(1, ...series.flatMap((s) => s.datos));
+
+  const ancho = 760, alto = 260;
+  const margen = { arriba: 18, derecha: 14, abajo: 32, izquierda: 40 };
+  const util = {
+    ancho: ancho - margen.izquierda - margen.derecha,
+    alto: alto - margen.arriba - margen.abajo
+  };
+  const paso = util.ancho / (etiquetas.length - 1);
+  const escalaY = (v) => margen.arriba + util.alto * (1 - v / maximo);
+  const escalaX = (i) => margen.izquierda + paso * i;
+
+  let rejilla = '';
+  for (let i = 0; i <= 4; i++) {
+    const v = maximo * i / 4;
+    const y = escalaY(v);
+    rejilla += `
+      <line class="rejilla" x1="${margen.izquierda}" y1="${y}"
+            x2="${ancho - margen.derecha}" y2="${y}"></line>
+      <text class="eje-texto" x="${margen.izquierda - 6}" y="${y + 3}"
+            text-anchor="end">${Math.round(v)}</text>`;
+  }
+
+  let trazos = '';
+  series.forEach((s) => {
+    const puntos = s.datos.map((v, i) => `${escalaX(i)},${escalaY(v)}`).join(' ');
+    trazos += `<polyline points="${puntos}" fill="none" stroke="${s.color}"
+                 stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"></polyline>`;
+    s.datos.forEach((v, i) => {
+      if (v === 0) return;
+      trazos += `<circle cx="${escalaX(i)}" cy="${escalaY(v)}" r="3.5"
+                   fill="#fff" stroke="${s.color}" stroke-width="2">
+                   <title>${escapar(s.nombre)} · ${etiquetas[i]}: ${v}</title>
+                 </circle>`;
+    });
+  });
+
+  let ejeX = '';
+  etiquetas.forEach((et, i) => {
+    ejeX += `<text class="eje-texto" x="${escalaX(i)}" y="${alto - margen.abajo + 18}"
+               text-anchor="middle">${et}</text>`;
+  });
+
+  $g.innerHTML = `
+    <svg class="grafico" viewBox="0 0 ${ancho} ${alto}"
+         preserveAspectRatio="xMidYMid meet" role="img">
+      ${rejilla}
+      <line class="eje" x1="${margen.izquierda}" y1="${margen.arriba + util.alto}"
+            x2="${ancho - margen.derecha}" y2="${margen.arriba + util.alto}"></line>
+      ${trazos}
+      ${ejeX}
+    </svg>`;
+}
+
 function pintarAtenciones() {
   const anio = parseInt(document.getElementById('at-anio').value, 10);
   const $cuerpo = document.getElementById('cuerpo-atenciones');
@@ -156,6 +257,8 @@ function pintarAtenciones() {
   document.getElementById('vacio-atenciones').hidden = delAnio.length > 0;
   $cuerpo.innerHTML = '';
   $pie.innerHTML = '';
+
+  pintarTendenciaAtenciones(delAnio);
 
   if (delAnio.length === 0) return;
 
