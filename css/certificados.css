@@ -191,3 +191,48 @@
   body.imprimiendo-est, body.imprimiendo-est .app, body.imprimiendo-est .contenido { background: #fff !important; }
   body.imprimiendo-est .est-fila-relleno { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* ============================================
+   Membrete estándar para impresión
+   ============================================ */
+/* En pantalla, el membrete de estadísticas y su título van ocultos */
+.membrete-print, .est-titulo-print { display: none; }
+
+@media print {
+  /* Membrete (logo + datos empresa) */
+  .membrete {
+    display: flex !important;
+    align-items: center;
+    gap: 1rem;
+    border-bottom: 2px solid #1b5e20;
+    padding-bottom: 0.7rem;
+    margin-bottom: 1rem;
+  }
+  .membrete-logo { height: 65px; width: auto; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .membrete-datos { display: flex; flex-direction: column; }
+  .membrete-datos strong { font-size: 13pt; color: #1b5e20; }
+  .membrete-datos span { font-size: 10pt; color: #333; }
+
+  /* Título del documento en estadísticas */
+  body.imprimiendo-est .est-titulo-print {
+    display: block !important;
+    text-align: center;
+    font-size: 14pt;
+    text-transform: uppercase;
+    margin: 0.5rem 0 1.2rem;
+    color: #000;
+  }
+  body.imprimiendo-est .membrete-print { display: flex !important; }
+}
+
+/* Certificado que corresponde a un familiar (calamidad doméstica) */
+.chip-familiar {
+  display: inline-block;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  background: #f3e8f7;
+  color: #6b2d8a;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
