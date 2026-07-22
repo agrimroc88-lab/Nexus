@@ -19,6 +19,40 @@
       padding-bottom: 0.3rem;
       margin: 1.25rem 0 0.75rem;
     }
+    /* Gráfico de tendencia mensual */
+    .grafico-caja {
+      background: var(--color-superficie, #fff);
+      border: 1px solid var(--color-borde, #e2e8e2);
+      border-radius: var(--radio, 12px);
+      padding: 1.1rem 1.25rem 0.75rem;
+      margin: 0 0 1.25rem;
+      box-shadow: var(--sombra-tarjeta, 0 1px 3px rgba(20,40,20,.06));
+    }
+    .grafico-cabecera {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 1rem; flex-wrap: wrap; margin-bottom: 0.75rem;
+    }
+    .grafico-titulo {
+      margin: 0; font-size: 0.95rem; font-weight: 600;
+      color: var(--color-acento-oscuro, #00450d);
+    }
+    .leyenda { display: flex; flex-wrap: wrap; gap: 0.9rem; }
+    .leyenda-item {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      font-size: 0.78rem; color: var(--color-texto-tenue, #667);
+    }
+    .leyenda-color { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+    .grafico { width: 100%; height: auto; display: block; }
+    .grafico .rejilla { stroke: #e8eee8; stroke-width: 1; }
+    .grafico .eje { stroke: #c3cfc3; stroke-width: 1; }
+    .grafico .eje-texto { font-size: 10px; fill: #8a938a; font-family: inherit; }
+    .grafico circle { transition: r .12s; }
+    .grafico circle:hover { r: 5; }
+    .grafico-vacio {
+      text-align: center; color: var(--color-texto-tenue, #8a938a);
+      font-size: 0.85rem; padding: 2.5rem 0; margin: 0;
+    }
+
     .membrete { display: none; }
     /* Ficha psicológica: formato oficial (oculto en pantalla) */
     .fp-hoja { display: none; }
@@ -204,6 +238,14 @@
           <div class="herramientas">
             <select class="entrada filtro" id="at-anio"></select>
           </div>
+
+          <article class="grafico-caja">
+            <div class="grafico-cabecera">
+              <h3 class="grafico-titulo">Tendencia mensual por tipo de atención</h3>
+              <div class="leyenda" id="at-leyenda"></div>
+            </div>
+            <div id="at-grafico"></div>
+          </article>
 
           <div class="panel">
             <div class="tabla-envoltura">
@@ -581,6 +623,6 @@
   <!-- Área de impresión: se llena al imprimir y solo es visible en @media print -->
   <div id="zona-impresion" class="zona-impresion" aria-hidden="true"></div>
 
-  <script type="module" src="js/psicologia.js?v=12"></script>
+  <script type="module" src="js/psicologia.js?v=13"></script>
 </body>
 </html>
