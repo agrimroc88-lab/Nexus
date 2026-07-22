@@ -46,11 +46,17 @@ async function iniciar() {
 
 async function cargarEmpresas() {
   const { data } = await supabase.from('empresas').select('id, razon_social').order('razon_social');
-  (data || []).forEach((e) => {
+  const lista = data || [];
+  lista.forEach((e) => {
     const o = document.createElement('option');
     o.value = e.id; o.textContent = e.razon_social;
     $empresa.appendChild(o);
   });
+  // Si solo hay una empresa, seleccionarla automáticamente
+  if (lista.length === 1) {
+    $empresa.value = lista[0].id;
+    await alCambiarEmpresa();
+  }
 }
 
 async function cargarFichas() {
