@@ -451,7 +451,7 @@ const buscarDiagCert = retrasar(async () => {
     .ilike('descripcion', '%' + texto + '%')
     .limit(8);
 
-  if (!data || data.length === 0) { $sug.hidden = true; return; }
+  if (!data || data.length === 0) { mostrarAltaCie(texto, $sug, true); return; }
   $sug.innerHTML = '';
   data.forEach((c) => {
     const b = document.createElement('button');
@@ -465,8 +465,71 @@ const buscarDiagCert = retrasar(async () => {
     });
     $sug.appendChild(b);
   });
+  $sug.appendChild(botonAltaCie(texto, $sug, true));
   $sug.hidden = false;
 }, 350);
+
+/* ============================================
+   Alta de códigos CIE-10 al vuelo
+   Cuando un diagnóstico no está en el catálogo, se agrega
+   desde aquí y queda disponible para los siguientes certificados.
+   ============================================ */
+
+/* Botón "agregar" que se añade al final de las sugerencias */
+function botonAltaCie(texto, $sug, esDescripcion) {
+  const b = document.createElement('button');
+  b.className = 'sugerencia sugerencia-alta'; b.type = 'button';
+  b.innerHTML = `<span class="cie-chip cie-chip-alta">+</span>
+                 <span class="sugerencia-nombre">Agregar un código CIE-10 nuevo</span>`;
+  b.addEventListener('click', () => {
+    $sug.hidden = true;
+    abrirAltaCie(esDescripcion ? '' : texto, esDescripcion ? texto : '');
+  });
+  return b;
+}
+
+/* Cuando no hubo ningún resultado: mostrar solo la opción de agregar */
+function mostrarAltaCie(texto, $sug, esDescripcion) {
+  $sug.innerHTML = '';
+  const aviso = document.createElement('div');
+  aviso.className = 'sugerencia-vacia';
+  aviso.textContent = 'Sin coincidencias en el catálogo CIE-10.';
+  $sug.appendChild(aviso);
+  $sug.appendChild(botonAltaCie(texto, $sug, esDescripcion));
+  $sug.hidden = false;
+}
+
+function abrirAltaCie(codigo, descripcion) {
+  document.getElementById('cie_codigo').value = (codigo || '').toUpperCase();
+  document.getElementById('cie_descripcion').value = descripcion || '';
+  document.getElementById('alerta-cie').hidden = true;
+  document.getElementById('modal-cie').hidden = false;
+  document.getElementById('cie_codigo').focus();
+}
+
+async function guardarCieNuevo() {
+  const $alerta = document.getElementById('alerta-cie');
+  const codigo = document.getElementById('cie_codigo').value.trim().toUpperCase();
+  const descripcion = document.getElementById('cie_descripcion').value.trim();
+
+  if (!codigo || !descripcion) {
+    $alerta.textContent = 'El código y la descripción son obligatorios.';
+    $alerta.hidden = false; return;
+  }
+
+  const { error } = await supabase.from('cie10').insert({ codigo, descripcion });
+  if (error) {
+    $alerta.textContent = error.message.includes('duplicate')
+      ? 'Ese código ya existe en el catálogo.'
+      : 'No fue posible guardar: ' + error.message;
+    $alerta.hidden = false; return;
+  }
+
+  // Dejarlo puesto en el formulario del certificado
+  document.getElementById('ce_cie').value = codigo;
+  document.getElementById('ce_diagnostico').value = descripcion;
+  document.getElementById('modal-cie').hidden = true;
+}
 
 const buscarCieCert = retrasar(async () => {
   const texto = document.getElementById('ce_cie').value.trim();
@@ -489,7 +552,7 @@ const buscarCieCert = retrasar(async () => {
   (porDesc.data || []).forEach((c) => mapa.set(c.codigo, c));
   const data = [...mapa.values()].slice(0, 8);
 
-  if (data.length === 0) { $sug.hidden = true; return; }
+  if (data.length === 0) { mostrarAltaCie(texto, $sug); return; }
   $sug.innerHTML = '';
   data.forEach((c) => {
     const b = document.createElement('button');
@@ -503,6 +566,8 @@ const buscarCieCert = retrasar(async () => {
     });
     $sug.appendChild(b);
   });
+  // Al final, siempre la opción de agregar uno nuevo
+  $sug.appendChild(botonAltaCie(texto, $sug));
   $sug.hidden = false;
 }, 300);
 
@@ -618,6 +683,13 @@ function imprimirCertificado() {
   const $z = document.getElementById('zona-impresion');
   $z.innerHTML = `
     <div class="hoja">
+      <div class="membrete">
+        <img src="logo.png" class="membrete-logo" alt="">
+        <div class="membrete-datos">
+          <strong>${escapar(c.empresa || 'AGRIMROC S.A.')}</strong>
+          <span>Unidad de Seguridad y Salud Ocupacional</span>
+        </div>
+      </div>
       <header class="hoja-cabecera">
         <h1>Certificado Médico</h1>
         <p>${escapar(c.nombre_completo)} · Código ${c.codigo_trabajador} · Cédula ${escapar(c.cedula)}</p>
@@ -666,6 +738,12 @@ function poblarAniosEstadisticas() {
 
 function pintarEstadisticas() {
   poblarAniosEstadisticas();
+  // Nombre de empresa en el membrete de impresión
+  const $en = document.getElementById('est-empresa-nombre');
+  if ($en && $empresa) {
+    const opt = $empresa.options[$empresa.selectedIndex];
+    if (opt && opt.textContent) $en.textContent = opt.textContent;
+  }
   const anio = parseInt(document.getElementById('est-anio').value, 10) || new Date().getFullYear();
   const lista = estado.certificados.filter(
     (c) => c.fecha_emision && new Date(c.fecha_emision + 'T00:00').getFullYear() === anio
@@ -796,6 +874,13 @@ function conectarEventos() {
   document.getElementById('btn-eliminar-cert').addEventListener('click', eliminarCertificado);
   document.getElementById('ce_codigo').addEventListener('input', buscarTrabajadorCert);
   document.getElementById('ce_cie').addEventListener('input', buscarCieCert);
+
+  // Alta de códigos CIE-10
+  document.getElementById('guardar-cie').addEventListener('click', guardarCieNuevo);
+  document.getElementById('cancelar-cie').addEventListener('click',
+    () => document.getElementById('modal-cie').hidden = true);
+  document.getElementById('cerrar-cie').addEventListener('click',
+    () => document.getElementById('modal-cie').hidden = true);
   document.getElementById('ce_diagnostico').addEventListener('input', buscarDiagCert);
   document.getElementById('ce_reubica').addEventListener('change', ajustarReubica);
   document.getElementById('ce_reposo_dias').addEventListener('input', calcularReposoFin);
