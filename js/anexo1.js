@@ -1438,13 +1438,29 @@ function leerRadio(nombre) {
 
 /** Muestra u oculta campos según el tipo o estado elegido */
 function ajustarCamposEvento() {
-  /* El reposo (días + inicio) se puede registrar en cualquier tipo
-     de evento y en enfermedad profesional: el campo queda siempre visible. */
+  /* El reposo solo aplica al accidente con baja: si hubo reposo médico,
+     el evento es por definición un accidente con baja. En los demás
+     tipos el campo se oculta y se pone en cero, tal como exige la
+     restricción ck_baja_coherente de la base. */
   if (AMBITO === 'seguridad') {
-    document.getElementById('ev-campo-dias').hidden = false;
+    const conBaja = leerRadio('ev_tipo') === 'accidente_baja';
+    document.getElementById('ev-campo-dias').hidden = !conBaja;
+    const $bloque = document.getElementById('ev-bloque-reposo');
+    if ($bloque) $bloque.hidden = !conBaja;
+    if (!conBaja) {
+      document.getElementById('ev_dias').value = 0;
+      document.getElementById('ev_reposo_inicio').value = '';
+    }
   } else {
     const est = leerRadio('ev_estado');
     document.getElementById('ev-campo-dictamen').hidden = est === 'presuncion';
+    // La enfermedad profesional tampoco admite días de reposo
+    const $dias = document.getElementById('ev-campo-dias');
+    if ($dias) $dias.hidden = true;
+    const $bloqueEp = document.getElementById('ev-bloque-reposo');
+    if ($bloqueEp) $bloqueEp.hidden = true;
+    const $d = document.getElementById('ev_dias');
+    if ($d) $d.value = 0;
   }
 
   document.getElementById('ev-campo-freporte').hidden =
