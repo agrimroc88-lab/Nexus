@@ -100,6 +100,18 @@ function puedeEscribir() {
   return false;
 }
 
+/**
+ * Permiso para registrar accidentes e incidentes.
+ * Además del técnico, el personal médico puede registrarlos
+ * para apoyar cuando el técnico está en campo. No les habilita
+ * el resto del módulo (capacitaciones, requisitos del Anexo 1).
+ */
+function puedeEscribirEventos() {
+  if (puedeEscribir()) return true;
+  if (AMBITO !== 'seguridad') return false;
+  return ['medico_ocupacional', 'enfermeria'].includes(estado.perfil.rol);
+}
+
 /* ============================================
    Datos
    ============================================ */
@@ -1123,7 +1135,7 @@ async function cargarEventos() {
   const { data: filas } = await ind;
   estado.indEventos = agregarIndicadores(filas || []);
 
-  document.getElementById('btn-nuevo-evento').hidden = !puedeEscribir();
+  document.getElementById('btn-nuevo-evento').hidden = !puedeEscribirEventos();
   document.getElementById('ev-pista').textContent = EVENTOS.pista;
 }
 
@@ -1314,7 +1326,7 @@ function filaEvento(e) {
 
   /* Acciones */
   const $a = fila.querySelector('td:last-child');
-  if (puedeEscribir()) {
+  if (puedeEscribirEventos()) {
     const btn = document.createElement('button');
     btn.className = 'boton-icono';
     btn.type = 'button';
@@ -1386,7 +1398,7 @@ async function abrirEvento(e) {
     limpiarFormEvento();
   }
 
-  document.getElementById('btn-eliminar-evento').hidden = !e || !puedeEscribir();
+  document.getElementById('btn-eliminar-evento').hidden = !e || !puedeEscribirEventos();
   document.getElementById('alerta-evento').hidden = true;
   ajustarCamposEvento();
   document.getElementById('modal-evento').hidden = false;

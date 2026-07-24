@@ -26,7 +26,7 @@ export const MODULOS = [
   { id: 'psicologia',    texto: 'Psicología',           archivo: 'psicologia.html',           listo: true,
     roles: ['admin', 'psicologo', 'psico_social'] },
   { id: 'seguridad_ind', texto: 'Seguridad industrial', archivo: 'seguridad-industrial.html', listo: true,
-    roles: ['admin', 'tecnico_sst'] },
+    roles: ['admin', 'tecnico_sst', 'medico_ocupacional', 'enfermeria'] },
   { id: 'trabajo_social',texto: 'Trabajo Social',       archivo: 'trabajo-social.html',       listo: true,
     roles: ['admin', 'trabajo_social', 'psico_social', 'medico_ocupacional'] },
   { id: 'atenciones',    texto: 'Atenciones médicas',   archivo: 'atenciones.html',           listo: true,
