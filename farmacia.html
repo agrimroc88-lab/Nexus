@@ -11,6 +11,17 @@
   <link rel="stylesheet" href="css/trabajadores.css">
   <link rel="stylesheet" href="css/farmacia.css">
   <style>
+    /* Aviso breve de confirmación */
+    .aviso-flotante {
+      position: fixed; top: 1.25rem; right: 1.25rem; z-index: 3000;
+      background: #1b5e20; color: #fff; padding: 0.7rem 1.1rem;
+      border-radius: 10px; font-size: 0.88rem; font-weight: 500;
+      box-shadow: 0 6px 20px rgba(0,0,0,.18);
+      opacity: 0; transform: translateY(-8px);
+      transition: opacity .2s, transform .2s; pointer-events: none;
+    }
+    .aviso-flotante.visible { opacity: 1; transform: translateY(0); }
+
     /* Orden de compra */
     .orden-acciones {
       display: flex; align-items: center; justify-content: space-between;
@@ -592,6 +603,6 @@
   <!-- Zona de impresión de la orden (fuera de todo, para que no la oculte main) -->
   <div class="orden-impresion" id="orden-impresion"></div>
 
-  <script type="module" src="js/farmacia.js?v=7"></script>
+  <script type="module" src="js/farmacia.js?v=8"></script>
 </body>
 </html>
