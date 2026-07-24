@@ -1600,9 +1600,13 @@ async function guardarEvento() {
     if (tipo === 'accidente_baja' && dias < 1) {
       return alertaEvento('El accidente con baja requiere al menos un día de reposo');
     }
+    if (tipo !== 'accidente_baja' && dias > 0) {
+      return alertaEvento(
+        'Solo el accidente con baja admite días de reposo. ' +
+        'Si hubo reposo, marque «Accidente con baja»; si no, deje los días en cero.');
+    }
 
-    /* El reposo se puede registrar en cualquier tipo. Su inicio
-       solo se guarda si hay al menos un día de reposo. */
+    /* El reposo solo aplica al accidente con baja (regla de la base). */
     const reposoInicio = dias > 0
       ? (document.getElementById('ev_reposo_inicio').value || fecha)
       : null;
@@ -1629,9 +1633,12 @@ async function guardarEvento() {
     }
 
     const diasEp = parseInt(document.getElementById('ev_dias').value, 10) || 0;
-    const reposoInicioEp = diasEp > 0
-      ? (document.getElementById('ev_reposo_inicio').value || fecha)
-      : null;
+    if (diasEp > 0) {
+      return alertaEvento(
+        'Los días de reposo solo se registran en el accidente con baja. ' +
+        'Deje el campo en cero para la enfermedad profesional.');
+    }
+    const reposoInicioEp = null;
 
     datos = {
       ...base,
