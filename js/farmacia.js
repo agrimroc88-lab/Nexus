@@ -100,17 +100,26 @@ async function cargarEmpresas() {
 }
 
 async function cargarTodo() {
-  await Promise.all([
-    cargarMedicamentos(),
-    cargarLotes(),
-    cargarKardex(),
-    cargarTrabajadores(),
-    cargarInsumos()
-  ]);
+  try {
+    await Promise.all([
+      cargarMedicamentos(),
+      cargarLotes(),
+      cargarKardex(),
+      cargarTrabajadores(),
+      cargarInsumos()
+    ]);
+  } catch (e) {
+    console.error('Error al recargar farmacia:', e);
+    avisar('No se pudo actualizar la pantalla. Recargue la página (Ctrl+Shift+R).');
+    return;
+  }
   pintarResumen();
   pintarExistencias();
   pintarLotes();
   pintarKardex();
+  // Repintar también la vista activa, si es una de las nuevas
+  if (estado.vista === 'insumos') pintarInsumos();
+  if (estado.vista === 'orden') pintarOrden();
 }
 
 async function cargarMedicamentos() {
@@ -608,6 +617,22 @@ async function guardarIngreso() {
 
   document.getElementById('modal-ingreso').hidden = true;
   await cargarTodo();
+  avisar(`Ingreso registrado: ${cantidad} unidad(es).`);
+}
+
+/* Aviso breve de confirmación en pantalla (arriba a la derecha). */
+function avisar(texto) {
+  let $a = document.getElementById('aviso-flotante');
+  if (!$a) {
+    $a = document.createElement('div');
+    $a.id = 'aviso-flotante';
+    $a.className = 'aviso-flotante';
+    document.body.appendChild($a);
+  }
+  $a.textContent = texto;
+  $a.classList.add('visible');
+  clearTimeout($a._t);
+  $a._t = setTimeout(() => $a.classList.remove('visible'), 3000);
 }
 
 function alertaIngreso(texto) {
@@ -765,6 +790,7 @@ async function guardarSalida() {
 
   document.getElementById('modal-salida').hidden = true;
   await cargarTodo();
+  avisar(`Salida registrada: ${cantidad} unidad(es).`);
 }
 
 function alertaSalida(texto) {
