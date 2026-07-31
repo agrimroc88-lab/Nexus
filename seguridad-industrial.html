@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="css/farmacia.css">
   <link rel="stylesheet" href="css/atenciones.css">
   <link rel="stylesheet" href="css/anexo1.css">
+  <link rel="stylesheet" href="css/grupos.css">
 </head>
 <body class="app" data-ambito="seguridad" data-modulo="seguridad_ind">
 
@@ -47,6 +48,7 @@
           <button class="pestana activa" data-vista="cumplimiento" type="button">Cumplimiento</button>
           <button class="pestana" data-vista="capacitaciones" type="button">Capacitaciones</button>
           <button class="pestana" data-vista="eventos" type="button">Incidentes y accidentes</button>
+          <button class="pestana" data-vista="grupos" type="button">Grupos prioritarios</button>
           <button class="pestana" data-vista="ocupacionales" type="button">Atenciones ocupacionales</button>
         </nav>
 
@@ -351,7 +353,79 @@
         </section>
 
 
-      </div>
+              <!-- ============ Vista: Grupos prioritarios ============ -->
+        <section class="vista" id="vista-grupos" hidden>
+
+          <section class="resumen">
+            <article class="resumen-item">
+              <span class="resumen-etiqueta">Trabajadores</span>
+              <span class="resumen-valor" id="gp-trabajadores">0</span>
+            </article>
+            <article class="resumen-item">
+              <span class="resumen-etiqueta">Condiciones vigentes</span>
+              <span class="resumen-valor" id="gp-condiciones">0</span>
+            </article>
+            <article class="resumen-item resumen-critico">
+              <span class="resumen-etiqueta">Sin adaptación</span>
+              <span class="resumen-valor" id="gp-sin-adaptacion">0</span>
+            </article>
+            <article class="resumen-item">
+              <span class="resumen-etiqueta">Doble vulnerabilidad</span>
+              <span class="resumen-valor" id="gp-doble">0</span>
+            </article>
+          </section>
+
+          <div class="gp-sugeridos" id="gp-sugeridos" hidden></div>
+
+          <section class="herramientas">
+            <input class="busqueda" id="gp-busqueda" type="search"
+                   placeholder="Buscar por código, cédula o nombre…">
+            <select class="entrada filtro" id="gp-filtro-grupo">
+              <option value="todos">Todos los grupos</option>
+            </select>
+            <select class="entrada filtro" id="gp-filtro-situacion">
+              <option value="vigentes">Vigentes</option>
+              <option value="sin_adaptacion">Sin adaptación</option>
+              <option value="en_proceso">En proceso</option>
+              <option value="completo">Completos</option>
+              <option value="no_requiere">No requieren</option>
+              <option value="cerrados">Cerrados</option>
+              <option value="todos">Todos</option>
+            </select>
+            <button class="boton-secundario" id="gp-btn-imprimir-listado" type="button">
+              Imprimir listado
+            </button>
+            <button class="boton-primario" id="gp-btn-registrar" type="button" hidden>
+              + Añadir a grupos prioritarios
+            </button>
+          </section>
+
+          <div class="panel">
+            <div class="tabla-envoltura">
+              <table class="tabla">
+                <thead>
+                  <tr>
+                    <th class="celda-centro">Código</th>
+                    <th>Nombres y apellidos</th>
+                    <th>Cédula</th>
+                    <th class="celda-centro">Edad</th>
+                    <th>Grupo</th>
+                    <th>Detalle</th>
+                    <th class="celda-centro">Indic.</th>
+                    <th class="celda-centro">Adapt.</th>
+                    <th class="celda-centro">Situación</th>
+                    <th class="celda-centro"></th>
+                  </tr>
+                </thead>
+                <tbody id="gp-cuerpo"></tbody>
+              </table>
+            </div>
+            <p class="vacio" id="gp-vacio" hidden></p>
+          </div>
+
+        </section>
+
+</div>
 
       <p class="aviso-inicial" id="aviso-inicial">
         Seleccione una empresa para gestionar su cumplimiento.
@@ -863,6 +937,273 @@
 
     </div>
   </div>
+
+  <!-- ============ Modal: Registro en grupo prioritario ============ -->
+  <div class="modal" id="gp-modal-registro" hidden>
+    <div class="modal-caja modal-estrecho" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo" id="gp-r-titulo">Añadir a grupos prioritarios</h2>
+        <button class="modal-cerrar" data-cierra="gp-modal-registro" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+        <div class="campo">
+          <label class="etiqueta" for="gp_trabajador">Trabajador <span class="obligatorio">*</span></label>
+          <select class="entrada" id="gp_trabajador"></select>
+        </div>
+
+        <div class="campo">
+          <label class="etiqueta" for="gp_tipo">Grupo de atención prioritaria <span class="obligatorio">*</span></label>
+          <select class="entrada" id="gp_tipo"></select>
+          <span class="ayuda">Art. 35 de la Constitución de la República</span>
+        </div>
+
+        <div id="gp-bloque-discapacidad" hidden>
+          <div class="rejilla">
+            <div class="campo">
+              <label class="etiqueta" for="gp_discapacidad">Tipo de discapacidad</label>
+              <select class="entrada" id="gp_discapacidad">
+                <option value="">— Seleccione —</option>
+                <option value="fisica">Física</option>
+                <option value="visual">Visual</option>
+                <option value="auditiva">Auditiva</option>
+                <option value="intelectual">Intelectual</option>
+                <option value="psicosocial">Psicosocial</option>
+                <option value="lenguaje">Lenguaje</option>
+                <option value="multiple">Múltiple</option>
+              </select>
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="gp_porcentaje">Porcentaje</label>
+              <input class="entrada" id="gp_porcentaje" type="number" min="0" max="100">
+            </div>
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="gp_carne">Carné CONADIS</label>
+            <input class="entrada" id="gp_carne" type="text" autocomplete="off">
+          </div>
+        </div>
+
+        <div class="campo">
+          <label class="etiqueta" for="gp_fecha_inicio">Fecha de inicio</label>
+          <input class="entrada" id="gp_fecha_inicio" type="date">
+        </div>
+
+        <div class="campo">
+          <label class="etiqueta" for="gp_detalle">Detalle de la condición</label>
+          <input class="entrada" id="gp_detalle" type="text">
+        </div>
+
+        <div class="campo">
+          <label class="etiqueta" for="gp_documento">Certificado o respaldo</label>
+          <input class="entrada" id="gp_documento" type="url" placeholder="https://drive.google.com/…">
+        </div>
+
+        <div class="campo">
+          <label class="etiqueta" for="gp_observacion">Observación</label>
+          <input class="entrada" id="gp_observacion" type="text">
+        </div>
+
+        <p class="alerta" id="gp-alerta-registro" role="alert" hidden></p>
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" data-cierra="gp-modal-registro" type="button">Cancelar</button>
+        <button class="boton-primario" id="gp-btn-guardar-registro" type="button">Guardar</button>
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- ============ Modal: Ficha ============ -->
+  <div class="modal" id="gp-modal-ficha" hidden>
+    <div class="modal-caja" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <div>
+          <h2 class="modal-titulo" id="gp-f-nombre">—</h2>
+          <p class="gp-f-datos" id="gp-f-datos">—</p>
+        </div>
+        <button class="modal-cerrar" data-cierra="gp-modal-ficha" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+
+        <div class="gp-f-encabezado">
+          <span class="insignia" id="gp-f-situacion">—</span>
+          <span class="gp-f-grupo" id="gp-f-grupo">—</span>
+          <span class="gp-f-vigencia" id="gp-f-vigencia">—</span>
+          <a class="gp-f-documento" id="gp-f-documento" target="_blank" rel="noopener noreferrer" hidden>
+            Ver certificado
+          </a>
+        </div>
+
+        <!-- Indicaciones médicas -->
+        <div class="gp-bloque">
+          <div class="gp-bloque-cabecera">
+            <h3 class="subtitulo">Indicaciones médicas</h3>
+            <button class="boton-secundario" id="gp-btn-indicacion" type="button" hidden>
+              + Añadir indicación
+            </button>
+          </div>
+          <div id="gp-f-indicaciones"></div>
+        </div>
+
+        <!-- Adaptaciones del puesto -->
+        <div class="gp-bloque">
+          <div class="gp-bloque-cabecera">
+            <h3 class="subtitulo">Adaptaciones del puesto de trabajo</h3>
+            <button class="boton-secundario" id="gp-btn-adaptacion" type="button" hidden>
+              + Añadir adaptación
+            </button>
+          </div>
+
+          <label class="alternador gp-alternador">
+            <input type="checkbox" id="gp_sin_adaptaciones">
+            <span>Este puesto no requiere adaptaciones</span>
+          </label>
+
+          <div id="gp-bloque-sin-adaptaciones" hidden>
+            <div class="campo">
+              <label class="etiqueta" for="gp_motivo_sin">Motivo <span class="obligatorio">*</span></label>
+              <input class="entrada" id="gp_motivo_sin" type="text">
+              <span class="ayuda">Declararlo sin motivo es indefendible ante una inspección.</span>
+            </div>
+            <button class="boton-secundario" id="gp-btn-guardar-sin" type="button">
+              Guardar declaración
+            </button>
+          </div>
+
+          <div id="gp-f-adaptaciones"></div>
+        </div>
+
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" id="gp-btn-cerrar-condicion" type="button">Cerrar condición</button>
+        <button class="boton-secundario" id="gp-btn-editar-registro" type="button">Editar datos</button>
+        <button class="boton-primario" id="gp-btn-imprimir-ficha" type="button">Imprimir ficha</button>
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- ============ Modal: Indicación ============ -->
+  <div class="modal" id="gp-modal-indicacion" hidden>
+    <div class="modal-caja modal-estrecho" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo">Añadir indicación médica</h2>
+        <button class="modal-cerrar" data-cierra="gp-modal-indicacion" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+        <h3 class="subtitulo">Biblioteca del grupo</h3>
+        <div class="gp-biblioteca" id="gp-i-biblioteca"></div>
+
+        <h3 class="subtitulo">Indicación propia</h3>
+        <div class="campo">
+          <label class="etiqueta" for="gp_indicacion_nueva">Texto</label>
+          <input class="entrada" id="gp_indicacion_nueva" type="text">
+          <span class="ayuda">Se guardará en la biblioteca de este grupo para la próxima vez.</span>
+        </div>
+        <div class="campo">
+          <label class="etiqueta" for="gp_indicacion_norma">Fundamento normativo</label>
+          <input class="entrada" id="gp_indicacion_norma" type="text">
+        </div>
+
+        <p class="alerta" id="gp-alerta-indicacion" role="alert" hidden></p>
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" data-cierra="gp-modal-indicacion" type="button">Cancelar</button>
+        <button class="boton-primario" id="gp-btn-guardar-indicacion" type="button">Añadir</button>
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- ============ Modal: Adaptación ============ -->
+  <div class="modal" id="gp-modal-adaptacion" hidden>
+    <div class="modal-caja modal-estrecho" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo" id="gp-a-titulo">Añadir adaptación del puesto</h2>
+        <button class="modal-cerrar" data-cierra="gp-modal-adaptacion" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+        <div class="campo">
+          <label class="etiqueta" for="gp_a_indicacion">Responde a la indicación</label>
+          <select class="entrada" id="gp_a_indicacion"></select>
+        </div>
+
+        <div class="campo">
+          <label class="etiqueta" for="gp_a_descripcion">Adaptación implementada <span class="obligatorio">*</span></label>
+          <input class="entrada" id="gp_a_descripcion" type="text">
+        </div>
+
+        <div class="rejilla">
+          <div class="campo">
+            <label class="etiqueta" for="gp_a_estado">Estado</label>
+            <select class="entrada" id="gp_a_estado">
+              <option value="pendiente">Pendiente</option>
+              <option value="implementada">Implementada</option>
+              <option value="verificada">Verificada in situ</option>
+              <option value="no_aplica">No aplica</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="gp_a_implementacion">Fecha de implementación</label>
+            <input class="entrada" id="gp_a_implementacion" type="date">
+          </div>
+        </div>
+
+        <div id="gp-bloque-verificacion" hidden>
+          <div class="rejilla">
+            <div class="campo">
+              <label class="etiqueta" for="gp_a_verificacion">Fecha de verificación <span class="obligatorio">*</span></label>
+              <input class="entrada" id="gp_a_verificacion" type="date">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="gp_a_verificada_por">Verificada por</label>
+              <input class="entrada" id="gp_a_verificada_por" type="text">
+            </div>
+          </div>
+        </div>
+
+        <div id="gp-bloque-motivo" hidden>
+          <div class="campo">
+            <label class="etiqueta" for="gp_a_motivo">Motivo por el que no aplica <span class="obligatorio">*</span></label>
+            <input class="entrada" id="gp_a_motivo" type="text">
+          </div>
+        </div>
+
+        <div class="campo">
+          <label class="etiqueta" for="gp_a_responsable">Responsable</label>
+          <input class="entrada" id="gp_a_responsable" type="text">
+        </div>
+
+        <div class="campo">
+          <label class="etiqueta" for="gp_a_evidencia">Informe o evidencia</label>
+          <input class="entrada" id="gp_a_evidencia" type="url" placeholder="https://drive.google.com/…">
+          <span class="ayuda">Enlace al informe que respalda la adaptación. Alimenta GTH-02.</span>
+        </div>
+
+        <p class="alerta" id="gp-alerta-adaptacion" role="alert" hidden></p>
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" data-cierra="gp-modal-adaptacion" type="button">Cancelar</button>
+        <button class="boton-primario" id="gp-btn-guardar-adaptacion" type="button">Guardar</button>
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- Zona de impresión de grupos prioritarios -->
+  <div class="gp-impresion" id="gp-impresion"></div>
 
   <script type="module" src="js/anexo1.js?v=7"></script>
 </body>
