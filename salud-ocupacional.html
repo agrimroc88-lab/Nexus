@@ -496,13 +496,17 @@
       </header>
 
       <div class="modal-cuerpo">
-        <p class="enlace-evidencia" id="e-evidencia">—</p>
-
-        <div class="campo" id="campo-etiqueta" hidden>
+        <div class="campo">
           <label class="etiqueta" for="e_etiqueta">Nombre del documento <span class="obligatorio">*</span></label>
           <input class="entrada" id="e_etiqueta" type="text"
-                 placeholder="Ej. Acta de socialización" autocomplete="off">
-          <span class="ayuda">Respaldo extra. No altera el porcentaje de cumplimiento.</span>
+                 placeholder="Ej. Campaña de salud visual · marzo 2026" autocomplete="off">
+          <span class="ayuda">Nómbrelo como lo reconoce en su repositorio.</span>
+        </div>
+
+        <div class="campo">
+          <label class="etiqueta" for="e_evidencia">Cuenta como</label>
+          <select class="entrada" id="e_evidencia"></select>
+          <span class="ayuda">Evidencia del Anexo 1 que este documento satisface.</span>
         </div>
 
         <div class="campo">
