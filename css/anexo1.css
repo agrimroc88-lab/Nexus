@@ -1029,3 +1029,41 @@
   .opciones { flex-direction: column; }
   .campo-inline { margin-left: 0; width: 100%; }
 }
+
+/* ============================================
+   Documentos adicionales
+   Respaldo extra sobre un requisito. No entra en el
+   denominador del cumplimiento: añadirlos nunca baja
+   el porcentaje.
+   ============================================ */
+
+.evidencia-extra {
+  border-style: dashed;
+  border-color: var(--color-borde);
+  background: transparent;
+}
+
+.evidencia-extra .evidencia-marca {
+  color: var(--color-texto-tenue, #8a8f98);
+  font-weight: 600;
+}
+
+.evidencia-distintivo {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.05rem 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-texto-tenue, #8a8f98);
+  border: 1px solid var(--color-borde);
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
+.boton-extra {
+  width: 100%;
+  margin-top: 0.25rem;
+  border-style: dashed;
+}
