@@ -297,17 +297,17 @@ function abrirRegistro(registro, trabajadorId, tipoSugerido) {
   document.getElementById('gp-r-titulo').textContent =
     registro ? 'Editar condición' : 'Añadir a grupos prioritarios';
 
-  const $trab = document.getElementById('gp_trabajador');
-  $trab.innerHTML = '<option value="">— Seleccione —</option>';
-  gp.nomina.forEach((t) => {
-    const o = document.createElement('option');
-    o.value = t.id;
-    o.textContent = `${t.codigo} · ${t.nombre_completo}`;
-    $trab.appendChild(o);
-  });
+  /* El trabajador se busca, no se elige de una lista larga.
+     Al editar ya está fijado y no se cambia: mover la
+     condición de persona rompería su histórico. */
+  const idInicial = registro?.trabajador_id ?? trabajadorId ?? '';
+  const inicial = gp.nomina.find((t) => t.id === idInicial);
 
-  $trab.value = registro?.trabajador_id ?? trabajadorId ?? '';
-  $trab.disabled = Boolean(registro);
+  if (inicial) {
+    elegirTrabajador(inicial, Boolean(registro));
+  } else {
+    limpiarEleccion();
+  }
 
   const $tipo = document.getElementById('gp_tipo');
   $tipo.innerHTML = Object.entries(GRUPOS)
@@ -325,6 +325,73 @@ function abrirRegistro(registro, trabajadorId, tipoSugerido) {
   alternarCamposDiscapacidad();
   document.getElementById('gp-alerta-registro').hidden = true;
   document.getElementById('gp-modal-registro').hidden = false;
+
+  if (!document.getElementById('gp_trabajador').value) {
+    document.getElementById('gp_buscar').focus();
+  }
+}
+
+/* ============================================
+   Buscador de trabajador
+   La nómina activa ya está en memoria: filtrar aquí evita
+   un viaje al servidor por cada tecla.
+   ============================================ */
+
+function buscarTrabajador() {
+  const texto = document.getElementById('gp_buscar').value.trim().toLowerCase();
+  const $sug = document.getElementById('gp_sugerencias');
+
+  if (texto.length < 2) { $sug.hidden = true; return; }
+
+  const hallados = gp.nomina.filter((t) => {
+    const campo = `${t.codigo} ${t.cedula ?? ''} ${t.nombre_completo}`.toLowerCase();
+    return campo.includes(texto);
+  }).slice(0, 12);
+
+  if (hallados.length === 0) {
+    $sug.innerHTML = '<p class="gp-sugerencia-vacia">Sin coincidencias en la nómina activa</p>';
+    $sug.hidden = false;
+    return;
+  }
+
+  $sug.innerHTML = '';
+  hallados.forEach((t) => {
+    const item = document.createElement('button');
+    item.className = 'gp-sugerencia';
+    item.type = 'button';
+    item.innerHTML = `
+      <span class="codigo">${t.codigo ?? '—'}</span>
+      <span class="gp-sugerencia-nombre">${escapar(t.nombre_completo)}</span>
+      <span class="gp-sugerencia-meta">${escapar(t.cedula ?? '')}</span>
+    `;
+    item.addEventListener('click', () => elegirTrabajador(t, false));
+    $sug.appendChild(item);
+  });
+
+  $sug.hidden = false;
+}
+
+function elegirTrabajador(t, fijado) {
+  document.getElementById('gp_trabajador').value = t.id;
+
+  const $elegido = document.getElementById('gp-elegido');
+  $elegido.hidden = false;
+  $elegido.querySelector('.gp-elegido-nombre').textContent = t.nombre_completo;
+  $elegido.querySelector('.gp-elegido-meta').textContent =
+    `Código ${t.codigo ?? '—'} · Cédula ${t.cedula ?? '—'}`;
+
+  document.getElementById('gp-btn-cambiar-trabajador').hidden = fijado;
+  document.getElementById('gp-campo-buscar').hidden = true;
+  document.getElementById('gp_sugerencias').hidden = true;
+  document.getElementById('gp_buscar').value = '';
+}
+
+function limpiarEleccion() {
+  document.getElementById('gp_trabajador').value = '';
+  document.getElementById('gp-elegido').hidden = true;
+  document.getElementById('gp-campo-buscar').hidden = false;
+  document.getElementById('gp_sugerencias').hidden = true;
+  document.getElementById('gp_buscar').value = '';
 }
 
 /* Los campos propios de discapacidad no existen para embarazo */
@@ -1054,6 +1121,8 @@ function conectar() {
   enEl('gp-btn-registrar', 'click', () => abrirRegistro(null));
   enEl('gp-btn-guardar-registro', 'click', guardarRegistro);
   enEl('gp_tipo', 'change', alternarCamposDiscapacidad);
+  enEl('gp_buscar', 'input', buscarTrabajador);
+  enEl('gp-btn-cambiar-trabajador', 'click', limpiarEleccion);
 
   enEl('gp-btn-imprimir-listado', 'click', imprimirListado);
   enEl('gp-btn-imprimir-ficha', 'click', imprimirFicha);
