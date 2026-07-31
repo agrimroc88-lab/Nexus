@@ -295,3 +295,79 @@
   /* Las tablas no se parten a mitad de fila */
   .gp-tabla tr, .gp-ficha-datos tr { page-break-inside: avoid; }
 }
+
+/* ============================================
+   Buscador de trabajador
+   Mismo comportamiento que el de Atenciones, pero
+   filtrando la nómina ya cargada en memoria.
+   ============================================ */
+
+#gp-campo-buscar { position: relative; }
+
+.gp-sugerencias {
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  top: 100%;
+  max-height: 280px;
+  overflow-y: auto;
+  margin-top: 0.2rem;
+  background: var(--color-panel, var(--color-fondo));
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.gp-sugerencia {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font: inherit;
+  text-align: left;
+  color: var(--color-texto);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--color-borde);
+  cursor: pointer;
+}
+
+.gp-sugerencia:last-child { border-bottom: none; }
+.gp-sugerencia:hover { background: rgba(126, 226, 168, 0.08); }
+
+.gp-sugerencia-nombre { flex: 1; font-size: 0.86rem; }
+
+.gp-sugerencia-meta {
+  font-size: 0.75rem;
+  color: var(--color-texto-tenue, #8a8f98);
+}
+
+.gp-sugerencia-vacia {
+  margin: 0;
+  padding: 0.7rem 0.75rem;
+  font-size: 0.82rem;
+  color: var(--color-texto-tenue, #8a8f98);
+}
+
+/* Trabajador ya elegido */
+.gp-elegido {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  margin-bottom: 1rem;
+  background: var(--color-fondo);
+  border: 1px solid rgba(126, 226, 168, 0.35);
+  border-radius: var(--radio);
+}
+
+.gp-elegido-cuerpo { display: flex; flex-direction: column; gap: 0.1rem; }
+.gp-elegido-nombre { font-size: 0.9rem; font-weight: 600; }
+
+.gp-elegido-meta {
+  font-size: 0.75rem;
+  color: var(--color-texto-tenue, #8a8f98);
+}
