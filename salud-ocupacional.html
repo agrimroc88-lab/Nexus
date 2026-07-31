@@ -981,9 +981,22 @@
       </header>
 
       <div class="modal-cuerpo">
-        <div class="campo">
-          <label class="etiqueta" for="gp_trabajador">Trabajador <span class="obligatorio">*</span></label>
-          <select class="entrada" id="gp_trabajador"></select>
+        <input type="hidden" id="gp_trabajador">
+
+        <div class="campo" id="gp-campo-buscar">
+          <label class="etiqueta" for="gp_buscar">Trabajador <span class="obligatorio">*</span></label>
+          <input class="entrada" id="gp_buscar" type="search"
+                 placeholder="Código, cédula, apellidos o nombres" autocomplete="off">
+          <div class="gp-sugerencias" id="gp_sugerencias" hidden></div>
+          <span class="ayuda">Escriba al menos dos caracteres. Solo aparece la nómina activa.</span>
+        </div>
+
+        <div class="gp-elegido" id="gp-elegido" hidden>
+          <div class="gp-elegido-cuerpo">
+            <span class="gp-elegido-nombre">—</span>
+            <span class="gp-elegido-meta">—</span>
+          </div>
+          <button class="boton-icono" id="gp-btn-cambiar-trabajador" type="button">Cambiar</button>
         </div>
 
         <div class="campo">
