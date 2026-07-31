@@ -479,6 +479,15 @@ function pintarVigenciaModal(r) {
   }
 }
 
+/**
+ * Los documentos no se declaran en casillas fijas: se
+ * registran y se nombran. El catálogo del Anexo 1 ya no
+ * dibuja espacios vacíos, solo define cuántos documentos
+ * son legalmente exigibles y con qué nombre los reconoce
+ * la norma. Ese conteo sigue siendo el denominador del
+ * cumplimiento; el rótulo lo escribe quien conoce el
+ * documento.
+ */
 function pintarEvidenciasModal(r) {
   const $cont = document.getElementById('m-evidencias');
   const esperadas = estado.evidencias[r.requisito_codigo] || [];
@@ -487,69 +496,39 @@ function pintarEvidenciasModal(r) {
 
   $cont.innerHTML = '';
 
-  esperadas.forEach((ev) => {
-    const enlace = enlaces.find((e) => e.evidencia_id === ev.id);
+  /* Registrados primero, en el orden de la evidencia que
+     satisfacen. Los adicionales cierran la lista. */
+  const posicion = new Map(esperadas.map((ev, i) => [ev.id, i]));
+  const registrados = [...enlaces].sort((a, b) =>
+    (posicion.has(a.evidencia_id) ? posicion.get(a.evidencia_id) : 9e3) -
+    (posicion.has(b.evidencia_id) ? posicion.get(b.evidencia_id) : 9e3)
+  );
+
+  registrados.forEach((enlace) => {
+    const ev = esperadas.find((e) => e.id === enlace.evidencia_id);
+    const adicional = !ev;
 
     const fila = document.createElement('div');
-    fila.className = 'evidencia' + (enlace ? ' evidencia-lista' : '');
-    if (enlace?.vigencia === 'vencido') fila.classList.add('evidencia-vencida');
-
-    fila.innerHTML = `
-      <span class="evidencia-marca">${enlace ? '✓' : '○'}</span>
-      <div class="evidencia-cuerpo">
-        <span class="evidencia-etiqueta">${escapar(ev.etiqueta)}</span>
-        ${enlace
-          ? `<a class="evidencia-enlace" href="${escapar(enlace.url)}"
-                target="_blank" rel="noopener noreferrer">${escapar(acortar(enlace.url))}</a>`
-          : '<span class="evidencia-falta">Sin enlace registrado</span>'}
-        ${enlace ? pintarVigenciaEvidencia(enlace) : ''}
-        ${enlace?.observacion
-          ? `<span class="evidencia-obs">${escapar(enlace.observacion)}</span>` : ''}
-      </div>
-      <div class="evidencia-acciones"></div>
-    `;
-
-    const $acciones = fila.querySelector('.evidencia-acciones');
-
-    if (editable) {
-      const btn = document.createElement('button');
-      btn.className = 'boton-icono';
-      btn.type = 'button';
-      btn.textContent = enlace ? 'Cambiar' : 'Añadir enlace';
-      btn.addEventListener('click', () => abrirEnlace(ev, enlace));
-      $acciones.appendChild(btn);
-
-      if (enlace) {
-        const quitar = document.createElement('button');
-        quitar.className = 'boton-icono boton-icono-critico';
-        quitar.type = 'button';
-        quitar.textContent = 'Quitar';
-        quitar.addEventListener('click', () => quitarEnlace(enlace));
-        $acciones.appendChild(quitar);
-      }
-    }
-
-    $cont.appendChild(fila);
-  });
-
-  /* --- Documentos adicionales ---
-     Enlaces sin evidencia del catálogo. Sostienen el mismo
-     requisito con respaldo extra pero NO entran en el
-     denominador: añadir uno nunca baja el porcentaje. */
-  const extras = enlaces.filter((e) => !e.evidencia_id);
-
-  extras.forEach((enlace) => {
-    const fila = document.createElement('div');
-    fila.className = 'evidencia evidencia-lista evidencia-extra';
+    fila.className = 'evidencia evidencia-lista';
+    if (adicional) fila.classList.add('evidencia-extra');
     if (enlace.vigencia === 'vencido') fila.classList.add('evidencia-vencida');
 
+    /* El nombre del catálogo se conserva visible cuando el
+       usuario tituló el documento de otro modo. La norma
+       exige poder decir qué requisito se satisface; el
+       vínculo real es evidencia_id, no el texto. */
+    const cuentaComo = ev && ev.etiqueta !== enlace.etiqueta
+      ? `<span class="evidencia-cuenta">Cuenta como: ${escapar(ev.etiqueta)}</span>`
+      : '';
+
     fila.innerHTML = `
-      <span class="evidencia-marca">+</span>
+      <span class="evidencia-marca">${adicional ? '+' : '✓'}</span>
       <div class="evidencia-cuerpo">
         <span class="evidencia-etiqueta">
-          ${escapar(enlace.etiqueta || 'Documento adicional')}
-          <span class="evidencia-distintivo">Adicional</span>
+          ${escapar(enlace.etiqueta || 'Documento sin nombre')}
+          ${adicional ? '<span class="evidencia-distintivo">Adicional</span>' : ''}
         </span>
+        ${cuentaComo}
         <a class="evidencia-enlace" href="${escapar(enlace.url)}"
            target="_blank" rel="noopener noreferrer">${escapar(acortar(enlace.url))}</a>
         ${pintarVigenciaEvidencia(enlace)}
@@ -565,8 +544,8 @@ function pintarEvidenciasModal(r) {
       const btn = document.createElement('button');
       btn.className = 'boton-icono';
       btn.type = 'button';
-      btn.textContent = 'Cambiar';
-      btn.addEventListener('click', () => abrirEnlace(null, enlace));
+      btn.textContent = 'Editar';
+      btn.addEventListener('click', () => abrirEnlace(r, enlace));
       $acciones.appendChild(btn);
 
       const quitar = document.createElement('button');
@@ -580,19 +559,91 @@ function pintarEvidenciasModal(r) {
     $cont.appendChild(fila);
   });
 
-  if (editable) {
+  /* Lo que la norma aún espera. No son casillas: son un
+     recordatorio de lo que falta para cerrar el requisito. */
+  const faltantes = evidenciasLibres(r);
+
+  /* Un requisito sin evidencias en el catálogo no puede
+     cerrarse: el trigger exige esperadas > 0 para marcar
+     cumplido. Callarlo dejaría al usuario subiendo
+     documentos que nunca cuentan. */
+  const sinCatalogo = esperadas.length === 0;
+
+  if (sinCatalogo) {
+    const $hueco = document.createElement('div');
+    $hueco.className = 'evidencia-hueco';
+    $hueco.innerHTML = `
+      <span class="evidencia-hueco-titulo">Este requisito aún no espera ningún documento</span>
+      <p class="evidencia-hueco-texto">${
+        r.requisito_codigo === 'GTH-09'
+          ? 'Sus evidencias son los temas del catálogo de capacitaciones. '
+            + 'Cargue los temas en la pestaña Capacitaciones y cada tema activo '
+            + 'abrirá aquí su espacio de enlace.'
+          : 'No hay evidencias definidas en el Anexo 1 para este ámbito. '
+            + 'Mientras siga así, el requisito no puede cerrarse y cuenta como pendiente.'
+      }</p>
+    `;
+    $cont.appendChild($hueco);
+  } else if (registrados.length === 0) {
+    const $vacio = document.createElement('p');
+    $vacio.className = 'evidencia-sin-registro';
+    $vacio.textContent = 'Todavía no hay documentos registrados en este requisito.';
+    $cont.appendChild($vacio);
+  }
+
+  if (faltantes.length > 0) {
+    const $pend = document.createElement('div');
+    $pend.className = 'evidencia-pendientes';
+    $pend.innerHTML = `
+      <span class="evidencia-pendientes-titulo">
+        ${faltantes.length === 1 ? 'Falta por cubrir' : 'Faltan por cubrir'}
+      </span>
+      ${faltantes.map((ev) =>
+        `<span class="evidencia-chip">${escapar(ev.etiqueta)}</span>`).join('')}
+    `;
+    $cont.appendChild($pend);
+  }
+
+  /* Sin catálogo, todo documento nacería como adicional y
+     no movería el porcentaje. Ofrecer el botón sería
+     invitar a un trabajo estéril. */
+  if (editable && !sinCatalogo) {
     const $anadir = document.createElement('button');
     $anadir.className = 'boton-secundario boton-extra';
     $anadir.type = 'button';
-    $anadir.textContent = '+ Añadir documento adicional';
-    $anadir.addEventListener('click', () => abrirEnlace(null, null));
+    $anadir.textContent = '+ Añadir documento';
+    $anadir.addEventListener('click', () => abrirEnlace(r, null));
     $cont.appendChild($anadir);
   }
 
   const $nota = document.getElementById('m-nota-evidencias');
-  $nota.textContent = esperadas.length > 1
-    ? 'El requisito se cumple al entregar los documentos exigidos. Entregar parte otorga cumplimiento proporcional. Los documentos adicionales suman respaldo sin alterar el porcentaje.'
-    : 'Registre el enlace al documento en Drive. Puede añadir respaldos adicionales sin que afecten al porcentaje.';
+  const exigidos = esperadas.length;
+  $nota.textContent = sinCatalogo
+    ? ''
+    : exigidos > 1
+    ? `Este requisito exige ${exigidos} documentos. Cada uno se nombra libremente; ` +
+      'lo que cuenta para el porcentaje es la evidencia que declara satisfacer. ' +
+      'Puede registrar cuantos documentos adicionales necesite sin afectar al cálculo.'
+    : 'Nombre el documento como lo conoce en su repositorio. ' +
+      'Los documentos adicionales suman respaldo sin alterar el porcentaje.';
+}
+
+/**
+ * Evidencias del catálogo que aún nadie satisface.
+ * Excluye la que ya ocupa el enlace en edición: si no, no
+ * podría volver a guardarse sobre sí misma.
+ */
+function evidenciasLibres(r, enlaceEditado) {
+  const esperadas = estado.evidencias[r.requisito_codigo] || [];
+  const enlaces = estado.enlaces[r.id] || [];
+
+  const ocupadas = new Set(
+    enlaces
+      .filter((e) => e.evidencia_id && e.id !== enlaceEditado?.id)
+      .map((e) => e.evidencia_id)
+  );
+
+  return esperadas.filter((ev) => !ocupadas.has(ev.id));
 }
 
 function pintarVigenciaEvidencia(enlace) {
@@ -693,29 +744,44 @@ function alertaReq(texto) {
    ============================================ */
 
 /**
- * evidencia nula = documento adicional: no corresponde a
- * ninguna casilla del catálogo, así que el usuario le pone
- * nombre y no cuenta en el denominador.
+ * Un solo camino para todo documento. El usuario escribe el
+ * nombre y elige qué evidencia exigida satisface; si no
+ * satisface ninguna, queda como adicional y no entra en el
+ * denominador. Añadir respaldo nunca puede bajar el
+ * porcentaje.
  */
-function abrirEnlace(evidencia, enlaceExistente) {
-  const extra = !evidencia;
-  estado.enlaceDestino = { evidencia: evidencia || null, enlace: enlaceExistente, extra };
+function abrirEnlace(r, enlaceExistente) {
+  estado.enlaceDestino = { requisito: r, enlace: enlaceExistente };
 
   document.getElementById('e-titulo').textContent =
-    enlaceExistente ? 'Cambiar enlace'
-                    : (extra ? 'Añadir documento adicional' : 'Añadir enlace');
+    enlaceExistente ? 'Editar documento' : 'Añadir documento';
 
-  const $etiquetaFija = document.getElementById('e-evidencia');
-  const $campoEtiqueta = document.getElementById('campo-etiqueta');
+  /* Opciones: las evidencias libres más, si se está
+     editando, la que ya ocupa este enlace. */
+  const libres = evidenciasLibres(r, enlaceExistente);
+  const $sel = document.getElementById('e_evidencia');
+  $sel.innerHTML = '';
 
-  $etiquetaFija.hidden = extra;
-  if ($campoEtiqueta) $campoEtiqueta.hidden = !extra;
+  libres.forEach((ev) => {
+    const o = document.createElement('option');
+    o.value = ev.id;
+    o.textContent = ev.etiqueta;
+    $sel.appendChild(o);
+  });
 
-  if (extra) {
-    document.getElementById('e_etiqueta').value = enlaceExistente?.etiqueta ?? '';
-  } else {
-    $etiquetaFija.textContent = evidencia.etiqueta;
-  }
+  const oExtra = document.createElement('option');
+  oExtra.value = '';
+  oExtra.textContent = 'Documento adicional · no cuenta al porcentaje';
+  $sel.appendChild(oExtra);
+
+  /* Por defecto, la primera evidencia sin cubrir: el trabajo
+     habitual es completar lo exigido, no acumular extras. */
+  $sel.value = enlaceExistente
+    ? (enlaceExistente.evidencia_id ?? '')
+    : (libres[0]?.id ?? '');
+
+  document.getElementById('e_etiqueta').value =
+    enlaceExistente?.etiqueta ?? sugerirEtiqueta($sel.value, libres);
 
   document.getElementById('e_url').value = enlaceExistente?.url ?? '';
   document.getElementById('e_observacion').value = enlaceExistente?.observacion ?? '';
@@ -733,21 +799,28 @@ function abrirEnlace(evidencia, enlaceExistente) {
   evaluarCaducidad();
   document.getElementById('alerta-enlace').hidden = true;
   document.getElementById('modal-enlace').hidden = false;
-  document.getElementById('e_url').focus();
+  document.getElementById('e_etiqueta').focus();
+}
+
+/**
+ * Propone el nombre de la norma como punto de partida.
+ * Es una sugerencia editable, no una imposición: el nombre
+ * útil para encontrar el archivo lo conoce quien lo archivó.
+ */
+function sugerirEtiqueta(evidenciaId, libres) {
+  if (!evidenciaId) return '';
+  return libres.find((ev) => ev.id === evidenciaId)?.etiqueta ?? '';
 }
 
 async function guardarEnlace() {
-  const { evidencia, enlace, extra } = estado.enlaceDestino || {};
+  const { enlace } = estado.enlaceDestino || {};
   const r = estado.actual;
-  if (!r || (!extra && !evidencia)) return;
+  if (!r) return;
 
-  let etiqueta;
-  if (extra) {
-    etiqueta = document.getElementById('e_etiqueta').value.trim();
-    if (!etiqueta) return alertaEnlace('Indique el nombre del documento');
-  } else {
-    etiqueta = evidencia.etiqueta;
-  }
+  const etiqueta = document.getElementById('e_etiqueta').value.trim();
+  if (!etiqueta) return alertaEnlace('Indique el nombre del documento');
+
+  const evidenciaId = document.getElementById('e_evidencia').value || null;
 
   const url = document.getElementById('e_url').value.trim();
   if (!url) return alertaEnlace('Indique el enlace');
@@ -767,7 +840,7 @@ async function guardarEnlace() {
 
   const datos = {
     cumplimiento_id: r.id,
-    evidencia_id: extra ? null : evidencia.id,
+    evidencia_id: evidenciaId,
     etiqueta,
     url,
     fecha_registro: registro,
@@ -2179,7 +2252,10 @@ function traducirBd(error) {
   if (m.includes('ck_motivo_no_aplica')) return 'El motivo es obligatorio al marcar no aplica';
   if (m.includes('ck_url')) return 'El enlace debe comenzar con http:// o https://';
   if (m.includes('ck_caducidad')) return 'La caducidad no puede ser anterior al registro';
-  if (error.code === '23505') return 'Ya existe un enlace para esa evidencia';
+  if (error.code === '23505') {
+    return 'Otro documento ya cubre esa evidencia. Elíjala como \'Documento adicional\' '
+         + 'o edite el documento que la ocupa.';
+  }
   return 'Error: ' + m;
 }
 
@@ -2208,6 +2284,18 @@ function conectarEventos() {
   enEl('btn-marcar-na', 'click', marcarNoAplica);
   enEl('btn-quitar-na', 'click', quitarNoAplica);
   enEl('btn-guardar-enlace', 'click', guardarEnlace);
+
+  /* Al cambiar la evidencia, proponer su nombre solo si el
+     campo sigue vacío. Nunca se pisa lo que el usuario ya
+     escribió. */
+  enEl('e_evidencia', 'change', () => {
+    const $et = document.getElementById('e_etiqueta');
+    if ($et.value.trim()) return;
+    const r = estado.enlaceDestino?.requisito;
+    if (!r) return;
+    const libres = evidenciasLibres(r, estado.enlaceDestino.enlace);
+    $et.value = sugerirEtiqueta(document.getElementById('e_evidencia').value, libres);
+  });
   enEl('btn-un-anio', 'click', aplicarUnAnio);
 
   enEl('e_fecha_caducidad', 'change', evaluarCaducidad);
