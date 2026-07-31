@@ -1,0 +1,297 @@
+/* ============================================
+   NEXUS · grupos.css
+   Grupos de atención prioritaria.
+   Pantalla e impresión en un solo archivo: los dos módulos
+   que cargan la pestaña comparten exactamente la misma
+   definición.
+   ============================================ */
+
+/* --- Sugerencia por edad --- */
+
+.gp-sugeridos {
+  margin-bottom: 1rem;
+  padding: 0.8rem 1rem;
+  background: rgba(245, 215, 110, 0.06);
+  border: 1px solid rgba(245, 215, 110, 0.28);
+  border-radius: var(--radio);
+}
+
+.gp-sugeridos-titulo {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #f5d76e;
+}
+
+.gp-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+.gp-chip {
+  padding: 0.2rem 0.65rem;
+  font: inherit;
+  font-size: 0.78rem;
+  color: var(--color-texto);
+  background: var(--color-fondo);
+  border: 1px solid var(--color-borde);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.gp-chip:hover { border-color: #f5d76e; }
+
+/* --- Tabla --- */
+
+.gp-doble-marca {
+  display: inline-block;
+  margin-left: 0.45rem;
+  padding: 0.05rem 0.4rem;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #f0a868;
+  border: 1px solid rgba(240, 168, 104, 0.4);
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
+/* --- Ficha --- */
+
+.gp-f-datos {
+  margin: 0.15rem 0 0;
+  font-size: 0.82rem;
+  color: var(--color-texto-tenue, #8a8f98);
+}
+
+.gp-f-encabezado {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.7rem;
+  padding-bottom: 0.9rem;
+  margin-bottom: 0.4rem;
+  border-bottom: 1px solid var(--color-borde);
+}
+
+.gp-f-grupo { font-size: 0.9rem; font-weight: 600; }
+
+.gp-f-vigencia {
+  font-size: 0.8rem;
+  color: var(--color-texto-tenue, #8a8f98);
+}
+
+.gp-f-documento { font-size: 0.8rem; color: var(--color-acento, #7ee2a8); }
+
+.gp-bloque { margin-top: 1.3rem; }
+
+.gp-bloque-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.6rem;
+}
+
+.gp-bloque-cabecera .subtitulo { margin: 0; }
+
+.gp-alternador { margin-bottom: 0.6rem; }
+
+/* --- Elementos de indicación y adaptación --- */
+
+.gp-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.7rem 0.9rem;
+  margin-bottom: 0.5rem;
+  background: var(--color-fondo);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+}
+
+.gp-item-cuerpo { flex: 1; display: flex; flex-direction: column; gap: 0.2rem; }
+
+.gp-item-texto { font-size: 0.88rem; line-height: 1.4; }
+
+.gp-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.15rem;
+}
+
+.gp-item-norma,
+.gp-item-fecha,
+.gp-item-obs {
+  font-size: 0.74rem;
+  color: var(--color-texto-tenue, #8a8f98);
+}
+
+.gp-item-obs { font-style: italic; }
+
+.gp-item-enlace {
+  font-size: 0.76rem;
+  color: var(--color-acento, #7ee2a8);
+  word-break: break-all;
+}
+
+.gp-item-falta {
+  font-size: 0.74rem;
+  color: #f0a868;
+}
+
+.gp-item-acciones { display: flex; gap: 0.35rem; flex-shrink: 0; }
+
+.gp-vacio-bloque {
+  margin: 0 0 0.5rem;
+  padding: 0.8rem 0.9rem;
+  font-size: 0.83rem;
+  color: var(--color-texto-tenue, #8a8f98);
+  border: 1px dashed var(--color-borde);
+  border-radius: var(--radio);
+}
+
+/* --- Biblioteca de indicaciones --- */
+
+.gp-biblioteca {
+  max-height: 320px;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+  padding-right: 0.25rem;
+}
+
+.gp-opcion {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.55rem 0.7rem;
+  margin-bottom: 0.35rem;
+  background: var(--color-fondo);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  cursor: pointer;
+}
+
+.gp-opcion:hover { border-color: var(--color-acento, #7ee2a8); }
+
+.gp-opcion input { margin-top: 0.2rem; flex-shrink: 0; }
+
+.gp-opcion-cuerpo { display: flex; flex-direction: column; gap: 0.12rem; }
+
+.gp-opcion-texto { font-size: 0.85rem; line-height: 1.35; }
+
+.gp-opcion-norma {
+  font-size: 0.72rem;
+  color: var(--color-texto-tenue, #8a8f98);
+}
+
+@media (max-width: 700px) {
+  .gp-item { flex-wrap: wrap; }
+  .gp-item-acciones { width: 100%; }
+  .gp-bloque-cabecera { flex-direction: column; align-items: flex-start; }
+}
+
+
+/* ============================================
+   IMPRESIÓN
+   Mismo mecanismo que la orden de compra de Farmacia:
+   la aplicación se oculta y solo queda la hoja.
+   ============================================ */
+
+.gp-impresion { display: none; }
+
+@media print {
+  body.imprimiendo-grupos .barra-lateral,
+  body.imprimiendo-grupos .contenedor,
+  body.imprimiendo-grupos .cabecera,
+  body.imprimiendo-grupos .modal,
+  body.imprimiendo-grupos nav,
+  body.imprimiendo-grupos main { display: none !important; }
+
+  body.imprimiendo-grupos .gp-impresion {
+    display: block !important;
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    width: 100%;
+    background: #fff;
+  }
+
+  @page { margin: 1.5cm; }
+
+  .gp-hoja { font-family: 'Times New Roman', Georgia, serif; color: #000; }
+
+  .gp-cabecera {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    border-bottom: 2px solid #1b5e20;
+    padding-bottom: 0.8rem;
+    margin-bottom: 1rem;
+  }
+  .gp-logo { height: 70px; width: auto; }
+  .gp-cabecera h1 { font-size: 13pt; margin: 0 0 0.3rem; color: #1b5e20; }
+  .gp-cabecera p { margin: 0.1rem 0; font-size: 10.5pt; }
+
+  .gp-datos {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    font-size: 11pt;
+  }
+
+  .gp-seccion {
+    font-size: 12pt;
+    color: #1b5e20;
+    margin: 1.2rem 0 0.4rem;
+    border-bottom: 1px solid #1b5e20;
+    padding-bottom: 0.2rem;
+  }
+
+  .gp-tabla {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9.5pt;
+    margin-bottom: 0.6rem;
+  }
+  .gp-tabla th,
+  .gp-tabla td { border: 1px solid #333; padding: 5px 6px; vertical-align: top; }
+  .gp-tabla th {
+    background: #e6f0e6;
+    text-align: left;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .gp-ficha-datos {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10.5pt;
+    margin-bottom: 0.8rem;
+  }
+  .gp-ficha-datos th,
+  .gp-ficha-datos td { border: 1px solid #333; padding: 5px 8px; text-align: left; }
+  .gp-ficha-datos th {
+    background: #f0f0f0;
+    width: 18%;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* El dato sensible viaja en papel: la advertencia también */
+  .gp-nota-legal {
+    font-size: 8.5pt;
+    color: #444;
+    margin-top: 1rem;
+    line-height: 1.4;
+    text-align: justify;
+  }
+
+  .gp-firmas { display: flex; justify-content: space-around; margin-top: 3.5rem; }
+  .gp-firma { text-align: center; width: 40%; }
+  .gp-linea { border-top: 1px solid #000; margin-bottom: 0.3rem; }
+  .gp-firma p { margin: 0; font-size: 10.5pt; }
+
+  /* Las tablas no se parten a mitad de fila */
+  .gp-tabla tr, .gp-ficha-datos tr { page-break-inside: avoid; }
+}
