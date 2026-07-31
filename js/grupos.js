@@ -71,6 +71,13 @@ const ESTADOS_ADAPTACION = {
   no_aplica:    ['insignia-na',       'No aplica']
 };
 
+/* Hitos obstétricos que cambian la conducta preventiva */
+const FASES_GESTACION = {
+  proximo: ['gp-fase-aviso',   'Semana 34'],
+  termino: ['gp-fase-termino', 'A término'],
+  revisar: ['gp-fase-revisar', 'Revisar vigencia']
+};
+
 const SITUACIONES = {
   sin_adaptacion: ['insignia-critica',  'Sin adaptación'],
   en_proceso:     ['insignia-aviso',    'En proceso'],
@@ -284,7 +291,20 @@ function detalleGrupo(r) {
     const pct = r.porcentaje != null ? ` · ${r.porcentaje}%` : '';
     return escapar(tipo + pct);
   }
+  if (r.tipo === 'embarazo') return gestacionTexto(r);
   return escapar(r.detalle || '—');
+}
+
+/* Las semanas se recalculan en la vista cada vez que se
+   consulta: nunca quedan desfasadas. */
+function gestacionTexto(r) {
+  if (r.semanas_gestacion == null) {
+    return '<span class="gp-falta-fum">Sin FUM registrada</span>';
+  }
+  const fase = FASES_GESTACION[r.fase_gestacion];
+  const marca = fase ? ` <span class="gp-fase ${fase[0]}">${fase[1]}</span>` : '';
+  return `${r.semanas_gestacion}<sup>+${r.dias_gestacion}</sup> sem`
+       + ` · FPP ${formatearFecha(r.fpp)}${marca}`;
 }
 
 /* ============================================
@@ -317,6 +337,7 @@ function abrirRegistro(registro, trabajadorId, tipoSugerido) {
   document.getElementById('gp_discapacidad').value = registro?.discapacidad ?? '';
   document.getElementById('gp_porcentaje').value = registro?.porcentaje ?? '';
   document.getElementById('gp_carne').value = registro?.carne_conadis ?? '';
+  document.getElementById('gp_fum').value = registro?.fum ?? '';
   document.getElementById('gp_fecha_inicio').value = registro?.fecha_inicio ?? HOY();
   document.getElementById('gp_detalle').value = registro?.detalle ?? '';
   document.getElementById('gp_documento').value = registro?.documento_url ?? '';
@@ -396,9 +417,51 @@ function limpiarEleccion() {
 
 /* Los campos propios de discapacidad no existen para embarazo */
 function alternarCamposDiscapacidad() {
-  const esDisc = document.getElementById('gp_tipo').value === 'discapacidad';
-  const $bloque = document.getElementById('gp-bloque-discapacidad');
-  if ($bloque) $bloque.hidden = !esDisc;
+  const tipo = document.getElementById('gp_tipo').value;
+
+  const $disc = document.getElementById('gp-bloque-discapacidad');
+  if ($disc) $disc.hidden = tipo !== 'discapacidad';
+
+  const $emb = document.getElementById('gp-bloque-embarazo');
+  if ($emb) $emb.hidden = tipo !== 'embarazo';
+
+  calcularGestacion();
+}
+
+/* Cálculo en vivo mientras se escribe la FUM, para que quien
+   registra vea de inmediato si la fecha es plausible. */
+function calcularGestacion() {
+  const $ayuda = document.getElementById('gp-ayuda-fum');
+  if (!$ayuda) return;
+
+  const fum = document.getElementById('gp_fum').value;
+  if (!fum || document.getElementById('gp_tipo').value !== 'embarazo') {
+    $ayuda.textContent = 'Base del cálculo de semanas y fecha probable de parto';
+    $ayuda.className = 'ayuda';
+    return;
+  }
+
+  const dias = Math.floor(
+    (new Date(HOY() + 'T00:00') - new Date(fum + 'T00:00')) / 86400000
+  );
+
+  if (dias < 0) {
+    $ayuda.textContent = 'La FUM no puede ser una fecha futura';
+    $ayuda.className = 'ayuda ayuda-critica';
+    return;
+  }
+
+  const fpp = new Date(new Date(fum + 'T00:00').getTime() + 280 * 86400000);
+  const texto = `${Math.floor(dias / 7)} semanas y ${dias % 7} días · `
+              + `FPP ${fpp.toLocaleDateString('es-EC', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+
+  if (dias > 294) {
+    $ayuda.textContent = texto + ' · más de 42 semanas, verifique la fecha';
+    $ayuda.className = 'ayuda ayuda-critica';
+  } else {
+    $ayuda.textContent = texto;
+    $ayuda.className = 'ayuda';
+  }
 }
 
 async function guardarRegistro() {
@@ -420,6 +483,15 @@ async function guardarRegistro() {
     return alertaRegistro('El porcentaje debe estar entre 0 y 100');
   }
 
+  const fum = document.getElementById('gp_fum').value;
+  const inicio = document.getElementById('gp_fecha_inicio').value || HOY();
+  if (tipo === 'embarazo' && fum) {
+    if (fum > HOY()) return alertaRegistro('La FUM no puede ser una fecha futura');
+    if (fum > inicio) {
+      return alertaRegistro('La FUM no puede ser posterior a la fecha de inicio del registro');
+    }
+  }
+
   const documento = document.getElementById('gp_documento').value.trim();
   if (documento && !/^https?:\/\//i.test(documento)) {
     return alertaRegistro('El enlace debe comenzar con http:// o https://');
@@ -432,6 +504,7 @@ async function guardarRegistro() {
     porcentaje: tipo === 'discapacidad' ? porcentaje : null,
     carne_conadis: tipo === 'discapacidad'
       ? (document.getElementById('gp_carne').value.trim() || null) : null,
+    fum: tipo === 'embarazo' ? (document.getElementById('gp_fum').value || null) : null,
     fecha_inicio: document.getElementById('gp_fecha_inicio').value || HOY(),
     detalle: document.getElementById('gp_detalle').value.trim() || null,
     documento_url: documento || null,
@@ -468,8 +541,12 @@ function abrirFicha(r) {
   $sit.className = 'insignia ' + clase;
   $sit.textContent = texto;
 
-  document.getElementById('gp-f-grupo').textContent =
-    `${GRUPOS[r.tipo] || r.tipo}${r.tipo === 'discapacidad' ? ' · ' + detalleGrupo(r) : ''}`;
+  const $grupo = document.getElementById('gp-f-grupo');
+  if (r.tipo === 'discapacidad' || r.tipo === 'embarazo') {
+    $grupo.innerHTML = `${escapar(GRUPOS[r.tipo] || r.tipo)} · ${detalleGrupo(r)}`;
+  } else {
+    $grupo.textContent = GRUPOS[r.tipo] || r.tipo;
+  }
 
   document.getElementById('gp-f-vigencia').textContent = r.vigente
     ? `Desde ${formatearFecha(r.fecha_inicio)}`
@@ -901,6 +978,20 @@ function fechaLarga() {
     { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
+/* En papel no hay insignias de color: el detalle viaja como
+   texto llano. */
+function detalleImpreso(r) {
+  if (r.tipo === 'discapacidad') {
+    return escapar(DISCAPACIDADES[r.discapacidad] || '—');
+  }
+  if (r.tipo === 'embarazo') {
+    return r.semanas_gestacion == null
+      ? 'Sin FUM'
+      : `${r.semanas_gestacion}+${r.dias_gestacion} sem · FPP ${formatearFecha(r.fpp)}`;
+  }
+  return escapar(r.detalle || '—');
+}
+
 /** Listado completo de la empresa */
 function imprimirListado() {
   const lista = filtrar();
@@ -917,7 +1008,7 @@ function imprimirListado() {
       <td style="text-align:center">${escapar(r.cedula ?? '—')}</td>
       <td style="text-align:center">${r.edad ?? '—'}</td>
       <td>${escapar(GRUPOS[r.tipo] || r.tipo)}</td>
-      <td>${r.tipo === 'discapacidad' ? escapar(DISCAPACIDADES[r.discapacidad] || '—') : '—'}</td>
+      <td>${detalleImpreso(r)}</td>
       <td style="text-align:center">${r.porcentaje != null ? r.porcentaje + '%' : '—'}</td>
       <td style="text-align:center">${r.indicaciones}</td>
       <td style="text-align:center">${r.adaptaciones}</td>
@@ -942,7 +1033,7 @@ function imprimirListado() {
             <th style="width:10%">Cédula</th>
             <th style="width:5%">Edad</th>
             <th style="width:15%">Grupo prioritario</th>
-            <th style="width:10%">Tipo</th>
+            <th style="width:10%">Tipo / gestación</th>
             <th style="width:6%">%</th>
             <th style="width:6%">Indic.</th>
             <th style="width:6%">Adapt.</th>
@@ -1014,6 +1105,19 @@ function imprimirFicha() {
           <th>Edad</th><td>${r.edad ?? '—'} años</td>
           <th>Grupo prioritario</th><td>${escapar(GRUPOS[r.tipo] || r.tipo)}</td>
         </tr>
+        ${r.tipo === 'embarazo' ? `
+        <tr>
+          <th>FUM</th><td>${r.fum ? formatearFecha(r.fum) : '—'}</td>
+          <th>Edad gestacional</th>
+          <td>${r.semanas_gestacion != null
+                ? r.semanas_gestacion + ' semanas y ' + r.dias_gestacion + ' días'
+                : '—'}</td>
+        </tr>
+        <tr>
+          <th>Fecha probable de parto</th>
+          <td colspan="3">${r.fpp ? formatearFecha(r.fpp) : '—'}
+            ${r.fpp ? '<span style="font-size:8.5pt"> · estimada por regla de Naegele sobre la FUM</span>' : ''}</td>
+        </tr>` : ''}
         ${r.tipo === 'discapacidad' ? `
         <tr>
           <th>Tipo de discapacidad</th><td>${escapar(DISCAPACIDADES[r.discapacidad] || '—')}</td>
@@ -1122,6 +1226,8 @@ function conectar() {
   enEl('gp-btn-guardar-registro', 'click', guardarRegistro);
   enEl('gp_tipo', 'change', alternarCamposDiscapacidad);
   enEl('gp_buscar', 'input', buscarTrabajador);
+  enEl('gp_fum', 'change', calcularGestacion);
+  enEl('gp_fum', 'input', calcularGestacion);
   enEl('gp-btn-cambiar-trabajador', 'click', limpiarEleccion);
 
   enEl('gp-btn-imprimir-listado', 'click', imprimirListado);
@@ -1187,6 +1293,9 @@ function traducir(error) {
   if (m.includes('uq_gp_vigente')) {
     return 'Este trabajador ya tiene una condición vigente de ese tipo. '
          + 'Ciérrela antes de abrir una nueva.';
+  }
+  if (m.includes('ck_gp_fum')) {
+    return 'La FUM no puede ser posterior a la fecha de inicio del registro';
   }
   if (m.includes('ck_gp_discapacidad')) return 'Indique el tipo de discapacidad';
   if (m.includes('ck_gp_porcentaje')) return 'El porcentaje debe estar entre 0 y 100';
