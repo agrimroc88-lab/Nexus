@@ -371,3 +371,29 @@
   font-size: 0.75rem;
   color: var(--color-texto-tenue, #8a8f98);
 }
+
+/* ============================================
+   Gestación
+   Los hitos obstétricos cambian la conducta preventiva:
+   se marcan en el listado para que salten a la vista.
+   ============================================ */
+
+.gp-fase {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0.05rem 0.4rem;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
+.gp-fase-aviso   { color: #f5d76e; border: 1px solid rgba(245, 215, 110, 0.4); }
+.gp-fase-termino { color: #7ee2a8; border: 1px solid rgba(126, 226, 168, 0.4); }
+.gp-fase-revisar { color: #f57373; border: 1px solid rgba(245, 115, 115, 0.4); }
+
+.gp-falta-fum { color: #f0a868; font-size: 0.8rem; }
+
+.ayuda-critica { color: #f57373; }
