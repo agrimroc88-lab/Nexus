@@ -219,78 +219,217 @@
 
   @page { margin: 1.5cm; }
 
-  .gp-hoja { font-family: 'Times New Roman', Georgia, serif; color: #000; }
+  .gp-hoja {
+    font-family: 'Times New Roman', Georgia, serif;
+    color: #000;
+    font-size: 10.5pt;
+  }
+
+  /* --- Encabezado ---
+     Tres zonas: identidad, título y bloque de control.
+     El código del requisito va impreso porque es lo primero
+     que busca un inspector. */
 
   .gp-cabecera {
     display: flex;
     align-items: center;
     gap: 1rem;
-    border-bottom: 2px solid #1b5e20;
-    padding-bottom: 0.8rem;
-    margin-bottom: 1rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 2.5pt solid #1b5e20;
   }
-  .gp-logo { height: 70px; width: auto; }
-  .gp-cabecera h1 { font-size: 13pt; margin: 0 0 0.3rem; color: #1b5e20; }
-  .gp-cabecera p { margin: 0.1rem 0; font-size: 10.5pt; }
 
-  .gp-datos {
+  .gp-logo { height: 62px; width: auto; flex-shrink: 0; }
+
+  .gp-identidad {
+    flex: 1;
     display: flex;
-    justify-content: space-between;
-    margin-bottom: 1rem;
-    font-size: 11pt;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
   }
+
+  .gp-empresa {
+    font-size: 13.5pt;
+    font-weight: bold;
+    line-height: 1.15;
+    color: #1b5e20;
+    letter-spacing: 0.01em;
+  }
+
+  .gp-unidad {
+    font-size: 9.5pt;
+    color: #333;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .gp-control {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.15rem;
+    flex-shrink: 0;
+    padding-left: 0.9rem;
+    border-left: 0.5pt solid #bbb;
+    font-size: 8.5pt;
+    color: #444;
+    white-space: nowrap;
+  }
+
+  .gp-control-fila b { color: #1b5e20; }
+
+  /* Banda del título */
+  .gp-titulo-banda {
+    margin: 0 0 0.9rem;
+    padding: 0.45rem 0.5rem 0.5rem;
+    text-align: center;
+    background: #f2f7f2;
+    border-bottom: 0.5pt solid #1b5e20;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .gp-titulo {
+    margin: 0;
+    font-size: 12.5pt;
+    font-weight: bold;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: #000;
+  }
+
+  .gp-subtitulo {
+    margin: 0.2rem 0 0;
+    font-size: 9.5pt;
+    color: #444;
+  }
+
+  /* --- Resumen de apertura --- */
+
+  .gp-resumen {
+    width: 60%;
+    border-collapse: collapse;
+    font-size: 10pt;
+    margin: 0 0 1.1rem;
+  }
+
+  .gp-resumen th,
+  .gp-resumen td { border: 0.5pt solid #666; padding: 4px 8px; }
+
+  .gp-resumen th {
+    background: #e6f0e6;
+    text-align: left;
+    font-size: 9.5pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .gp-resumen-total td {
+    font-weight: bold;
+    background: #f5f5f5;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* --- Secciones por grupo --- */
+
+  .gp-grupo { page-break-inside: auto; margin-bottom: 1.1rem; }
 
   .gp-seccion {
-    font-size: 12pt;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.6rem;
+    font-size: 11.5pt;
     color: #1b5e20;
-    margin: 1.2rem 0 0.4rem;
-    border-bottom: 1px solid #1b5e20;
-    padding-bottom: 0.2rem;
+    margin: 1rem 0 0.35rem;
+    padding-bottom: 0.18rem;
+    border-bottom: 1pt solid #1b5e20;
+    page-break-after: avoid;
   }
+
+  .gp-seccion-cuenta {
+    font-size: 9pt;
+    font-weight: normal;
+    color: #555;
+  }
+
+  /* --- Tablas --- */
 
   .gp-tabla {
     width: 100%;
     border-collapse: collapse;
     font-size: 9.5pt;
-    margin-bottom: 0.6rem;
+    margin-bottom: 0.5rem;
   }
+
   .gp-tabla th,
-  .gp-tabla td { border: 1px solid #333; padding: 5px 6px; vertical-align: top; }
+  .gp-tabla td { border: 0.5pt solid #555; padding: 4px 6px; vertical-align: top; }
+
   .gp-tabla th {
     background: #e6f0e6;
     text-align: left;
+    font-size: 9pt;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+
+  /* Filas alternas: en tablas largas evita saltar de renglón */
+  .gp-tabla tbody tr:nth-child(even) td {
+    background: #fafafa;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .gp-num { text-align: center; white-space: nowrap; }
+
+  .gp-vacio-fila { text-align: center; font-style: italic; color: #555; }
+
+  .gp-enlace-impreso { font-size: 8pt; word-break: break-all; }
 
   .gp-ficha-datos {
     width: 100%;
     border-collapse: collapse;
     font-size: 10.5pt;
-    margin-bottom: 0.8rem;
+    margin-bottom: 0.4rem;
   }
+
   .gp-ficha-datos th,
-  .gp-ficha-datos td { border: 1px solid #333; padding: 5px 8px; text-align: left; }
+  .gp-ficha-datos td { border: 0.5pt solid #555; padding: 5px 8px; text-align: left; }
+
   .gp-ficha-datos th {
     background: #f0f0f0;
     width: 18%;
+    font-size: 9.5pt;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
-  /* El dato sensible viaja en papel: la advertencia también */
+  .gp-aclaracion { font-size: 8.5pt; color: #555; }
+
+  /* --- Pie --- */
+
   .gp-nota-legal {
     font-size: 8.5pt;
     color: #444;
-    margin-top: 1rem;
+    margin-top: 1.1rem;
+    padding-top: 0.4rem;
+    border-top: 0.5pt solid #ccc;
     line-height: 1.4;
     text-align: justify;
   }
 
-  .gp-firmas { display: flex; justify-content: space-around; margin-top: 3.5rem; }
-  .gp-firma { text-align: center; width: 40%; }
-  .gp-linea { border-top: 1px solid #000; margin-bottom: 0.3rem; }
-  .gp-firma p { margin: 0; font-size: 10.5pt; }
+  .gp-firmas {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 3.2rem;
+    page-break-inside: avoid;
+  }
+
+  .gp-firma { text-align: center; width: 42%; }
+  .gp-linea { border-top: 0.75pt solid #000; margin-bottom: 0.25rem; }
+  .gp-firma-cargo { margin: 0; font-size: 10.5pt; font-weight: bold; }
+  .gp-firma-nota { margin: 0.1rem 0 0; font-size: 8pt; color: #555; }
 
   /* Las tablas no se parten a mitad de fila */
   .gp-tabla tr, .gp-ficha-datos tr { page-break-inside: avoid; }
