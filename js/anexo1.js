@@ -532,10 +532,67 @@ function pintarEvidenciasModal(r) {
     $cont.appendChild(fila);
   });
 
+  /* --- Documentos adicionales ---
+     Enlaces sin evidencia del catálogo. Sostienen el mismo
+     requisito con respaldo extra pero NO entran en el
+     denominador: añadir uno nunca baja el porcentaje. */
+  const extras = enlaces.filter((e) => !e.evidencia_id);
+
+  extras.forEach((enlace) => {
+    const fila = document.createElement('div');
+    fila.className = 'evidencia evidencia-lista evidencia-extra';
+    if (enlace.vigencia === 'vencido') fila.classList.add('evidencia-vencida');
+
+    fila.innerHTML = `
+      <span class="evidencia-marca">+</span>
+      <div class="evidencia-cuerpo">
+        <span class="evidencia-etiqueta">
+          ${escapar(enlace.etiqueta || 'Documento adicional')}
+          <span class="evidencia-distintivo">Adicional</span>
+        </span>
+        <a class="evidencia-enlace" href="${escapar(enlace.url)}"
+           target="_blank" rel="noopener noreferrer">${escapar(acortar(enlace.url))}</a>
+        ${pintarVigenciaEvidencia(enlace)}
+        ${enlace.observacion
+          ? `<span class="evidencia-obs">${escapar(enlace.observacion)}</span>` : ''}
+      </div>
+      <div class="evidencia-acciones"></div>
+    `;
+
+    if (editable) {
+      const $acciones = fila.querySelector('.evidencia-acciones');
+
+      const btn = document.createElement('button');
+      btn.className = 'boton-icono';
+      btn.type = 'button';
+      btn.textContent = 'Cambiar';
+      btn.addEventListener('click', () => abrirEnlace(null, enlace));
+      $acciones.appendChild(btn);
+
+      const quitar = document.createElement('button');
+      quitar.className = 'boton-icono boton-icono-critico';
+      quitar.type = 'button';
+      quitar.textContent = 'Quitar';
+      quitar.addEventListener('click', () => quitarEnlace(enlace));
+      $acciones.appendChild(quitar);
+    }
+
+    $cont.appendChild(fila);
+  });
+
+  if (editable) {
+    const $anadir = document.createElement('button');
+    $anadir.className = 'boton-secundario boton-extra';
+    $anadir.type = 'button';
+    $anadir.textContent = '+ Añadir documento adicional';
+    $anadir.addEventListener('click', () => abrirEnlace(null, null));
+    $cont.appendChild($anadir);
+  }
+
   const $nota = document.getElementById('m-nota-evidencias');
   $nota.textContent = esperadas.length > 1
-    ? 'El requisito se cumple al entregar todos los documentos. Entregar parte otorga cumplimiento proporcional.'
-    : 'Registre el enlace al documento en Drive.';
+    ? 'El requisito se cumple al entregar los documentos exigidos. Entregar parte otorga cumplimiento proporcional. Los documentos adicionales suman respaldo sin alterar el porcentaje.'
+    : 'Registre el enlace al documento en Drive. Puede añadir respaldos adicionales sin que afecten al porcentaje.';
 }
 
 function pintarVigenciaEvidencia(enlace) {
@@ -635,12 +692,31 @@ function alertaReq(texto) {
    Enlaces
    ============================================ */
 
+/**
+ * evidencia nula = documento adicional: no corresponde a
+ * ninguna casilla del catálogo, así que el usuario le pone
+ * nombre y no cuenta en el denominador.
+ */
 function abrirEnlace(evidencia, enlaceExistente) {
-  estado.enlaceDestino = { evidencia, enlace: enlaceExistente };
+  const extra = !evidencia;
+  estado.enlaceDestino = { evidencia: evidencia || null, enlace: enlaceExistente, extra };
 
   document.getElementById('e-titulo').textContent =
-    enlaceExistente ? 'Cambiar enlace' : 'Añadir enlace';
-  document.getElementById('e-evidencia').textContent = evidencia.etiqueta;
+    enlaceExistente ? 'Cambiar enlace'
+                    : (extra ? 'Añadir documento adicional' : 'Añadir enlace');
+
+  const $etiquetaFija = document.getElementById('e-evidencia');
+  const $campoEtiqueta = document.getElementById('campo-etiqueta');
+
+  $etiquetaFija.hidden = extra;
+  if ($campoEtiqueta) $campoEtiqueta.hidden = !extra;
+
+  if (extra) {
+    document.getElementById('e_etiqueta').value = enlaceExistente?.etiqueta ?? '';
+  } else {
+    $etiquetaFija.textContent = evidencia.etiqueta;
+  }
+
   document.getElementById('e_url').value = enlaceExistente?.url ?? '';
   document.getElementById('e_observacion').value = enlaceExistente?.observacion ?? '';
 
@@ -661,9 +737,17 @@ function abrirEnlace(evidencia, enlaceExistente) {
 }
 
 async function guardarEnlace() {
-  const { evidencia, enlace } = estado.enlaceDestino || {};
+  const { evidencia, enlace, extra } = estado.enlaceDestino || {};
   const r = estado.actual;
-  if (!evidencia || !r) return;
+  if (!r || (!extra && !evidencia)) return;
+
+  let etiqueta;
+  if (extra) {
+    etiqueta = document.getElementById('e_etiqueta').value.trim();
+    if (!etiqueta) return alertaEnlace('Indique el nombre del documento');
+  } else {
+    etiqueta = evidencia.etiqueta;
+  }
 
   const url = document.getElementById('e_url').value.trim();
   if (!url) return alertaEnlace('Indique el enlace');
@@ -683,8 +767,8 @@ async function guardarEnlace() {
 
   const datos = {
     cumplimiento_id: r.id,
-    evidencia_id: evidencia.id,
-    etiqueta: evidencia.etiqueta,
+    evidencia_id: extra ? null : evidencia.id,
+    etiqueta,
     url,
     fecha_registro: registro,
     fecha_caducidad: caducidad,
