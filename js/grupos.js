@@ -953,30 +953,81 @@ async function cerrarCondicion() {
    Impresión
    ============================================ */
 
-function cabeceraImpresion(titulo) {
-  return `
-    <div class="gp-cabecera">
-      <img src="logo.png" class="gp-logo" alt="">
-      <div>
-        <h1>${escapar(titulo)}</h1>
-        <p><strong>${escapar(gp.empresaNombre || 'Empresa')}</strong></p>
-        <p>Unidad de Seguridad y Salud Ocupacional</p>
-      </div>
-    </div>`;
-}
+/* El orden en que se agrupa el listado impreso. Coincide
+   con el enum de la base para que papel y pantalla cuenten
+   la misma historia. */
+const ORDEN_GRUPOS = [
+  'embarazo', 'lactancia', 'discapacidad', 'sustituto', 'adulto_mayor',
+  'enfermedad_catastrofica', 'adolescente', 'victima_violencia', 'vih', 'otro'
+];
 
-function pieFirmas(izq, der) {
-  return `
-    <div class="gp-firmas">
-      <div class="gp-firma"><div class="gp-linea"></div><p>${escapar(izq)}</p></div>
-      <div class="gp-firma"><div class="gp-linea"></div><p>${escapar(der)}</p></div>
-    </div>`;
+function nombreProfesional() {
+  const p = gp.perfil;
+  if (!p) return '';
+  return [p.nombres, p.apellidos].filter(Boolean).join(' ');
 }
 
 function fechaLarga() {
   return new Date().toLocaleDateString('es-EC',
     { year: 'numeric', month: 'long', day: 'numeric' });
 }
+
+function fechaCorta() {
+  return new Date().toLocaleDateString('es-EC',
+    { year: 'numeric', month: '2-digit', day: '2-digit' });
+}
+
+/**
+ * Encabezado del documento impreso.
+ * Tres zonas: identidad de la empresa, título del documento
+ * y bloque de control. El código del requisito va impreso
+ * porque es lo primero que busca un inspector.
+ */
+function cabeceraImpresion(titulo, codigoDoc, subtitulo) {
+  return `
+    <header class="gp-cabecera">
+      <img src="logo.png" class="gp-logo" alt="">
+
+      <div class="gp-identidad">
+        <span class="gp-empresa">${escapar(gp.empresaNombre || 'Empresa')}</span>
+        <span class="gp-unidad">Departamento de Seguridad y Salud Ocupacional</span>
+      </div>
+
+      <div class="gp-control">
+        <span class="gp-control-fila"><b>Anexo 1</b> · ${escapar(codigoDoc)}</span>
+        <span class="gp-control-fila">${fechaCorta()}</span>
+      </div>
+    </header>
+
+    <div class="gp-titulo-banda">
+      <h1 class="gp-titulo">${escapar(titulo)}</h1>
+      ${subtitulo ? `<p class="gp-subtitulo">${escapar(subtitulo)}</p>` : ''}
+    </div>`;
+}
+
+function pieFirmas(izq, der) {
+  return `
+    <div class="gp-firmas">
+      <div class="gp-firma">
+        <div class="gp-linea"></div>
+        <p class="gp-firma-cargo">${escapar(izq)}</p>
+        <p class="gp-firma-nota">Nombre, firma y registro profesional</p>
+      </div>
+      <div class="gp-firma">
+        <div class="gp-linea"></div>
+        <p class="gp-firma-cargo">${escapar(der)}</p>
+        <p class="gp-firma-nota">Nombre, firma y registro profesional</p>
+      </div>
+    </div>`;
+}
+
+const NOTA_LEGAL = `
+  <p class="gp-nota-legal">
+    Documento elaborado conforme al Art. 35 de la Constitución de la República del
+    Ecuador y al Anexo 1 del A.M. MDT-2024-196, requisitos GTH-01 y GTH-02.
+    Contiene datos personales de carácter sensible; su tratamiento, custodia y
+    difusión se rigen por la Ley Orgánica de Protección de Datos Personales.
+  </p>`;
 
 /* En papel no hay insignias de color: el detalle viaja como
    texto llano. */
@@ -992,7 +1043,12 @@ function detalleImpreso(r) {
   return escapar(r.detalle || '—');
 }
 
-/** Listado completo de la empresa */
+/**
+ * Listado completo, separado por grupo.
+ * Una tabla corrida obliga al lector a reconstruir mentalmente
+ * cuántas embarazadas hay; separar por grupo lo responde de
+ * un vistazo, que es como se lee en una inspección.
+ */
 function imprimirListado() {
   const lista = filtrar();
   if (lista.length === 0) {
@@ -1000,60 +1056,96 @@ function imprimirListado() {
     return;
   }
 
-  const filas = lista.map((r, i) => `
-    <tr>
-      <td style="text-align:center">${i + 1}</td>
-      <td style="text-align:center">${r.codigo ?? '—'}</td>
-      <td>${escapar(r.nombre_completo)}</td>
-      <td style="text-align:center">${escapar(r.cedula ?? '—')}</td>
-      <td style="text-align:center">${r.edad ?? '—'}</td>
-      <td>${escapar(GRUPOS[r.tipo] || r.tipo)}</td>
-      <td>${detalleImpreso(r)}</td>
-      <td style="text-align:center">${r.porcentaje != null ? r.porcentaje + '%' : '—'}</td>
-      <td style="text-align:center">${r.indicaciones}</td>
-      <td style="text-align:center">${r.adaptaciones}</td>
-      <td>${(SITUACIONES[r.situacion] || ['', '—'])[1]}</td>
-    </tr>`).join('');
+  /* Agrupar respetando el orden del catálogo */
+  const porGrupo = new Map();
+  ORDEN_GRUPOS.forEach((t) => {
+    const del = lista.filter((r) => r.tipo === t);
+    if (del.length > 0) porGrupo.set(t, del);
+  });
+
+  const personas = new Set(lista.map((r) => r.trabajador_id)).size;
+
+  /* Resumen de apertura: el total por grupo antes del detalle */
+  const resumen = `
+    <table class="gp-resumen">
+      <thead>
+        <tr><th>Grupo de atención prioritaria</th><th>Trabajadores</th></tr>
+      </thead>
+      <tbody>
+        ${[...porGrupo].map(([t, filas]) => `
+          <tr>
+            <td>${escapar(GRUPOS[t] || t)}</td>
+            <td class="gp-num">${filas.length}</td>
+          </tr>`).join('')}
+        <tr class="gp-resumen-total">
+          <td>Total de condiciones registradas</td>
+          <td class="gp-num">${lista.length}</td>
+        </tr>
+      </tbody>
+    </table>`;
+
+  /* Una sección por grupo */
+  const secciones = [...porGrupo].map(([tipo, filas]) => {
+    const esDisc = tipo === 'discapacidad';
+    const esEmb = tipo === 'embarazo';
+
+    const columnaDetalle = esDisc ? 'Tipo' : (esEmb ? 'Gestación' : 'Detalle');
+
+    const cuerpo = filas.map((r, i) => `
+      <tr>
+        <td class="gp-num">${i + 1}</td>
+        <td class="gp-num">${r.codigo ?? '—'}</td>
+        <td>${escapar(r.nombre_completo)}</td>
+        <td class="gp-num">${escapar(r.cedula ?? '—')}</td>
+        <td class="gp-num">${r.edad ?? '—'}</td>
+        <td>${detalleImpreso(r)}</td>
+        ${esDisc ? `<td class="gp-num">${r.porcentaje != null ? r.porcentaje + '%' : '—'}</td>` : ''}
+        <td class="gp-num">${r.indicaciones}</td>
+        <td class="gp-num">${r.adaptaciones}</td>
+        <td>${(SITUACIONES[r.situacion] || ['', '—'])[1]}</td>
+      </tr>`).join('');
+
+    return `
+      <section class="gp-grupo">
+        <h2 class="gp-seccion">
+          ${escapar(GRUPOS[tipo] || tipo)}
+          <span class="gp-seccion-cuenta">${filas.length}
+            ${filas.length === 1 ? 'trabajador' : 'trabajadores'}</span>
+        </h2>
+        <table class="gp-tabla">
+          <thead>
+            <tr>
+              <th style="width:4%">#</th>
+              <th style="width:7%">Código</th>
+              <th style="width:${esDisc ? '24' : '28'}%">Nombres y apellidos</th>
+              <th style="width:11%">Cédula</th>
+              <th style="width:6%">Edad</th>
+              <th style="width:${esDisc ? '16' : '21'}%">${columnaDetalle}</th>
+              ${esDisc ? '<th style="width:7%">%</th>' : ''}
+              <th style="width:7%">Indic.</th>
+              <th style="width:7%">Adapt.</th>
+              <th style="width:11%">Situación</th>
+            </tr>
+          </thead>
+          <tbody>${cuerpo}</tbody>
+        </table>
+      </section>`;
+  }).join('');
 
   const html = `
     <div class="gp-hoja">
-      ${cabeceraImpresion('REGISTRO DE TRABAJADORES EN GRUPOS DE ATENCIÓN PRIORITARIA')}
+      ${cabeceraImpresion(
+        'Registro de trabajadores en grupos de atención prioritaria',
+        'GTH-01',
+        `${personas} ${personas === 1 ? 'trabajador identificado' : 'trabajadores identificados'} · ${fechaLarga()}`)}
 
-      <div class="gp-datos">
-        <span><strong>Fecha:</strong> ${fechaLarga()}</span>
-        <span><strong>Total de registros:</strong> ${lista.length}</span>
-      </div>
-
-      <table class="gp-tabla">
-        <thead>
-          <tr>
-            <th style="width:3%">#</th>
-            <th style="width:6%">Código</th>
-            <th style="width:22%">Nombres y apellidos</th>
-            <th style="width:10%">Cédula</th>
-            <th style="width:5%">Edad</th>
-            <th style="width:15%">Grupo prioritario</th>
-            <th style="width:10%">Tipo / gestación</th>
-            <th style="width:6%">%</th>
-            <th style="width:6%">Indic.</th>
-            <th style="width:6%">Adapt.</th>
-            <th style="width:11%">Situación</th>
-          </tr>
-        </thead>
-        <tbody>${filas}</tbody>
-      </table>
-
-      <p class="gp-nota-legal">
-        Documento elaborado conforme al Art. 35 de la Constitución de la República del
-        Ecuador y al Anexo 1 del A.M. MDT-2024-196, requisitos GTH-01 y GTH-02.
-        Contiene datos personales de carácter sensible; su tratamiento y difusión se
-        rigen por la Ley Orgánica de Protección de Datos Personales.
-      </p>
-
+      ${resumen}
+      ${secciones}
+      ${NOTA_LEGAL}
       ${pieFirmas('Médico ocupacional', 'Técnico de seguridad e higiene')}
     </div>`;
 
-  lanzarImpresion(html);
+  lanzarImpresion(html, 'Registro de grupos de atención prioritaria');
 }
 
 /** Ficha individual con indicaciones y adaptaciones */
@@ -1067,31 +1159,34 @@ function imprimirFicha() {
   const filasInd = indicaciones.length > 0
     ? indicaciones.map((i, n) => `
         <tr>
-          <td style="text-align:center">${n + 1}</td>
+          <td class="gp-num">${n + 1}</td>
           <td>${escapar(i.texto)}</td>
           <td>${escapar(i.normativa || '—')}</td>
-          <td style="text-align:center">${formatearFecha(i.fecha)}</td>
+          <td class="gp-num">${formatearFecha(i.fecha)}</td>
         </tr>`).join('')
-    : '<tr><td colspan="4" style="text-align:center">Sin indicaciones registradas</td></tr>';
+    : '<tr><td colspan="4" class="gp-vacio-fila">Sin indicaciones registradas</td></tr>';
 
   const filasAda = adaptaciones.length > 0
     ? adaptaciones.map((a, n) => `
         <tr>
-          <td style="text-align:center">${n + 1}</td>
+          <td class="gp-num">${n + 1}</td>
           <td>${escapar(a.descripcion)}</td>
           <td>${(ESTADOS_ADAPTACION[a.estado] || ['', '—'])[1]}</td>
-          <td style="text-align:center">${a.fecha_implementacion ? formatearFecha(a.fecha_implementacion) : '—'}</td>
-          <td style="text-align:center">${a.fecha_verificacion ? formatearFecha(a.fecha_verificacion) : '—'}</td>
-          <td>${a.evidencia_url ? escapar(a.evidencia_url) : '—'}</td>
+          <td class="gp-num">${a.fecha_implementacion ? formatearFecha(a.fecha_implementacion) : '—'}</td>
+          <td class="gp-num">${a.fecha_verificacion ? formatearFecha(a.fecha_verificacion) : '—'}</td>
+          <td class="gp-enlace-impreso">${a.evidencia_url ? escapar(a.evidencia_url) : '—'}</td>
         </tr>`).join('')
-    : `<tr><td colspan="6" style="text-align:center">${
+    : `<tr><td colspan="6" class="gp-vacio-fila">${
         r.sin_adaptaciones
           ? 'Declarado sin necesidad de adaptación · ' + escapar(r.motivo_sin_adaptaciones || '')
           : 'Sin adaptaciones registradas'}</td></tr>`;
 
   const html = `
     <div class="gp-hoja">
-      ${cabeceraImpresion('FICHA DE TRABAJADOR EN GRUPO DE ATENCIÓN PRIORITARIA')}
+      ${cabeceraImpresion(
+        'Ficha de trabajador en grupo de atención prioritaria',
+        'GTH-01 · GTH-02',
+        `${GRUPOS[r.tipo] || r.tipo} · emitida el ${fechaLarga()}`)}
 
       <table class="gp-ficha-datos">
         <tr>
@@ -1116,7 +1211,7 @@ function imprimirFicha() {
         <tr>
           <th>Fecha probable de parto</th>
           <td colspan="3">${r.fpp ? formatearFecha(r.fpp) : '—'}
-            ${r.fpp ? '<span style="font-size:8.5pt"> · estimada por regla de Naegele sobre la FUM</span>' : ''}</td>
+            ${r.fpp ? '<span class="gp-aclaracion">estimada por regla de Naegele sobre la FUM</span>' : ''}</td>
         </tr>` : ''}
         ${r.tipo === 'discapacidad' ? `
         <tr>
@@ -1135,57 +1230,67 @@ function imprimirFicha() {
         ${r.detalle ? `<tr><th>Detalle</th><td colspan="3">${escapar(r.detalle)}</td></tr>` : ''}
       </table>
 
-      <h2 class="gp-seccion">Indicaciones médicas</h2>
+      <h2 class="gp-seccion">Indicaciones médicas
+        <span class="gp-seccion-cuenta">${indicaciones.length}</span>
+      </h2>
       <table class="gp-tabla">
         <thead>
           <tr>
             <th style="width:5%">#</th>
-            <th style="width:50%">Indicación</th>
-            <th style="width:30%">Fundamento normativo</th>
+            <th style="width:48%">Indicación</th>
+            <th style="width:32%">Fundamento normativo</th>
             <th style="width:15%">Fecha</th>
           </tr>
         </thead>
         <tbody>${filasInd}</tbody>
       </table>
 
-      <h2 class="gp-seccion">Adaptaciones del puesto de trabajo</h2>
+      <h2 class="gp-seccion">Adaptaciones del puesto de trabajo
+        <span class="gp-seccion-cuenta">${adaptaciones.length}</span>
+      </h2>
       <table class="gp-tabla">
         <thead>
           <tr>
             <th style="width:5%">#</th>
-            <th style="width:33%">Adaptación implementada</th>
+            <th style="width:31%">Adaptación implementada</th>
             <th style="width:14%">Estado</th>
             <th style="width:12%">Implementada</th>
             <th style="width:12%">Verificada</th>
-            <th style="width:24%">Evidencia</th>
+            <th style="width:26%">Evidencia</th>
           </tr>
         </thead>
         <tbody>${filasAda}</tbody>
       </table>
 
-      <p class="gp-nota-legal">
-        Documento elaborado conforme al Art. 35 de la Constitución de la República del
-        Ecuador y al Anexo 1 del A.M. MDT-2024-196, requisitos GTH-01 y GTH-02.
-        Contiene datos personales de carácter sensible; su tratamiento y difusión se
-        rigen por la Ley Orgánica de Protección de Datos Personales.
-      </p>
-
+      ${NOTA_LEGAL}
       ${pieFirmas('Médico ocupacional', 'Técnico de seguridad e higiene')}
     </div>`;
 
-  lanzarImpresion(html);
+  lanzarImpresion(html, 'Ficha de grupo prioritario · ' + r.nombre_completo);
 }
 
 /* Mismo mecanismo que la orden de compra de Farmacia:
-   el resto de la aplicación se oculta en @media print. */
-function lanzarImpresion(html) {
+   el resto de la aplicación se oculta en @media print.
+
+   El título del documento se cambia mientras dura la
+   impresión porque el navegador lo estampa en el margen de
+   la hoja: sin esto, un registro de salud saldría rotulado
+   'Seguridad industrial · NEXUS'. */
+function lanzarImpresion(html, tituloDocumento) {
   const $zona = document.getElementById('gp-impresion');
   if (!$zona) return;
+
+  const tituloOriginal = document.title;
+  if (tituloDocumento) document.title = tituloDocumento;
 
   $zona.innerHTML = html;
   document.body.classList.add('imprimiendo-grupos');
   window.print();
-  setTimeout(() => document.body.classList.remove('imprimiendo-grupos'), 500);
+
+  setTimeout(() => {
+    document.body.classList.remove('imprimiendo-grupos');
+    document.title = tituloOriginal;
+  }, 500);
 }
 
 /* ============================================
