@@ -23,6 +23,7 @@ import { supabase } from './supabase.js';
 import { protegerPagina, ROLES } from './auth.js';
 import { montarNavegacion } from './nav.js';
 import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js';
+import { montarGrupos, cargarGrupos, pintarGrupos } from './grupos.js';
 
 /* Ámbito y módulo declarados por el HTML que carga este archivo */
 const AMBITO = document.body.dataset.ambito || 'salud';
@@ -84,6 +85,7 @@ async function iniciar() {
   prepararAnios();
   prepararAniosEventos();
   ocultarPestanasAjenas();
+  montarGrupos(perfil, AMBITO);
   await cargarEmpresas();
   conectarEventos();
 }
@@ -2186,12 +2188,13 @@ function cambiarVista(vista) {
   document.querySelectorAll('.pestana').forEach((p) => {
     p.classList.toggle('activa', p.dataset.vista === vista);
   });
-  ['cumplimiento', 'capacitaciones', 'eventos', 'ocupacionales'].forEach((v) => {
+  ['cumplimiento', 'capacitaciones', 'eventos', 'ocupacionales', 'grupos'].forEach((v) => {
     const $v = document.getElementById('vista-' + v);
     if ($v) $v.hidden = v !== vista;
   });
   if (vista === 'capacitaciones') pintarCapacitaciones();
   if (vista === 'eventos') pintarEventos();
+  if (vista === 'grupos') pintarGrupos();
   if (vista === 'ocupacionales') {
     cargarOcupacionales().then(pintarOcupacionales);
   }
@@ -2230,11 +2233,20 @@ async function seleccionarEmpresa() {
   $area.hidden = false;
   $avisoIni.hidden = true;
 
+  const nombreEmpresa =
+    ($empresa.options[$empresa.selectedIndex] || {}).textContent || '';
+
   await cargarTodo();
-  await Promise.all([cargarCapacitaciones(), cargarEventos(), cargarOcupacionales()]);
+  await Promise.all([
+    cargarCapacitaciones(),
+    cargarEventos(),
+    cargarOcupacionales(),
+    cargarGrupos(estado.empresaId, nombreEmpresa)
+  ]);
 
   if (estado.vista === 'capacitaciones') pintarCapacitaciones();
   if (estado.vista === 'eventos') pintarEventos();
+  if (estado.vista === 'grupos') pintarGrupos();
   if (estado.vista === 'ocupacionales') pintarOcupacionales();
 }
 
