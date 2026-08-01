@@ -540,3 +540,7 @@
 .gp-falta-fum { color: #f0a868; font-size: 0.8rem; }
 
 .ayuda-critica { color: #f57373; }
+
+/* Aviso de opciones no aplicables al trabajador elegido.
+   Decir por qué faltan evita que parezca un fallo. */
+.gp-nota-grupos { color: #f0a868; }
