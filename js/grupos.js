@@ -37,6 +37,7 @@ const gp = {
   sugeridos: [],
   nomina: [],
   actual: null,       // registro abierto en la ficha
+  trabajadorElegido: null, // para filtrar los grupos aplicables
   destino: null       // indicación o adaptación en edición
 };
 
@@ -126,7 +127,7 @@ export async function cargarGrupos(empresaId, empresaNombre) {
       .eq('empresa_id', empresaId).order('codigo'),
     supabase.from('v_grupos_sugeridos').select('*')
       .eq('empresa_id', empresaId).order('edad', { ascending: false }),
-    supabase.from('v_trabajadores').select('id, codigo, cedula, nombre_completo, fecha_nacimiento')
+    supabase.from('v_trabajadores').select('id, codigo, cedula, nombre_completo, fecha_nacimiento, sexo')
       .eq('empresa_id', empresaId).eq('activo', true).order('codigo'),
     supabase.from('indicaciones_catalogo').select('*')
       .eq('activo', true).order('texto')
@@ -318,6 +319,14 @@ function abrirRegistro(registro, trabajadorId, tipoSugerido) {
   document.getElementById('gp-r-titulo').textContent =
     registro ? 'Editar condición' : 'Añadir a grupos prioritarios';
 
+  /* El tipo se fija antes de elegir al trabajador: elegirlo
+     repuebla la lista de grupos y necesita saber cuál debe
+     quedar marcado. Vaciar el select obliga a poblarGrupos a
+     leer este valor en lugar del que arrastraba de la vez
+     anterior. */
+  gp.tipoDeseado = registro?.tipo ?? tipoSugerido ?? 'discapacidad';
+  document.getElementById('gp_tipo').innerHTML = '';
+
   /* El trabajador se busca, no se elige de una lista larga.
      Al editar ya está fijado y no se cambia: mover la
      condición de persona rompería su histórico. */
@@ -329,11 +338,6 @@ function abrirRegistro(registro, trabajadorId, tipoSugerido) {
   } else {
     limpiarEleccion();
   }
-
-  const $tipo = document.getElementById('gp_tipo');
-  $tipo.innerHTML = Object.entries(GRUPOS)
-    .map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
-  $tipo.value = registro?.tipo ?? tipoSugerido ?? 'discapacidad';
 
   document.getElementById('gp_discapacidad').value = registro?.discapacidad ?? '';
   document.getElementById('gp_porcentaje').value = registro?.porcentaje ?? '';
@@ -351,6 +355,54 @@ function abrirRegistro(registro, trabajadorId, tipoSugerido) {
   if (!document.getElementById('gp_trabajador').value) {
     document.getElementById('gp_buscar').focus();
   }
+}
+
+/**
+ * Grupos que puede tener el trabajador elegido.
+ *
+ * Embarazo y lactancia no se ofrecen a un hombre. La base lo
+ * rechaza igual, pero un error tras pulsar Guardar es peor
+ * que una opción que nunca estuvo: el formulario debe
+ * describir lo posible, no corregir después.
+ *
+ * Si el sexo no está registrado se ofrecen todos: bloquear
+ * obligaría a completar la ficha administrativa antes de
+ * poder registrar un dato clínico.
+ */
+function gruposAplicables() {
+  const t = gp.trabajadorElegido;
+  const sexo = t?.sexo;
+
+  return Object.entries(GRUPOS).filter(([clave]) => {
+    if ((clave === 'embarazo' || clave === 'lactancia') && sexo === 'M') return false;
+    return true;
+  });
+}
+
+function poblarGrupos() {
+  const $tipo = document.getElementById('gp_tipo');
+  if (!$tipo) return;
+
+  /* Si el select ya tiene valor es porque el usuario eligió;
+     se respeta. Vacío significa apertura del formulario. */
+  const previo = $tipo.value || gp.tipoDeseado;
+  const opciones = gruposAplicables();
+
+  $tipo.innerHTML = opciones
+    .map(([v, t]) => `<option value="${v}">${escapar(t)}</option>`).join('');
+
+  /* Conservar la elección si sigue siendo posible */
+  const claves = opciones.map(([v]) => v);
+  $tipo.value = claves.includes(previo) ? previo : (claves[0] || '');
+
+  /* Decir por qué faltan opciones evita que parezca un fallo */
+  const $nota = document.getElementById('gp-nota-grupos');
+  if ($nota) {
+    const oculto = opciones.length < Object.keys(GRUPOS).length;
+    $nota.hidden = !oculto;
+  }
+
+  alternarCamposDiscapacidad();
 }
 
 /* ============================================
@@ -395,6 +447,8 @@ function buscarTrabajador() {
 
 function elegirTrabajador(t, fijado) {
   document.getElementById('gp_trabajador').value = t.id;
+  gp.trabajadorElegido = t;
+  poblarGrupos();
 
   const $elegido = document.getElementById('gp-elegido');
   $elegido.hidden = false;
@@ -410,6 +464,8 @@ function elegirTrabajador(t, fijado) {
 
 function limpiarEleccion() {
   document.getElementById('gp_trabajador').value = '';
+  gp.trabajadorElegido = null;
+  poblarGrupos();
   document.getElementById('gp-elegido').hidden = true;
   document.getElementById('gp-campo-buscar').hidden = false;
   document.getElementById('gp_sugerencias').hidden = true;
@@ -1386,6 +1442,16 @@ function traducir(error) {
   if (m.includes('uq_gp_vigente')) {
     return 'Este trabajador ya tiene una condición vigente de ese tipo. '
          + 'Ciérrela antes de abrir una nueva.';
+  }
+  if (m.includes('sexo masculino')) {
+    return 'No se puede registrar embarazo ni lactancia en un trabajador de sexo masculino. '
+         + 'Verifique el trabajador elegido o corrija el sexo en su ficha.';
+  }
+  if (m.includes('adolescente aplica')) {
+    return 'El grupo adolescente aplica solo a menores de 18 años.';
+  }
+  if (m.includes('adulto mayor aplica')) {
+    return 'El grupo adulto mayor aplica desde los 65 años.';
   }
   if (m.includes('ck_gp_fum')) {
     return 'La FUM no puede ser posterior a la fecha de inicio del registro';
