@@ -118,11 +118,18 @@ export function ajustarFirmas($zona) {
  * @param {string} claseBody clase que oculta la aplicación
  * @param {string} titulo    rótulo del margen de la hoja
  */
-export function imprimirHoja(idZona, claseBody, titulo) {
+export async function imprimirHoja(idZona, claseBody, titulo) {
   const $zona = document.getElementById(idZona);
   if (!$zona) return;
 
   ajustarFirmas($zona);
+
+  /* Antes de imprimir hay que esperar a las imágenes. El
+     navegador no las descarga hasta que el elemento entra en
+     el documento, y print() no espera por ellas: si se llama
+     de inmediato, la vista previa sale sin el logo y a veces
+     aparece a medio dibujar. */
+  await esperarImagenes($zona);
 
   const tituloPrevio = document.title;
   if (titulo) document.title = titulo;
@@ -134,4 +141,30 @@ export function imprimirHoja(idZona, claseBody, titulo) {
     document.body.classList.remove(claseBody);
     document.title = tituloPrevio;
   }, 500);
+}
+
+/**
+ * Espera a que las imágenes de un contenedor estén listas.
+ *
+ * Nunca deja colgada la impresión: si alguna no carga —logo
+ * ausente, red caída— se sigue adelante pasado el tiempo
+ * límite. Un documento sin logo es mejor que un botón que no
+ * responde.
+ */
+export function esperarImagenes($zona, msMaximo = 3000) {
+  const imagenes = [...$zona.querySelectorAll('img')];
+  if (imagenes.length === 0) return Promise.resolve();
+
+  const cargadas = imagenes.map((img) => {
+    if (img.complete && img.naturalHeight > 0) return Promise.resolve();
+    return new Promise((listo) => {
+      img.addEventListener('load', listo, { once: true });
+      img.addEventListener('error', listo, { once: true });
+    });
+  });
+
+  return Promise.race([
+    Promise.all(cargadas),
+    new Promise((listo) => setTimeout(listo, msMaximo))
+  ]);
 }

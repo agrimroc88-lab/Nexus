@@ -22,6 +22,7 @@
 import { supabase } from './supabase.js?v=9';
 import { ROLES } from './auth.js?v=9';
 import { escapar, formatearFecha } from './utils.js?v=9';
+import { esperarImagenes } from './impresion.js?v=9';
 import { envolverWord, descargarWord, recuadroFoto, bloqueFirmas,
          membreteWord, bandaTitulo, tablaWord,
          listaDocumento, seccionDocumento, logoEnBase64,
@@ -82,6 +83,10 @@ export function montarBotiquines(perfil) {
   bt.perfil = perfil;
   prepararPeriodos();
   conectar();
+
+  /* El logo se lee al abrir la pestaña, no al pulsar imprimir:
+     así ya está en memoria cuando hace falta. */
+  logoEnBase64().then((l) => { if (l) bt.logo = l; });
 }
 
 function prepararPeriodos() {
@@ -1084,17 +1089,22 @@ function construirActas(espacioFirma, logo) {
    de tabla, en lugar de calcularlo al vuelo: así los cinco
    centímetros son los mismos en papel y en el archivo, y no
    dependen de que una medición acierte. */
-function imprimirActas() {
-  /* Ruta relativa: al imprimir desde la aplicación el
-     navegador la resuelve, y no depende de que la lectura en
-     base64 haya funcionado. */
-  const hojas = construirActas(50, 'logo.png');
+async function imprimirActas() {
+  /* El logo ya está leído en memoria desde que se abrió la
+     pestaña: usarlo evita una descarga justo cuando el
+     usuario espera el diálogo de impresión. La ruta relativa
+     queda de respaldo por si esa lectura falló. */
+  const hojas = construirActas(50, bt.logo || 'logo.png');
   if (!hojas) return;
 
   const $z = document.getElementById('bt-impresion');
   if (!$z) return;
 
   $z.innerHTML = hojas;
+
+  /* print() no espera a las imágenes: sin esto, la vista
+     previa sale sin logo o con él a medio dibujar. */
+  await esperarImagenes($z);
 
   const titulo = document.title;
   document.title = 'Actas de entrega · ' + nombreMes(bt.periodo);
