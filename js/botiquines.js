@@ -756,39 +756,37 @@ async function generarInforme() {
     ])}
 
     ${seccionDocumento('1. Introducción')}
-    <p style="text-align:justify;margin:6pt 0;">
-      El botiquín de primeros auxilios es el recurso más inmediato con que cuenta
-      un lugar de trabajo ante una lesión leve o el inicio de una emergencia. Su
-      utilidad no depende de que exista, sino de que en el momento del hecho tenga
-      lo que debe tener, en condiciones de ser usado y al alcance de quien lo
-      necesita. De ahí que su control sea mensual y documentado.
-    </p>
-    <p style="text-align:justify;margin:6pt 0;">
-      Mediante el presente informe se da a conocer el estado y funcionamiento de
-      los ${bt.revisiones.length} botiquines implementados en los distintos puntos
-      de la empresa, los cuales facilitan al personal la rápida aplicación de
-      primeros auxilios, vendajes compresivos y lavado de heridas, para su correcta
-      movilización hacia la unidad médica.
+    <p style="text-align:justify;">
+      El botiquín de primeros auxilios es el recurso más inmediato ante una lesión
+      leve o el inicio de una emergencia. Su utilidad no depende de que exista,
+      sino de que en el momento del hecho tenga lo que debe tener, en condiciones
+      de ser usado y al alcance de quien lo necesita; de ahí que su control sea
+      mensual y documentado. El presente informe da cuenta del estado y
+      funcionamiento de los ${bt.revisiones.length} botiquines implementados en los
+      distintos puntos de la empresa, que permiten la aplicación de primeros
+      auxilios, vendajes compresivos y lavado de heridas antes de la movilización
+      hacia la unidad médica.
     </p>
 
     ${seccionDocumento('2. Objetivo general')}
-    <p style="text-align:justify;margin:6pt 0;">${escaparTexto(OBJETIVO_GENERAL)}</p>
+    <p style="text-align:justify;">${escaparTexto(OBJETIVO_GENERAL)}</p>
 
     ${seccionDocumento('3. Objetivos específicos')}
     ${listaDocumento(OBJETIVOS_ESPECIFICOS, true)}
 
     ${seccionDocumento('4. Marco normativo')}
-    <p style="text-align:justify;margin:6pt 0;">
+    <p style="text-align:justify;">
       La obligación de mantener botiquines de primeros auxilios y de verificar
-      periódicamente su dotación se sustenta en las siguientes disposiciones:
+      periódicamente su dotación se sustenta en:
     </p>
-    ${listaDocumento(MARCO_NORMATIVO)}
+    ${tablaWord(
+      [{ titulo: 'DISPOSICIÓN', ancho: 32 }, { titulo: 'CONTENIDO', ancho: 68 }],
+      MARCO_NORMATIVO.map((n) => [escaparTexto(n.titulo), escaparTexto(n.texto)]))}
 
     ${seccionDocumento('5. Criterios técnicos de verificación')}
-    <p style="text-align:justify;margin:6pt 0;">
-      La inspección de cada botiquín contempla los siguientes aspectos:
-    </p>
-    ${listaDocumento(CRITERIOS_TECNICOS)}
+    ${tablaWord(
+      [{ titulo: 'ASPECTO', ancho: 22 }, { titulo: 'CRITERIO APLICADO', ancho: 78 }],
+      CRITERIOS_TECNICOS.map((c) => [escaparTexto(c.titulo), escaparTexto(c.texto)]))}
 
     ${seccionDocumento('6. Sitios inspeccionados')}
     ${tablaWord(
@@ -819,10 +817,6 @@ async function generarInforme() {
 
     ${consolidado.size > 0 ? `
       ${seccionDocumento('8. Consolidado de reposición')}
-      <p style="text-align:justify;margin:6pt 0;">
-        Detalle acumulado de los insumos repuestos en el periodo, que sirve de base
-        para la reposición de existencias en farmacia.
-      </p>
       ${tablaWord(
         [
           { titulo: 'INSUMO',    ancho: 48 },
@@ -838,7 +832,7 @@ async function generarInforme() {
         ]))}` : ''}
 
     ${seccionDocumento('9. Conclusión')}
-    <p style="text-align:justify;margin:6pt 0;">
+    <p style="text-align:justify;">
       Se verificó la totalidad de los botiquines previstos para el periodo. Los
       insumos consumidos, caducados o deteriorados fueron repuestos según el detalle
       que consta en las secciones siguientes, quedando los botiquines en condiciones
@@ -846,67 +840,74 @@ async function generarInforme() {
       fotográfica, se presenta a continuación.
     </p>`;
 
-  /* --- Una sección por botiquín --- */
-  const secciones = bt.revisiones.map((r, n) => {
-    const lineas = bt.detalle[r.id] || [];
-    const repuestas = lineas.filter((l) => Number(l.repuesto) > 0);
-    const rotulo = (r.area || r.departamento).toUpperCase();
+  /* --- Detalle por botiquín ---
+     Sin salto de página forzado: once saltos convertían el
+     informe en once hojas casi vacías. El contenido fluye y
+     Word pagina donde toca; solo se evita que una tabla se
+     parta a la mitad. */
+  const detalle = `
+    ${seccionDocumento('10. Detalle por botiquín')}
+    <p style="text-align:justify;">
+      Se presenta la dotación de cada botiquín con la cantidad hallada durante la
+      inspección, la reposición efectuada y el motivo que la sustenta.
+    </p>
 
-    return `
-      <div class="salto">
-        ${membreteCompacto(bt.empresaNombre, bt.logo, referencia)}
+    ${bt.revisiones.map((r) => {
+      const lineas = bt.detalle[r.id] || [];
+      const repuestas = lineas.filter((l) => Number(l.repuesto) > 0);
 
-        ${seccionDocumento(`Anexo ${n + 1} · ${r.botiquin}`)}
+      return `
+        <div class="no-partir" style="margin-top:8pt;">
+          <p style="font-size:10pt;font-weight:bold;margin:6pt 0 2pt;
+                    background:#e6f0e6;padding:2pt 5pt;">
+            ${escaparTexto(r.botiquin)}
+            <span style="font-weight:normal;font-size:8.5pt;">
+              · Inspeccionado el ${r.fecha_revision ? formatearFecha(r.fecha_revision) : '—'}
+              · Responsable: ${escaparTexto(
+                  r.sin_destinatario ? 'Guardia de turno' : (r.destinatario || '—'))}
+            </span>
+          </p>
 
-        ${tablaWord(
-          [
-            { titulo: 'DEPARTAMENTO',        ancho: 25 },
-            { titulo: 'ÁREA',                ancho: 25 },
-            { titulo: 'FECHA DE INSPECCIÓN', ancho: 25, centrado: true },
-            { titulo: 'RESPONSABLE',         ancho: 25 }
-          ],
-          [[
-            escaparTexto(r.departamento),
-            escaparTexto(r.area || '—'),
-            r.fecha_revision ? formatearFecha(r.fecha_revision) : '—',
-            escaparTexto(r.sin_destinatario ? 'Guardia de turno' : (r.destinatario || '—'))
-          ]])}
+          ${tablaInsumos(lineas, 'informe')}
 
-        <p style="text-align:justify;margin:6pt 0;">
-          Se detalla el estado de la dotación del botiquín ubicado
-          ${escaparTexto(r.ubicacion_texto || r.botiquin)}, con la cantidad
-          encontrada durante la inspección y la reposición efectuada, indicando el
-          motivo que sustenta cada entrega.
-        </p>
+          ${repuestas.length === 0
+            ? '<p style="font-style:italic;font-size:9pt;">Botiquín completo y en '
+              + 'condiciones adecuadas de conservación. Sin reposición en el periodo.</p>'
+            : ''}
+          ${r.observacion
+            ? `<p style="font-size:9pt;"><b>Observación:</b> ${
+                escaparTexto(r.observacion)}</p>` : ''}
+        </div>`;
+    }).join('')}`;
 
-        ${tablaInsumos(lineas, 'informe')}
+  /* --- Evidencia fotográfica ---
+     Agrupada al final y en rejilla de dos columnas. Repartir
+     un recuadro por hoja multiplicaba las páginas sin añadir
+     nada: seis caben en una y se comparan mejor entre sí. */
+  const filas = [];
+  for (let i = 0; i < bt.revisiones.length; i += 2) {
+    filas.push(bt.revisiones.slice(i, i + 2));
+  }
 
-        ${repuestas.length === 0
-          ? '<p style="font-style:italic;font-size:10.5pt;margin:4pt 0;">'
-            + 'El botiquín se encontró completo y en condiciones adecuadas de '
-            + 'conservación. No fue necesaria reposición en el periodo.</p>'
-          : ''}
+  const evidencia = `
+    <div class="salto">
+      ${membreteCompacto(bt.empresaNombre, bt.logo, referencia)}
+      ${seccionDocumento('11. Evidencia fotográfica')}
+      <p style="text-align:justify;">
+        Registro fotográfico de los botiquines inspeccionados en el periodo.
+      </p>
 
-        ${r.observacion
-          ? `<p style="font-size:10.5pt;margin:6pt 0;text-align:justify;">
-               <b>Observación:</b> ${escaparTexto(r.observacion)}</p>` : ''}
-
-        <p style="font-weight:bold;margin:12pt 0 4pt;font-size:11.5pt;
-                  color:#1b5e20;">EVIDENCIA FOTOGRÁFICA</p>
-
-        <table style="width:100%;">
+      <table style="width:100%;">
+        ${filas.map((par) => `
           <tr>
-            <td style="width:50%;vertical-align:top;padding-right:5pt;">
-              ${recuadroFoto('Vista general · ' + rotulo, 62)}
-            </td>
-            <td style="width:50%;vertical-align:top;padding-left:5pt;">
-              ${recuadroFoto('Contenido del botiquín · ' + rotulo, 62)}
-            </td>
-          </tr>
-        </table>
-
-      </div>`;
-  }).join('');
+            ${par.map((r) => `
+              <td style="width:50%;vertical-align:top;padding:2pt 4pt;">
+                ${recuadroFoto(r.botiquin.toUpperCase(), 52)}
+              </td>`).join('')}
+            ${par.length === 1 ? '<td style="width:50%;"></td>' : ''}
+          </tr>`).join('')}
+      </table>
+    </div>`;
 
   /* La firma va una sola vez y al cierre, después de los
      anexos: es lo que se firma cuando ya se ha leído todo. */
@@ -924,10 +925,9 @@ async function generarInforme() {
   });
 
   const cierre = `
-    <div class="salto">
-      ${membreteCompacto(bt.empresaNombre, bt.logo, referencia)}
-      ${seccionDocumento('Cierre del informe')}
-      <p style="text-align:justify;margin:6pt 0;">
+    <div>
+      ${seccionDocumento('12. Cierre del informe')}
+      <p style="text-align:justify;">
         Se deja constancia de que la inspección de los ${bt.revisiones.length}
         botiquines correspondientes a ${escaparTexto(nombreMes(bt.periodo))} fue
         realizada conforme a los objetivos y criterios señalados en este documento,
@@ -937,7 +937,7 @@ async function generarInforme() {
       ${bloqueFirmas(columnas, 50)}
     </div>`;
 
-  const html = envolverWord(caratula + secciones + cierre,
+  const html = envolverWord(caratula + detalle + evidencia + cierre,
     'Informe de inspección de botiquines · ' + nombreMes(bt.periodo));
 
   descargarWord(html, `Informe botiquines ${bt.periodo}`);
