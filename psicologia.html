@@ -63,7 +63,10 @@
       body > .contenedor,
       .modal { display: none !important; }
       .zona-impresion { display: block !important; }
-      @page { margin: 2cm 1cm 2cm 3cm; size: A4 portrait; }
+      /* El margen va como relleno de la hoja: con @page en cero
+         el navegador deja de estampar su encabezado y su pie.
+         Lo declara documentos.css. */
+      .hoja { padding: 20mm 10mm 20mm 30mm !important; box-sizing: border-box; }
       .membrete { display: none !important; }
       .fp-hoja { display: block !important; width: 100%; font-family: Arial, Helvetica, sans-serif; color: #000; font-size: 11pt; }
       .fp-encabezado { display: flex; align-items: center; gap: 0.8rem; border-bottom: 2px solid #1b5e20; padding-bottom: 0.35rem; margin-bottom: 0.4rem; }
