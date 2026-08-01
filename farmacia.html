@@ -60,7 +60,11 @@
       .oc-tabla th, .oc-tabla td { border: 1px solid #333; padding: 6px 8px; }
       .oc-tabla th { background: #e6f0e6; text-align: left; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .oc-seccion { font-size: 12pt; color: #1b5e20; margin: 1rem 0 0.4rem; border-bottom: 1px solid #1b5e20; padding-bottom: 0.2rem; }
-      .oc-firmas { display: flex; justify-content: space-around; margin-top: 4rem; }
+      /* El margen lo calcula impresion.js según lo que quede
+         de hoja: 5 cm si caben, o el pie de la página en curso.
+         Este valor es el respaldo si el script no se ejecuta. */
+      .oc-firmas { display: flex; justify-content: space-around; margin-top: 50mm;
+        page-break-inside: avoid; }
       .oc-firma { text-align: center; width: 40%; }
       .oc-linea { border-top: 1px solid #000; margin-bottom: 0.3rem; }
       .oc-firma p { margin: 0; font-size: 10.5pt; }
