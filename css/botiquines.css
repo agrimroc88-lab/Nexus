@@ -178,13 +178,25 @@
   .bt-impresion .no-partir { page-break-inside: avoid; }
 
   /* Los fondos van como atributo bgcolor para que Word los
-     respete; el navegador necesita además esta autorización
-     para imprimirlos. */
+     respete. El navegador, además, descarta todo color de
+     fondo al imprimir salvo que se le autorice expresamente,
+     y por eso la hoja salía en blanco y negro. */
+  body.imprimiendo-botiquines,
+  body.imprimiendo-botiquines .bt-impresion,
+  .bt-impresion *,
   .bt-impresion table,
-  .bt-impresion td {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+  .bt-impresion tr,
+  .bt-impresion td,
+  .bt-impresion div {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
   }
+
+  /* El hueco de firma es una celda con altura fija. Sin esto
+     el navegador la colapsa al alto de su contenido y los
+     cinco centímetros desaparecen. */
+  .bt-impresion td[style*="line-height"] { display: table-cell; }
 
   .bt-impresion table { border-collapse: collapse; width: 100%; }
   .bt-impresion img { max-height: 38pt; }
