@@ -92,19 +92,34 @@ const SITUACIONES = {
    Permisos
    ============================================ */
 
-/** Registrar la condición: salud y técnico */
+/* Identificar a un trabajador de un grupo prioritario no es
+   acto reservado al médico: lo hace enfermería en consulta,
+   psicología en una evaluación, trabajo social en una
+   entrevista. Y prescribir adaptaciones tampoco: psicología
+   indica sobre carga mental, ergonomía sobre postura.
+
+   Debe coincidir con es_personal_salud() del lado de la base;
+   si no, la pantalla ofrecería botones que el servidor
+   rechaza. El rol consulta queda fuera: es de solo lectura
+   por definición. */
+const PERSONAL_SALUD = [
+  ROLES.ADMIN, ROLES.MEDICO, ROLES.ENFERMERIA, ROLES.PSICOLOGO,
+  ROLES.TRABAJO_SOCIAL, ROLES.PSICO_SOCIAL, ROLES.ERGONOMO, ROLES.TECNICO
+];
+
+/** Registrar la condición */
 function puedeRegistrar() {
-  return [ROLES.ADMIN, ROLES.MEDICO, ROLES.TECNICO].includes(gp.perfil?.rol);
+  return PERSONAL_SALUD.includes(gp.perfil?.rol);
 }
 
-/** Indicar es acto clínico. El técnico lee, no prescribe. */
+/** Indicar */
 function puedeIndicar() {
-  return [ROLES.ADMIN, ROLES.MEDICO].includes(gp.perfil?.rol);
+  return PERSONAL_SALUD.includes(gp.perfil?.rol);
 }
 
 /** Adaptar el puesto y evidenciarlo */
 function puedeAdaptar() {
-  return [ROLES.ADMIN, ROLES.TECNICO, ROLES.MEDICO].includes(gp.perfil?.rol);
+  return PERSONAL_SALUD.includes(gp.perfil?.rol);
 }
 
 /* ============================================
@@ -1437,7 +1452,8 @@ function mostrar(id, texto) {
 function traducir(error) {
   const m = error.message || '';
   if (error.code === '42501') {
-    return 'Su rol no tiene permiso para esta acción';
+    return 'Su rol no tiene permiso para esta acción. '
+         + 'Si cree que debería tenerlo, avise a quien administra la plataforma.';
   }
   if (m.includes('uq_gp_vigente')) {
     return 'Este trabajador ya tiene una condición vigente de ese tipo. '
