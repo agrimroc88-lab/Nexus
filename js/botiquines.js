@@ -19,14 +19,14 @@
        entrega y quien recibe.
    ============================================ */
 
-import { supabase } from './supabase.js';
-import { ROLES } from './auth.js';
-import { escapar, formatearFecha } from './utils.js';
+import { supabase } from './supabase.js?v=8';
+import { ROLES } from './auth.js?v=8';
+import { escapar, formatearFecha } from './utils.js?v=8';
 import { envolverWord, descargarWord, recuadroFoto, bloqueFirmas,
          membreteWord, bandaTitulo, tablaWord,
          listaDocumento, seccionDocumento, logoEnBase64,
          encabezadoMemo, escaparTexto }
-  from './documento.js';
+  from './documento.js?v=8';
 
 const bt = {
   perfil: null,

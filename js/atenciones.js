@@ -14,12 +14,12 @@
     · Morbilidad común. Lo ocupacional tendrá módulo propio.
    ============================================ */
 
-import { supabase } from './supabase.js';
-import { protegerPagina, puedeVerClinica } from './auth.js';
-import { montarNavegacion } from './nav.js';
-import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js';
+import { supabase } from './supabase.js?v=8';
+import { protegerPagina, puedeVerClinica } from './auth.js?v=8';
+import { montarNavegacion } from './nav.js?v=8';
+import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=8';
 import { montarEmergencia, fijarEmpresaEmergencia, pintarPanelClinico }
-  from './emergencia.js';
+  from './emergencia.js?v=8';
 
 /* --- Estado --- */
 const estado = {

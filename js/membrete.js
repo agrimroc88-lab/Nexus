@@ -4,7 +4,7 @@
    ARCHIVO COMPARTIDO — todos los módulos lo usan.
    ============================================ */
 
-import { escapar } from './utils.js';
+import { escapar } from './utils.js?v=8';
 
 /* Devuelve el HTML del membrete (logo + empresa + unidad) con un título.
    - empresaNombre: nombre de la empresa (ej. "AGRIMROC S.A.")

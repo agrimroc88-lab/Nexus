@@ -23,9 +23,9 @@
       suspender es acto clínico y queda restringido.
    ============================================ */
 
-import { supabase } from './supabase.js';
-import { ROLES } from './auth.js';
-import { escapar, formatearFecha, textoOGuion } from './utils.js';
+import { supabase } from './supabase.js?v=8';
+import { ROLES } from './auth.js?v=8';
+import { escapar, formatearFecha, textoOGuion } from './utils.js?v=8';
 
 const em = {
   perfil: null,
