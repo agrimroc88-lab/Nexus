@@ -138,3 +138,54 @@
   font-size: 0.82rem;
   color: var(--color-texto-tenue, #8a8f98);
 }
+
+/* ============================================
+   IMPRESIÓN DE ACTAS
+
+   El acta se imprime directamente: no lleva fotografías, así
+   que descargarla para imprimirla sería un rodeo. El informe
+   sí se descarga, porque hay que pegarle la evidencia.
+
+   La hoja se construye con estilos en línea, que es lo único
+   que respetan a la vez el navegador y Word. Aquí solo se
+   oculta la aplicación y se fija el tamaño de página.
+   ============================================ */
+
+.bt-impresion { display: none; }
+
+@media print {
+  body.imprimiendo-botiquines .barra-lateral,
+  body.imprimiendo-botiquines .contenedor,
+  body.imprimiendo-botiquines .cabecera,
+  body.imprimiendo-botiquines .modal,
+  body.imprimiendo-botiquines nav,
+  body.imprimiendo-botiquines main { display: none !important; }
+
+  body.imprimiendo-botiquines .bt-impresion {
+    display: block !important;
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    width: 100%;
+    background: #fff;
+    font-family: 'Times New Roman', Georgia, serif;
+    color: #000;
+  }
+
+  @page { margin: 1.5cm; }
+
+  /* Cada acta en su hoja */
+  .bt-impresion .salto { page-break-before: always; }
+  .bt-impresion .no-partir { page-break-inside: avoid; }
+
+  /* Los fondos van como atributo bgcolor para que Word los
+     respete; el navegador necesita además esta autorización
+     para imprimirlos. */
+  .bt-impresion table,
+  .bt-impresion td {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .bt-impresion table { border-collapse: collapse; width: 100%; }
+  .bt-impresion img { max-height: 38pt; }
+}
