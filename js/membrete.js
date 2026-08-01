@@ -15,7 +15,7 @@ export function membreteHTML(empresaNombre, titulo) {
     <div class="membrete">
       <img src="logo.png" class="membrete-logo" alt="">
       <div class="membrete-datos">
-        <strong>${escapar(empresaNombre || 'AGRIMROC S.A.')}</strong>
+        <strong>${escapar(empresaNombre || '')}</strong>
         <span>Unidad de Seguridad y Salud Ocupacional</span>
       </div>
     </div>
@@ -25,10 +25,10 @@ export function membreteHTML(empresaNombre, titulo) {
 /* CSS del membrete, para inyectar donde se necesite (o usar el de cada CSS). */
 export const MEMBRETE_CSS = `
   .membrete { display: flex; align-items: center; gap: 1rem;
-    border-bottom: 2px solid #1b5e20; padding-bottom: 0.7rem; margin-bottom: 1rem; }
+    border-bottom: 2px solid var(--doc-verde); padding-bottom: 0.7rem; margin-bottom: 1rem; }
   .membrete-logo { height: 65px; width: auto; }
   .membrete-datos { display: flex; flex-direction: column; }
-  .membrete-datos strong { font-size: 13pt; color: #1b5e20; }
+  .membrete-datos strong { font-size: 13pt; color: var(--doc-verde); }
   .membrete-datos span { font-size: 10pt; color: #333; }
   .membrete-titulo { text-align: center; font-size: 14pt; text-transform: uppercase;
     margin: 0.5rem 0 1.2rem; color: #000; }

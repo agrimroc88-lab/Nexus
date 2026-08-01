@@ -22,6 +22,20 @@
 /* Milímetros a puntos, que es la unidad que entiende Word */
 const MM = 2.83465;
 
+/* Paleta de documentos.
+   No se usan variables CSS: Word no resuelve var() al abrir
+   un HTML, y el documento saldría sin color. Los valores
+   duplican los de css/documentos.css a propósito; si allí
+   cambian, aquí también. */
+const PALETA = {
+  verde:      '#1b5e20',
+  verdeClaro: '#e6f0e6',
+  verdeTenue: '#f2f7f2',
+  borde:      '#555555',
+  textoSuave: '#444444',
+  textoTenue: '#555555'
+};
+
 /**
  * Envuelve el cuerpo en un documento que Word reconoce.
  *
@@ -189,7 +203,7 @@ export function membreteWord(empresa, logo) {
                <img src="${logo}" style="height:42pt;">
              </td>` : ''}
         <td style="vertical-align:middle;">
-          <div style="font-size:15pt;font-weight:bold;color:#1b5e20;">
+          <div style="font-size:15pt;font-weight:bold;color:${PALETA.verde};">
             ${escaparTexto(empresa || 'Empresa')}
           </div>
           <div style="font-size:9.5pt;letter-spacing:0.5pt;color:#333;">
@@ -198,7 +212,7 @@ export function membreteWord(empresa, logo) {
         </td>
       </tr>
     </table>
-    <div style="border-bottom:2pt solid #1b5e20;margin-bottom:10pt;"></div>`;
+    <div style="border-bottom:2pt solid ${PALETA.verde};margin-bottom:10pt;"></div>`;
 }
 
 /**
@@ -210,11 +224,11 @@ export function membreteWord(empresa, logo) {
  */
 export function bandaTitulo(titulo, subtitulo) {
   return `
-    <table style="width:100%;margin-bottom:10pt;" bgcolor="#e6f0e6">
-      <tr bgcolor="#e6f0e6">
-        <td bgcolor="#e6f0e6"
-            style="background:#e6f0e6;border-top:0.75pt solid #1b5e20;
-                   border-bottom:0.75pt solid #1b5e20;
+    <table style="width:100%;margin-bottom:10pt;" bgcolor="${PALETA.verdeClaro}">
+      <tr bgcolor="${PALETA.verdeClaro}">
+        <td bgcolor="${PALETA.verdeClaro}"
+            style="background:${PALETA.verdeClaro};border-top:0.75pt solid ${PALETA.verde};
+                   border-bottom:0.75pt solid ${PALETA.verde};
                    padding:6pt 8pt;text-align:center;">
           <div style="font-size:13pt;font-weight:bold;letter-spacing:0.5pt;">
             ${escaparTexto(titulo)}
@@ -234,11 +248,14 @@ export function bandaTitulo(titulo, subtitulo) {
  * @param {Array} filas    array de arrays de celdas ya escapadas
  */
 export function tablaWord(columnas, filas) {
-  const borde = 'border:0.75pt solid #444;padding:4pt 6pt;font-size:11pt;';
+  /* Comillas invertidas: con comillas simples la expresión
+     viajaría literal al documento y el navegador
+     descartaría el borde por inválido. */
+  const borde = `border:1pt solid ${PALETA.borde};padding:4pt 6pt;font-size:11pt;`;
 
   const cabecera = columnas.map((c) => `
-    <td bgcolor="#e6f0e6" width="${c.ancho}%"
-        style="${borde}background:#e6f0e6;font-weight:bold;font-size:10.5pt;
+    <td bgcolor="${PALETA.verdeClaro}" width="${c.ancho}%"
+        style="${borde}background:${PALETA.verdeClaro};font-weight:bold;font-size:10.5pt;
                text-align:${c.centrado ? 'center' : 'left'};">
       ${escaparTexto(c.titulo)}
     </td>`).join('');
@@ -251,8 +268,10 @@ export function tablaWord(columnas, filas) {
     </tr>`).join('');
 
   return `
-    <table style="width:100%;margin-bottom:10pt;">
-      <tr bgcolor="#e6f0e6">${cabecera}</tr>
+    <table style="width:100%;margin-bottom:10pt;border-collapse:collapse;
+                  border:1.25pt solid ${PALETA.verde};" border="1"
+           cellspacing="0" cellpadding="0">
+      <tr bgcolor="${PALETA.verdeClaro}">${cabecera}</tr>
       ${cuerpo}
     </table>`;
 }
