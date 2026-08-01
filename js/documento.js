@@ -57,10 +57,11 @@ export function envolverWord(cuerpo, titulo, opciones = {}) {
     }
     body {
       font-family: 'Times New Roman', serif;
-      font-size: 11pt;
+      font-size: 12pt;
       color: #000;
-      line-height: 1.35;
+      line-height: 1.4;
     }
+    td, th { font-size: 11pt; }
     table { border-collapse: collapse; }
     .salto { page-break-before: always; }
     .no-partir { page-break-inside: avoid; }
@@ -112,13 +113,13 @@ export function recuadroFoto(pie, altoMm = 75) {
                    text-align:center;
                    vertical-align:middle;
                    color:#999;
-                   font-size:9pt;">
+                   font-size:10pt;">
           Pegue aquí la fotografía
         </td>
       </tr>
       <tr>
-        <td style="text-align:center;font-size:9pt;font-weight:bold;
-                   padding-top:3pt;">
+        <td style="text-align:center;font-size:10.5pt;font-weight:bold;
+                   padding-top:4pt;">
           ${escaparTexto(pie)}
         </td>
       </tr>
@@ -137,21 +138,33 @@ export function recuadroFoto(pie, altoMm = 75) {
 export function bloqueFirmas(columnas, espacioMm = 50) {
   const ancho = Math.floor(100 / columnas.length);
 
+  /* El hueco va como celda de tabla, no como div: Word colapsa
+     la altura de un div al alto de su línea y las firmas
+     terminaban pegadas al último renglón. Una celda sí
+     conserva la medida. */
+  const espaciador = espacioMm > 0
+    ? `<table style="width:100%;"><tr>
+         <td style="height:${Math.round(espacioMm * MM)}pt;
+                    line-height:${Math.round(espacioMm * MM)}pt;
+                    font-size:1pt;">&nbsp;</td>
+       </tr></table>`
+    : '';
+
   return `
-    <div style="height:${Math.round(espacioMm * MM)}pt;">&nbsp;</div>
-    <table style="width:100%;" class="no-partir">
+    ${espaciador}
+    <table style="width:100%;" class="no-partir" data-firmas>
       <tr>
         ${columnas.map((c) => `
           <td style="width:${ancho}%;text-align:center;vertical-align:top;
                      padding:0 8pt;">
             <div style="border-top:1pt solid #000;padding-top:4pt;">
               ${c.rotulo
-                ? `<div style="font-size:10pt;">${escaparTexto(c.rotulo)}</div>` : ''}
+                ? `<div style="font-size:11pt;">${escaparTexto(c.rotulo)}</div>` : ''}
               ${c.nombre
-                ? `<div style="font-size:11pt;font-weight:bold;">${escaparTexto(c.nombre)}</div>`
-                : '<div style="font-size:11pt;">&nbsp;</div>'}
+                ? `<div style="font-size:12pt;font-weight:bold;">${escaparTexto(c.nombre)}</div>`
+                : '<div style="font-size:12pt;">&nbsp;</div>'}
               ${c.detalle
-                ? `<div style="font-size:9pt;">${escaparTexto(c.detalle)}</div>` : ''}
+                ? `<div style="font-size:10pt;">${escaparTexto(c.detalle)}</div>` : ''}
             </div>
           </td>`).join('')}
       </tr>
@@ -161,22 +174,78 @@ export function bloqueFirmas(columnas, espacioMm = 50) {
 /** Encabezado con logo y membrete de la unidad */
 export function membreteWord(empresa, logoDataUrl) {
   return `
-    <table style="width:100%;border-bottom:2pt solid #1b5e20;
-                  padding-bottom:6pt;margin-bottom:10pt;">
+    <table style="width:100%;margin-bottom:4pt;">
       <tr>
         ${logoDataUrl
-          ? `<td style="width:90pt;vertical-align:middle;">
-               <img src="${logoDataUrl}" style="height:58pt;">
+          ? `<td style="width:52pt;vertical-align:middle;padding-right:8pt;">
+               <img src="${logoDataUrl}" style="height:38pt;">
              </td>` : ''}
         <td style="vertical-align:middle;">
-          <div style="font-size:14pt;font-weight:bold;color:#1b5e20;">
+          <div style="font-size:15pt;font-weight:bold;color:#1b5e20;">
             ${escaparTexto(empresa || 'Empresa')}
           </div>
-          <div style="font-size:9pt;letter-spacing:0.5pt;">
+          <div style="font-size:9.5pt;letter-spacing:0.5pt;color:#333;">
             DEPARTAMENTO DE SEGURIDAD Y SALUD OCUPACIONAL
           </div>
         </td>
       </tr>
+    </table>
+    <div style="border-bottom:2.5pt solid #1b5e20;margin-bottom:10pt;"></div>`;
+}
+
+/**
+ * Banda de título del documento.
+ *
+ * El fondo se declara con el atributo bgcolor además del CSS:
+ * Word descarta background en la hoja de estilos al abrir un
+ * HTML, y sin el atributo el documento sale en blanco y negro.
+ */
+export function bandaTitulo(titulo, subtitulo) {
+  return `
+    <table style="width:100%;margin-bottom:10pt;" bgcolor="#EAF3EA">
+      <tr bgcolor="#EAF3EA">
+        <td bgcolor="#EAF3EA"
+            style="background:#EAF3EA;border-top:0.75pt solid #1b5e20;
+                   border-bottom:0.75pt solid #1b5e20;
+                   padding:6pt 8pt;text-align:center;">
+          <div style="font-size:13pt;font-weight:bold;letter-spacing:0.5pt;">
+            ${escaparTexto(titulo)}
+          </div>
+          ${subtitulo
+            ? `<div style="font-size:10.5pt;color:#333;padding-top:2pt;">${
+                escaparTexto(subtitulo)}</div>` : ''}
+        </td>
+      </tr>
+    </table>`;
+}
+
+/**
+ * Tabla con encabezado coloreado.
+ *
+ * @param {Array} columnas [{ titulo, ancho, centrado }]
+ * @param {Array} filas    array de arrays de celdas ya escapadas
+ */
+export function tablaWord(columnas, filas) {
+  const borde = 'border:0.75pt solid #444;padding:4pt 6pt;font-size:11pt;';
+
+  const cabecera = columnas.map((c) => `
+    <td bgcolor="#DCEBDC" width="${c.ancho}%"
+        style="${borde}background:#DCEBDC;font-weight:bold;font-size:10.5pt;
+               text-align:${c.centrado ? 'center' : 'left'};">
+      ${escaparTexto(c.titulo)}
+    </td>`).join('');
+
+  const cuerpo = filas.map((f) => `
+    <tr>
+      ${f.map((celda, i) => `
+        <td style="${borde}text-align:${columnas[i]?.centrado ? 'center' : 'left'};
+                   vertical-align:top;">${celda}</td>`).join('')}
+    </tr>`).join('');
+
+  return `
+    <table style="width:100%;margin-bottom:10pt;">
+      <tr bgcolor="#DCEBDC">${cabecera}</tr>
+      ${cuerpo}
     </table>`;
 }
 
@@ -207,14 +276,14 @@ export function encabezadoMemo(campos) {
     <table style="width:100%;margin-bottom:10pt;">
       ${campos.filter((c) => c).map((c) => `
         <tr>
-          <td style="width:70pt;vertical-align:top;font-weight:bold;
-                     padding:2pt 0;font-size:11pt;">
+          <td style="width:80pt;vertical-align:top;font-weight:bold;
+                     padding:3pt 0;font-size:12pt;">
             ${escaparTexto(c.etiqueta)}
           </td>
-          <td style="vertical-align:top;padding:2pt 0;font-size:11pt;">
+          <td style="vertical-align:top;padding:3pt 0;font-size:12pt;">
             ${escaparTexto(c.valor)}
             ${c.detalle
-              ? `<div style="font-size:10pt;">${escaparTexto(c.detalle)}</div>` : ''}
+              ? `<div style="font-size:11pt;">${escaparTexto(c.detalle)}</div>` : ''}
           </td>
         </tr>`).join('')}
     </table>`;

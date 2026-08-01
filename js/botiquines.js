@@ -20,10 +20,12 @@
    ============================================ */
 
 import { supabase } from './supabase.js';
+import { imprimirHoja } from './impresion.js';
 import { ROLES } from './auth.js';
 import { escapar, formatearFecha } from './utils.js';
 import { envolverWord, descargarWord, recuadroFoto, bloqueFirmas,
-         membreteWord, logoEnBase64, encabezadoMemo, escaparTexto }
+         membreteWord, bandaTitulo, tablaWord, logoEnBase64,
+         encabezadoMemo, escaparTexto }
   from './documento.js';
 
 const bt = {
@@ -161,7 +163,7 @@ export function pintarBotiquines() {
   const $abrir = document.getElementById('bt-btn-abrir');
   if ($abrir) $abrir.hidden = abierto || !puedeEscribir();
 
-  ['bt-btn-informe', 'bt-btn-actas'].forEach((id) => {
+  ['bt-btn-informe', 'bt-btn-actas', 'bt-btn-actas-doc'].forEach((id) => {
     const $b = document.getElementById(id);
     if ($b) $b.disabled = !abierto;
   });
@@ -283,13 +285,14 @@ function abrirRevision(r) {
 
   document.getElementById('bt_fecha_revision').value = r.fecha_revision || HOY();
   document.getElementById('bt_revisado_por').value = r.revisado_por || '';
-  document.getElementById('bt_recibido_por').value = r.recibido_por || '';
   document.getElementById('bt_observacion').value = r.observacion || '';
+  document.getElementById('bt_rev_buscar').value = '';
+  document.getElementById('bt_rev_sugerencias').hidden = true;
 
   pintarDetalle();
 
   const editable = puedeEscribir() && r.estado !== 'cerrada';
-  ['bt_fecha_revision', 'bt_revisado_por', 'bt_recibido_por', 'bt_observacion']
+  ['bt_fecha_revision', 'bt_revisado_por', 'bt_rev_buscar', 'bt_observacion']
     .forEach((id) => { document.getElementById(id).disabled = !editable; });
 
   const $dest = document.getElementById('bt-btn-destinatario');
@@ -465,7 +468,6 @@ async function guardarRevision(cerrar) {
   const cabecera = {
     fecha_revision: document.getElementById('bt_fecha_revision').value || HOY(),
     revisado_por: document.getElementById('bt_revisado_por').value.trim() || null,
-    recibido_por: document.getElementById('bt_recibido_por').value.trim() || null,
     observacion: document.getElementById('bt_observacion').value.trim() || null
   };
   if (cerrar) {
@@ -515,13 +517,28 @@ async function reabrirRevision() {
    su recuadro y se imprime.
    ============================================ */
 
-/** El "DE:" sale de quien tiene la sesión abierta */
+/**
+ * El "DE:" sale de quien tiene la sesión abierta.
+ *
+ * Se relee de la sesión guardada si el perfil no llegó al
+ * módulo: un documento sin firmante no sirve para nada, y
+ * fallar en silencio es peor que reintentar.
+ */
 function firmante() {
-  const p = bt.perfil || {};
-  const nombre = [p.nombres, p.apellidos].filter(Boolean).join(' ');
+  let p = bt.perfil;
+
+  if (!p || !p.nombres) {
+    try {
+      p = JSON.parse(localStorage.getItem('nexus_sesion') || 'null') || {};
+    } catch { p = {}; }
+  }
+
+  const nombre = [p.nombres, p.apellidos].filter(Boolean).join(' ').trim();
+
   return {
-    nombre: [p.titulo, nombre].filter(Boolean).join(' ') || nombre || '—',
-    cargo: p.cargo || ''
+    nombre: [p.titulo, nombre].filter(Boolean).join(' ') || nombre || '',
+    cargo: p.cargo || '',
+    sinDatos: !nombre
   };
 }
 
@@ -530,54 +547,45 @@ function fechaLarga() {
     { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
-/* Tabla de insumos de un botiquín. En el informe se muestra
-   todo con su motivo; en el acta, la dotación que se entrega. */
+/* Tabla de insumos. En el informe se muestra todo con su
+   motivo; en el acta, la dotación que se entrega. */
 function tablaInsumos(lineas, modo) {
-  const informe = modo === 'informe';
+  if (modo === 'informe') {
+    return tablaWord(
+      [
+        { titulo: 'N°',         ancho: 5,  centrado: true },
+        { titulo: 'DETALLE',    ancho: 33 },
+        { titulo: 'DOTACIÓN',   ancho: 12, centrado: true },
+        { titulo: 'ENCONTRADO', ancho: 13, centrado: true },
+        { titulo: 'REPONE',     ancho: 11, centrado: true },
+        { titulo: 'MOTIVO',     ancho: 26 }
+      ],
+      lineas.map((l, i) => [
+        String(i + 1),
+        nombreInsumo(l),
+        num(l.dotacion),
+        num(l.encontrado),
+        num(l.repuesto),
+        escaparTexto(l.motivo || '—')
+      ]));
+  }
 
-  const encabezado = informe
-    ? `<th style="width:6%">N°</th>
-       <th style="width:31%">Detalle</th>
-       <th style="width:11%">Dotación</th>
-       <th style="width:12%">Encontrado</th>
-       <th style="width:11%">Repone</th>
-       <th style="width:29%">Motivo</th>`
-    : `<th style="width:8%">N°</th>
-       <th style="width:62%">Detalle</th>
-       <th style="width:30%">Cantidad</th>`;
+  return tablaWord(
+    [
+      { titulo: 'N°',       ancho: 8,  centrado: true },
+      { titulo: 'DETALLE',  ancho: 62 },
+      { titulo: 'CANTIDAD', ancho: 30, centrado: true }
+    ],
+    lineas.map((l, i) => [
+      String(i + 1),
+      nombreInsumo(l),
+      num(l.dotacion) + ' ' + escaparTexto(l.unidad)
+    ]));
+}
 
-  const celda = 'border:0.75pt solid #333;padding:3pt 5pt;font-size:10pt;';
-  const centro = celda + 'text-align:center;';
-
-  const filas = lineas.map((l, i) => {
-    const nombre = escaparTexto(l.insumo)
-      + (l.presentacion ? ' · ' + escaparTexto(l.presentacion) : '');
-
-    return informe
-      ? `<tr>
-           <td style="${centro}">${i + 1}</td>
-           <td style="${celda}">${nombre}</td>
-           <td style="${centro}">${num(l.dotacion)}</td>
-           <td style="${centro}">${num(l.encontrado)}</td>
-           <td style="${centro}">${num(l.repuesto)}</td>
-           <td style="${celda}">${escaparTexto(l.motivo || '—')}</td>
-         </tr>`
-      : `<tr>
-           <td style="${centro}">${i + 1}</td>
-           <td style="${celda}">${nombre}</td>
-           <td style="${centro}">${num(l.dotacion)} ${escaparTexto(l.unidad)}</td>
-         </tr>`;
-  }).join('');
-
-  return `
-    <table style="width:100%;margin-bottom:8pt;">
-      <tr style="background:#e6f0e6;">
-        ${encabezado.replace(/<th /g,
-          `<th style="${celda}background:#e6f0e6;text-align:left;font-size:9.5pt;" `)
-          .replace(/style="width:(\d+)%"/g, 'width="$1%"')}
-      </tr>
-      ${filas}
-    </table>`;
+function nombreInsumo(l) {
+  return escaparTexto(l.insumo)
+    + (l.presentacion ? ' · ' + escaparTexto(l.presentacion) : '');
 }
 
 /**
@@ -593,23 +601,31 @@ async function generarInforme() {
   const principal = bt.destinatarios.find((d) => d.tipo === 'principal');
   const copias = bt.destinatarios.filter((d) => d.tipo === 'copia');
 
-  const celda = 'border:0.75pt solid #333;padding:3pt 5pt;font-size:10pt;';
-  const centro = celda + 'text-align:center;';
+  if (de.sinDatos && !confirm(
+      'No se pudo leer su nombre para la firma del documento.\n\n'
+    + '¿Desea generarlo de todos modos?')) return;
 
   /* Carátula: a quién va y qué sitios se recorrieron */
-  const sitios = bt.revisiones.map((r, i) => `
-    <tr>
-      <td style="${centro}">${i + 1}</td>
-      <td style="${celda}">${escaparTexto(r.botiquin)}</td>
-      <td style="${celda}">${escaparTexto(
-        r.sin_destinatario ? 'Guardia de turno' : (r.destinatario || '—'))}</td>
-      <td style="${celda}">${escaparTexto(
-        Number(r.total_repuesto) > 0 ? 'Inspección, limpieza y reposición'
-                                     : 'Inspección y limpieza')}</td>
-    </tr>`).join('');
+  const sitios = tablaWord(
+    [
+      { titulo: 'N°',                  ancho: 6,  centrado: true },
+      { titulo: 'UBICACIÓN',           ancho: 34 },
+      { titulo: 'RESPONSABLE DEL ÁREA', ancho: 32 },
+      { titulo: 'OBSERVACIÓN',         ancho: 28 }
+    ],
+    bt.revisiones.map((r, i) => [
+      String(i + 1),
+      escaparTexto(r.botiquin),
+      escaparTexto(r.sin_destinatario ? 'Guardia de turno' : (r.destinatario || '—')),
+      Number(r.total_repuesto) > 0
+        ? 'Inspección, limpieza y reposición'
+        : 'Inspección y limpieza'
+    ]));
 
   const caratula = `
     ${membreteWord(bt.empresaNombre, bt.logo)}
+    ${bandaTitulo('Informe mensual de inspección de botiquines',
+                  nombreMes(bt.periodo))}
 
     ${encabezadoMemo([
       { etiqueta: 'DE:',    valor: de.nombre, detalle: de.cargo },
@@ -629,15 +645,7 @@ async function generarInforme() {
 
     <p style="margin:6pt 0 4pt;">A continuación, detallo los sitios inspeccionados:</p>
 
-    <table style="width:100%;margin-bottom:8pt;">
-      <tr style="background:#e6f0e6;">
-        <td style="${celda}background:#e6f0e6;font-weight:bold;" width="6%">N°</td>
-        <td style="${celda}background:#e6f0e6;font-weight:bold;" width="34%">UBICACIÓN</td>
-        <td style="${celda}background:#e6f0e6;font-weight:bold;" width="32%">RESPONSABLE DEL ÁREA</td>
-        <td style="${celda}background:#e6f0e6;font-weight:bold;" width="28%">OBSERVACIÓN</td>
-      </tr>
-      ${sitios}
-    </table>
+    ${sitios}
 
     ${bloqueFirmas([{
       rotulo: 'Responsable de la inspección',
@@ -653,6 +661,7 @@ async function generarInforme() {
     return `
       <div class="salto">
         ${membreteWord(bt.empresaNombre, bt.logo)}
+        ${bandaTitulo('Inspección de botiquín', r.botiquin)}
 
         ${encabezadoMemo([
           { etiqueta: 'DE:',    valor: de.nombre, detalle: de.cargo },
@@ -708,10 +717,36 @@ async function generarInforme() {
  * responsable firma la suya. Se entrega la dotación completa,
  * que es como se venía haciendo.
  */
-async function generarActas() {
-  if (bt.revisiones.length === 0) return;
+/**
+ * Construye las actas. El mismo HTML sirve para imprimir y
+ * para descargar: los estilos van en línea, que es lo único
+ * que respetan a la vez el navegador y Word.
+ *
+ * @param {number} espacioFirma mm sobre las firmas. Cero al
+ *   imprimir: ahí lo calcula impresion.js según lo que quede
+ *   de hoja.
+ */
+function construirActas(espacioFirma) {
+  if (bt.revisiones.length === 0) return null;
 
   const de = firmante();
+
+  /* Un acta sin firmante ni destinatario no sirve de nada:
+     mejor avisar antes de que alguien la imprima y la lleve
+     a firmar en blanco. */
+  const faltan = [];
+  if (de.sinDatos) faltan.push('su nombre para la firma');
+
+  const sinDest = bt.revisiones.filter(
+    (r) => !r.sin_destinatario && !r.destinatario);
+  if (sinDest.length > 0) {
+    faltan.push(`el destinatario de ${sinDest.length} `
+      + `${sinDest.length === 1 ? 'botiquín' : 'botiquines'}`);
+  }
+
+  if (faltan.length > 0 && !confirm(
+      'Faltan datos en las actas: ' + faltan.join(' y ') + '.\n\n'
+    + '¿Desea generarlas de todos modos?')) return null;
 
   const hojas = bt.revisiones.map((r, i) => {
     const lineas = bt.detalle[r.id] || [];
@@ -726,6 +761,8 @@ async function generarActas() {
     return `
       <div${i > 0 ? ' class="salto"' : ''}>
         ${membreteWord(bt.empresaNombre, bt.logo)}
+        ${bandaTitulo('Acta de entrega de insumos de botiquín',
+                      r.botiquin + ' · ' + nombreMes(bt.periodo))}
 
         ${encabezadoMemo([
           { etiqueta: 'DE:', valor: de.nombre, detalle: de.cargo },
@@ -734,9 +771,9 @@ async function generarActas() {
             : { etiqueta: 'PARA:', valor: r.destinatario || '—',
                 detalle: r.destinatario_cargo || '' },
           { etiqueta: 'FECHA:',
-            valor: (r.fecha_entrega || r.fecha_revision
+            valor: (r.fecha_entrega || r.fecha_revision)
               ? formatearFecha(r.fecha_entrega || r.fecha_revision)
-              : fechaLarga()).toUpperCase() },
+              : fechaLarga().toUpperCase() },
           { etiqueta: 'ASUNTO:',
             valor: 'ENTREGA DE MEDICAMENTOS E INSUMOS MÉDICOS PARA BOTIQUÍN DE SU ÁREA' },
           { etiqueta: 'OBJETIVO:',
@@ -752,7 +789,8 @@ async function generarActas() {
 
         <p style="margin:6pt 0 4pt;">A continuación, detallamos la distribución:</p>
 
-        <p style="text-align:center;font-weight:bold;font-size:10.5pt;margin:4pt 0;">
+        <p style="text-align:center;font-weight:bold;font-size:12pt;
+                  margin:6pt 0 4pt;color:#1b5e20;">
           ENTREGA DE MEDICAMENTOS E INSUMOS
         </p>
 
@@ -761,9 +799,32 @@ async function generarActas() {
         ${bloqueFirmas([
           { rotulo: 'Elaborado por:', nombre: de.nombre, detalle: de.cargo },
           recibe
-        ])}
+        ], espacioFirma)}
       </div>`;
   }).join('');
+
+  return hojas;
+}
+
+/* Imprimir es lo natural: el acta no lleva fotografías, así
+   que descargarla para imprimirla sería un rodeo. */
+function imprimirActas() {
+  const hojas = construirActas(0);
+  if (!hojas) return;
+
+  const $z = document.getElementById('bt-impresion');
+  if (!$z) return;
+
+  $z.innerHTML = hojas;
+  imprimirHoja('bt-impresion', 'imprimiendo-botiquines',
+    'Actas de entrega · ' + nombreMes(bt.periodo));
+}
+
+/* Descargar queda como alternativa: sirve para archivar o
+   enviar por correo sin pasar por el papel. */
+function descargarActas() {
+  const hojas = construirActas(50);
+  if (!hojas) return;
 
   const html = envolverWord(hojas, 'Actas de entrega · ' + nombreMes(bt.periodo));
   descargarWord(html, `Actas entrega botiquines ${bt.periodo}`);
@@ -796,9 +857,26 @@ function alternarDestinatario() {
   document.getElementById('bt-bloque-destinatario').hidden = blanco;
 }
 
+/* Quién revisó se elige de la nómina: escribir el nombre a
+   mano cada mes invita a erratas que luego no cuadran con
+   ningún trabajador. Sigue admitiendo texto libre para
+   personal externo. */
+function buscarRevisor() {
+  buscarEnNomina('bt_rev_buscar', 'bt_rev_sugerencias', (t) => {
+    document.getElementById('bt_revisado_por').value = t.nombre_completo;
+  });
+}
+
 function buscarDestinatario() {
-  const texto = document.getElementById('bt_dest_buscar').value.trim().toLowerCase();
-  const $s = document.getElementById('bt_dest_sugerencias');
+  buscarEnNomina('bt_dest_buscar', 'bt_dest_sugerencias', (t) => {
+    document.getElementById('bt_dest_nombre').value = t.nombre_completo;
+  });
+}
+
+/** Buscador de nómina compartido: filtra en memoria */
+function buscarEnNomina(idEntrada, idLista, alElegir) {
+  const texto = document.getElementById(idEntrada).value.trim().toLowerCase();
+  const $s = document.getElementById(idLista);
 
   if (texto.length < 2) { $s.hidden = true; return; }
 
@@ -821,8 +899,8 @@ function buscarDestinatario() {
     b.innerHTML = `<span class="codigo">${t.codigo ?? '—'}</span>
                    <span>${escapar(t.nombre_completo)}</span>`;
     b.addEventListener('click', () => {
-      document.getElementById('bt_dest_nombre').value = t.nombre_completo;
-      document.getElementById('bt_dest_buscar').value = '';
+      alElegir(t);
+      document.getElementById(idEntrada).value = '';
       $s.hidden = true;
     });
     $s.appendChild(b);
@@ -909,11 +987,13 @@ function conectar() {
   enBt('bt-periodo', 'change', refrescar);
   enBt('bt-btn-abrir', 'click', abrirMes);
   enBt('bt-btn-informe', 'click', generarInforme);
-  enBt('bt-btn-actas', 'click', generarActas);
+  enBt('bt-btn-actas', 'click', imprimirActas);
+  enBt('bt-btn-actas-doc', 'click', descargarActas);
 
   enBt('bt-btn-destinatario', 'click', abrirDestinatario);
   enBt('bt-btn-guardar-destinatario', 'click', guardarDestinatario);
   enBt('bt_dest_buscar', 'input', buscarDestinatario);
+  enBt('bt_rev_buscar', 'input', buscarRevisor);
   enBt('bt_dest_blanco', 'change', alternarDestinatario);
 
   enBt('bt-btn-guardar', 'click', () => guardarRevision(false));
