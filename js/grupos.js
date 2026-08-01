@@ -22,6 +22,7 @@
 import { supabase } from './supabase.js';
 import { ROLES } from './auth.js';
 import { escapar, formatearFecha } from './utils.js';
+import { imprimirHoja } from './impresion.js';
 
 /* --- Estado --- */
 const gp = {
@@ -1269,28 +1270,15 @@ function imprimirFicha() {
   lanzarImpresion(html, 'Ficha de grupo prioritario · ' + r.nombre_completo);
 }
 
-/* Mismo mecanismo que la orden de compra de Farmacia:
-   el resto de la aplicación se oculta en @media print.
-
-   El título del documento se cambia mientras dura la
-   impresión porque el navegador lo estampa en el margen de
-   la hoja: sin esto, un registro de salud saldría rotulado
-   'Seguridad industrial · NEXUS'. */
+/* El resto de la aplicación se oculta en @media print.
+   El ajuste del espacio de firma y el título del margen los
+   resuelve impresion.js, compartido con los demás módulos. */
 function lanzarImpresion(html, tituloDocumento) {
   const $zona = document.getElementById('gp-impresion');
   if (!$zona) return;
 
-  const tituloOriginal = document.title;
-  if (tituloDocumento) document.title = tituloDocumento;
-
   $zona.innerHTML = html;
-  document.body.classList.add('imprimiendo-grupos');
-  window.print();
-
-  setTimeout(() => {
-    document.body.classList.remove('imprimiendo-grupos');
-    document.title = tituloOriginal;
-  }, 500);
+  imprimirHoja('gp-impresion', 'imprimiendo-grupos', tituloDocumento);
 }
 
 /* ============================================

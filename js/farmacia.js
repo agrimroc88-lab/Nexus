@@ -14,6 +14,7 @@ import { supabase } from './supabase.js';
 import { protegerPagina, puedeVerClinica } from './auth.js';
 import { montarNavegacion } from './nav.js';
 import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js';
+import { imprimirHoja } from './impresion.js';
 
 /* --- Estado --- */
 const estado = {
@@ -1119,9 +1120,13 @@ function imprimirOrden() {
     </div>`;
 
   document.getElementById('orden-impresion').innerHTML = html;
-  document.body.classList.add('imprimiendo-orden');
-  window.print();
-  setTimeout(() => document.body.classList.remove('imprimiendo-orden'), 500);
+
+  /* El espacio sobre las firmas lo calcula impresion.js según
+     lo que quede de hoja: 5 cm si caben, o el pie de la página
+     en curso si no, para no dejar una hoja suelta con dos
+     rayas. */
+  imprimirHoja('orden-impresion', 'imprimiendo-orden',
+    'Orden de compra · ' + (empresaNombre || 'Farmacia'));
 }
 
 function cambiarVista(vista) {
