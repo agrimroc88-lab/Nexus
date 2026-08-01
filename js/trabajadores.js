@@ -15,9 +15,12 @@ import { supabase } from './supabase.js';
 import { protegerPagina, ROLES, puedeVerClinica } from './auth.js';
 import { montarNavegacion } from './nav.js';
 import { validarCedula, escapar, textoOGuion, retrasar, formatearFecha } from './utils.js';
+import { montarEmergencia, fijarEmpresaEmergencia, traerAlertas,
+         insigniasNomina, abrirFichaEmergencia } from './emergencia.js';
 
 /* --- Estado --- */
 const estado = {
+  alertas: {},   // trabajador_id → marcas clínicas para el listado
   perfil: null,
   empresaId: null,
   trabajadores: [],
@@ -43,7 +46,9 @@ const $alerta    = document.getElementById('alerta');
 const $hallazgo  = document.getElementById('hallazgo');
 
 const CAMPOS = ['cedula', 'codigo', 'apellidos', 'nombres',
-                'fecha_nacimiento', 'sexo', 'tipo_sangre', 'telefono'];
+                'fecha_nacimiento', 'sexo', 'tipo_sangre', 'telefono',
+                'contacto_emergencia', 'contacto_emergencia_parentesco',
+                'contacto_emergencia_telefono'];
 
 iniciar();
 
@@ -67,6 +72,7 @@ async function iniciar() {
 
   await cargarEmpresas();
   conectarEventos();
+  montarEmergencia(perfil, estado.empresaId);
 }
 
 function puedeEscribir() {
@@ -241,6 +247,10 @@ async function cargarTrabajadores() {
     (periodos || []).forEach((p) => { mapa[p.trabajador_id] = p.cargo_texto; });
     estado.trabajadores.forEach((t) => { t.cargo = mapa[t.id] || t.cargo || null; });
   }
+
+  /* Marcas clínicas del listado. Vista aparte y ligera:
+     no trae diagnósticos, solo si hay algo que señalar. */
+  estado.alertas = await traerAlertas(estado.empresaId);
 
   pintarResumen();
   pintarTabla();
@@ -439,6 +449,7 @@ function pintarTabla() {
       <td class="celda-mono">${escapar(t.cedula)}</td>
       <td>
         <span class="principal">${escapar(t.nombre_completo)}</span>
+        ${insigniasNomina(estado.alertas[t.id])}
         ${t.total_periodos > 1 ? `<span class="secundario">${t.total_periodos} periodos</span>` : ''}
       </td>
       <td class="celda-tenue">${escapar(textoOGuion(t.cargo))}</td>
@@ -450,6 +461,13 @@ function pintarTabla() {
     `;
 
     const acciones = fila.querySelector('td:last-child');
+
+    const ficha = document.createElement('button');
+    ficha.className = 'boton-icono';
+    ficha.textContent = 'Ficha';
+    ficha.title = 'Ficha de emergencia';
+    ficha.addEventListener('click', () => abrirFichaEmergencia(t.id, cargarTrabajadores));
+    acciones.appendChild(ficha);
 
     const historial = document.createElement('button');
     historial.className = 'boton-icono';
@@ -773,6 +791,11 @@ const evaluarCedula = retrasar(async () => {
   document.getElementById('sexo').value = existente.sexo ?? '';
   document.getElementById('tipo_sangre').value = existente.tipo_sangre ?? '';
   document.getElementById('telefono').value = existente.telefono ?? '';
+  document.getElementById('contacto_emergencia').value = existente.contacto_emergencia ?? '';
+  document.getElementById('contacto_emergencia_parentesco').value =
+    existente.contacto_emergencia_parentesco ?? '';
+  document.getElementById('contacto_emergencia_telefono').value =
+    existente.contacto_emergencia_telefono ?? '';
 
   document.getElementById('hallazgo-texto').innerHTML =
     `<strong>${escapar(existente.nombre_completo)}</strong> ya existe con código
@@ -885,6 +908,7 @@ function limpiarAyudas() {
 
 async function seleccionarEmpresa() {
   estado.empresaId = $empresa.value || null;
+  fijarEmpresaEmergencia(estado.empresaId);
 
   if (!estado.empresaId) {
     sessionStorage.removeItem('nexus_empresa');

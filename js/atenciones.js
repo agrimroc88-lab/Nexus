@@ -18,6 +18,8 @@ import { supabase } from './supabase.js';
 import { protegerPagina, puedeVerClinica } from './auth.js';
 import { montarNavegacion } from './nav.js';
 import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js';
+import { montarEmergencia, fijarEmpresaEmergencia, pintarPanelClinico }
+  from './emergencia.js';
 
 /* --- Estado --- */
 const estado = {
@@ -66,6 +68,7 @@ async function iniciar() {
   prepararAnios();
   await cargarEmpresas();
   conectarEventos();
+  montarEmergencia(perfil, estado.empresaId);
 }
 
 function prepararAnios() {
@@ -393,6 +396,8 @@ function abrirAtencion() {
   document.getElementById('at_observacion').value = '';
   document.getElementById('at_reposo').value = '0';
   document.getElementById('at_alergias').value = '';
+  const $pc = document.getElementById('panel-clinico');
+  if ($pc) { $pc.hidden = true; $pc.innerHTML = ''; }
   document.getElementById('ayuda-codigo').textContent = '';
   document.getElementById('ayuda-imc').textContent = '';
 
@@ -532,6 +537,11 @@ function pintarFicha(t) {
   const $alergias = document.getElementById('at_alergias');
   $alergias.value = t.alergias || '';
   $alergias.classList.toggle('con-alergia', Boolean(t.alergias));
+
+  /* Condiciones y medicación habitual. Se resuelve aparte
+     porque consulta otra vista; no debe retrasar el pintado
+     de la ficha. */
+  pintarPanelClinico(t.id);
 }
 
 /* ============================================
@@ -1319,6 +1329,7 @@ function cambiarVista(vista) {
 
 async function seleccionarEmpresa() {
   estado.empresaId = $empresa.value || null;
+  fijarEmpresaEmergencia(estado.empresaId);
 
   if (!estado.empresaId) {
     sessionStorage.removeItem('nexus_empresa');
