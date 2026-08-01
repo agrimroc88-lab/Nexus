@@ -708,9 +708,21 @@ async function generarInforme() {
   const elabora = bt.destinatarios.find((d) => d.tipo === 'elabora');
   const referencia = 'Informe de botiquines · ' + nombreMes(bt.periodo);
 
-  if (de.sinDatos && !confirm(
-      'No se pudo leer su nombre para la firma del documento.\n\n'
-    + '¿Desea generarlo de todos modos?')) return;
+  const pendientes = [];
+  if (de.sinDatos) pendientes.push('su nombre para la firma');
+
+  /* Sin este registro el informe sale firmado dos veces por la
+     misma persona, que es un error difícil de notar hasta que
+     alguien lo revisa. */
+  if (!elabora) {
+    pendientes.push(
+      'quién elabora el informe. Sin ese dato, ambas firmas saldrán con el '
+    + 'nombre de quien tiene la sesión abierta.');
+  }
+
+  if (pendientes.length > 0 && !confirm(
+      'Faltan datos en el informe:\n\n· ' + pendientes.join('\n· ')
+    + '\n\n¿Desea generarlo de todos modos?')) return;
 
   /* --- Datos agregados --- */
   const totalFaltante = bt.revisiones.reduce(
@@ -933,9 +945,9 @@ async function generarInforme() {
       nombre:  elabora ? elabora.nombre : de.nombre,
       detalle: elabora ? (elabora.cargo || '') : de.cargo },
 
-    /* Quien recorrió los botiquines firma la revisión. Sale de
-       la sesión: cambia con el profesional que la realizó. */
-    { rotulo: 'Revisión realizada por:',
+    /* Quien recorrió los botiquines firma la inspección. Sale
+       de la sesión: cambia con el profesional que la realizó. */
+    { rotulo: 'Inspección realizada por:',
       nombre:  de.nombre,
       detalle: de.cargo }
   ];
