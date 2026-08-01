@@ -84,222 +84,57 @@
 }
 
 
-/* ============================================
-   IMPRESIÓN
-   ============================================ */
+/* Los documentos de botiquín no se imprimen desde el
+   navegador: se descargan en formato Word para pegar la
+   evidencia fotográfica antes de imprimirlos. El CSS de
+   impresión que había aquí quedó sin uso. */
 
-.bt-impresion { display: none; }
+/* Selector de motivo: compacto, la fila ya tiene cuatro
+   campos numéricos antes. */
+.bt-motivo {
+  min-width: 11rem;
+  padding: 0.22rem 0.4rem;
+  font-size: 0.8rem;
+}
 
-@media print {
-  body.imprimiendo-botiquines .barra-lateral,
-  body.imprimiendo-botiquines .contenedor,
-  body.imprimiendo-botiquines .cabecera,
-  body.imprimiendo-botiquines .modal,
-  body.imprimiendo-botiquines nav,
-  body.imprimiendo-botiquines main { display: none !important; }
+/* Buscador de destinatario */
+.bt-campo-buscar { position: relative; }
 
-  body.imprimiendo-botiquines .bt-impresion {
-    display: block !important;
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    width: 100%;
-    background: #fff;
-  }
+.bt-sugerencias {
+  position: absolute;
+  z-index: 20;
+  left: 0; right: 0; top: 100%;
+  max-height: 240px;
+  overflow-y: auto;
+  margin-top: 0.2rem;
+  background: var(--color-panel, var(--color-fondo));
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
 
-  @page { margin: 1.5cm; }
+.bt-sugerencia {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  color: var(--color-texto);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--color-borde);
+  cursor: pointer;
+}
 
-  .bt-hoja {
-    font-family: 'Times New Roman', Georgia, serif;
-    color: #000;
-    font-size: 10.5pt;
-  }
+.bt-sugerencia:last-child { border-bottom: none; }
+.bt-sugerencia:hover { background: rgba(126, 226, 168, 0.08); }
 
-  /* Cada acta empieza en su propia hoja */
-  .bt-hoja-nueva { page-break-before: always; }
-
-  /* --- Encabezado --- */
-
-  .bt-cabecera {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding-bottom: 0.6rem;
-    border-bottom: 2.5pt solid #1b5e20;
-  }
-
-  .bt-logo { height: 62px; width: auto; flex-shrink: 0; }
-
-  .bt-identidad { flex: 1; display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
-
-  .bt-empresa {
-    font-size: 13.5pt;
-    font-weight: bold;
-    line-height: 1.15;
-    color: #1b5e20;
-  }
-
-  .bt-unidad {
-    font-size: 9.5pt;
-    color: #333;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
-
-  .bt-control {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 0.15rem;
-    flex-shrink: 0;
-    padding-left: 0.9rem;
-    border-left: 0.5pt solid #bbb;
-    font-size: 8.5pt;
-    color: #444;
-    white-space: nowrap;
-  }
-
-  .bt-control b { color: #1b5e20; }
-
-  .bt-titulo-banda {
-    margin: 0 0 0.9rem;
-    padding: 0.45rem 0.5rem 0.5rem;
-    text-align: center;
-    background: #f2f7f2;
-    border-bottom: 0.5pt solid #1b5e20;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  .bt-titulo {
-    margin: 0;
-    font-size: 12.5pt;
-    font-weight: bold;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-  }
-
-  .bt-subtitulo { margin: 0.2rem 0 0; font-size: 9.5pt; color: #444; }
-
-  /* --- Cuerpo --- */
-
-  .bt-resumen {
-    width: 55%;
-    border-collapse: collapse;
-    font-size: 10pt;
-    margin-bottom: 1rem;
-  }
-
-  .bt-resumen th, .bt-resumen td { border: 0.5pt solid #666; padding: 4px 8px; }
-
-  .bt-resumen th {
-    background: #e6f0e6;
-    text-align: left;
-    font-size: 9.5pt;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  .bt-datos {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 10.5pt;
-    margin-bottom: 0.8rem;
-  }
-
-  .bt-datos th, .bt-datos td { border: 0.5pt solid #555; padding: 5px 8px; text-align: left; }
-
-  .bt-datos th {
-    background: #f0f0f0;
-    width: 18%;
-    font-size: 9.5pt;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  .bt-seccion {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    font-size: 11.5pt;
-    color: #1b5e20;
-    margin: 1rem 0 0.35rem;
-    padding-bottom: 0.18rem;
-    border-bottom: 1pt solid #1b5e20;
-    page-break-after: avoid;
-  }
-
-  .bt-seccion-cuenta { font-size: 9pt; font-weight: normal; color: #555; }
-
-  .bt-sub {
-    font-size: 10.5pt;
-    margin: 0.7rem 0 0.25rem;
-    page-break-after: avoid;
-  }
-
-  .bt-sub-meta {
-    display: block;
-    font-size: 8.5pt;
-    font-weight: normal;
-    color: #555;
-  }
-
-  .bt-departamento { page-break-inside: auto; }
-
-  .bt-tabla {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 9.5pt;
-    margin-bottom: 0.5rem;
-  }
-
-  .bt-tabla th, .bt-tabla td { border: 0.5pt solid #555; padding: 4px 6px; vertical-align: top; }
-
-  .bt-tabla th {
-    background: #e6f0e6;
-    text-align: left;
-    font-size: 9pt;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  .bt-tabla tbody tr:nth-child(even) td {
-    background: #fafafa;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  .bt-tabla tr { page-break-inside: avoid; }
-
-  .bt-num-c { text-align: center; white-space: nowrap; }
-
-  .bt-completo { font-style: italic; color: #555; margin: 0.2rem 0 0.6rem; font-size: 9.5pt; }
-
-  .bt-obs { font-size: 9pt; color: #444; margin: 0.2rem 0 0.6rem; }
-
-  .bt-parrafo { text-align: justify; margin: 0.5rem 0 0.9rem; line-height: 1.5; }
-
-  .bt-nota-legal {
-    font-size: 8.5pt;
-    color: #444;
-    margin-top: 1.1rem;
-    padding-top: 0.4rem;
-    border-top: 0.5pt solid #ccc;
-    line-height: 1.4;
-    text-align: justify;
-  }
-
-  /* --- Firmas ---
-     El margen superior lo calcula impresion.js según lo que
-     quede de hoja. Este valor es el respaldo. */
-  .bt-firmas {
-    display: flex;
-    justify-content: space-around;
-    margin-top: 50mm;
-    page-break-inside: avoid;
-  }
-
-  .bt-firma { text-align: center; width: 42%; }
-  .bt-linea { border-top: 0.75pt solid #000; margin-bottom: 0.25rem; }
-  .bt-firma-cargo { margin: 0; font-size: 10.5pt; font-weight: bold; }
-  .bt-firma-nota { margin: 0.1rem 0 0; font-size: 8pt; color: #555; }
+.bt-sug-vacia {
+  margin: 0;
+  padding: 0.7rem 0.75rem;
+  font-size: 0.82rem;
+  color: var(--color-texto-tenue, #8a8f98);
 }
