@@ -172,13 +172,21 @@ export function bloqueFirmas(columnas, espacioMm = 50) {
 }
 
 /** Encabezado con logo y membrete de la unidad */
-export function membreteWord(empresa, logoDataUrl) {
+/**
+ * Membrete con la paleta de la orden de compra de farmacia.
+ *
+ * @param {string} empresa
+ * @param {string} logo  base64 para el .doc que se envía por
+ *   correo, o ruta relativa cuando el documento se imprime
+ *   desde la propia aplicación.
+ */
+export function membreteWord(empresa, logo) {
   return `
     <table style="width:100%;margin-bottom:4pt;">
       <tr>
-        ${logoDataUrl
-          ? `<td style="width:52pt;vertical-align:middle;padding-right:8pt;">
-               <img src="${logoDataUrl}" style="height:38pt;">
+        ${logo
+          ? `<td style="width:56pt;vertical-align:middle;padding-right:10pt;">
+               <img src="${logo}" style="height:42pt;">
              </td>` : ''}
         <td style="vertical-align:middle;">
           <div style="font-size:15pt;font-weight:bold;color:#1b5e20;">
@@ -190,7 +198,7 @@ export function membreteWord(empresa, logoDataUrl) {
         </td>
       </tr>
     </table>
-    <div style="border-bottom:2.5pt solid #1b5e20;margin-bottom:10pt;"></div>`;
+    <div style="border-bottom:2pt solid #1b5e20;margin-bottom:10pt;"></div>`;
 }
 
 /**
@@ -202,10 +210,10 @@ export function membreteWord(empresa, logoDataUrl) {
  */
 export function bandaTitulo(titulo, subtitulo) {
   return `
-    <table style="width:100%;margin-bottom:10pt;" bgcolor="#EAF3EA">
-      <tr bgcolor="#EAF3EA">
-        <td bgcolor="#EAF3EA"
-            style="background:#EAF3EA;border-top:0.75pt solid #1b5e20;
+    <table style="width:100%;margin-bottom:10pt;" bgcolor="#e6f0e6">
+      <tr bgcolor="#e6f0e6">
+        <td bgcolor="#e6f0e6"
+            style="background:#e6f0e6;border-top:0.75pt solid #1b5e20;
                    border-bottom:0.75pt solid #1b5e20;
                    padding:6pt 8pt;text-align:center;">
           <div style="font-size:13pt;font-weight:bold;letter-spacing:0.5pt;">
@@ -229,8 +237,8 @@ export function tablaWord(columnas, filas) {
   const borde = 'border:0.75pt solid #444;padding:4pt 6pt;font-size:11pt;';
 
   const cabecera = columnas.map((c) => `
-    <td bgcolor="#DCEBDC" width="${c.ancho}%"
-        style="${borde}background:#DCEBDC;font-weight:bold;font-size:10.5pt;
+    <td bgcolor="#e6f0e6" width="${c.ancho}%"
+        style="${borde}background:#e6f0e6;font-weight:bold;font-size:10.5pt;
                text-align:${c.centrado ? 'center' : 'left'};">
       ${escaparTexto(c.titulo)}
     </td>`).join('');
@@ -244,7 +252,7 @@ export function tablaWord(columnas, filas) {
 
   return `
     <table style="width:100%;margin-bottom:10pt;">
-      <tr bgcolor="#DCEBDC">${cabecera}</tr>
+      <tr bgcolor="#e6f0e6">${cabecera}</tr>
       ${cuerpo}
     </table>`;
 }

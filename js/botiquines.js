@@ -20,7 +20,6 @@
    ============================================ */
 
 import { supabase } from './supabase.js';
-import { imprimirHoja } from './impresion.js';
 import { ROLES } from './auth.js';
 import { escapar, formatearFecha } from './utils.js';
 import { envolverWord, descargarWord, recuadroFoto, bloqueFirmas,
@@ -726,7 +725,7 @@ async function generarInforme() {
  *   imprimir: ahí lo calcula impresion.js según lo que quede
  *   de hoja.
  */
-function construirActas(espacioFirma) {
+function construirActas(espacioFirma, logo) {
   if (bt.revisiones.length === 0) return null;
 
   const de = firmante();
@@ -760,7 +759,7 @@ function construirActas(espacioFirma) {
 
     return `
       <div${i > 0 ? ' class="salto"' : ''}>
-        ${membreteWord(bt.empresaNombre, bt.logo)}
+        ${membreteWord(bt.empresaNombre, logo)}
         ${bandaTitulo('Acta de entrega de insumos de botiquín',
                       r.botiquin + ' · ' + nombreMes(bt.periodo))}
 
@@ -807,23 +806,40 @@ function construirActas(espacioFirma) {
 }
 
 /* Imprimir es lo natural: el acta no lleva fotografías, así
-   que descargarla para imprimirla sería un rodeo. */
+   que descargarla para imprimirla sería un rodeo.
+
+   El espacio de firma va fijo en la propia hoja, como celda
+   de tabla, en lugar de calcularlo al vuelo: así los cinco
+   centímetros son los mismos en papel y en el archivo, y no
+   dependen de que una medición acierte. */
 function imprimirActas() {
-  const hojas = construirActas(0);
+  /* Ruta relativa: al imprimir desde la aplicación el
+     navegador la resuelve, y no depende de que la lectura en
+     base64 haya funcionado. */
+  const hojas = construirActas(50, 'logo.png');
   if (!hojas) return;
 
   const $z = document.getElementById('bt-impresion');
   if (!$z) return;
 
   $z.innerHTML = hojas;
-  imprimirHoja('bt-impresion', 'imprimiendo-botiquines',
-    'Actas de entrega · ' + nombreMes(bt.periodo));
+
+  const titulo = document.title;
+  document.title = 'Actas de entrega · ' + nombreMes(bt.periodo);
+  document.body.classList.add('imprimiendo-botiquines');
+  window.print();
+
+  setTimeout(() => {
+    document.body.classList.remove('imprimiendo-botiquines');
+    document.title = titulo;
+  }, 500);
 }
 
 /* Descargar queda como alternativa: sirve para archivar o
-   enviar por correo sin pasar por el papel. */
+   enviar por correo sin pasar por el papel. Ahí el logo debe
+   viajar dentro del archivo. */
 function descargarActas() {
-  const hojas = construirActas(50);
+  const hojas = construirActas(50, bt.logo);
   if (!hojas) return;
 
   const html = envolverWord(hojas, 'Actas de entrega · ' + nombreMes(bt.periodo));
