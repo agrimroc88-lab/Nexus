@@ -23,7 +23,8 @@ import { supabase } from './supabase.js';
 import { ROLES } from './auth.js';
 import { escapar, formatearFecha } from './utils.js';
 import { envolverWord, descargarWord, recuadroFoto, bloqueFirmas,
-         membreteWord, bandaTitulo, tablaWord, logoEnBase64,
+         membreteWord, membreteCompacto, bandaTitulo, tablaWord,
+         listaDocumento, seccionDocumento, logoEnBase64,
          encabezadoMemo, escaparTexto }
   from './documento.js';
 
@@ -587,11 +588,111 @@ function nombreInsumo(l) {
     + (l.presentacion ? ' · ' + escaparTexto(l.presentacion) : '');
 }
 
+/* ============================================
+   Contenido normativo y técnico del informe
+
+   Un informe que solo enseña tablas obliga a quien lo lee a
+   saber de antemano por qué existe un botiquín y qué debe
+   contener. Estas secciones lo explican, y de paso dejan por
+   escrito el fundamento legal de la inspección.
+   ============================================ */
+
+const OBJETIVO_GENERAL =
+  'Verificar el estado, la dotación y las condiciones de conservación de los '
++ 'botiquines de primeros auxilios ubicados en las áreas operativas y '
++ 'administrativas de la empresa, garantizando su disponibilidad inmediata ante '
++ 'lesiones o dolencias que se presenten durante la jornada laboral.';
+
+const OBJETIVOS_ESPECIFICOS = [
+  'Comprobar la existencia física de cada insumo frente a la dotación establecida '
++ 'para el botiquín, dejando constancia de la cantidad encontrada.',
+
+  'Identificar insumos caducados, deteriorados, contaminados o con empaque abierto, '
++ 'y retirarlos del botiquín para su reposición.',
+
+  'Reponer los insumos consumidos o retirados, registrando el motivo que sustenta '
++ 'cada reposición.',
+
+  'Verificar que el botiquín permanezca accesible, señalizado, limpio y libre de '
++ 'obstáculos, sin cerradura que impida su uso en una emergencia.',
+
+  'Constatar que el área conozca la ubicación del botiquín y al responsable '
++ 'designado para su custodia.',
+
+  'Documentar la inspección y la entrega de insumos como evidencia del cumplimiento '
++ 'del requisito SP-01 del Anexo 1 del A.M. MDT-2024-196.'
+];
+
+const MARCO_NORMATIVO = [
+  { titulo: 'Código del Trabajo (2005), Art. 430',
+    texto: 'obliga al empleador a mantener un botiquín de emergencia para la '
+         + 'prestación de primeros auxilios a los trabajadores, según el riesgo '
+         + 'y el número de personas en el lugar de trabajo.' },
+
+  { titulo: 'Decisión 584 de la CAN (2004), Art. 11',
+    texto: 'establece el deber del empleador de adoptar las medidas necesarias '
+         + 'para la prevención de riesgos y la atención de emergencias.' },
+
+  { titulo: 'Resolución 957 (2008), Art. 1',
+    texto: 'incorpora los procedimientos de respuesta ante emergencias dentro de '
+         + 'los procedimientos operativos básicos del sistema de gestión.' },
+
+  { titulo: 'Decreto Ejecutivo 255 (2024)',
+    texto: 'Reglamento de Seguridad y Salud en el Trabajo; desarrolla las '
+         + 'obligaciones del empleador en materia de atención de primeros auxilios.' },
+
+  { titulo: 'A.M. MDT-2024-196, Anexo 1, requisito SP-01 y Anexo 3',
+    texto: 'exige el botiquín de emergencia para primeros auxilios como elemento '
+         + 'verificable dentro de los servicios permanentes.' },
+
+  { titulo: 'Convenio 155 de la OIT (1981), Art. 18',
+    texto: 'dispone que los empleadores prevean medidas para hacer frente a '
+         + 'situaciones de urgencia y accidentes, incluidos medios adecuados para '
+         + 'la administración de primeros auxilios.' },
+
+  { titulo: 'Convenio 161 de la OIT (1985), Art. 5',
+    texto: 'sitúa la organización de los primeros auxilios y la atención de '
+         + 'urgencia entre las funciones de los servicios de salud en el trabajo.' }
+];
+
+const CRITERIOS_TECNICOS = [
+  { titulo: 'Accesibilidad',
+    texto: 'el botiquín debe estar a la vista, señalizado y sin cerradura. Un '
+         + 'botiquín bajo llave equivale a no tenerlo cuando ocurre la emergencia.' },
+
+  { titulo: 'Ubicación',
+    texto: 'próximo a las áreas de mayor exposición y a las rutas de circulación, '
+         + 'a una altura que permita alcanzarlo sin escalera ni ayuda.' },
+
+  { titulo: 'Conservación',
+    texto: 'lugar limpio, seco y ventilado, protegido de la luz directa, del calor '
+         + 'y de la humedad, que degradan tanto el material estéril como los '
+         + 'medicamentos.' },
+
+  { titulo: 'Contenido',
+    texto: 'material de curación e insumos de uso inmediato. No se almacenan '
+         + 'medicamentos de prescripción ni sustancias sujetas a control sin '
+         + 'supervisión del profesional de salud.' },
+
+  { titulo: 'Caducidad',
+    texto: 'se revisa en cada inspección. El material estéril con empaque abierto, '
+         + 'húmedo o dañado pierde su condición aunque no haya vencido.' },
+
+  { titulo: 'Responsable',
+    texto: 'cada botiquín tiene una persona designada que custodia su contenido y '
+         + 'reporta el consumo a la unidad de salud ocupacional.' },
+
+  { titulo: 'Registro',
+    texto: 'el consumo y la reposición se documentan mensualmente, lo que permite '
+         + 'dimensionar la dotación según el uso real de cada área.' }
+];
+
 /**
  * Informe mensual de inspección.
- * Un solo documento: una sección por botiquín con su tabla y
- * su recuadro de evidencia, más la carátula dirigida a
- * gerencia con los sitios inspeccionados.
+ *
+ * Un solo documento: carátula dirigida a gerencia con el
+ * marco de la inspección, y después una sección por botiquín
+ * con su tabla y su espacio de evidencia fotográfica.
  */
 async function generarInforme() {
   if (bt.revisiones.length === 0) return;
@@ -600,111 +701,243 @@ async function generarInforme() {
   const principal = bt.destinatarios.find((d) => d.tipo === 'principal');
   const copias = bt.destinatarios.filter((d) => d.tipo === 'copia');
 
+  /* Quien encabeza el departamento firma la elaboración del
+     informe; quien recorrió los botiquines firma la
+     inspección. Son dos responsabilidades distintas y el
+     documento debe distinguirlas. */
+  const elabora = bt.destinatarios.find((d) => d.tipo === 'elabora');
+  const referencia = 'Informe de botiquines · ' + nombreMes(bt.periodo);
+
   if (de.sinDatos && !confirm(
       'No se pudo leer su nombre para la firma del documento.\n\n'
     + '¿Desea generarlo de todos modos?')) return;
 
-  /* Carátula: a quién va y qué sitios se recorrieron */
-  const sitios = tablaWord(
-    [
-      { titulo: 'N°',                  ancho: 6,  centrado: true },
-      { titulo: 'UBICACIÓN',           ancho: 34 },
-      { titulo: 'RESPONSABLE DEL ÁREA', ancho: 32 },
-      { titulo: 'OBSERVACIÓN',         ancho: 28 }
-    ],
-    bt.revisiones.map((r, i) => [
-      String(i + 1),
-      escaparTexto(r.botiquin),
-      escaparTexto(r.sin_destinatario ? 'Guardia de turno' : (r.destinatario || '—')),
-      Number(r.total_repuesto) > 0
-        ? 'Inspección, limpieza y reposición'
-        : 'Inspección y limpieza'
-    ]));
+  /* --- Datos agregados --- */
+  const totalFaltante = bt.revisiones.reduce(
+    (x, r) => x + Number(r.total_faltante || 0), 0);
+  const totalRepuesto = bt.revisiones.reduce(
+    (x, r) => x + Number(r.total_repuesto || 0), 0);
+  const completos = bt.revisiones.filter(
+    (r) => Number(r.total_faltante || 0) === 0).length;
 
+  /* Consolidado: lo que hay que pedir a farmacia */
+  const consolidado = new Map();
+  bt.revisiones.forEach((r) => {
+    (bt.detalle[r.id] || []).forEach((l) => {
+      if (Number(l.faltante) === 0 && Number(l.repuesto) === 0) return;
+      const clave = l.insumo + '|' + (l.presentacion || '');
+      const x = consolidado.get(clave) || {
+        insumo: l.insumo, presentacion: l.presentacion,
+        unidad: l.unidad, falta: 0, rep: 0
+      };
+      x.falta += Number(l.faltante);
+      x.rep += Number(l.repuesto);
+      consolidado.set(clave, x);
+    });
+  });
+
+  /* --- Carátula --- */
   const caratula = `
     ${membreteWord(bt.empresaNombre, bt.logo)}
     ${bandaTitulo('Informe mensual de inspección de botiquines',
                   nombreMes(bt.periodo))}
 
     ${encabezadoMemo([
-      { etiqueta: 'DE:',    valor: de.nombre, detalle: de.cargo },
-      principal ? { etiqueta: 'PARA:', valor: principal.nombre, detalle: principal.cargo } : null,
+      /* El informe lo emite el departamento, no quien recorrió
+         los botiquines: en el DE va quien lo suscribe. */
+      { etiqueta: 'DE:',
+        valor:   elabora ? elabora.nombre : de.nombre,
+        detalle: elabora ? (elabora.cargo || '') : de.cargo },
+      principal ? { etiqueta: 'PARA:', valor: principal.nombre,
+                    detalle: principal.cargo } : null,
       ...copias.map((c) => ({ etiqueta: 'C.C.:', valor: c.nombre, detalle: c.cargo })),
       { etiqueta: 'FECHA:',  valor: nombreMes(bt.periodo).toUpperCase() },
-      { etiqueta: 'ASUNTO:', valor: 'INSPECCIÓN MENSUAL DE BOTIQUINES' }
+      { etiqueta: 'ASUNTO:', valor: 'INSPECCIÓN MENSUAL DE BOTIQUINES DE PRIMEROS AUXILIOS' }
     ])}
 
-    <p style="text-align:justify;margin:8pt 0;">
-      Mediante el presente informe damos a conocer el estado y funcionamiento de
-      los botiquines implementados en los distintos puntos de la empresa, los
-      cuales facilitan al personal la rápida aplicación de primeros auxilios,
-      vendajes compresivos y lavado de heridas, para su correcta movilización
-      hacia la unidad médica.
+    ${seccionDocumento('1. Introducción')}
+    <p style="text-align:justify;margin:6pt 0;">
+      El botiquín de primeros auxilios es el recurso más inmediato con que cuenta
+      un lugar de trabajo ante una lesión leve o el inicio de una emergencia. Su
+      utilidad no depende de que exista, sino de que en el momento del hecho tenga
+      lo que debe tener, en condiciones de ser usado y al alcance de quien lo
+      necesita. De ahí que su control sea mensual y documentado.
+    </p>
+    <p style="text-align:justify;margin:6pt 0;">
+      Mediante el presente informe se da a conocer el estado y funcionamiento de
+      los ${bt.revisiones.length} botiquines implementados en los distintos puntos
+      de la empresa, los cuales facilitan al personal la rápida aplicación de
+      primeros auxilios, vendajes compresivos y lavado de heridas, para su correcta
+      movilización hacia la unidad médica.
     </p>
 
-    <p style="margin:6pt 0 4pt;">A continuación, detallo los sitios inspeccionados:</p>
+    ${seccionDocumento('2. Objetivo general')}
+    <p style="text-align:justify;margin:6pt 0;">${escaparTexto(OBJETIVO_GENERAL)}</p>
 
-    ${sitios}
+    ${seccionDocumento('3. Objetivos específicos')}
+    ${listaDocumento(OBJETIVOS_ESPECIFICOS, true)}
 
-    ${bloqueFirmas([{
-      rotulo: 'Responsable de la inspección',
-      nombre: de.nombre,
-      detalle: de.cargo
-    }])}`;
+    ${seccionDocumento('4. Marco normativo')}
+    <p style="text-align:justify;margin:6pt 0;">
+      La obligación de mantener botiquines de primeros auxilios y de verificar
+      periódicamente su dotación se sustenta en las siguientes disposiciones:
+    </p>
+    ${listaDocumento(MARCO_NORMATIVO)}
 
-  /* Una sección por botiquín */
-  const secciones = bt.revisiones.map((r) => {
+    ${seccionDocumento('5. Criterios técnicos de verificación')}
+    <p style="text-align:justify;margin:6pt 0;">
+      La inspección de cada botiquín contempla los siguientes aspectos:
+    </p>
+    ${listaDocumento(CRITERIOS_TECNICOS)}
+
+    ${seccionDocumento('6. Sitios inspeccionados')}
+    ${tablaWord(
+      [
+        { titulo: 'N°',                   ancho: 6,  centrado: true },
+        { titulo: 'UBICACIÓN',            ancho: 32 },
+        { titulo: 'RESPONSABLE DEL ÁREA', ancho: 30 },
+        { titulo: 'OBSERVACIÓN',          ancho: 32 }
+      ],
+      bt.revisiones.map((r, i) => [
+        String(i + 1),
+        escaparTexto(r.botiquin),
+        escaparTexto(r.sin_destinatario ? 'Guardia de turno' : (r.destinatario || '—')),
+        Number(r.total_repuesto) > 0
+          ? 'Inspección, limpieza y reposición'
+          : 'Inspección y limpieza'
+      ]))}
+
+    ${seccionDocumento('7. Resultados del periodo')}
+    ${tablaWord(
+      [{ titulo: 'CONCEPTO', ancho: 70 }, { titulo: 'CANTIDAD', ancho: 30, centrado: true }],
+      [
+        ['Botiquines inspeccionados', String(bt.revisiones.length)],
+        ['Botiquines hallados completos', String(completos)],
+        ['Unidades retiradas o consumidas', num(totalFaltante)],
+        ['Unidades repuestas', num(totalRepuesto)]
+      ])}
+
+    ${consolidado.size > 0 ? `
+      ${seccionDocumento('8. Consolidado de reposición')}
+      <p style="text-align:justify;margin:6pt 0;">
+        Detalle acumulado de los insumos repuestos en el periodo, que sirve de base
+        para la reposición de existencias en farmacia.
+      </p>
+      ${tablaWord(
+        [
+          { titulo: 'INSUMO',    ancho: 48 },
+          { titulo: 'UNIDAD',    ancho: 16 },
+          { titulo: 'RETIRADO',  ancho: 18, centrado: true },
+          { titulo: 'REPUESTO',  ancho: 18, centrado: true }
+        ],
+        [...consolidado.values()].map((x) => [
+          escaparTexto(x.insumo) + (x.presentacion ? ' · ' + escaparTexto(x.presentacion) : ''),
+          escaparTexto(x.unidad),
+          num(x.falta),
+          num(x.rep)
+        ]))}` : ''}
+
+    ${seccionDocumento('9. Conclusión')}
+    <p style="text-align:justify;margin:6pt 0;">
+      Se verificó la totalidad de los botiquines previstos para el periodo. Los
+      insumos consumidos, caducados o deteriorados fueron repuestos según el detalle
+      que consta en las secciones siguientes, quedando los botiquines en condiciones
+      de uso. El detalle individual de cada botiquín, con su respectiva evidencia
+      fotográfica, se presenta a continuación.
+    </p>`;
+
+  /* --- Una sección por botiquín --- */
+  const secciones = bt.revisiones.map((r, n) => {
     const lineas = bt.detalle[r.id] || [];
     const repuestas = lineas.filter((l) => Number(l.repuesto) > 0);
+    const rotulo = (r.area || r.departamento).toUpperCase();
 
     return `
       <div class="salto">
-        ${membreteWord(bt.empresaNombre, bt.logo)}
-        ${bandaTitulo('Inspección de botiquín', r.botiquin)}
+        ${membreteCompacto(bt.empresaNombre, bt.logo, referencia)}
 
-        ${encabezadoMemo([
-          { etiqueta: 'DE:',    valor: de.nombre, detalle: de.cargo },
-          { etiqueta: 'FECHA:', valor: nombreMes(bt.periodo).toUpperCase() },
-          { etiqueta: 'ASUNTO:',
-            valor: 'INSPECCIÓN MENSUAL DE BOTIQUÍN · ' + r.botiquin.toUpperCase() },
-          { etiqueta: 'OBJETIVO:',
-            valor: r.objetivo || 'Verificar que los medicamentos e insumos no se '
-                 + 'encuentren contaminados o vencidos y disponer de los elementos '
-                 + 'necesarios para tratar pequeñas heridas y dolencias leves.' }
-        ])}
+        ${seccionDocumento(`Anexo ${n + 1} · ${r.botiquin}`)}
 
-        <p style="text-align:justify;margin:8pt 0;">
-          Se detalla a continuación el estado de la dotación del botiquín ubicado
+        ${tablaWord(
+          [
+            { titulo: 'DEPARTAMENTO',        ancho: 25 },
+            { titulo: 'ÁREA',                ancho: 25 },
+            { titulo: 'FECHA DE INSPECCIÓN', ancho: 25, centrado: true },
+            { titulo: 'RESPONSABLE',         ancho: 25 }
+          ],
+          [[
+            escaparTexto(r.departamento),
+            escaparTexto(r.area || '—'),
+            r.fecha_revision ? formatearFecha(r.fecha_revision) : '—',
+            escaparTexto(r.sin_destinatario ? 'Guardia de turno' : (r.destinatario || '—'))
+          ]])}
+
+        <p style="text-align:justify;margin:6pt 0;">
+          Se detalla el estado de la dotación del botiquín ubicado
           ${escaparTexto(r.ubicacion_texto || r.botiquin)}, con la cantidad
-          encontrada durante la inspección y la reposición efectuada, indicando
-          el motivo en cada caso.
+          encontrada durante la inspección y la reposición efectuada, indicando el
+          motivo que sustenta cada entrega.
         </p>
 
         ${tablaInsumos(lineas, 'informe')}
 
         ${repuestas.length === 0
-          ? '<p style="font-style:italic;font-size:10pt;">El botiquín se encontró '
-            + 'completo. No fue necesaria reposición en el periodo.</p>'
+          ? '<p style="font-style:italic;font-size:10.5pt;margin:4pt 0;">'
+            + 'El botiquín se encontró completo y en condiciones adecuadas de '
+            + 'conservación. No fue necesaria reposición en el periodo.</p>'
           : ''}
 
         ${r.observacion
-          ? `<p style="font-size:10pt;margin:4pt 0;"><b>Observación:</b> ${
-              escaparTexto(r.observacion)}</p>` : ''}
+          ? `<p style="font-size:10.5pt;margin:6pt 0;text-align:justify;">
+               <b>Observación:</b> ${escaparTexto(r.observacion)}</p>` : ''}
 
-        <p style="font-weight:bold;margin:12pt 0 4pt;font-size:11pt;">
-          EVIDENCIA FOTOGRÁFICA
-        </p>
-        ${recuadroFoto('BOTIQUÍN ' + r.botiquin.toUpperCase(), 80)}
+        <p style="font-weight:bold;margin:12pt 0 4pt;font-size:11.5pt;
+                  color:#1b5e20;">EVIDENCIA FOTOGRÁFICA</p>
 
-        ${bloqueFirmas([{
-          rotulo: 'Responsable de la inspección',
-          nombre: de.nombre,
-          detalle: de.cargo
-        }], 30)}
+        <table style="width:100%;">
+          <tr>
+            <td style="width:50%;vertical-align:top;padding-right:5pt;">
+              ${recuadroFoto('Vista general · ' + rotulo, 62)}
+            </td>
+            <td style="width:50%;vertical-align:top;padding-left:5pt;">
+              ${recuadroFoto('Contenido del botiquín · ' + rotulo, 62)}
+            </td>
+          </tr>
+        </table>
+
       </div>`;
   }).join('');
 
-  const html = envolverWord(caratula + secciones,
+  /* La firma va una sola vez y al cierre, después de los
+     anexos: es lo que se firma cuando ya se ha leído todo. */
+  const columnas = [];
+
+  if (elabora) {
+    columnas.push({ rotulo: 'Elaborado por:', nombre: elabora.nombre,
+                    detalle: elabora.cargo || '' });
+  }
+
+  columnas.push({
+    rotulo: elabora ? 'Responsable de la inspección:' : 'Elaborado por:',
+    nombre: de.nombre,
+    detalle: de.cargo
+  });
+
+  const cierre = `
+    <div class="salto">
+      ${membreteCompacto(bt.empresaNombre, bt.logo, referencia)}
+      ${seccionDocumento('Cierre del informe')}
+      <p style="text-align:justify;margin:6pt 0;">
+        Se deja constancia de que la inspección de los ${bt.revisiones.length}
+        botiquines correspondientes a ${escaparTexto(nombreMes(bt.periodo))} fue
+        realizada conforme a los objetivos y criterios señalados en este documento,
+        y que los insumos consumidos, caducados o deteriorados fueron repuestos
+        según el detalle de los anexos precedentes.
+      </p>
+      ${bloqueFirmas(columnas, 50)}
+    </div>`;
+
+  const html = envolverWord(caratula + secciones + cierre,
     'Informe de inspección de botiquines · ' + nombreMes(bt.periodo));
 
   descargarWord(html, `Informe botiquines ${bt.periodo}`);

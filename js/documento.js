@@ -199,11 +199,11 @@ export function membreteWord(empresa, logo) {
     <table style="width:100%;margin-bottom:4pt;">
       <tr>
         ${logo
-          ? `<td style="width:56pt;vertical-align:middle;padding-right:10pt;">
-               <img src="${logo}" style="height:42pt;">
+          ? `<td style="width:46pt;vertical-align:middle;padding-right:10pt;">
+               <img src="${logo}" style="height:34pt;">
              </td>` : ''}
         <td style="vertical-align:middle;">
-          <div style="font-size:15pt;font-weight:bold;color:${PALETA.verde};">
+          <div style="font-size:14pt;font-weight:bold;color:${PALETA.verde};">
             ${escaparTexto(empresa || 'Empresa')}
           </div>
           <div style="font-size:9.5pt;letter-spacing:0.5pt;color:#333;">
@@ -213,6 +213,69 @@ export function membreteWord(empresa, logo) {
       </tr>
     </table>
     <div style="border-bottom:2pt solid ${PALETA.verde};margin-bottom:10pt;"></div>`;
+}
+
+/**
+ * Encabezado reducido para las páginas de continuación.
+ *
+ * Repetir el membrete completo en cada hoja de un informe de
+ * once botiquines hace que el logo domine el documento y deje
+ * poco sitio al contenido. Basta una franja que identifique
+ * la empresa y diga de qué informe forma parte la página.
+ */
+export function membreteCompacto(empresa, logo, referencia) {
+  return `
+    <table style="width:100%;border-bottom:1pt solid ${PALETA.verde};
+                  margin-bottom:8pt;padding-bottom:3pt;">
+      <tr>
+        ${logo
+          ? `<td style="width:26pt;vertical-align:middle;padding-right:6pt;">
+               <img src="${logo}" style="height:20pt;">
+             </td>` : ''}
+        <td style="vertical-align:middle;font-size:9.5pt;
+                   font-weight:bold;color:${PALETA.verde};">
+          ${escaparTexto(empresa || '')}
+        </td>
+        <td style="vertical-align:middle;text-align:right;
+                   font-size:8.5pt;color:${PALETA.textoTenue};">
+          ${escaparTexto(referencia || '')}
+        </td>
+      </tr>
+    </table>`;
+}
+
+/**
+ * Lista numerada o con viñetas para objetivos y normativa.
+ * Word respeta mal las listas de HTML, así que se arma con
+ * una tabla de dos columnas: la marca y el texto.
+ */
+export function listaDocumento(elementos, numerada = false) {
+  return `
+    <table style="width:100%;margin:4pt 0 10pt;">
+      ${elementos.map((e, i) => `
+        <tr>
+          <td style="width:22pt;vertical-align:top;padding:2pt 0;
+                     font-size:11pt;${numerada ? 'font-weight:bold;' : ''}">
+            ${numerada ? (i + 1) + '.' : '•'}
+          </td>
+          <td style="vertical-align:top;padding:2pt 0;font-size:11pt;
+                     text-align:justify;">
+            ${typeof e === 'string' ? escaparTexto(e)
+              : `<b>${escaparTexto(e.titulo)}</b>${
+                  e.texto ? ' · ' + escaparTexto(e.texto) : ''}`}
+          </td>
+        </tr>`).join('')}
+    </table>`;
+}
+
+/** Título de sección con la línea verde característica */
+export function seccionDocumento(titulo) {
+  return `
+    <p style="font-size:12pt;font-weight:bold;color:${PALETA.verde};
+              border-bottom:1pt solid ${PALETA.verde};
+              margin:14pt 0 4pt;padding-bottom:2pt;">
+      ${escaparTexto(titulo)}
+    </p>`;
 }
 
 /**
