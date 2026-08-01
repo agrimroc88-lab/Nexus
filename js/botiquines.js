@@ -893,9 +893,11 @@ async function generarInforme() {
      Agrupada al final y en rejilla de dos columnas. Repartir
      un recuadro por hoja multiplicaba las páginas sin añadir
      nada: seis caben en una y se comparan mejor entre sí. */
-  /* Tres por fila: con dos columnas la evidencia ocupaba más
-     que todo el resto del informe. */
-  const POR_FILA = 3;
+  /* Dos por fila. Cabrían más pequeños, pero un recuadro de
+     cuatro centímetros no deja ver el estado del botiquín, y
+     entonces la fotografía solo acredita que alguien pasó por
+     ahí. A este tamaño se distingue el contenido. */
+  const POR_FILA = 2;
   const filas = [];
   for (let i = 0; i < bt.revisiones.length; i += POR_FILA) {
     filas.push(bt.revisiones.slice(i, i + POR_FILA));
@@ -906,17 +908,20 @@ async function generarInforme() {
       ${seccionDocumento('11. Evidencia fotográfica')}
       <p style="text-align:justify;">
         Registro fotográfico de los botiquines inspeccionados en el periodo.
+        <span style="font-size:8pt;color:#555555;">Al pegar cada imagen,
+        ajústela al ancho del recuadro (8,5 cm) para conservar la
+        distribución de la página.</span>
       </p>
 
       <table style="width:100%;">
         ${filas.map((par) => `
           <tr>
             ${par.map((r) => `
-              <td style="width:33%;vertical-align:top;padding:1pt 3pt;">
-                ${recuadroFoto(r.botiquin.toUpperCase(), 40)}
+              <td style="width:50%;vertical-align:top;padding:1pt 3pt;">
+                ${recuadroFoto(r.botiquin.toUpperCase(), 64)}
               </td>`).join('')}
             ${Array.from({ length: POR_FILA - par.length })
-                .map(() => '<td style="width:33%;"></td>').join('')}
+                .map(() => '<td style="width:50%;"></td>').join('')}
           </tr>`).join('')}
       </table>
     </div>`;
