@@ -419,10 +419,14 @@
     text-align: justify;
   }
 
+  /* El margen superior lo calcula impresion.js según el
+     espacio que quede en la hoja: 5 cm si caben, o el pie de
+     la página en curso si no. Este valor es solo el respaldo
+     para cuando el script no llega a ejecutarse. */
   .gp-firmas {
     display: flex;
     justify-content: space-around;
-    margin-top: 3.2rem;
+    margin-top: 50mm;
     page-break-inside: avoid;
   }
 
