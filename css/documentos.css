@@ -108,7 +108,11 @@
   .em-impresion,
   .zona-impresion,
   #orden-impresion {
-    padding: 20mm !important;
+    /* Superior · derecho · inferior · izquierdo.
+       El izquierdo es mayor porque estos documentos se
+       perforan y se archivan: con margen simétrico, la
+       perforadora muerde la primera columna de la tabla. */
+    padding: 20mm 15mm 20mm 30mm !important;
     box-sizing: border-box;
   }
 
