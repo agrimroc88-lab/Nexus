@@ -498,10 +498,10 @@
           <section class="herramientas">
             <select class="entrada filtro" id="bt-periodo"></select>
             <button class="boton-secundario" id="bt-btn-informe" type="button" disabled>
-              Informe mensual
+              Descargar informe
             </button>
             <button class="boton-secundario" id="bt-btn-actas" type="button" disabled>
-              Actas de entrega
+              Descargar actas
             </button>
             <button class="boton-primario" id="bt-btn-abrir" type="button" hidden>
               Abrir revisión del mes
@@ -1368,6 +1368,7 @@
                 <th class="celda-centro">Encontrado</th>
                 <th class="celda-centro">Falta</th>
                 <th class="celda-centro">Repone</th>
+                <th>Motivo</th>
               </tr>
             </thead>
             <tbody id="bt-r-detalle"></tbody>
@@ -1385,6 +1386,7 @@
 
       <footer class="modal-pie">
         <button class="boton-secundario" data-cierra="bt-modal-revision" type="button">Cerrar</button>
+        <button class="boton-secundario" id="bt-btn-destinatario" type="button" hidden>Destinatario</button>
         <button class="boton-secundario" id="bt-btn-reabrir" type="button" hidden>Reabrir</button>
         <button class="boton-secundario" id="bt-btn-guardar" type="button" hidden>Guardar</button>
         <button class="boton-primario" id="bt-btn-cerrar-revision" type="button" hidden>
@@ -1395,8 +1397,61 @@
     </div>
   </div>
 
-  <!-- Zona de impresión de botiquines -->
-  <div class="bt-impresion" id="bt-impresion"></div>
+  <!-- ============ Modal: Destinatario del botiquín ============ -->
+  <div class="modal" id="bt-modal-destinatario" hidden>
+    <div class="modal-caja modal-estrecho" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <div>
+          <h2 class="modal-titulo">Destinatario del acta</h2>
+          <p class="bt-r-periodo" id="bt-d-botiquin">—</p>
+        </div>
+        <button class="modal-cerrar" data-cierra="bt-modal-destinatario" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+
+        <label class="alternador">
+          <input type="checkbox" id="bt_dest_blanco">
+          <span>Dejar la firma en blanco</span>
+        </label>
+        <span class="ayuda">Para áreas donde recibe quien esté de turno: se imprime
+          la línea vacía para que escriba su nombre y cédula.</span>
+
+        <div id="bt-bloque-destinatario">
+
+          <div class="campo bt-campo-buscar">
+            <label class="etiqueta" for="bt_dest_buscar">Buscar en la nómina</label>
+            <input class="entrada" id="bt_dest_buscar" type="search"
+                   placeholder="Código, cédula o nombre" autocomplete="off">
+            <div class="bt-sugerencias" id="bt_dest_sugerencias" hidden></div>
+            <span class="ayuda">Opcional. También puede escribir el nombre directamente.</span>
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="bt_dest_nombre">Nombre <span class="obligatorio">*</span></label>
+            <input class="entrada" id="bt_dest_nombre" type="text" autocomplete="off">
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="bt_dest_cargo">Cargo</label>
+            <input class="entrada" id="bt_dest_cargo" type="text"
+                   placeholder="JEFE DE PLANTA">
+          </div>
+
+        </div>
+
+        <p class="ayuda">Se conserva para los meses siguientes hasta que vuelva a cambiarlo.</p>
+        <p class="alerta" id="bt-alerta-destinatario" role="alert" hidden></p>
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" data-cierra="bt-modal-destinatario" type="button">Cancelar</button>
+        <button class="boton-primario" id="bt-btn-guardar-destinatario" type="button">Guardar</button>
+      </footer>
+
+    </div>
+  </div>
 
   <script type="module" src="js/anexo1.js?v=7"></script>
 </body>
