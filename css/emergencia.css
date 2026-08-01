@@ -1,0 +1,431 @@
+/* ============================================
+   NEXUS · emergencia.css
+   Ficha de emergencia, panel clínico y medicación.
+   Pantalla e impresión.
+   ============================================ */
+
+/* ============================================
+   Panel clínico · Atenciones
+   Va bajo alergias. Solo aparece si hay algo que decir:
+   un panel vacío enseña a ignorar el panel.
+   ============================================ */
+
+.panel-clinico {
+  margin-top: 0.6rem;
+  padding: 0.7rem 0.9rem;
+  background: rgba(126, 226, 168, 0.04);
+  border: 1px solid var(--color-borde);
+  border-left: 3px solid var(--color-acento, #7ee2a8);
+  border-radius: var(--radio);
+}
+
+/* Un fármaco crítico cambia la conducta inmediata */
+.panel-clinico-critico {
+  background: rgba(245, 115, 115, 0.05);
+  border-left-color: #f57373;
+}
+
+.pc-linea {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem 0.6rem;
+  margin-bottom: 0.35rem;
+}
+
+.pc-linea:last-child { margin-bottom: 0; }
+
+.pc-etiqueta {
+  flex-shrink: 0;
+  min-width: 8.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--color-texto-tenue, #8a8f98);
+}
+
+.pc-valor { display: flex; flex-wrap: wrap; gap: 0.35rem; flex: 1; }
+
+.pc-chip {
+  padding: 0.08rem 0.5rem;
+  font-size: 0.78rem;
+  background: var(--color-fondo);
+  border: 1px solid var(--color-borde);
+  border-radius: 999px;
+}
+
+.pc-farmaco {
+  font-size: 0.8rem;
+  padding: 0.08rem 0.4rem;
+  border-radius: 3px;
+  background: var(--color-fondo);
+}
+
+.pc-farmaco-critico {
+  color: #f57373;
+  font-weight: 600;
+  border: 1px solid rgba(245, 115, 115, 0.35);
+}
+
+.pc-meta {
+  justify-content: space-between;
+  padding-top: 0.35rem;
+  margin-top: 0.15rem;
+  border-top: 1px solid var(--color-borde);
+  font-size: 0.74rem;
+  color: var(--color-texto-tenue, #8a8f98);
+}
+
+.pc-enlace {
+  padding: 0;
+  font: inherit;
+  font-size: 0.74rem;
+  color: var(--color-acento, #7ee2a8);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* ============================================
+   Marcas en la nómina
+   ============================================ */
+
+.marca {
+  display: inline-block;
+  margin-left: 0.3rem;
+  padding: 0.03rem 0.38rem;
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border-radius: 999px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.marca-alergia { color: #f0a868; border: 1px solid rgba(240, 168, 104, 0.4); }
+.marca-grupo   { color: #7ea8e2; border: 1px solid rgba(126, 168, 226, 0.4); }
+.marca-critica { color: #f57373; border: 1px solid rgba(245, 115, 115, 0.4); }
+
+/* ============================================
+   Ficha de emergencia
+   Se lee de pie, muchas veces desde el celular:
+   tipografía grande y jerarquía fuerte.
+   ============================================ */
+
+.em-datos {
+  margin: 0.15rem 0 0;
+  font-size: 0.82rem;
+  color: var(--color-texto-tenue, #8a8f98);
+}
+
+/* Franja vital: lo que se pregunta antes de tocar a nadie */
+.em-vitales {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1rem;
+  background: var(--color-fondo);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+}
+
+.em-vital { display: flex; flex-direction: column; gap: 0.15rem; }
+
+.em-vital-etiqueta {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-texto-tenue, #8a8f98);
+}
+
+.em-vital-valor { font-size: 1.05rem; font-weight: 600; }
+
+.em-vital-ancho { flex: 1; min-width: 12rem; }
+
+.em-alerta { color: #f57373; }
+
+.em-bloque { margin-bottom: 1.1rem; }
+
+.em-bloque-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.em-bloque-cabecera .subtitulo { margin: 0; }
+
+.em-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.6rem 0.8rem;
+  margin-bottom: 0.4rem;
+  background: var(--color-fondo);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+}
+
+.em-item-critico { border-color: rgba(245, 115, 115, 0.4); }
+
+.em-item-tenue { opacity: 0.6; }
+
+.em-item-cuerpo { flex: 1; display: flex; flex-direction: column; gap: 0.15rem; }
+
+.em-item-titulo { font-size: 0.92rem; font-weight: 600; }
+
+.em-marca-critica {
+  display: inline-block;
+  margin-right: 0.35rem;
+  padding: 0.03rem 0.4rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #f57373;
+  border: 1px solid rgba(245, 115, 115, 0.45);
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
+.em-item-meta {
+  font-size: 0.78rem;
+  color: var(--color-texto-tenue, #8a8f98);
+}
+
+.em-item-obs { font-size: 0.76rem; font-style: italic; color: var(--color-texto-tenue, #8a8f98); }
+
+.em-item-acciones { display: flex; gap: 0.3rem; flex-shrink: 0; }
+
+.em-vacio {
+  margin: 0 0 0.4rem;
+  padding: 0.7rem 0.8rem;
+  font-size: 0.83rem;
+  color: var(--color-texto-tenue, #8a8f98);
+  border: 1px dashed var(--color-borde);
+  border-radius: var(--radio);
+}
+
+.em-falta { color: #f0a868; border-color: rgba(240, 168, 104, 0.35); }
+
+.em-suspendidas {
+  margin-top: 0.3rem;
+  font-size: 0.82rem;
+}
+
+.em-suspendidas summary {
+  cursor: pointer;
+  padding: 0.35rem 0;
+  color: var(--color-texto-tenue, #8a8f98);
+}
+
+.em-indicaciones {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+.em-contacto {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.7rem 0.85rem;
+  background: var(--color-fondo);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+}
+
+.em-contacto-nombre { font-size: 0.95rem; font-weight: 600; }
+
+/* El teléfono es pulsable: en una emergencia se llama, no se copia */
+.em-telefono {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-acento, #7ee2a8);
+  text-decoration: none;
+}
+
+.em-telefono:hover { text-decoration: underline; }
+
+.em-telefono-propio {
+  margin: 0.4rem 0 0;
+  font-size: 0.8rem;
+  color: var(--color-texto-tenue, #8a8f98);
+}
+
+/* --- Buscador --- */
+
+.em-resultados { max-height: 340px; overflow-y: auto; margin-top: 0.6rem; }
+
+.em-resultado {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  font: inherit;
+  text-align: left;
+  color: var(--color-texto);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--color-borde);
+  cursor: pointer;
+}
+
+.em-resultado:last-child { border-bottom: none; }
+.em-resultado:hover { background: rgba(126, 226, 168, 0.08); }
+
+.em-resultado-nombre { flex: 1; font-size: 0.9rem; }
+
+.em-resultado-meta {
+  font-size: 0.78rem;
+  color: var(--color-texto-tenue, #8a8f98);
+}
+
+.em-resultado-inactivo {
+  padding: 0.03rem 0.4rem;
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  color: var(--color-texto-tenue, #8a8f98);
+  border: 1px solid var(--color-borde);
+  border-radius: 999px;
+}
+
+@media (max-width: 700px) {
+  .em-vitales { gap: 0.9rem; }
+  .em-item { flex-wrap: wrap; }
+  .em-item-acciones { width: 100%; }
+  .pc-etiqueta { min-width: 100%; }
+}
+
+
+/* ============================================
+   Impresión de la ficha
+   ============================================ */
+
+.em-impresion { display: none; }
+
+@media print {
+  body.imprimiendo-emergencia .barra-lateral,
+  body.imprimiendo-emergencia .contenedor,
+  body.imprimiendo-emergencia .cabecera,
+  body.imprimiendo-emergencia .modal,
+  body.imprimiendo-emergencia nav,
+  body.imprimiendo-emergencia main { display: none !important; }
+
+  body.imprimiendo-emergencia .em-impresion {
+    display: block !important;
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    width: 100%;
+    background: #fff;
+  }
+
+  .em-hoja {
+    font-family: 'Times New Roman', Georgia, serif;
+    color: #000;
+    font-size: 11pt;
+  }
+
+  .em-hoja-cabecera {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding-bottom: 0.6rem;
+    margin-bottom: 1rem;
+    border-bottom: 2.5pt solid #1b5e20;
+  }
+
+  .em-hoja-logo { height: 58px; width: auto; }
+
+  .em-hoja-identidad { flex: 1; display: flex; flex-direction: column; gap: 0.1rem; }
+
+  .em-hoja-titulo {
+    font-size: 15pt;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #1b5e20;
+  }
+
+  .em-hoja-unidad {
+    font-size: 9pt;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #333;
+  }
+
+  .em-hoja-fecha { font-size: 9pt; color: #444; }
+
+  .em-hoja-datos {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11pt;
+    margin-bottom: 0.9rem;
+  }
+
+  .em-hoja-datos th,
+  .em-hoja-datos td { border: 0.5pt solid #555; padding: 5px 8px; text-align: left; }
+
+  .em-hoja-datos th {
+    background: #f0f0f0;
+    width: 18%;
+    font-size: 9.5pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .em-hoja-alerta { font-weight: bold; }
+
+  .em-hoja-seccion {
+    font-size: 11.5pt;
+    color: #1b5e20;
+    margin: 0.9rem 0 0.3rem;
+    padding-bottom: 0.15rem;
+    border-bottom: 1pt solid #1b5e20;
+    page-break-after: avoid;
+  }
+
+  .em-hoja-lista { margin: 0.2rem 0 0.6rem; padding-left: 1.2rem; line-height: 1.5; }
+
+  .em-hoja-tabla {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10pt;
+    margin-bottom: 0.6rem;
+  }
+
+  .em-hoja-tabla th,
+  .em-hoja-tabla td { border: 0.5pt solid #555; padding: 4px 6px; text-align: left; }
+
+  .em-hoja-tabla th {
+    background: #e6f0e6;
+    font-size: 9.5pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .em-hoja-vacio { font-style: italic; color: #555; margin: 0.2rem 0 0.6rem; }
+
+  .em-hoja-contacto { margin: 0.2rem 0 0.6rem; font-size: 11.5pt; }
+
+  .em-hoja-nota {
+    font-size: 8.5pt;
+    color: #444;
+    margin-top: 1.2rem;
+    padding-top: 0.4rem;
+    border-top: 0.5pt solid #ccc;
+    line-height: 1.4;
+    text-align: justify;
+  }
+
+  .em-hoja-tabla tr { page-break-inside: avoid; }
+}
