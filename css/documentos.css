@@ -84,5 +84,37 @@
     color-adjust: exact !important;
   }
 
-  @page { margin: 1.5cm; }
+  /* ============================================
+     Encabezado y pie del navegador
+
+     Al imprimir, Chrome y Edge estampan en los márgenes la
+     fecha, el título de la pestaña, la URL y el número de
+     página. No hay propiedad CSS que los desactive, pero
+     ambos los omiten cuando la página no tiene margen.
+
+     De ahí que el margen se declare en cero y el espacio en
+     blanco se consiga con relleno del contenedor: el
+     resultado impreso es idéntico y desaparece el rótulo.
+     ============================================ */
+  @page { margin: 0; }
+
+  .doc-hoja,
+  .gp-hoja,
+  .em-hoja,
+  .oc-hoja,
+  .hoja,
+  .bt-impresion,
+  .gp-impresion,
+  .em-impresion,
+  .zona-impresion,
+  #orden-impresion {
+    padding: 15mm !important;
+    box-sizing: border-box;
+  }
+
+  /* Los contenedores que ya posicionan la hoja no deben
+     sumar el relleno dos veces. */
+  .bt-impresion .bt-hoja,
+  .gp-impresion .gp-hoja,
+  .em-impresion .em-hoja { padding: 0 !important; }
 }

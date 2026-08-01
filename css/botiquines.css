@@ -170,8 +170,8 @@
     font-family: 'Times New Roman', Georgia, serif;
     color: #000;
   }
-
-  @page { margin: 1.5cm; }
+  /* El margen de página lo fija documentos.css en cero, para que
+     el navegador no estampe su encabezado y su pie. */
 
   /* Cada acta en su hoja */
   .bt-impresion .salto { page-break-before: always; }

@@ -81,8 +81,8 @@
     margin: 0;
     padding: 0;
   }
-
-  @page { margin: 2cm; }
+  /* El margen de página lo fija documentos.css en cero, para que
+     el navegador no estampe su encabezado y su pie. */
 
   .hoja { font-family: 'Times New Roman', Georgia, serif; color: #000; font-size: 12pt; }
 

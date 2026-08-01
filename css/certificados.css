@@ -105,7 +105,8 @@
   body.app:not(.imprimiendo-est) > .contenedor,
   .modal { display: none !important; }
   body:not(.imprimiendo-est) .zona-impresion { display: block !important; }
-  @page { margin: 2cm; }
+  /* El margen de página lo fija documentos.css en cero, para que
+     el navegador no estampe su encabezado y su pie. */
   .hoja { font-family: 'Times New Roman', Georgia, serif; color: #000; font-size: 12pt; }
   .hoja-cabecera { text-align: center; border-bottom: 2px solid #000; padding-bottom: 0.6rem; margin-bottom: 1.2rem; }
   .hoja-cabecera h1 { font-size: 15pt; margin: 0 0 0.4rem; text-transform: uppercase; }
