@@ -22,7 +22,9 @@
 import { supabase } from './supabase.js';
 import { ROLES } from './auth.js';
 import { escapar, formatearFecha } from './utils.js';
-import { imprimirHoja } from './impresion.js';
+import { envolverWord, descargarWord, recuadroFoto, bloqueFirmas,
+         membreteWord, logoEnBase64, encabezadoMemo, escaparTexto }
+  from './documento.js';
 
 const bt = {
   perfil: null,
@@ -32,7 +34,11 @@ const bt = {
   botiquines: [],
   revisiones: [],       // del periodo elegido
   detalle: {},          // revision_id → [líneas]
-  actual: null          // revisión abierta
+  actual: null,         // revisión abierta
+  motivos: [],          // catálogo de motivos de reposición
+  destinatarios: [],    // del informe general
+  nomina: [],           // para el buscador de destinatario
+  logo: null            // en base64, para que viaje en el .doc
 };
 
 /* Debe coincidir con es_personal_salud() de la base */
@@ -102,15 +108,29 @@ export async function cargarBotiquines(empresaId, empresaNombre) {
 
   bt.periodo = document.getElementById('bt-periodo')?.value || bt.periodo;
 
-  const [bots, revs] = await Promise.all([
+  const [bots, revs, mot, dest, nom] = await Promise.all([
     supabase.from('v_botiquines').select('*')
       .eq('empresa_id', empresaId).eq('activo', true).order('orden'),
     supabase.from('v_botiquin_revisiones').select('*')
-      .eq('empresa_id', empresaId).eq('periodo', primerDia(bt.periodo)).order('orden')
+      .eq('empresa_id', empresaId).eq('periodo', primerDia(bt.periodo)).order('orden'),
+    supabase.from('botiquin_motivos').select('*')
+      .eq('activo', true).order('orden').order('nombre'),
+    supabase.from('botiquin_destinatarios').select('*')
+      .eq('empresa_id', empresaId).eq('activo', true).order('orden'),
+    supabase.from('v_trabajadores')
+      .select('id, codigo, cedula, nombre_completo')
+      .eq('empresa_id', empresaId).eq('activo', true).order('codigo')
   ]);
 
   bt.botiquines = bots.data || [];
   bt.revisiones = revs.data || [];
+  bt.motivos = mot.data || [];
+  bt.destinatarios = dest.data || [];
+  bt.nomina = nom.data || [];
+
+  /* El logo se lee una vez: va incrustado en cada documento
+     para que no se rompa al enviarlo por correo. */
+  if (!bt.logo) bt.logo = await logoEnBase64();
 
   await cargarDetalle();
 }
@@ -272,6 +292,14 @@ function abrirRevision(r) {
   ['bt_fecha_revision', 'bt_revisado_por', 'bt_recibido_por', 'bt_observacion']
     .forEach((id) => { document.getElementById(id).disabled = !editable; });
 
+  const $dest = document.getElementById('bt-btn-destinatario');
+  if ($dest) {
+    $dest.hidden = !puedeEscribir();
+    $dest.textContent = r.sin_destinatario
+      ? 'Destinatario: firma en blanco'
+      : 'Destinatario: ' + (r.destinatario || 'sin definir');
+  }
+
   document.getElementById('bt-btn-guardar').hidden = !editable;
   document.getElementById('bt-btn-completar').hidden = !editable;
   document.getElementById('bt-btn-cerrar-revision').hidden = !editable;
@@ -311,6 +339,17 @@ function pintarDetalle() {
                data-campo="repuesto" value="${num(l.repuesto)}"
                ${editable ? '' : 'disabled'}>
       </td>
+      <td>
+        <select class="entrada bt-motivo" data-campo="motivo"
+                ${editable ? '' : 'disabled'}>
+          <option value="">—</option>
+          ${bt.motivos.map((m) => `
+            <option value="${m.id}" ${m.id === l.motivo_id ? 'selected' : ''}>
+              ${escapar(m.nombre)}
+            </option>`).join('')}
+          <option value="__nuevo">+ Otro motivo…</option>
+        </select>
+      </td>
     `;
 
     /* El faltante se recalcula al teclear: quien revisa ve el
@@ -318,8 +357,51 @@ function pintarDetalle() {
     const $enc = fila.querySelector('[data-campo="encontrado"]');
     $enc.addEventListener('input', () => recalcularFila(fila, l));
 
+    /* Un motivo nuevo se escribe una vez y queda en el
+       catálogo para la siguiente revisión. */
+    const $mot = fila.querySelector('[data-campo="motivo"]');
+    $mot.addEventListener('change', () => {
+      if ($mot.value === '__nuevo') anadirMotivo($mot);
+    });
+
     $c.appendChild(fila);
   });
+}
+
+async function anadirMotivo($select) {
+  const texto = (prompt('Nuevo motivo de reposición:') || '').trim();
+  $select.value = '';
+
+  if (!texto) return;
+
+  const { data, error } = await supabase
+    .from('botiquin_motivos')
+    .insert({ nombre: texto, estandar: false, orden: 90 })
+    .select('*')
+    .maybeSingle();
+
+  /* Si ya existía, se recupera en lugar de fallar */
+  let motivo = data;
+  if (error) {
+    if (error.code !== '23505') return alertaRevision(traducir(error));
+    const { data: existente } = await supabase
+      .from('botiquin_motivos').select('*').eq('nombre', texto).maybeSingle();
+    motivo = existente;
+  }
+  if (!motivo) return;
+
+  if (!bt.motivos.some((m) => m.id === motivo.id)) bt.motivos.push(motivo);
+
+  /* Se añade a todos los desplegables abiertos, no solo al
+     que lo originó: es catálogo, no dato de una fila. */
+  document.querySelectorAll('#bt-r-detalle [data-campo="motivo"]').forEach(($s) => {
+    const o = document.createElement('option');
+    o.value = motivo.id;
+    o.textContent = motivo.nombre;
+    $s.insertBefore(o, $s.querySelector('[value="__nuevo"]'));
+  });
+
+  $select.value = motivo.id;
 }
 
 function recalcularFila(fila, linea) {
@@ -349,7 +431,11 @@ async function guardarRevision(cerrar) {
     revision_id: r.id,
     insumo_id: f.dataset.insumo,
     encontrado: Number(f.querySelector('[data-campo="encontrado"]').value || 0),
-    repuesto: Number(f.querySelector('[data-campo="repuesto"]').value || 0)
+    repuesto: Number(f.querySelector('[data-campo="repuesto"]').value || 0),
+    motivo_id: (() => {
+      const v = f.querySelector('[data-campo="motivo"]').value;
+      return v && v !== '__nuevo' ? v : null;
+    })()
   }));
 
   if (detalle.some((d) => d.encontrado < 0 || d.repuesto < 0)) {
@@ -361,6 +447,15 @@ async function guardarRevision(cerrar) {
     const revisadoPor = document.getElementById('bt_revisado_por').value.trim();
     if (!revisadoPor) {
       return alertaRevision('Indique quién realizó la revisión antes de cerrarla');
+    }
+
+    /* Reponer sin decir por qué deja el informe sin explicar
+       lo que un auditor va a preguntar primero. */
+    const sinMotivo = detalle.filter((d) => d.repuesto > 0 && !d.motivo_id);
+    if (sinMotivo.length > 0) {
+      return alertaRevision(
+        `Indique el motivo de reposición en ${sinMotivo.length} `
+        + `${sinMotivo.length === 1 ? 'insumo' : 'insumos'} antes de cerrar.`);
     }
   }
 
@@ -413,259 +508,365 @@ async function reabrirRevision() {
 }
 
 /* ============================================
-   Informe mensual
-   Un solo documento con todos los botiquines.
+   Documentos
+   Se descargan en formato Word: los informes llevan
+   evidencia fotográfica y las fotos salen del celular de
+   quien inspecciona. Se abre el archivo, se pega la foto en
+   su recuadro y se imprime.
    ============================================ */
 
-function cabecera(titulo, subtitulo, codigo) {
-  return `
-    <header class="bt-cabecera">
-      <img src="logo.png" class="bt-logo" alt="">
-      <div class="bt-identidad">
-        <span class="bt-empresa">${escapar(bt.empresaNombre || 'Empresa')}</span>
-        <span class="bt-unidad">Departamento de Seguridad y Salud Ocupacional</span>
-      </div>
-      <div class="bt-control">
-        <span><b>Anexo 1</b> · ${escapar(codigo)}</span>
-        <span>${new Date().toLocaleDateString('es-EC')}</span>
-      </div>
-    </header>
-
-    <div class="bt-titulo-banda">
-      <h1 class="bt-titulo">${escapar(titulo)}</h1>
-      ${subtitulo ? `<p class="bt-subtitulo">${escapar(subtitulo)}</p>` : ''}
-    </div>`;
+/** El "DE:" sale de quien tiene la sesión abierta */
+function firmante() {
+  const p = bt.perfil || {};
+  const nombre = [p.nombres, p.apellidos].filter(Boolean).join(' ');
+  return {
+    nombre: [p.titulo, nombre].filter(Boolean).join(' ') || nombre || '—',
+    cargo: p.cargo || ''
+  };
 }
 
-function firmas(izq, der) {
-  return `
-    <div class="bt-firmas" data-firmas>
-      <div class="bt-firma">
-        <div class="bt-linea"></div>
-        <p class="bt-firma-cargo">${escapar(izq)}</p>
-        <p class="bt-firma-nota">Nombre, firma y cédula</p>
-      </div>
-      <div class="bt-firma">
-        <div class="bt-linea"></div>
-        <p class="bt-firma-cargo">${escapar(der)}</p>
-        <p class="bt-firma-nota">Nombre, firma y cédula</p>
-      </div>
-    </div>`;
+function fechaLarga() {
+  return new Date().toLocaleDateString('es-EC',
+    { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
-const NOTA_LEGAL = `
-  <p class="bt-nota-legal">
-    Documento elaborado conforme al Art. 430 del Código del Trabajo y al Anexo 3
-    del A.M. MDT-2024-196, requisito SP-01 del Anexo 1. El faltante corresponde
-    al consumo del periodo, calculado sobre la dotación establecida para cada
-    botiquín.
-  </p>`;
+/* Tabla de insumos de un botiquín. En el informe se muestra
+   todo con su motivo; en el acta, la dotación que se entrega. */
+function tablaInsumos(lineas, modo) {
+  const informe = modo === 'informe';
 
-function imprimirInforme() {
+  const encabezado = informe
+    ? `<th style="width:6%">N°</th>
+       <th style="width:31%">Detalle</th>
+       <th style="width:11%">Dotación</th>
+       <th style="width:12%">Encontrado</th>
+       <th style="width:11%">Repone</th>
+       <th style="width:29%">Motivo</th>`
+    : `<th style="width:8%">N°</th>
+       <th style="width:62%">Detalle</th>
+       <th style="width:30%">Cantidad</th>`;
+
+  const celda = 'border:0.75pt solid #333;padding:3pt 5pt;font-size:10pt;';
+  const centro = celda + 'text-align:center;';
+
+  const filas = lineas.map((l, i) => {
+    const nombre = escaparTexto(l.insumo)
+      + (l.presentacion ? ' · ' + escaparTexto(l.presentacion) : '');
+
+    return informe
+      ? `<tr>
+           <td style="${centro}">${i + 1}</td>
+           <td style="${celda}">${nombre}</td>
+           <td style="${centro}">${num(l.dotacion)}</td>
+           <td style="${centro}">${num(l.encontrado)}</td>
+           <td style="${centro}">${num(l.repuesto)}</td>
+           <td style="${celda}">${escaparTexto(l.motivo || '—')}</td>
+         </tr>`
+      : `<tr>
+           <td style="${centro}">${i + 1}</td>
+           <td style="${celda}">${nombre}</td>
+           <td style="${centro}">${num(l.dotacion)} ${escaparTexto(l.unidad)}</td>
+         </tr>`;
+  }).join('');
+
+  return `
+    <table style="width:100%;margin-bottom:8pt;">
+      <tr style="background:#e6f0e6;">
+        ${encabezado.replace(/<th /g,
+          `<th style="${celda}background:#e6f0e6;text-align:left;font-size:9.5pt;" `)
+          .replace(/style="width:(\d+)%"/g, 'width="$1%"')}
+      </tr>
+      ${filas}
+    </table>`;
+}
+
+/**
+ * Informe mensual de inspección.
+ * Un solo documento: una sección por botiquín con su tabla y
+ * su recuadro de evidencia, más la carátula dirigida a
+ * gerencia con los sitios inspeccionados.
+ */
+async function generarInforme() {
   if (bt.revisiones.length === 0) return;
 
-  /* Agrupado por departamento: así se recorre en campo y así
-     se lee después. */
-  const departamentos = [];
-  bt.revisiones.forEach((r) => {
-    let d = departamentos.find((x) => x.nombre === r.departamento);
-    if (!d) { d = { nombre: r.departamento, revisiones: [] }; departamentos.push(d); }
-    d.revisiones.push(r);
-  });
+  const de = firmante();
+  const principal = bt.destinatarios.find((d) => d.tipo === 'principal');
+  const copias = bt.destinatarios.filter((d) => d.tipo === 'copia');
 
-  const totalFaltante = bt.revisiones.reduce((s, r) => s + Number(r.total_faltante || 0), 0);
-  const totalRepuesto = bt.revisiones.reduce((s, r) => s + Number(r.total_repuesto || 0), 0);
+  const celda = 'border:0.75pt solid #333;padding:3pt 5pt;font-size:10pt;';
+  const centro = celda + 'text-align:center;';
 
-  /* Consolidado de insumos: lo que hay que pedir a farmacia */
-  const consolidado = new Map();
-  bt.revisiones.forEach((r) => {
-    (bt.detalle[r.id] || []).forEach((l) => {
-      if (Number(l.faltante) === 0 && Number(l.repuesto) === 0) return;
-      const clave = l.insumo + '|' + (l.presentacion || '');
-      const x = consolidado.get(clave)
-        || { insumo: l.insumo, presentacion: l.presentacion, unidad: l.unidad, falta: 0, rep: 0 };
-      x.falta += Number(l.faltante);
-      x.rep += Number(l.repuesto);
-      consolidado.set(clave, x);
-    });
-  });
+  /* Carátula: a quién va y qué sitios se recorrieron */
+  const sitios = bt.revisiones.map((r, i) => `
+    <tr>
+      <td style="${centro}">${i + 1}</td>
+      <td style="${celda}">${escaparTexto(r.botiquin)}</td>
+      <td style="${celda}">${escaparTexto(
+        r.sin_destinatario ? 'Guardia de turno' : (r.destinatario || '—'))}</td>
+      <td style="${celda}">${escaparTexto(
+        Number(r.total_repuesto) > 0 ? 'Inspección, limpieza y reposición'
+                                     : 'Inspección y limpieza')}</td>
+    </tr>`).join('');
 
-  const secciones = departamentos.map((d) => `
-    <section class="bt-departamento">
-      <h2 class="bt-seccion">${escapar(d.nombre)}
-        <span class="bt-seccion-cuenta">${d.revisiones.length}
-          ${d.revisiones.length === 1 ? 'botiquín' : 'botiquines'}</span>
-      </h2>
+  const caratula = `
+    ${membreteWord(bt.empresaNombre, bt.logo)}
 
-      ${d.revisiones.map((r) => {
-        const lineas = (bt.detalle[r.id] || []).filter(
-          (l) => Number(l.faltante) > 0 || Number(l.repuesto) > 0);
+    ${encabezadoMemo([
+      { etiqueta: 'DE:',    valor: de.nombre, detalle: de.cargo },
+      principal ? { etiqueta: 'PARA:', valor: principal.nombre, detalle: principal.cargo } : null,
+      ...copias.map((c) => ({ etiqueta: 'C.C.:', valor: c.nombre, detalle: c.cargo })),
+      { etiqueta: 'FECHA:',  valor: nombreMes(bt.periodo).toUpperCase() },
+      { etiqueta: 'ASUNTO:', valor: 'INSPECCIÓN MENSUAL DE BOTIQUINES' }
+    ])}
 
-        return `
-          <h3 class="bt-sub">${escapar(r.area || r.departamento)}
-            <span class="bt-sub-meta">Revisado el ${
-              r.fecha_revision ? formatearFecha(r.fecha_revision) : '—'
-            }${r.revisado_por ? ' por ' + escapar(r.revisado_por) : ''}</span>
-          </h3>
-          ${lineas.length === 0
-            ? '<p class="bt-completo">Botiquín completo. No se registró consumo en el periodo.</p>'
-            : `<table class="bt-tabla">
-                 <thead>
-                   <tr>
-                     <th style="width:40%">Insumo</th>
-                     <th style="width:15%">Dotación</th>
-                     <th style="width:15%">Encontrado</th>
-                     <th style="width:15%">Consumido</th>
-                     <th style="width:15%">Repuesto</th>
-                   </tr>
-                 </thead>
-                 <tbody>
-                   ${lineas.map((l) => `
-                     <tr>
-                       <td>${escapar(l.insumo)}${l.presentacion
-                         ? ' · ' + escapar(l.presentacion) : ''}</td>
-                       <td class="bt-num-c">${num(l.dotacion)}</td>
-                       <td class="bt-num-c">${num(l.encontrado)}</td>
-                       <td class="bt-num-c">${num(l.faltante)}</td>
-                       <td class="bt-num-c">${num(l.repuesto)}</td>
-                     </tr>`).join('')}
-                 </tbody>
-               </table>`}
-          ${r.observacion
-            ? `<p class="bt-obs">Observación: ${escapar(r.observacion)}</p>` : ''}
-        `;
-      }).join('')}
-    </section>`).join('');
+    <p style="text-align:justify;margin:8pt 0;">
+      Mediante el presente informe damos a conocer el estado y funcionamiento de
+      los botiquines implementados en los distintos puntos de la empresa, los
+      cuales facilitan al personal la rápida aplicación de primeros auxilios,
+      vendajes compresivos y lavado de heridas, para su correcta movilización
+      hacia la unidad médica.
+    </p>
 
-  const html = `
-    <div class="bt-hoja">
-      ${cabecera(
-        'Informe mensual de revisión y reposición de botiquines',
-        nombreMes(bt.periodo), 'SP-01')}
+    <p style="margin:6pt 0 4pt;">A continuación, detallo los sitios inspeccionados:</p>
 
-      <table class="bt-resumen">
-        <thead>
-          <tr><th>Concepto</th><th>Cantidad</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>Botiquines revisados</td><td class="bt-num-c">${bt.revisiones.length}</td></tr>
-          <tr><td>Unidades consumidas en el periodo</td><td class="bt-num-c">${num(totalFaltante)}</td></tr>
-          <tr><td>Unidades repuestas</td><td class="bt-num-c">${num(totalRepuesto)}</td></tr>
-        </tbody>
-      </table>
+    <table style="width:100%;margin-bottom:8pt;">
+      <tr style="background:#e6f0e6;">
+        <td style="${celda}background:#e6f0e6;font-weight:bold;" width="6%">N°</td>
+        <td style="${celda}background:#e6f0e6;font-weight:bold;" width="34%">UBICACIÓN</td>
+        <td style="${celda}background:#e6f0e6;font-weight:bold;" width="32%">RESPONSABLE DEL ÁREA</td>
+        <td style="${celda}background:#e6f0e6;font-weight:bold;" width="28%">OBSERVACIÓN</td>
+      </tr>
+      ${sitios}
+    </table>
 
-      ${consolidado.size > 0 ? `
-        <h2 class="bt-seccion">Consolidado de reposición</h2>
-        <table class="bt-tabla">
-          <thead>
-            <tr>
-              <th style="width:50%">Insumo</th>
-              <th style="width:16%">Unidad</th>
-              <th style="width:17%">Consumido</th>
-              <th style="width:17%">Repuesto</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${[...consolidado.values()].map((x) => `
-              <tr>
-                <td>${escapar(x.insumo)}${x.presentacion
-                  ? ' · ' + escapar(x.presentacion) : ''}</td>
-                <td>${escapar(x.unidad)}</td>
-                <td class="bt-num-c">${num(x.falta)}</td>
-                <td class="bt-num-c">${num(x.rep)}</td>
-              </tr>`).join('')}
-          </tbody>
-        </table>` : ''}
+    ${bloqueFirmas([{
+      rotulo: 'Responsable de la inspección',
+      nombre: de.nombre,
+      detalle: de.cargo
+    }])}`;
 
-      ${secciones}
-      ${NOTA_LEGAL}
-      ${firmas('Responsable de Salud Ocupacional', 'Técnico de Seguridad e Higiene')}
-    </div>`;
-
-  lanzar(html, 'Informe de botiquines · ' + nombreMes(bt.periodo));
-}
-
-/* ============================================
-   Actas de entrega
-   Una por botiquín, cada una en su hoja.
-   ============================================ */
-
-function imprimirActas() {
-  const conEntrega = bt.revisiones.filter(
-    (r) => (bt.detalle[r.id] || []).some((l) => Number(l.repuesto) > 0));
-
-  if (conEntrega.length === 0) {
-    alert('Ningún botiquín tiene reposición registrada en este periodo.');
-    return;
-  }
-
-  const hojas = conEntrega.map((r, i) => {
-    const lineas = (bt.detalle[r.id] || []).filter((l) => Number(l.repuesto) > 0);
+  /* Una sección por botiquín */
+  const secciones = bt.revisiones.map((r) => {
+    const lineas = bt.detalle[r.id] || [];
+    const repuestas = lineas.filter((l) => Number(l.repuesto) > 0);
 
     return `
-      <div class="bt-hoja${i > 0 ? ' bt-hoja-nueva' : ''}">
-        ${cabecera('Acta de entrega de insumos de botiquín',
-                   `${r.botiquin} · ${nombreMes(bt.periodo)}`, 'SP-01')}
+      <div class="salto">
+        ${membreteWord(bt.empresaNombre, bt.logo)}
 
-        <table class="bt-datos">
-          <tr>
-            <th>Departamento</th><td>${escapar(r.departamento)}</td>
-            <th>Área</th><td>${escapar(r.area || '—')}</td>
-          </tr>
-          <tr>
-            <th>Periodo</th><td>${nombreMes(bt.periodo)}</td>
-            <th>Fecha de entrega</th>
-            <td>${formatearFecha(r.fecha_entrega || r.fecha_revision || HOY())}</td>
-          </tr>
-          ${r.responsable
-            ? `<tr><th>Responsable del botiquín</th><td colspan="3">${escapar(r.responsable)}</td></tr>`
-            : ''}
-        </table>
+        ${encabezadoMemo([
+          { etiqueta: 'DE:',    valor: de.nombre, detalle: de.cargo },
+          { etiqueta: 'FECHA:', valor: nombreMes(bt.periodo).toUpperCase() },
+          { etiqueta: 'ASUNTO:',
+            valor: 'INSPECCIÓN MENSUAL DE BOTIQUÍN · ' + r.botiquin.toUpperCase() },
+          { etiqueta: 'OBJETIVO:',
+            valor: r.objetivo || 'Verificar que los medicamentos e insumos no se '
+                 + 'encuentren contaminados o vencidos y disponer de los elementos '
+                 + 'necesarios para tratar pequeñas heridas y dolencias leves.' }
+        ])}
 
-        <p class="bt-parrafo">
-          En la fecha señalada se hace entrega de los insumos que se detallan a
-          continuación, destinados a reponer la dotación del botiquín de primeros
-          auxilios indicado. Quien recibe declara haberlos recibido conformes en
-          cantidad y estado.
+        <p style="text-align:justify;margin:8pt 0;">
+          Se detalla a continuación el estado de la dotación del botiquín ubicado
+          ${escaparTexto(r.ubicacion_texto || r.botiquin)}, con la cantidad
+          encontrada durante la inspección y la reposición efectuada, indicando
+          el motivo en cada caso.
         </p>
 
-        <table class="bt-tabla">
-          <thead>
-            <tr>
-              <th style="width:8%">#</th>
-              <th style="width:52%">Insumo</th>
-              <th style="width:20%">Unidad</th>
-              <th style="width:20%">Cantidad</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${lineas.map((l, n) => `
-              <tr>
-                <td class="bt-num-c">${n + 1}</td>
-                <td>${escapar(l.insumo)}${l.presentacion
-                  ? ' · ' + escapar(l.presentacion) : ''}</td>
-                <td>${escapar(l.unidad)}</td>
-                <td class="bt-num-c">${num(l.repuesto)}</td>
-              </tr>`).join('')}
-          </tbody>
-        </table>
+        ${tablaInsumos(lineas, 'informe')}
+
+        ${repuestas.length === 0
+          ? '<p style="font-style:italic;font-size:10pt;">El botiquín se encontró '
+            + 'completo. No fue necesaria reposición en el periodo.</p>'
+          : ''}
 
         ${r.observacion
-          ? `<p class="bt-obs">Observación: ${escapar(r.observacion)}</p>` : ''}
+          ? `<p style="font-size:10pt;margin:4pt 0;"><b>Observación:</b> ${
+              escaparTexto(r.observacion)}</p>` : ''}
 
-        ${firmas(r.revisado_por || 'Entregado por',
-                 r.recibido_por || 'Recibido por')}
+        <p style="font-weight:bold;margin:12pt 0 4pt;font-size:11pt;">
+          EVIDENCIA FOTOGRÁFICA
+        </p>
+        ${recuadroFoto('BOTIQUÍN ' + r.botiquin.toUpperCase(), 80)}
+
+        ${bloqueFirmas([{
+          rotulo: 'Responsable de la inspección',
+          nombre: de.nombre,
+          detalle: de.cargo
+        }], 30)}
       </div>`;
   }).join('');
 
-  lanzar(hojas, 'Actas de entrega · ' + nombreMes(bt.periodo));
+  const html = envolverWord(caratula + secciones,
+    'Informe de inspección de botiquines · ' + nombreMes(bt.periodo));
+
+  descargarWord(html, `Informe botiquines ${bt.periodo}`);
 }
 
-function lanzar(html, titulo) {
-  const $z = document.getElementById('bt-impresion');
-  if (!$z) return;
-  $z.innerHTML = html;
-  imprimirHoja('bt-impresion', 'imprimiendo-botiquines', titulo);
+/**
+ * Actas de entrega.
+ * Una por botiquín, cada una en su hoja, porque cada
+ * responsable firma la suya. Se entrega la dotación completa,
+ * que es como se venía haciendo.
+ */
+async function generarActas() {
+  if (bt.revisiones.length === 0) return;
+
+  const de = firmante();
+
+  const hojas = bt.revisiones.map((r, i) => {
+    const lineas = bt.detalle[r.id] || [];
+
+    /* Área 7 la recibe el guardia de turno, que cambia cada
+       día: la línea va en blanco para que firme quien esté. */
+    const recibe = r.sin_destinatario
+      ? { rotulo: 'Recibido por:', nombre: '', detalle: 'Nombre, firma y cédula' }
+      : { rotulo: 'Recibido por:', nombre: r.destinatario || '',
+          detalle: r.destinatario_cargo || '' };
+
+    return `
+      <div${i > 0 ? ' class="salto"' : ''}>
+        ${membreteWord(bt.empresaNombre, bt.logo)}
+
+        ${encabezadoMemo([
+          { etiqueta: 'DE:', valor: de.nombre, detalle: de.cargo },
+          r.sin_destinatario
+            ? null
+            : { etiqueta: 'PARA:', valor: r.destinatario || '—',
+                detalle: r.destinatario_cargo || '' },
+          { etiqueta: 'FECHA:',
+            valor: (r.fecha_entrega || r.fecha_revision
+              ? formatearFecha(r.fecha_entrega || r.fecha_revision)
+              : fechaLarga()).toUpperCase() },
+          { etiqueta: 'ASUNTO:',
+            valor: 'ENTREGA DE MEDICAMENTOS E INSUMOS MÉDICOS PARA BOTIQUÍN DE SU ÁREA' },
+          { etiqueta: 'OBJETIVO:',
+            valor: r.objetivo || 'Disponer de los elementos necesarios para tratar '
+                 + 'pequeñas heridas, dolencias leves y de uso inmediato.' }
+        ])}
+
+        <p style="text-align:justify;margin:8pt 0;">
+          Mediante este informe detallo la entrega de medicamentos e insumos
+          básicos que son indispensables para el botiquín ubicado
+          ${escaparTexto(r.ubicacion_texto || r.botiquin)}.
+        </p>
+
+        <p style="margin:6pt 0 4pt;">A continuación, detallamos la distribución:</p>
+
+        <p style="text-align:center;font-weight:bold;font-size:10.5pt;margin:4pt 0;">
+          ENTREGA DE MEDICAMENTOS E INSUMOS
+        </p>
+
+        ${tablaInsumos(lineas, 'acta')}
+
+        ${bloqueFirmas([
+          { rotulo: 'Elaborado por:', nombre: de.nombre, detalle: de.cargo },
+          recibe
+        ])}
+      </div>`;
+  }).join('');
+
+  const html = envolverWord(hojas, 'Actas de entrega · ' + nombreMes(bt.periodo));
+  descargarWord(html, `Actas entrega botiquines ${bt.periodo}`);
+}
+
+/* ============================================
+   Destinatario del botiquín
+   Persiste entre meses: se escribe una vez y se arrastra
+   hacia adelante hasta que alguien lo cambie.
+   ============================================ */
+
+function abrirDestinatario() {
+  const r = bt.actual;
+  if (!r) return;
+
+  document.getElementById('bt-d-botiquin').textContent = r.botiquin;
+  document.getElementById('bt_dest_nombre').value = r.destinatario || '';
+  document.getElementById('bt_dest_cargo').value = r.destinatario_cargo || '';
+  document.getElementById('bt_dest_blanco').checked = Boolean(r.sin_destinatario);
+  document.getElementById('bt_dest_buscar').value = '';
+  document.getElementById('bt_dest_sugerencias').hidden = true;
+
+  alternarDestinatario();
+  document.getElementById('bt-alerta-destinatario').hidden = true;
+  document.getElementById('bt-modal-destinatario').hidden = false;
+}
+
+function alternarDestinatario() {
+  const blanco = document.getElementById('bt_dest_blanco').checked;
+  document.getElementById('bt-bloque-destinatario').hidden = blanco;
+}
+
+function buscarDestinatario() {
+  const texto = document.getElementById('bt_dest_buscar').value.trim().toLowerCase();
+  const $s = document.getElementById('bt_dest_sugerencias');
+
+  if (texto.length < 2) { $s.hidden = true; return; }
+
+  const hallados = bt.nomina.filter((t) => {
+    const campo = `${t.codigo} ${t.cedula ?? ''} ${t.nombre_completo}`.toLowerCase();
+    return campo.includes(texto);
+  }).slice(0, 10);
+
+  if (hallados.length === 0) {
+    $s.innerHTML = '<p class="bt-sug-vacia">Sin coincidencias en la nómina</p>';
+    $s.hidden = false;
+    return;
+  }
+
+  $s.innerHTML = '';
+  hallados.forEach((t) => {
+    const b = document.createElement('button');
+    b.className = 'bt-sugerencia';
+    b.type = 'button';
+    b.innerHTML = `<span class="codigo">${t.codigo ?? '—'}</span>
+                   <span>${escapar(t.nombre_completo)}</span>`;
+    b.addEventListener('click', () => {
+      document.getElementById('bt_dest_nombre').value = t.nombre_completo;
+      document.getElementById('bt_dest_buscar').value = '';
+      $s.hidden = true;
+    });
+    $s.appendChild(b);
+  });
+  $s.hidden = false;
+}
+
+async function guardarDestinatario() {
+  const r = bt.actual;
+  if (!r) return;
+
+  const blanco = document.getElementById('bt_dest_blanco').checked;
+  const nombre = document.getElementById('bt_dest_nombre').value.trim();
+
+  if (!blanco && !nombre) {
+    return alertaDestinatario('Indique el destinatario o marque la firma en blanco');
+  }
+
+  const $btn = document.getElementById('bt-btn-guardar-destinatario');
+  $btn.disabled = true;
+
+  const { error } = await supabase
+    .from('botiquines')
+    .update({
+      destinatario: blanco ? null : nombre,
+      destinatario_cargo: blanco
+        ? null : (document.getElementById('bt_dest_cargo').value.trim() || null),
+      sin_destinatario: blanco
+    })
+    .eq('id', r.botiquin_id);
+
+  $btn.disabled = false;
+  if (error) return alertaDestinatario(traducir(error));
+
+  document.getElementById('bt-modal-destinatario').hidden = true;
+  document.getElementById('bt-modal-revision').hidden = true;
+  await refrescar();
+}
+
+function alertaDestinatario(texto) {
+  const $a = document.getElementById('bt-alerta-destinatario');
+  if (!$a) return;
+  $a.textContent = texto;
+  $a.hidden = false;
 }
 
 /* ============================================
@@ -707,8 +908,13 @@ function enBt(id, evento, fn) {
 function conectar() {
   enBt('bt-periodo', 'change', refrescar);
   enBt('bt-btn-abrir', 'click', abrirMes);
-  enBt('bt-btn-informe', 'click', imprimirInforme);
-  enBt('bt-btn-actas', 'click', imprimirActas);
+  enBt('bt-btn-informe', 'click', generarInforme);
+  enBt('bt-btn-actas', 'click', generarActas);
+
+  enBt('bt-btn-destinatario', 'click', abrirDestinatario);
+  enBt('bt-btn-guardar-destinatario', 'click', guardarDestinatario);
+  enBt('bt_dest_buscar', 'input', buscarDestinatario);
+  enBt('bt_dest_blanco', 'change', alternarDestinatario);
 
   enBt('bt-btn-guardar', 'click', () => guardarRevision(false));
   enBt('bt-btn-cerrar-revision', 'click', () => guardarRevision(true));
@@ -716,9 +922,10 @@ function conectar() {
   enBt('bt-btn-reabrir', 'click', reabrirRevision);
 
   document.querySelectorAll('[data-cierra]').forEach((b) => {
-    if (b.dataset.cierra !== 'bt-modal-revision') return;
+    const destino = b.dataset.cierra;
+    if (!['bt-modal-revision', 'bt-modal-destinatario'].includes(destino)) return;
     b.addEventListener('click', () => {
-      document.getElementById('bt-modal-revision').hidden = true;
+      document.getElementById(destino).hidden = true;
     });
   });
 }

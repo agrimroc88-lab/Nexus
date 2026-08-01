@@ -97,11 +97,28 @@ async function iniciar() {
  * Un ámbito no declara el cumplimiento del otro.
  * Espeja la política RLS de la base.
  */
+/* Reunir los respaldos del Anexo 1 no es tarea de una sola
+   persona: enfermería recorre botiquines y capacitaciones,
+   psicología levanta lo de riesgo psicosocial, ergonomía sus
+   informes. Reservarlo al médico convertía a uno en cuello de
+   botella de noventa y seis requisitos.
+
+   Se conserva la separación por ámbito: nadie declara cumplido
+   lo que no le consta. Debe coincidir con
+   puede_escribir_ambito() de la base; si divergen, la pantalla
+   ofrece botones que el servidor rechaza. */
+const ESCRIBEN_SALUD = [
+  ROLES.MEDICO, ROLES.ENFERMERIA, ROLES.PSICOLOGO,
+  ROLES.TRABAJO_SOCIAL, ROLES.PSICO_SOCIAL, ROLES.ERGONOMO
+];
+
+const ESCRIBEN_SEGURIDAD = [ROLES.TECNICO, ROLES.ERGONOMO];
+
 function puedeEscribir() {
   const r = estado.perfil.rol;
   if (r === ROLES.ADMIN) return true;
-  if (AMBITO === 'salud') return r === ROLES.MEDICO;
-  if (AMBITO === 'seguridad') return r === ROLES.TECNICO;
+  if (AMBITO === 'salud') return ESCRIBEN_SALUD.includes(r);
+  if (AMBITO === 'seguridad') return ESCRIBEN_SEGURIDAD.includes(r);
   return false;
 }
 

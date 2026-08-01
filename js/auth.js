@@ -99,7 +99,7 @@ export async function iniciarSesion(cedula, clave) {
 
   const { data, error } = await supabase
     .from('usuarios_app')
-    .select('id, cedula, nombres, apellidos, rol, activo')
+    .select('id, cedula, nombres, apellidos, rol, activo, registro_msp, titulo, cargo')
     .eq('cedula', ced)
     .eq('pass', clave)
     .maybeSingle();
@@ -145,7 +145,7 @@ export async function protegerPagina(rolesPermitidos = []) {
   // Revalidar contra la base: si lo desactivaron, sacarlo.
   const { data } = await supabase
     .from('usuarios_app')
-    .select('id, cedula, nombres, apellidos, rol, activo')
+    .select('id, cedula, nombres, apellidos, rol, activo, registro_msp, titulo, cargo')
     .eq('id', perfil.id)
     .maybeSingle();
 
