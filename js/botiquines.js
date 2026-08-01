@@ -19,14 +19,14 @@
        entrega y quien recibe.
    ============================================ */
 
-import { supabase } from './supabase.js?v=8';
-import { ROLES } from './auth.js?v=8';
-import { escapar, formatearFecha } from './utils.js?v=8';
+import { supabase } from './supabase.js?v=9';
+import { ROLES } from './auth.js?v=9';
+import { escapar, formatearFecha } from './utils.js?v=9';
 import { envolverWord, descargarWord, recuadroFoto, bloqueFirmas,
          membreteWord, bandaTitulo, tablaWord,
          listaDocumento, seccionDocumento, logoEnBase64,
-         encabezadoMemo, escaparTexto }
-  from './documento.js?v=8';
+         encabezadoMemo, escaparTexto, fijarEscala }
+  from './documento.js?v=9';
 
 const bt = {
   perfil: null,
@@ -697,6 +697,8 @@ const CRITERIOS_TECNICOS = [
 async function generarInforme() {
   if (bt.revisiones.length === 0) return;
 
+  fijarEscala(ESCALA_INFORME);
+
   const de = firmante();
   const principal = bt.destinatarios.find((d) => d.tipo === 'principal');
   const copias = bt.destinatarios.filter((d) => d.tipo === 'copia');
@@ -986,8 +988,16 @@ async function generarInforme() {
  *   imprimir: ahí lo calcula impresion.js según lo que quede
  *   de hoja.
  */
+/* El acta se lee de pie mientras se firma y le sobra hoja:
+   la letra crece un veinte por ciento. El informe conserva la
+   suya, que es lo que lo mantiene en ocho páginas. */
+const ESCALA_ACTA = 1.2;
+const ESCALA_INFORME = 1;
+
 function construirActas(espacioFirma, logo) {
   if (bt.revisiones.length === 0) return null;
+
+  fijarEscala(ESCALA_ACTA);
 
   const de = firmante();
 
@@ -1103,7 +1113,8 @@ function descargarActas() {
   const hojas = construirActas(50, bt.logo);
   if (!hojas) return;
 
-  const html = envolverWord(hojas, 'Actas de entrega · ' + nombreMes(bt.periodo));
+  const html = envolverWord(hojas, 'Actas de entrega · ' + nombreMes(bt.periodo),
+    { superior: 20, inferior: 20, izquierdo: 25, derecho: 20 });
   descargarWord(html, `Actas entrega botiquines ${bt.periodo}`);
 }
 

@@ -27,6 +27,26 @@ const MM = 2.83465;
    un HTML, y el documento saldría sin color. Los valores
    duplican los de css/documentos.css a propósito; si allí
    cambian, aquí también. */
+/* Escala tipográfica.
+   El acta y el informe tienen exigencias opuestas: una se lee
+   de pie mientras se firma y le sobra hoja; el otro debe caber
+   en ocho páginas. En lugar de mantener dos plantillas que
+   acabarían divergiendo, se multiplican los cuerpos de letra.
+
+   Se fija justo antes de construir cada documento; la
+   generación es síncrona, así que no hay riesgo de que dos
+   documentos se pisen. */
+let escala = 1;
+
+export function fijarEscala(n) {
+  escala = n && n > 0 ? n : 1;
+}
+
+/** Tamaño en puntos aplicando la escala vigente */
+function pt(n) {
+  return Math.round(n * escala * 10) / 10;
+}
+
 const PALETA = {
   verde:      '#1b5e20',
   verdeClaro: '#e6f0e6',
@@ -81,7 +101,7 @@ export function envolverWord(cuerpo, titulo, opciones = {}) {
     }
     body {
       font-family: 'Times New Roman', serif;
-      font-size: 10.5pt;
+      font-size: ${pt(10.5)}pt;
       color: #000;
       line-height: 1.2;
     }
@@ -102,7 +122,7 @@ export function envolverWord(cuerpo, titulo, opciones = {}) {
     p { margin: 3pt 0; mso-para-margin-top: 3.0pt; mso-para-margin-bottom: 3.0pt; }
 
     td, th {
-      font-size: 9.5pt;
+      font-size: ${pt(9.5)}pt;
       mso-line-height-rule: exactly;
     }
     table { border-collapse: collapse; }
@@ -206,12 +226,12 @@ export function bloqueFirmas(columnas, espacioMm = 50) {
                      padding:0 8pt;">
             <div style="border-top:1pt solid #000;padding-top:4pt;">
               ${c.rotulo
-                ? `<div style="font-size:10pt;">${escaparTexto(c.rotulo)}</div>` : ''}
+                ? `<div style="font-size:${pt(10)}pt;">${escaparTexto(c.rotulo)}</div>` : ''}
               ${c.nombre
-                ? `<div style="font-size:11pt;font-weight:bold;">${escaparTexto(c.nombre)}</div>`
-                : '<div style="font-size:11pt;">&nbsp;</div>'}
+                ? `<div style="font-size:${pt(11)}pt;font-weight:bold;">${escaparTexto(c.nombre)}</div>`
+                : `<div style="font-size:${pt(11)}pt;">&nbsp;</div>`}
               ${c.detalle
-                ? `<div style="font-size:9pt;">${escaparTexto(c.detalle)}</div>` : ''}
+                ? `<div style="font-size:${pt(9)}pt;">${escaparTexto(c.detalle)}</div>` : ''}
             </div>
           </td>`).join('')}
       </tr>
@@ -238,14 +258,14 @@ export function membreteWord(empresa, logo) {
     <table style="width:100%;margin-bottom:4pt;">
       <tr>
         ${logo
-          ? `<td style="width:44pt;vertical-align:middle;padding-right:8pt;">
-               <img src="${logo}" height="36" style="height:27pt;width:auto;">
+          ? `<td style="width:66pt;vertical-align:middle;padding-right:10pt;">
+               <img src="${logo}" height="76" style="height:57pt;width:auto;">
              </td>` : ''}
         <td style="vertical-align:middle;">
-          <div style="font-size:12.5pt;font-weight:bold;color:${PALETA.verde};">
+          <div style="font-size:${pt(12.5)}pt;font-weight:bold;color:${PALETA.verde};">
             ${escaparTexto(empresa || 'Empresa')}
           </div>
-          <div style="font-size:8.5pt;letter-spacing:0.5pt;color:#333;">
+          <div style="font-size:${pt(8.5)}pt;letter-spacing:0.5pt;color:#333;">
             DEPARTAMENTO DE SEGURIDAD Y SALUD OCUPACIONAL
           </div>
         </td>
@@ -268,8 +288,8 @@ export function membreteCompacto(empresa, logo, referencia) {
                   margin-bottom:8pt;padding-bottom:3pt;">
       <tr>
         ${logo
-          ? `<td style="width:30pt;vertical-align:middle;padding-right:6pt;">
-               <img src="${logo}" height="24" style="height:18pt;width:auto;">
+          ? `<td style="width:44pt;vertical-align:middle;padding-right:8pt;">
+               <img src="${logo}" height="49" style="height:37pt;width:auto;">
              </td>` : ''}
         <td style="vertical-align:middle;font-size:9.5pt;
                    font-weight:bold;color:${PALETA.verde};">
@@ -294,10 +314,10 @@ export function listaDocumento(elementos, numerada = false) {
       ${elementos.map((e, i) => `
         <tr>
           <td style="width:16pt;vertical-align:top;padding:1pt 0;
-                     font-size:9.5pt;${numerada ? 'font-weight:bold;' : ''}">
+                     font-size:${pt(9.5)}pt;${numerada ? 'font-weight:bold;' : ''}">
             ${numerada ? (i + 1) + '.' : '•'}
           </td>
-          <td style="vertical-align:top;padding:1pt 0;font-size:9.5pt;
+          <td style="vertical-align:top;padding:1pt 0;font-size:${pt(9.5)}pt;
                      text-align:justify;">
             ${typeof e === 'string' ? escaparTexto(e)
               : `<b>${escaparTexto(e.titulo)}</b>${
@@ -310,7 +330,7 @@ export function listaDocumento(elementos, numerada = false) {
 /** Título de sección con la línea verde característica */
 export function seccionDocumento(titulo) {
   return `
-    <p style="font-size:10.5pt;font-weight:bold;color:${PALETA.verde};
+    <p style="font-size:${pt(10.5)}pt;font-weight:bold;color:${PALETA.verde};
               border-bottom:0.75pt solid ${PALETA.verde};
               margin:8pt 0 3pt;padding-bottom:1pt;">
       ${escaparTexto(titulo)}
@@ -332,11 +352,11 @@ export function bandaTitulo(titulo, subtitulo) {
             style="background:${PALETA.verdeClaro};border-top:0.75pt solid ${PALETA.verde};
                    border-bottom:0.75pt solid ${PALETA.verde};
                    padding:4pt 6pt;text-align:center;">
-          <div style="font-size:11.5pt;font-weight:bold;letter-spacing:0.4pt;">
+          <div style="font-size:${pt(11.5)}pt;font-weight:bold;letter-spacing:0.4pt;">
             ${escaparTexto(titulo)}
           </div>
           ${subtitulo
-            ? `<div style="font-size:9.5pt;color:#333;padding-top:1pt;">${
+            ? `<div style="font-size:${pt(9.5)}pt;color:#333;padding-top:1pt;">${
                 escaparTexto(subtitulo)}</div>` : ''}
         </td>
       </tr>
@@ -353,11 +373,11 @@ export function tablaWord(columnas, filas) {
   /* Comillas invertidas: con comillas simples la expresión
      viajaría literal al documento y el navegador
      descartaría el borde por inválido. */
-  const borde = `border:0.75pt solid ${PALETA.borde};padding:2pt 4pt;font-size:9.5pt;`;
+  const borde = `border:0.75pt solid ${PALETA.borde};padding:${pt(2.5)}pt ${pt(4)}pt;font-size:${pt(9.5)}pt;`;
 
   const cabecera = columnas.map((c) => `
     <td bgcolor="${PALETA.verdeClaro}" width="${c.ancho}%"
-        style="${borde}background:${PALETA.verdeClaro};font-weight:bold;font-size:9pt;
+        style="${borde}background:${PALETA.verdeClaro};font-weight:bold;font-size:${pt(9)}pt;
                text-align:${c.centrado ? 'center' : 'left'};">
       ${escaparTexto(c.titulo)}
     </td>`).join('');
@@ -406,13 +426,13 @@ export function encabezadoMemo(campos) {
       ${campos.filter((c) => c).map((c) => `
         <tr>
           <td style="width:66pt;vertical-align:top;font-weight:bold;
-                     padding:1pt 0;font-size:10pt;">
+                     padding:${pt(1.5)}pt 0;font-size:${pt(10)}pt;">
             ${escaparTexto(c.etiqueta)}
           </td>
-          <td style="vertical-align:top;padding:1pt 0;font-size:10pt;">
+          <td style="vertical-align:top;padding:${pt(1.5)}pt 0;font-size:${pt(10)}pt;">
             ${escaparTexto(c.valor)}
             ${c.detalle
-              ? `<div style="font-size:9pt;">${escaparTexto(c.detalle)}</div>` : ''}
+              ? `<div style="font-size:${pt(9)}pt;">${escaparTexto(c.detalle)}</div>` : ''}
           </td>
         </tr>`).join('')}
     </table>`;
