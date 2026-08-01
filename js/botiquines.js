@@ -135,6 +135,24 @@ export async function cargarBotiquines(empresaId, empresaNombre) {
   bt.destinatarios = dest.data || [];
   bt.nomina = nom.data || [];
 
+  /* Quien firma la elaboración del informe es del departamento,
+     no de una empresa concreta. Si el registro quedó asociado a
+     otra empresa —el script de instalación siembra en la
+     primera que encuentra— la consulta anterior no lo trae y el
+     informe saldría firmado dos veces por la misma persona.
+     Se busca entonces sin filtrar por empresa. */
+  if (!bt.destinatarios.some((d) => d.tipo === 'elabora')) {
+    const { data } = await supabase
+      .from('botiquin_destinatarios')
+      .select('*')
+      .eq('tipo', 'elabora')
+      .eq('activo', true)
+      .order('orden')
+      .limit(1);
+
+    if (data && data.length > 0) bt.destinatarios.push(data[0]);
+  }
+
   /* El logo se lee una vez: va incrustado en cada documento
      para que no se rompa al enviarlo por correo. */
   if (!bt.logo) bt.logo = await logoEnBase64();
