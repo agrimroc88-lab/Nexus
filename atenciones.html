@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="css/trabajadores.css">
   <link rel="stylesheet" href="css/farmacia.css">
   <link rel="stylesheet" href="css/atenciones.css">
+  <link rel="stylesheet" href="css/emergencia.css">
 </head>
 <body class="app">
 
@@ -363,6 +364,9 @@
             <span class="alergias-nota">Se conserva en la ficha del trabajador</span>
           </div>
 
+          <!-- Condiciones y medicación: se ve antes de prescribir -->
+          <div class="panel-clinico" id="panel-clinico" hidden></div>
+
           <!-- Contexto clínico previo -->
           <div class="antecedente" id="antecedente" hidden></div>
         </div>
@@ -522,6 +526,167 @@
 
     </div>
   </div>
+
+
+  <!-- ============ Modal: Buscar ficha de emergencia ============ -->
+  <div class="modal" id="modal-buscar-emergencia" hidden>
+    <div class="modal-caja modal-estrecho" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo">Ficha de emergencia</h2>
+        <button class="modal-cerrar" data-cierra="modal-buscar-emergencia" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+        <div class="campo">
+          <label class="etiqueta" for="em_buscar">Buscar trabajador</label>
+          <input class="entrada" id="em_buscar" type="search"
+                 placeholder="Código, cédula o nombre" autocomplete="off">
+        </div>
+        <div class="em-resultados" id="em_resultados"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============ Modal: Ficha de emergencia ============ -->
+  <div class="modal" id="modal-emergencia" hidden>
+    <div class="modal-caja" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <div>
+          <h2 class="modal-titulo" id="em-nombre">—</h2>
+          <p class="em-datos" id="em-datos">—</p>
+        </div>
+        <button class="modal-cerrar" data-cierra="modal-emergencia" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+
+        <!-- Lo vital: se pregunta antes de tocar a nadie -->
+        <div class="em-vitales">
+          <div class="em-vital">
+            <span class="em-vital-etiqueta">Tipo de sangre</span>
+            <span class="em-vital-valor" id="em-sangre">—</span>
+          </div>
+          <div class="em-vital em-vital-ancho">
+            <span class="em-vital-etiqueta">Alergias</span>
+            <span class="em-vital-valor" id="em-alergias">—</span>
+          </div>
+        </div>
+
+        <div class="em-bloque">
+          <h3 class="subtitulo">Condiciones registradas</h3>
+          <div id="em-condiciones"></div>
+        </div>
+
+        <div class="em-bloque">
+          <div class="em-bloque-cabecera">
+            <h3 class="subtitulo">Medicación habitual</h3>
+            <button class="boton-secundario" id="em-btn-medicacion" type="button" hidden>
+              + Añadir medicación
+            </button>
+          </div>
+          <div id="em-medicacion"></div>
+          <details class="em-suspendidas" id="em-suspendidas" hidden></details>
+        </div>
+
+        <div class="em-bloque" id="em-bloque-indicaciones" hidden>
+          <h3 class="subtitulo">Indicaciones vigentes</h3>
+          <ul class="em-indicaciones" id="em-indicaciones"></ul>
+        </div>
+
+        <div class="em-bloque">
+          <h3 class="subtitulo">Contacto de emergencia</h3>
+          <div class="em-contacto" id="em-contacto"></div>
+          <p class="em-telefono-propio" id="em-telefono-propio" hidden></p>
+        </div>
+
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" data-cierra="modal-emergencia" type="button">Cerrar</button>
+        <button class="boton-primario" id="em-btn-imprimir-ficha" type="button">Imprimir ficha</button>
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- ============ Modal: Medicación habitual ============ -->
+  <div class="modal" id="modal-medicacion" hidden>
+    <div class="modal-caja modal-estrecho" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo" id="em-m-titulo">Añadir medicación habitual</h2>
+        <button class="modal-cerrar" data-cierra="modal-medicacion" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+        <div class="campo">
+          <label class="etiqueta" for="em_m_farmaco">Fármaco <span class="obligatorio">*</span></label>
+          <input class="entrada" id="em_m_farmaco" type="text"
+                 placeholder="Ej. Levotiroxina" autocomplete="off">
+        </div>
+
+        <div class="rejilla">
+          <div class="campo">
+            <label class="etiqueta" for="em_m_dosis">Dosis</label>
+            <input class="entrada" id="em_m_dosis" type="text" placeholder="50 mcg">
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="em_m_via">Vía</label>
+            <input class="entrada" id="em_m_via" type="text" placeholder="Oral">
+          </div>
+        </div>
+
+        <div class="campo">
+          <label class="etiqueta" for="em_m_frecuencia">Frecuencia</label>
+          <input class="entrada" id="em_m_frecuencia" type="text"
+                 placeholder="1 vez al día, en ayunas">
+        </div>
+
+        <div class="campo">
+          <label class="etiqueta" for="em_m_prescrito">Prescrito por</label>
+          <input class="entrada" id="em_m_prescrito" type="text"
+                 placeholder="Médico tratante o institución">
+        </div>
+
+        <div class="rejilla">
+          <div class="campo">
+            <label class="etiqueta" for="em_m_inicio">Desde</label>
+            <input class="entrada" id="em_m_inicio" type="date">
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="em_m_grupo">Condición asociada</label>
+            <select class="entrada" id="em_m_grupo"></select>
+          </div>
+        </div>
+
+        <label class="alternador">
+          <input type="checkbox" id="em_m_critico">
+          <span>Fármaco crítico</span>
+        </label>
+        <span class="ayuda">Anticoagulantes, insulina, anticonvulsivos, antirretrovirales
+          y todo aquello cuya interacción o suspensión brusca tenga consecuencias.</span>
+
+        <div class="campo">
+          <label class="etiqueta" for="em_m_observacion">Observación</label>
+          <input class="entrada" id="em_m_observacion" type="text">
+        </div>
+
+        <p class="alerta" id="em-alerta-medicacion" role="alert" hidden></p>
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" data-cierra="modal-medicacion" type="button">Cancelar</button>
+        <button class="boton-primario" id="em-btn-guardar-medicacion" type="button">Guardar</button>
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- Zona de impresión de la ficha de emergencia -->
+  <div class="em-impresion" id="em-impresion"></div>
 
   <script type="module" src="js/atenciones.js"></script>
 </body>
