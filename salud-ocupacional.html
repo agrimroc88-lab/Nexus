@@ -501,7 +501,10 @@
               Descargar informe
             </button>
             <button class="boton-secundario" id="bt-btn-actas" type="button" disabled>
-              Descargar actas
+              Imprimir actas
+            </button>
+            <button class="boton-secundario" id="bt-btn-actas-doc" type="button" disabled>
+              Actas en Word
             </button>
             <button class="boton-primario" id="bt-btn-abrir" type="button" hidden>
               Abrir revisión del mes
@@ -1342,13 +1345,16 @@
             <label class="etiqueta" for="bt_fecha_revision">Fecha de revisión</label>
             <input class="entrada" id="bt_fecha_revision" type="date">
           </div>
+          <div class="campo bt-campo-buscar">
+            <label class="etiqueta" for="bt_rev_buscar">Buscar quien revisó</label>
+            <input class="entrada" id="bt_rev_buscar" type="search"
+                   placeholder="Código, cédula o nombre" autocomplete="off">
+            <div class="bt-sugerencias" id="bt_rev_sugerencias" hidden></div>
+          </div>
           <div class="campo">
             <label class="etiqueta" for="bt_revisado_por">Revisado por</label>
             <input class="entrada" id="bt_revisado_por" type="text" autocomplete="off">
-          </div>
-          <div class="campo">
-            <label class="etiqueta" for="bt_recibido_por">Recibido por</label>
-            <input class="entrada" id="bt_recibido_por" type="text" autocomplete="off">
+            <span class="ayuda">Se puede escribir directamente si es personal externo.</span>
           </div>
         </div>
 
@@ -1396,6 +1402,9 @@
 
     </div>
   </div>
+
+  <!-- Zona de impresión de actas -->
+  <div class="bt-impresion" id="bt-impresion"></div>
 
   <!-- ============ Modal: Destinatario del botiquín ============ -->
   <div class="modal" id="bt-modal-destinatario" hidden>
