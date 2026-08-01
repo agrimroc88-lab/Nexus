@@ -23,7 +23,7 @@ import { supabase } from './supabase.js';
 import { ROLES } from './auth.js';
 import { escapar, formatearFecha } from './utils.js';
 import { envolverWord, descargarWord, recuadroFoto, bloqueFirmas,
-         membreteWord, membreteCompacto, bandaTitulo, tablaWord,
+         membreteWord, bandaTitulo, tablaWord,
          listaDocumento, seccionDocumento, logoEnBase64,
          encabezadoMemo, escaparTexto }
   from './documento.js';
@@ -848,34 +848,43 @@ async function generarInforme() {
   const detalle = `
     ${seccionDocumento('10. Detalle por botiquín')}
     <p style="text-align:justify;">
-      Se presenta la dotación de cada botiquín con la cantidad hallada durante la
-      inspección, la reposición efectuada y el motivo que la sustenta.
+      Se detallan los insumos con movimiento en el periodo: los consumidos,
+      retirados o repuestos, con el motivo que sustenta cada caso. Los insumos
+      hallados completos y en buen estado no se listan; su verificación consta en
+      el número de insumos revisados de cada botiquín.
     </p>
 
     ${bt.revisiones.map((r) => {
       const lineas = bt.detalle[r.id] || [];
-      const repuestas = lineas.filter((l) => Number(l.repuesto) > 0);
+
+      /* Solo lo que se movió. Repetir los once insumos íntegros
+         de cada botiquín triplicaba el informe y enterraba lo
+         que importa entre filas sin novedad; el total revisado
+         queda dicho en el encabezado de cada bloque. */
+      const conMovimiento = lineas.filter(
+        (l) => Number(l.faltante) > 0 || Number(l.repuesto) > 0);
 
       return `
-        <div class="no-partir" style="margin-top:8pt;">
-          <p style="font-size:10pt;font-weight:bold;margin:6pt 0 2pt;
-                    background:#e6f0e6;padding:2pt 5pt;">
+        <div class="no-partir" style="margin-top:5pt;">
+          <p style="font-size:9.5pt;font-weight:bold;margin:4pt 0 1pt;
+                    background:#e6f0e6;padding:1pt 4pt;">
             ${escaparTexto(r.botiquin)}
-            <span style="font-weight:normal;font-size:8.5pt;">
-              · Inspeccionado el ${r.fecha_revision ? formatearFecha(r.fecha_revision) : '—'}
-              · Responsable: ${escaparTexto(
+            <span style="font-weight:normal;font-size:8pt;">
+              · ${lineas.length} insumos verificados
+              · ${r.fecha_revision ? formatearFecha(r.fecha_revision) : '—'}
+              · ${escaparTexto(
                   r.sin_destinatario ? 'Guardia de turno' : (r.destinatario || '—'))}
             </span>
           </p>
 
-          ${tablaInsumos(lineas, 'informe')}
+          ${conMovimiento.length === 0
+            ? '<p style="font-style:italic;font-size:8.5pt;margin:1pt 0 3pt;">'
+              + 'Dotación completa y en condiciones adecuadas de conservación. '
+              + 'Sin consumo ni reposición en el periodo.</p>'
+            : tablaInsumos(conMovimiento, 'informe')}
 
-          ${repuestas.length === 0
-            ? '<p style="font-style:italic;font-size:9pt;">Botiquín completo y en '
-              + 'condiciones adecuadas de conservación. Sin reposición en el periodo.</p>'
-            : ''}
           ${r.observacion
-            ? `<p style="font-size:9pt;"><b>Observación:</b> ${
+            ? `<p style="font-size:8.5pt;margin:1pt 0 3pt;"><b>Observación:</b> ${
                 escaparTexto(r.observacion)}</p>` : ''}
         </div>`;
     }).join('')}`;
@@ -884,14 +893,16 @@ async function generarInforme() {
      Agrupada al final y en rejilla de dos columnas. Repartir
      un recuadro por hoja multiplicaba las páginas sin añadir
      nada: seis caben en una y se comparan mejor entre sí. */
+  /* Tres por fila: con dos columnas la evidencia ocupaba más
+     que todo el resto del informe. */
+  const POR_FILA = 3;
   const filas = [];
-  for (let i = 0; i < bt.revisiones.length; i += 2) {
-    filas.push(bt.revisiones.slice(i, i + 2));
+  for (let i = 0; i < bt.revisiones.length; i += POR_FILA) {
+    filas.push(bt.revisiones.slice(i, i + POR_FILA));
   }
 
   const evidencia = `
-    <div class="salto">
-      ${membreteCompacto(bt.empresaNombre, bt.logo, referencia)}
+    <div>
       ${seccionDocumento('11. Evidencia fotográfica')}
       <p style="text-align:justify;">
         Registro fotográfico de los botiquines inspeccionados en el periodo.
@@ -901,31 +912,31 @@ async function generarInforme() {
         ${filas.map((par) => `
           <tr>
             ${par.map((r) => `
-              <td style="width:50%;vertical-align:top;padding:2pt 4pt;">
-                ${recuadroFoto(r.botiquin.toUpperCase(), 52)}
+              <td style="width:33%;vertical-align:top;padding:1pt 3pt;">
+                ${recuadroFoto(r.botiquin.toUpperCase(), 40)}
               </td>`).join('')}
-            ${par.length === 1 ? '<td style="width:50%;"></td>' : ''}
+            ${Array.from({ length: POR_FILA - par.length })
+                .map(() => '<td style="width:33%;"></td>').join('')}
           </tr>`).join('')}
       </table>
     </div>`;
 
   /* La firma va una sola vez y al cierre, después de los
      anexos: es lo que se firma cuando ya se ha leído todo. */
-  const columnas = [];
+  const columnas = [
+    { rotulo: 'Elaborado por:',
+      nombre:  elabora ? elabora.nombre : de.nombre,
+      detalle: elabora ? (elabora.cargo || '') : de.cargo },
 
-  if (elabora) {
-    columnas.push({ rotulo: 'Elaborado por:', nombre: elabora.nombre,
-                    detalle: elabora.cargo || '' });
-  }
-
-  columnas.push({
-    rotulo: elabora ? 'Responsable de la inspección:' : 'Elaborado por:',
-    nombre: de.nombre,
-    detalle: de.cargo
-  });
+    /* Quien recorrió los botiquines firma la revisión. Sale de
+       la sesión: cambia con el profesional que la realizó. */
+    { rotulo: 'Revisión realizada por:',
+      nombre:  de.nombre,
+      detalle: de.cargo }
+  ];
 
   const cierre = `
-    <div>
+    <div class="no-partir">
       ${seccionDocumento('12. Cierre del informe')}
       <p style="text-align:justify;">
         Se deja constancia de que la inspección de los ${bt.revisiones.length}

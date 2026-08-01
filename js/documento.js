@@ -61,6 +61,16 @@ export function envolverWord(cuerpo, titulo, opciones = {}) {
       <w:View>Print</w:View>
       <w:Zoom>100</w:Zoom>
       <w:DoNotOptimizeForBrowser/>
+      <!-- Sin esto Word añade un espacio automático detrás de
+           cada párrafo y de cada celda al abrir un HTML. Con
+           doscientas filas de tabla, ese margen invisible
+           llegaba a duplicar la extensión del documento. -->
+      <w:DontUseHTMLParagraphAutoSpacing/>
+      <w:DoNotPromoteQF/>
+      <w:Compatibility>
+        <w:UseWord2002TableStyleRules/>
+        <w:DontGrowAutofit/>
+      </w:Compatibility>
     </w:WordDocument>
   </xml><![endif]-->
   <style>
@@ -73,10 +83,28 @@ export function envolverWord(cuerpo, titulo, opciones = {}) {
       font-family: 'Times New Roman', serif;
       font-size: 10.5pt;
       color: #000;
-      line-height: 1.25;
+      line-height: 1.2;
     }
-    td, th { font-size: 9.5pt; }
-    p { margin: 4pt 0; }
+
+    /* Word aplica su estilo Normal a todo lo que abre, con
+       ocho puntos de separación bajo cada párrafo. Hay que
+       neutralizarlo por nombre: la regla de body no le llega. */
+    p.MsoNormal, li.MsoNormal, div.MsoNormal,
+    p, td, th, div, li {
+      margin-top: 0;
+      margin-bottom: 0;
+      mso-para-margin-top: 0;
+      mso-para-margin-bottom: 0;
+      mso-line-height-rule: exactly;
+      line-height: 1.2;
+    }
+
+    p { margin: 3pt 0; mso-para-margin-top: 3.0pt; mso-para-margin-bottom: 3.0pt; }
+
+    td, th {
+      font-size: 9.5pt;
+      mso-line-height-rule: exactly;
+    }
     table { border-collapse: collapse; }
     .salto { page-break-before: always; }
     .no-partir { page-break-inside: avoid; }
@@ -165,9 +193,13 @@ export function bloqueFirmas(columnas, espacioMm = 50) {
        </tr></table>`
     : '';
 
+  /* Espaciador y firmas viajan juntos dentro del mismo
+     bloque: separados, Word podía dejar el hueco al final de
+     una hoja y las rayas solas en la siguiente. */
   return `
+    <div class="no-partir">
     ${espaciador}
-    <table style="width:100%;" class="no-partir" data-firmas>
+    <table style="width:100%;" data-firmas>
       <tr>
         ${columnas.map((c) => `
           <td style="width:${ancho}%;text-align:center;vertical-align:top;
@@ -183,12 +215,18 @@ export function bloqueFirmas(columnas, espacioMm = 50) {
             </div>
           </td>`).join('')}
       </tr>
-    </table>`;
+    </table>
+    </div>`;
 }
 
 /** Encabezado con logo y membrete de la unidad */
 /**
  * Membrete con la paleta de la orden de compra de farmacia.
+ *
+ * El alto de la imagen va como atributo HTML además de en el
+ * estilo: Word descarta height cuando viene de CSS y muestra
+ * la imagen a su tamaño original, que en un logotipo de
+ * varios centenares de píxeles ocupa media hoja.
  *
  * @param {string} empresa
  * @param {string} logo  base64 para el .doc que se envía por
@@ -200,8 +238,8 @@ export function membreteWord(empresa, logo) {
     <table style="width:100%;margin-bottom:4pt;">
       <tr>
         ${logo
-          ? `<td style="width:36pt;vertical-align:middle;padding-right:8pt;">
-               <img src="${logo}" style="height:28pt;">
+          ? `<td style="width:44pt;vertical-align:middle;padding-right:8pt;">
+               <img src="${logo}" height="36" style="height:27pt;width:auto;">
              </td>` : ''}
         <td style="vertical-align:middle;">
           <div style="font-size:12.5pt;font-weight:bold;color:${PALETA.verde};">
@@ -230,8 +268,8 @@ export function membreteCompacto(empresa, logo, referencia) {
                   margin-bottom:8pt;padding-bottom:3pt;">
       <tr>
         ${logo
-          ? `<td style="width:26pt;vertical-align:middle;padding-right:6pt;">
-               <img src="${logo}" style="height:20pt;">
+          ? `<td style="width:30pt;vertical-align:middle;padding-right:6pt;">
+               <img src="${logo}" height="24" style="height:18pt;width:auto;">
              </td>` : ''}
         <td style="vertical-align:middle;font-size:9.5pt;
                    font-weight:bold;color:${PALETA.verde};">
