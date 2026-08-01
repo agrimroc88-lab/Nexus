@@ -50,6 +50,7 @@
   
   </style>
   <link rel="stylesheet" href="css/grupos.css">
+  <link rel="stylesheet" href="css/botiquines.css">
 </head>
 <body class="app" data-ambito="salud" data-modulo="salud_ocup">
 
@@ -86,6 +87,7 @@
           <button class="pestana" data-vista="capacitaciones" type="button">Capacitaciones</button>
           <button class="pestana" data-vista="eventos" type="button">Enfermedades profesionales</button>
           <button class="pestana" data-vista="grupos" type="button">Grupos prioritarios</button>
+          <button class="pestana" data-vista="botiquines" type="button">Botiquines</button>
           <button class="pestana" data-vista="ocupacionales" type="button">Atenciones ocupacionales</button>
         </nav>
 
@@ -470,6 +472,64 @@
           </div>
 
         </section>
+
+        <!-- ============ Vista: Botiquines ============ -->
+        <section class="vista" id="vista-botiquines" hidden>
+
+          <section class="resumen">
+            <article class="resumen-item">
+              <span class="resumen-etiqueta">Botiquines</span>
+              <span class="resumen-valor" id="bt-total">0</span>
+            </article>
+            <article class="resumen-item">
+              <span class="resumen-etiqueta">Revisiones cerradas</span>
+              <span class="resumen-valor" id="bt-revisados">0</span>
+            </article>
+            <article class="resumen-item">
+              <span class="resumen-etiqueta">Unidades consumidas</span>
+              <span class="resumen-valor" id="bt-faltantes">0</span>
+            </article>
+            <article class="resumen-item resumen-critico">
+              <span class="resumen-etiqueta">Sin reponer</span>
+              <span class="resumen-valor" id="bt-pendientes">0</span>
+            </article>
+          </section>
+
+          <section class="herramientas">
+            <select class="entrada filtro" id="bt-periodo"></select>
+            <button class="boton-secundario" id="bt-btn-informe" type="button" disabled>
+              Informe mensual
+            </button>
+            <button class="boton-secundario" id="bt-btn-actas" type="button" disabled>
+              Actas de entrega
+            </button>
+            <button class="boton-primario" id="bt-btn-abrir" type="button" hidden>
+              Abrir revisión del mes
+            </button>
+          </section>
+
+          <div class="panel">
+            <div class="tabla-envoltura">
+              <table class="tabla">
+                <thead>
+                  <tr>
+                    <th>Botiquín</th>
+                    <th class="celda-centro">Insumos</th>
+                    <th class="celda-centro">Consumido</th>
+                    <th class="celda-centro">Repuesto</th>
+                    <th class="celda-centro">Sin reponer</th>
+                    <th class="celda-centro">Estado</th>
+                    <th class="celda-centro"></th>
+                  </tr>
+                </thead>
+                <tbody id="bt-cuerpo"></tbody>
+              </table>
+            </div>
+            <p class="vacio" id="bt-vacio" hidden></p>
+          </div>
+
+        </section>
+
 
 </div>
 
@@ -1261,6 +1321,82 @@
 
   <!-- Zona de impresión de grupos prioritarios -->
   <div class="gp-impresion" id="gp-impresion"></div>
+
+
+  <!-- ============ Modal: Revisión de botiquín ============ -->
+  <div class="modal" id="bt-modal-revision" hidden>
+    <div class="modal-caja" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <div>
+          <h2 class="modal-titulo" id="bt-r-titulo">—</h2>
+          <p class="bt-r-periodo" id="bt-r-periodo">—</p>
+        </div>
+        <button class="modal-cerrar" data-cierra="bt-modal-revision" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+
+        <div class="rejilla">
+          <div class="campo">
+            <label class="etiqueta" for="bt_fecha_revision">Fecha de revisión</label>
+            <input class="entrada" id="bt_fecha_revision" type="date">
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="bt_revisado_por">Revisado por</label>
+            <input class="entrada" id="bt_revisado_por" type="text" autocomplete="off">
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="bt_recibido_por">Recibido por</label>
+            <input class="entrada" id="bt_recibido_por" type="text" autocomplete="off">
+          </div>
+        </div>
+
+        <div class="bt-detalle-cabecera">
+          <h3 class="subtitulo">Insumos</h3>
+          <button class="boton-secundario" id="bt-btn-completar" type="button" hidden>
+            Reponer todo lo que falta
+          </button>
+        </div>
+
+        <div class="tabla-envoltura">
+          <table class="tabla bt-tabla-revision">
+            <thead>
+              <tr>
+                <th>Insumo</th>
+                <th class="celda-centro">Dotación</th>
+                <th class="celda-centro">Encontrado</th>
+                <th class="celda-centro">Falta</th>
+                <th class="celda-centro">Repone</th>
+              </tr>
+            </thead>
+            <tbody id="bt-r-detalle"></tbody>
+          </table>
+        </div>
+
+        <div class="campo">
+          <label class="etiqueta" for="bt_observacion">Observación</label>
+          <input class="entrada" id="bt_observacion" type="text"
+                 placeholder="Novedades encontradas en el botiquín">
+        </div>
+
+        <p class="alerta" id="bt-alerta-revision" role="alert" hidden></p>
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" data-cierra="bt-modal-revision" type="button">Cerrar</button>
+        <button class="boton-secundario" id="bt-btn-reabrir" type="button" hidden>Reabrir</button>
+        <button class="boton-secundario" id="bt-btn-guardar" type="button" hidden>Guardar</button>
+        <button class="boton-primario" id="bt-btn-cerrar-revision" type="button" hidden>
+          Guardar y cerrar
+        </button>
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- Zona de impresión de botiquines -->
+  <div class="bt-impresion" id="bt-impresion"></div>
 
   <script type="module" src="js/anexo1.js?v=7"></script>
 </body>
