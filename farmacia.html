@@ -6,6 +6,7 @@
   <title>Farmacia · NEXUS</title>
   <link rel="icon" href="favicon.png">
   <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/documentos.css">
   <link rel="stylesheet" href="css/layout.css">
   <link rel="stylesheet" href="css/empresas.css">
   <link rel="stylesheet" href="css/trabajadores.css">
@@ -51,15 +52,15 @@
       @page { margin: 1.5cm; }
 
       .oc-hoja { font-family: 'Times New Roman', Georgia, serif; color: #000; }
-      .oc-cabecera { display: flex; align-items: center; gap: 1rem; border-bottom: 2px solid #1b5e20; padding-bottom: 0.8rem; margin-bottom: 1rem; }
+      .oc-cabecera { display: flex; align-items: center; gap: 1rem; border-bottom: 2px solid var(--doc-verde); padding-bottom: 0.8rem; margin-bottom: 1rem; }
       .oc-logo { height: 70px; width: auto; }
-      .oc-cabecera h1 { font-size: 14pt; margin: 0 0 0.3rem; color: #1b5e20; }
+      .oc-cabecera h1 { font-size: 14pt; margin: 0 0 0.3rem; color: var(--doc-verde); }
       .oc-cabecera p { margin: 0.1rem 0; font-size: 10.5pt; }
       .oc-datos { display: flex; justify-content: space-between; margin-bottom: 1rem; font-size: 11pt; }
       .oc-tabla { width: 100%; border-collapse: collapse; font-size: 10.5pt; }
-      .oc-tabla th, .oc-tabla td { border: 1px solid #333; padding: 6px 8px; }
-      .oc-tabla th { background: #e6f0e6; text-align: left; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .oc-seccion { font-size: 12pt; color: #1b5e20; margin: 1rem 0 0.4rem; border-bottom: 1px solid #1b5e20; padding-bottom: 0.2rem; }
+      .oc-tabla th, .oc-tabla td { border: 1px solid var(--doc-borde); padding: 6px 8px; }
+      .oc-tabla th { background: var(--doc-verde-claro); text-align: left; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .oc-seccion { font-size: 12pt; color: var(--doc-verde); margin: 1rem 0 0.4rem; border-bottom: 1px solid var(--doc-verde); padding-bottom: 0.2rem; }
       /* El margen lo calcula impresion.js según lo que quede
          de hoja: 5 cm si caben, o el pie de la página en curso.
          Este valor es el respaldo si el script no se ejecuta. */
