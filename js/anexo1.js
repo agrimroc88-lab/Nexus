@@ -24,6 +24,8 @@ import { protegerPagina, ROLES } from './auth.js';
 import { montarNavegacion } from './nav.js';
 import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js';
 import { montarGrupos, cargarGrupos, pintarGrupos } from './grupos.js';
+import { montarBotiquines, cargarBotiquines, pintarBotiquines }
+  from './botiquines.js';
 
 /* Ámbito y módulo declarados por el HTML que carga este archivo */
 const AMBITO = document.body.dataset.ambito || 'salud';
@@ -86,6 +88,7 @@ async function iniciar() {
   prepararAniosEventos();
   ocultarPestanasAjenas();
   montarGrupos(perfil, AMBITO);
+  if (AMBITO === 'salud') montarBotiquines(perfil);
   await cargarEmpresas();
   conectarEventos();
 }
@@ -2188,13 +2191,14 @@ function cambiarVista(vista) {
   document.querySelectorAll('.pestana').forEach((p) => {
     p.classList.toggle('activa', p.dataset.vista === vista);
   });
-  ['cumplimiento', 'capacitaciones', 'eventos', 'ocupacionales', 'grupos'].forEach((v) => {
+  ['cumplimiento', 'capacitaciones', 'eventos', 'ocupacionales', 'grupos', 'botiquines'].forEach((v) => {
     const $v = document.getElementById('vista-' + v);
     if ($v) $v.hidden = v !== vista;
   });
   if (vista === 'capacitaciones') pintarCapacitaciones();
   if (vista === 'eventos') pintarEventos();
   if (vista === 'grupos') pintarGrupos();
+  if (vista === 'botiquines') pintarBotiquines();
   if (vista === 'ocupacionales') {
     cargarOcupacionales().then(pintarOcupacionales);
   }
@@ -2241,12 +2245,16 @@ async function seleccionarEmpresa() {
     cargarCapacitaciones(),
     cargarEventos(),
     cargarOcupacionales(),
-    cargarGrupos(estado.empresaId, nombreEmpresa)
+    cargarGrupos(estado.empresaId, nombreEmpresa),
+    AMBITO === 'salud'
+      ? cargarBotiquines(estado.empresaId, nombreEmpresa)
+      : Promise.resolve()
   ]);
 
   if (estado.vista === 'capacitaciones') pintarCapacitaciones();
   if (estado.vista === 'eventos') pintarEventos();
   if (estado.vista === 'grupos') pintarGrupos();
+  if (estado.vista === 'botiquines') pintarBotiquines();
   if (estado.vista === 'ocupacionales') pintarOcupacionales();
 }
 
