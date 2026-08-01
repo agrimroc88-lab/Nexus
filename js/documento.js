@@ -64,8 +64,10 @@ const PALETA = {
  * @param {object} opciones margenes en mm
  */
 export function envolverWord(cuerpo, titulo, opciones = {}) {
+  /* El izquierdo es mayor por defecto: estos documentos se
+     perforan y se archivan. */
   const m = Object.assign(
-    { superior: 15, inferior: 15, izquierdo: 20, derecho: 15 },
+    { superior: 15, inferior: 15, izquierdo: 28, derecho: 12 },
     opciones
   );
 

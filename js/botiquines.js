@@ -968,7 +968,8 @@ async function generarInforme() {
     </div>`;
 
   const html = envolverWord(caratula + detalle + evidencia + cierre,
-    'Informe de inspección de botiquines · ' + nombreMes(bt.periodo));
+    'Informe de inspección de botiquines · ' + nombreMes(bt.periodo),
+    { superior: 15, inferior: 15, izquierdo: 28, derecho: 12 });
 
   descargarWord(html, `Informe botiquines ${bt.periodo}`);
 }
@@ -1114,7 +1115,7 @@ function descargarActas() {
   if (!hojas) return;
 
   const html = envolverWord(hojas, 'Actas de entrega · ' + nombreMes(bt.periodo),
-    { superior: 20, inferior: 20, izquierdo: 25, derecho: 20 });
+    { superior: 20, inferior: 20, izquierdo: 30, derecho: 15 });
   descargarWord(html, `Actas entrega botiquines ${bt.periodo}`);
 }
 
