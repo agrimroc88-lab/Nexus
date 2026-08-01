@@ -1,0 +1,88 @@
+/* ============================================
+   NEXUS · documentos.css
+
+   Paleta e identidad común de todo lo que sale impreso.
+
+   Por qué existe:
+     Cada módulo definió sus colores por separado y la
+     plataforma acabó emitiendo documentos que no parecían de
+     la misma empresa: el certificado en morado, la ficha
+     psicológica en azul, la orden de compra en verde. Un
+     inspector que recibe cuatro papeles de la misma unidad
+     debería reconocerlos como uno solo.
+
+     La referencia es la orden de compra de farmacia, que es
+     la que ya venía usándose y funciona bien en papel.
+
+   Cómo se usa:
+     Los módulos referencian var(--doc-*) en lugar de escribir
+     el color. Cambiar la identidad de todos los documentos
+     pasa a ser cambiar este archivo.
+
+   Nota sobre las variables:
+     Se declaran fuera de @media print además de dentro,
+     porque un módulo puede usarlas en pantalla. Los nombres
+     llevan el prefijo --doc- para no chocar con las
+     variables de interfaz, que en impresión se reescriben.
+   ============================================ */
+
+:root {
+  /* Verde institucional: títulos, bordes y encabezados */
+  --doc-verde:        #1b5e20;
+  --doc-verde-claro:  #e6f0e6;   /* fondo de cabeceras de tabla */
+  --doc-verde-tenue:  #f2f7f2;   /* bandas de título */
+
+  /* Tinta */
+  --doc-texto:        #000000;
+  --doc-texto-suave:  #444444;
+  --doc-texto-tenue:  #555555;
+
+  /* Trazos */
+  --doc-borde:        #555555;   /* rejilla de tablas */
+  --doc-borde-suave:  #cccccc;   /* separadores */
+  --doc-fondo-alt:    #fafafa;   /* filas alternas */
+  --doc-fondo-dato:   #f0f0f0;   /* celdas de rótulo */
+
+  /* Avisos. Se usan con moderación: en papel el color no
+     siempre sobrevive a una fotocopia, así que nunca deben
+     ser el único indicio de algo importante. */
+  --doc-alerta:       #a12020;
+  --doc-aviso:        #b5531a;
+
+  /* Tipografía */
+  --doc-serif: 'Times New Roman', Georgia, serif;
+}
+
+@media print {
+  :root {
+    --doc-verde:        #1b5e20;
+    --doc-verde-claro:  #e6f0e6;
+    --doc-verde-tenue:  #f2f7f2;
+    --doc-texto:        #000000;
+    --doc-texto-suave:  #444444;
+    --doc-texto-tenue:  #555555;
+    --doc-borde:        #555555;
+    --doc-borde-suave:  #cccccc;
+    --doc-fondo-alt:    #fafafa;
+    --doc-fondo-dato:   #f0f0f0;
+    --doc-alerta:       #a12020;
+    --doc-aviso:        #b5531a;
+  }
+
+  /* El navegador descarta los fondos al imprimir salvo que se
+     le autorice. Sin esto, las cabeceras verdes salen en
+     blanco por más que estén declaradas. */
+  .doc-hoja,
+  .doc-hoja *,
+  .gp-hoja, .gp-hoja *,
+  .em-hoja, .em-hoja *,
+  .bt-impresion, .bt-impresion *,
+  .oc-hoja, .oc-hoja *,
+  .hoja, .hoja * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  @page { margin: 1.5cm; }
+}

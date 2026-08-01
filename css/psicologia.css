@@ -88,11 +88,12 @@
 
   .hoja-cabecera {
     text-align: center;
-    border-bottom: 2px solid #000;
+    border-bottom: 2pt solid var(--doc-verde);
     padding-bottom: 0.6rem;
     margin-bottom: 1.2rem;
   }
-  .hoja-cabecera h1 { font-size: 15pt; margin: 0 0 0.4rem; text-transform: uppercase; }
+  .hoja-cabecera h1 { font-size: 15pt; margin: 0 0 0.4rem; text-transform: uppercase;
+    color: var(--doc-verde); }
   .hoja-cabecera p { margin: 0.15rem 0; font-size: 10.5pt; }
 
   .hoja-bloque { margin-bottom: 0.9rem; page-break-inside: avoid; }
@@ -100,7 +101,7 @@
     font-size: 11pt;
     text-transform: uppercase;
     letter-spacing: 0.03em;
-    border-bottom: 1px solid #999;
+    border-bottom: 1px solid var(--doc-borde-suave);
     margin: 0 0 0.3rem;
     padding-bottom: 0.1rem;
   }

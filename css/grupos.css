@@ -235,7 +235,7 @@
     align-items: center;
     gap: 1rem;
     padding-bottom: 0.6rem;
-    border-bottom: 2.5pt solid #1b5e20;
+    border-bottom: 2.5pt solid var(--doc-verde);
   }
 
   .gp-logo { height: 62px; width: auto; flex-shrink: 0; }
@@ -252,13 +252,13 @@
     font-size: 13.5pt;
     font-weight: bold;
     line-height: 1.15;
-    color: #1b5e20;
+    color: var(--doc-verde);
     letter-spacing: 0.01em;
   }
 
   .gp-unidad {
     font-size: 9.5pt;
-    color: #333;
+    color: var(--doc-borde);
     letter-spacing: 0.04em;
     text-transform: uppercase;
   }
@@ -270,21 +270,21 @@
     gap: 0.15rem;
     flex-shrink: 0;
     padding-left: 0.9rem;
-    border-left: 0.5pt solid #bbb;
+    border-left: 0.5pt solid var(--doc-borde-suave);
     font-size: 8.5pt;
-    color: #444;
+    color: var(--doc-texto-suave);
     white-space: nowrap;
   }
 
-  .gp-control-fila b { color: #1b5e20; }
+  .gp-control-fila b { color: var(--doc-verde); }
 
   /* Banda del título */
   .gp-titulo-banda {
     margin: 0 0 0.9rem;
     padding: 0.45rem 0.5rem 0.5rem;
     text-align: center;
-    background: #f2f7f2;
-    border-bottom: 0.5pt solid #1b5e20;
+    background: var(--doc-verde-tenue);
+    border-bottom: 0.5pt solid var(--doc-verde);
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -301,7 +301,7 @@
   .gp-subtitulo {
     margin: 0.2rem 0 0;
     font-size: 9.5pt;
-    color: #444;
+    color: var(--doc-texto-suave);
   }
 
   /* --- Resumen de apertura --- */
@@ -314,10 +314,10 @@
   }
 
   .gp-resumen th,
-  .gp-resumen td { border: 0.5pt solid #666; padding: 4px 8px; }
+  .gp-resumen td { border: 0.5pt solid var(--doc-texto-tenue); padding: 4px 8px; }
 
   .gp-resumen th {
-    background: #e6f0e6;
+    background: var(--doc-verde-claro);
     text-align: left;
     font-size: 9.5pt;
     -webkit-print-color-adjust: exact;
@@ -326,7 +326,7 @@
 
   .gp-resumen-total td {
     font-weight: bold;
-    background: #f5f5f5;
+    background: var(--doc-fondo-dato);
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -341,17 +341,17 @@
     justify-content: space-between;
     gap: 0.6rem;
     font-size: 11.5pt;
-    color: #1b5e20;
+    color: var(--doc-verde);
     margin: 1rem 0 0.35rem;
     padding-bottom: 0.18rem;
-    border-bottom: 1pt solid #1b5e20;
+    border-bottom: 1pt solid var(--doc-verde);
     page-break-after: avoid;
   }
 
   .gp-seccion-cuenta {
     font-size: 9pt;
     font-weight: normal;
-    color: #555;
+    color: var(--doc-texto-tenue);
   }
 
   /* --- Tablas --- */
@@ -364,10 +364,10 @@
   }
 
   .gp-tabla th,
-  .gp-tabla td { border: 0.5pt solid #555; padding: 4px 6px; vertical-align: top; }
+  .gp-tabla td { border: 0.5pt solid var(--doc-texto-tenue); padding: 4px 6px; vertical-align: top; }
 
   .gp-tabla th {
-    background: #e6f0e6;
+    background: var(--doc-verde-claro);
     text-align: left;
     font-size: 9pt;
     -webkit-print-color-adjust: exact;
@@ -376,14 +376,14 @@
 
   /* Filas alternas: en tablas largas evita saltar de renglón */
   .gp-tabla tbody tr:nth-child(even) td {
-    background: #fafafa;
+    background: var(--doc-fondo-alt);
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
   .gp-num { text-align: center; white-space: nowrap; }
 
-  .gp-vacio-fila { text-align: center; font-style: italic; color: #555; }
+  .gp-vacio-fila { text-align: center; font-style: italic; color: var(--doc-texto-tenue); }
 
   .gp-enlace-impreso { font-size: 8pt; word-break: break-all; }
 
@@ -395,26 +395,26 @@
   }
 
   .gp-ficha-datos th,
-  .gp-ficha-datos td { border: 0.5pt solid #555; padding: 5px 8px; text-align: left; }
+  .gp-ficha-datos td { border: 0.5pt solid var(--doc-texto-tenue); padding: 5px 8px; text-align: left; }
 
   .gp-ficha-datos th {
-    background: #f0f0f0;
+    background: var(--doc-fondo-dato);
     width: 18%;
     font-size: 9.5pt;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
-  .gp-aclaracion { font-size: 8.5pt; color: #555; }
+  .gp-aclaracion { font-size: 8.5pt; color: var(--doc-texto-tenue); }
 
   /* --- Pie --- */
 
   .gp-nota-legal {
     font-size: 8.5pt;
-    color: #444;
+    color: var(--doc-texto-suave);
     margin-top: 1.1rem;
     padding-top: 0.4rem;
-    border-top: 0.5pt solid #ccc;
+    border-top: 0.5pt solid var(--doc-borde-suave);
     line-height: 1.4;
     text-align: justify;
   }
@@ -433,7 +433,7 @@
   .gp-firma { text-align: center; width: 42%; }
   .gp-linea { border-top: 0.75pt solid #000; margin-bottom: 0.25rem; }
   .gp-firma-cargo { margin: 0; font-size: 10.5pt; font-weight: bold; }
-  .gp-firma-nota { margin: 0.1rem 0 0; font-size: 8pt; color: #555; }
+  .gp-firma-nota { margin: 0.1rem 0 0; font-size: 8pt; color: var(--doc-texto-tenue); }
 
   /* Las tablas no se parten a mitad de fila */
   .gp-tabla tr, .gp-ficha-datos tr { page-break-inside: avoid; }
@@ -484,14 +484,14 @@
 
 .gp-sugerencia-meta {
   font-size: 0.75rem;
-  color: var(--color-texto-tenue, #8a8f98);
+  color: var(--color-texto-tenue, var(--doc-texto-tenue));
 }
 
 .gp-sugerencia-vacia {
   margin: 0;
   padding: 0.7rem 0.75rem;
   font-size: 0.82rem;
-  color: var(--color-texto-tenue, #8a8f98);
+  color: var(--color-texto-tenue, var(--doc-texto-tenue));
 }
 
 /* Trabajador ya elegido */
@@ -512,7 +512,7 @@
 
 .gp-elegido-meta {
   font-size: 0.75rem;
-  color: var(--color-texto-tenue, #8a8f98);
+  color: var(--color-texto-tenue, var(--doc-texto-tenue));
 }
 
 /* ============================================
@@ -533,14 +533,14 @@
   vertical-align: middle;
 }
 
-.gp-fase-aviso   { color: #f5d76e; border: 1px solid rgba(245, 215, 110, 0.4); }
-.gp-fase-termino { color: #7ee2a8; border: 1px solid rgba(126, 226, 168, 0.4); }
-.gp-fase-revisar { color: #f57373; border: 1px solid rgba(245, 115, 115, 0.4); }
+.gp-fase-aviso   { color: var(--doc-aviso); border: 1px solid rgba(245, 215, 110, 0.4); }
+.gp-fase-termino { color: var(--doc-verde); border: 1px solid rgba(126, 226, 168, 0.4); }
+.gp-fase-revisar { color: var(--doc-alerta); border: 1px solid rgba(245, 115, 115, 0.4); }
 
-.gp-falta-fum { color: #f0a868; font-size: 0.8rem; }
+.gp-falta-fum { color: var(--doc-aviso); font-size: 0.8rem; }
 
-.ayuda-critica { color: #f57373; }
+.ayuda-critica { color: var(--doc-alerta); }
 
 /* Aviso de opciones no aplicables al trabajador elegido.
    Decir por qué faltan evita que parezca un fallo. */
-.gp-nota-grupos { color: #f0a868; }
+.gp-nota-grupos { color: var(--doc-aviso); }
