@@ -46,6 +46,7 @@ const ins = {
   instalaciones: [],
   inspecciones: [],
   detalle: {},            // inspeccion_id → [criterios]
+  criterios: [],          // catálogo completo, para las hojas de campo
   noConformes: [],        // incumplimientos con su racha
   novedades: [],          // los de la última inspección de cada sitio
   destinatarios: [],
@@ -153,7 +154,7 @@ export async function cargarInstalaciones(empresaId, empresaNombre) {
 
   if (!empresaId) {
     ins.instalaciones = []; ins.inspecciones = [];
-    ins.noConformes = []; ins.novedades = [];
+    ins.noConformes = []; ins.novedades = []; ins.criterios = [];
     return;
   }
 
@@ -166,7 +167,7 @@ export async function cargarInstalaciones(empresaId, empresaNombre) {
   const mes = primerDiaMes(ins.periodo);
   const trim = primerDiaTrimestre(ins.periodo);
 
-  const [inst, insp, hall, dest] = await Promise.all([
+  const [inst, insp, hall, dest, crit] = await Promise.all([
     supabase.from('v_instalaciones').select('*')
       .eq('empresa_id', empresaId).eq('activo', true).order('tipo').order('orden'),
     supabase.from('v_inspecciones').select('*')
@@ -174,7 +175,12 @@ export async function cargarInstalaciones(empresaId, empresaNombre) {
     supabase.from('v_no_conformes').select('*')
       .eq('empresa_id', empresaId).order('periodo', { ascending: false }),
     supabase.from('botiquin_destinatarios').select('*')
-      .eq('activo', true).order('orden')
+      .eq('activo', true).order('orden'),
+
+    /* Catálogo completo: la hoja de campo se imprime en
+       blanco, sin depender de que haya inspección abierta. */
+    supabase.from('inspeccion_criterios').select('*')
+      .eq('activo', true).order('tipo').order('orden')
   ]);
 
   if (inst.error) console.error('NEXUS · instalaciones:', inst.error.message);
@@ -182,6 +188,7 @@ export async function cargarInstalaciones(empresaId, empresaNombre) {
   ins.instalaciones = inst.data || [];
   ins.noConformes = hall.data || [];
   ins.destinatarios = dest.data || [];
+  ins.criterios = crit.data || [];
 
   /* Novedades: lo hallado en la última inspección de cada
      instalación, sea de este periodo o de uno anterior. */
@@ -249,6 +256,9 @@ export function pintarInstalaciones() {
 
   const $hoja = document.getElementById('ins-btn-hoja');
   if ($hoja) $hoja.disabled = ins.novedades.length === 0;
+
+  const $campo = document.getElementById('ins-btn-campo');
+  if ($campo) $campo.disabled = ins.instalaciones.length === 0;
 }
 
 function pintarResumen() {
@@ -788,6 +798,140 @@ function imprimirHoja() {
   }, 500);
 }
 
+/**
+ * Hojas de campo.
+ *
+ * La lista completa de verificación, en blanco, para llenar a
+ * mano. Sirve donde no hay señal y para que otra persona haga
+ * el recorrido sin acceso al sistema.
+ *
+ * Una hoja por instalación, para poder repartirlas o llevar
+ * solo la que toca. Bajo los criterios que fallaron la vez
+ * pasada va una nota: así una sola hoja recuerda qué mirar y
+ * sirve para anotar.
+ */
+function imprimirHojasCampo() {
+  const filtro = document.getElementById('ins-filtro-tipo')?.value || 'todos';
+  const lista = ins.instalaciones.filter(
+    (i) => filtro === 'todos' || i.tipo === filtro);
+
+  if (lista.length === 0) {
+    alert('No hay instalaciones registradas con el filtro actual.');
+    return;
+  }
+
+  const hojas = lista.map((i, n) => {
+    const criterios = ins.criterios.filter((c) => c.tipo === i.tipo);
+    if (criterios.length === 0) return '';
+
+    /* Novedades de la última inspección de esta instalación */
+    const previas = new Map();
+    ins.novedades
+      .filter((x) => x.instalacion_id === i.id)
+      .forEach((x) => previas.set(x.criterio_id, x));
+
+    let grupoPrevio = null;
+    const cuerpo = criterios.map((c) => {
+      const cabecera = c.grupo !== grupoPrevio
+        ? `<tr><td colspan="5" class="hc-grupo">${escaparTexto(c.grupo)}</td></tr>`
+        : '';
+      grupoPrevio = c.grupo;
+
+      const previa = previas.get(c.id);
+
+      return cabecera + `
+        <tr>
+          <td class="hc-texto">
+            ${escaparTexto(c.texto)}
+            ${c.critico ? '<span class="hc-critico">crítico</span>' : ''}
+            ${previa ? `
+              <div class="hc-previa">Vez anterior:
+                ${escaparTexto(previa.observacion || 'no cumplía')}
+                ${previa.veces > 1 ? ` · ${previa.veces}.ª vez` : ''}
+              </div>` : ''}
+          </td>
+          <td class="hc-casilla"></td>
+          <td class="hc-casilla"></td>
+          <td class="hc-casilla"></td>
+          <td class="hc-obs"></td>
+        </tr>`;
+    }).join('');
+
+    return `
+      <div class="hc-hoja${n > 0 ? ' hc-nueva' : ''}">
+        <header class="hc-cabecera">
+          <img src="logo.png" class="hc-logo" alt="">
+          <div class="hc-identidad">
+            <div class="hc-empresa">${escaparTexto(ins.empresaNombre || 'Empresa')}</div>
+            <div class="hc-unidad">Departamento de Seguridad y Salud Ocupacional</div>
+          </div>
+          <div class="hc-ref">Hoja de campo<br>SG-SST-FOR-013</div>
+        </header>
+
+        <div class="hc-titulo">
+          ${escaparTexto(TIPOS[i.tipo] || i.tipo)} · ${escaparTexto(i.nombre)}
+        </div>
+
+        <table class="hc-datos">
+          <tr>
+            <th>Fecha</th><td class="hc-linea"></td>
+            <th>Inspecciona</th><td class="hc-linea"></td>
+          </tr>
+          <tr>
+            <th>Acompaña</th><td class="hc-linea"></td>
+            <th>Responsable del área</th>
+            <td>${escaparTexto(i.responsable || '')}</td>
+          </tr>
+        </table>
+
+        <table class="hc-tabla">
+          <thead>
+            <tr>
+              <th class="hc-th-texto">Criterio de verificación</th>
+              <th class="hc-th-casilla">Cumple</th>
+              <th class="hc-th-casilla">No<br>cumple</th>
+              <th class="hc-th-casilla">No<br>aplica</th>
+              <th class="hc-th-obs">Observación</th>
+            </tr>
+          </thead>
+          <tbody>${cuerpo}</tbody>
+        </table>
+
+        <div class="hc-pie">
+          <div class="hc-firma">
+            <div class="hc-firma-linea"></div>
+            <div class="hc-firma-rotulo">Firma de quien inspecciona</div>
+          </div>
+          <div class="hc-firma">
+            <div class="hc-firma-linea"></div>
+            <div class="hc-firma-rotulo">Firma de quien acompaña</div>
+          </div>
+        </div>
+
+        <p class="hc-nota">
+          Anote en esta hoja durante el recorrido y traslade los resultados al
+          sistema al regresar. Los criterios con nota de «vez anterior» son los
+          que quedaron pendientes en la última inspección.
+        </p>
+      </div>`;
+  }).join('');
+
+  const $z = document.getElementById('ins-impresion');
+  if (!$z) return;
+
+  $z.innerHTML = hojas;
+
+  const titulo = document.title;
+  document.title = 'Hojas de campo · inspección de instalaciones';
+  document.body.classList.add('imprimiendo-instalaciones');
+  window.print();
+
+  setTimeout(() => {
+    document.body.classList.remove('imprimiendo-instalaciones');
+    document.title = titulo;
+  }, 500);
+}
+
 /* ============================================
    Informes
    ============================================ */
@@ -1172,6 +1316,7 @@ function conectar() {
   enIns('ins-btn-reabrir', 'click', reabrirInspeccion);
 
   enIns('ins-btn-hoja', 'click', imprimirHoja);
+  enIns('ins-btn-campo', 'click', imprimirHojasCampo);
 
   enIns('ins-btn-alimentacion', 'click', () => generarInforme('alimentacion'));
   enIns('ins-btn-sanitarios', 'click', () => generarInforme('sanitarios'));
