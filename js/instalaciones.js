@@ -34,7 +34,7 @@ import { envolverWord, descargarWord, recuadroFoto, bloqueFirmas,
          logoEnBase64, encabezadoMemo, escaparTexto, fijarEscala }
   from './documento.js?v=11';
 
-const VERSION = 'v4';
+const VERSION = 'v6';
 console.info('NEXUS · instalaciones', VERSION);
 
 const ins = {
@@ -976,8 +976,11 @@ function imprimirHojasCampo() {
     /* Se reserva margen: varios criterios son largos y ocupan
        dos líneas, así que la fila real crece por encima de la
        altura pedida. Redondear hacia abajo evita que la última
-       fila empuje la tabla a una segunda página. */
-    const disponibleMm = 180 - grupos * 4.2;
+       fila empuje la tabla a una segunda página.
+
+       El espacio parte de los 262 mm de hoja menos lo que
+       ocupan cabecera, datos, firmas y nota. */
+    const disponibleMm = 172 - grupos * 4.2;
     const altoPt = Math.max(13, Math.min(26,
       Math.floor(disponibleMm / criterios.length / 0.3528) - 6));
 
