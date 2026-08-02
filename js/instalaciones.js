@@ -34,7 +34,7 @@ import { envolverWord, descargarWord, recuadroFoto, bloqueFirmas,
          logoEnBase64, encabezadoMemo, escaparTexto, fijarEscala }
   from './documento.js?v=11';
 
-const VERSION = 'v3';
+const VERSION = 'v4';
 console.info('NEXUS · instalaciones', VERSION);
 
 const ins = {
@@ -964,6 +964,23 @@ function imprimirHojasCampo() {
         .forEach((x) => previas.set(x.criterio_id, x));
     }
 
+    /* Altura de fila según cuántos criterios tenga la lista.
+
+       Con una altura fija, cocina —veintiún criterios— se
+       partía en dos páginas y lavabos —once— dejaba media
+       hoja vacía. Repartiendo el espacio disponible, cada
+       lista llena su página: las cortas con filas holgadas
+       para escribir, las largas apuradas pero enteras. */
+    const grupos = new Set(criterios.map((c) => c.grupo)).size;
+
+    /* Se reserva margen: varios criterios son largos y ocupan
+       dos líneas, así que la fila real crece por encima de la
+       altura pedida. Redondear hacia abajo evita que la última
+       fila empuje la tabla a una segunda página. */
+    const disponibleMm = 180 - grupos * 4.2;
+    const altoPt = Math.max(13, Math.min(26,
+      Math.floor(disponibleMm / criterios.length / 0.3528) - 6));
+
     let grupoPrevio = null;
     const cuerpo = criterios.map((c) => {
       const cab = c.grupo !== grupoPrevio
@@ -984,7 +1001,7 @@ function imprimirHojasCampo() {
                 ${previa.veces > 1 ? ` · ${previa.veces}.ª vez` : ''}
               </div>` : ''}
           </td>
-          <td class="hc-casilla"></td>
+          <td class="hc-casilla" style="height:${altoPt}pt"></td>
           <td class="hc-casilla"></td>
           <td class="hc-casilla"></td>
           <td class="hc-obs"></td>
