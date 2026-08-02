@@ -445,11 +445,23 @@
     font-family: 'Times New Roman', Georgia, serif;
     color: #000;
     font-size: 10pt;
-    padding: 12mm 10mm 12mm 18mm;
+    padding: 8mm 8mm 8mm 16mm;
     box-sizing: border-box;
-    min-height: 297mm;
     display: flex;
     flex-direction: column;
+
+    /* Sin reducción de escala.
+
+       Cada impresora reserva un borde que no puede imprimir, y
+       el navegador compensa encogiendo la página: una máquina
+       pedía el 94 % y otra el 92 %. Perseguir ese número es
+       inútil, porque la siguiente pedirá otro.
+
+       En su lugar, la hoja se diseña más pequeña que el papel:
+       262 mm sobre 297 dejan 35 mm de holgura, más que el
+       borde muerto de cualquier impresora doméstica u oficina.
+       Así entra al 100 % en todas. */
+    min-height: 262mm;
   }
 
   .hc-nueva { page-break-before: always; }
@@ -590,7 +602,7 @@
     display: flex;
     justify-content: space-around;
     margin-top: auto;
-    padding-top: 10mm;
+    padding-top: 8mm;
     page-break-inside: avoid;
   }
 
