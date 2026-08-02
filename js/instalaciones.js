@@ -34,7 +34,7 @@ import { envolverWord, descargarWord, recuadroFoto, bloqueFirmas,
          logoEnBase64, encabezadoMemo, escaparTexto, fijarEscala }
   from './documento.js?v=11';
 
-const VERSION = 'v1';
+const VERSION = 'v2';
 console.info('NEXUS · instalaciones', VERSION);
 
 const ins = {
@@ -783,7 +783,10 @@ function imprimirHoja() {
     </div>`;
 
   const $z = document.getElementById('ins-impresion');
-  if (!$z) return;
+  if (!$z) {
+    alert('Falta actualizar la página en el servidor para poder imprimir.');
+    return;
+  }
 
   $z.innerHTML = html;
 
@@ -812,7 +815,17 @@ function imprimirHoja() {
  */
 function abrirSeleccionCampo() {
   const $c = document.getElementById('ins-c-lista');
-  if (!$c) return;
+
+  /* Salir en silencio cuando falta un elemento convierte un
+     archivo sin subir en un botón que no responde y no dice
+     por qué. Mejor decirlo. */
+  if (!$c) {
+    console.error('NEXUS · Falta la ventana de selección en la página. '
+                + 'Suba la versión actualizada de salud-ocupacional.html.');
+    alert('Esta función necesita una versión más reciente de la página.\n\n'
+        + 'Falta actualizar salud-ocupacional.html en el servidor.');
+    return;
+  }
 
   if (ins.instalaciones.length === 0) {
     alert('Todavía no hay instalaciones registradas.');
@@ -1000,7 +1013,10 @@ function imprimirHojasCampo() {
   }).join('');
 
   const $z = document.getElementById('ins-impresion');
-  if (!$z) return;
+  if (!$z) {
+    alert('Falta actualizar la página en el servidor para poder imprimir.');
+    return;
+  }
 
   $z.innerHTML = hojas;
 
