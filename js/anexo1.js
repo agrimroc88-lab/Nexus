@@ -26,6 +26,8 @@ import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=11'
 import { montarGrupos, cargarGrupos, pintarGrupos } from './grupos.js?v=11';
 import { montarBotiquines, cargarBotiquines, pintarBotiquines }
   from './botiquines.js?v=11';
+import { montarInstalaciones, cargarInstalaciones, pintarInstalaciones }
+  from './instalaciones.js?v=11';
 
 /* Ámbito y módulo declarados por el HTML que carga este archivo */
 const AMBITO = document.body.dataset.ambito || 'salud';
@@ -88,7 +90,10 @@ async function iniciar() {
   prepararAniosEventos();
   ocultarPestanasAjenas();
   montarGrupos(perfil, AMBITO);
-  if (AMBITO === 'salud') montarBotiquines(perfil);
+  if (AMBITO === 'salud') {
+    montarBotiquines(perfil);
+    montarInstalaciones(perfil);
+  }
   await cargarEmpresas();
   conectarEventos();
 }
@@ -2208,7 +2213,8 @@ function cambiarVista(vista) {
   document.querySelectorAll('.pestana').forEach((p) => {
     p.classList.toggle('activa', p.dataset.vista === vista);
   });
-  ['cumplimiento', 'capacitaciones', 'eventos', 'ocupacionales', 'grupos', 'botiquines'].forEach((v) => {
+  ['cumplimiento', 'capacitaciones', 'eventos', 'ocupacionales',
+   'grupos', 'botiquines', 'instalaciones'].forEach((v) => {
     const $v = document.getElementById('vista-' + v);
     if ($v) $v.hidden = v !== vista;
   });
@@ -2216,6 +2222,7 @@ function cambiarVista(vista) {
   if (vista === 'eventos') pintarEventos();
   if (vista === 'grupos') pintarGrupos();
   if (vista === 'botiquines') pintarBotiquines();
+  if (vista === 'instalaciones') pintarInstalaciones();
   if (vista === 'ocupacionales') {
     cargarOcupacionales().then(pintarOcupacionales);
   }
@@ -2265,6 +2272,9 @@ async function seleccionarEmpresa() {
     cargarGrupos(estado.empresaId, nombreEmpresa),
     AMBITO === 'salud'
       ? cargarBotiquines(estado.empresaId, nombreEmpresa)
+      : Promise.resolve(),
+    AMBITO === 'salud'
+      ? cargarInstalaciones(estado.empresaId, nombreEmpresa)
       : Promise.resolve()
   ]);
 
@@ -2272,6 +2282,7 @@ async function seleccionarEmpresa() {
   if (estado.vista === 'eventos') pintarEventos();
   if (estado.vista === 'grupos') pintarGrupos();
   if (estado.vista === 'botiquines') pintarBotiquines();
+  if (estado.vista === 'instalaciones') pintarInstalaciones();
   if (estado.vista === 'ocupacionales') pintarOcupacionales();
 }
 
