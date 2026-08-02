@@ -810,25 +810,108 @@ function imprimirHoja() {
  * pasada va una nota: así una sola hoja recuerda qué mirar y
  * sirve para anotar.
  */
-function imprimirHojasCampo() {
-  const filtro = document.getElementById('ins-filtro-tipo')?.value || 'todos';
-  const lista = ins.instalaciones.filter(
-    (i) => filtro === 'todos' || i.tipo === filtro);
+function abrirSeleccionCampo() {
+  const $c = document.getElementById('ins-c-lista');
+  if (!$c) return;
 
-  if (lista.length === 0) {
-    alert('No hay instalaciones registradas con el filtro actual.');
+  if (ins.instalaciones.length === 0) {
+    alert('Todavía no hay instalaciones registradas.');
     return;
   }
+
+  $c.innerHTML = '';
+  let tipoPrevio = null;
+
+  ins.instalaciones.forEach((i) => {
+    if (i.tipo !== tipoPrevio) {
+      tipoPrevio = i.tipo;
+
+      const cabecera = document.createElement('div');
+      cabecera.className = 'ins-c-grupo';
+      cabecera.innerHTML = `
+        <span>${escapar(TIPOS[i.tipo] || i.tipo)}</span>
+        <button class="ins-c-todos" type="button" data-tipo="${i.tipo}">
+          Marcar todas
+        </button>`;
+
+      /* Marcar por tipo: lo habitual es recorrer todos los
+         baños o todas las cocinas, no una suelta. */
+      cabecera.querySelector('.ins-c-todos').addEventListener('click', () => {
+        const casillas = [...$c.querySelectorAll(`input[data-tipo="${i.tipo}"]`)];
+        const marcar = casillas.some((x) => !x.checked);
+        casillas.forEach((x) => { x.checked = marcar; });
+        actualizarCuentaCampo();
+      });
+
+      $c.appendChild(cabecera);
+    }
+
+    const criterios = ins.criterios.filter((c) => c.tipo === i.tipo).length;
+    const pendientes = ins.novedades.filter(
+      (n) => n.instalacion_id === i.id).length;
+
+    const fila = document.createElement('label');
+    fila.className = 'ins-c-opcion';
+    fila.innerHTML = `
+      <input type="checkbox" value="${i.id}" data-tipo="${i.tipo}" checked>
+      <span class="ins-c-cuerpo">
+        <span class="ins-c-nombre">${escapar(i.nombre)}</span>
+        <span class="ins-c-meta">
+          ${criterios} criterios
+          ${pendientes > 0
+            ? ` · <b>${pendientes} novedad${pendientes === 1 ? '' : 'es'} de la vez pasada</b>`
+            : ''}
+        </span>
+      </span>`;
+
+    fila.querySelector('input').addEventListener('change', actualizarCuentaCampo);
+    $c.appendChild(fila);
+  });
+
+  document.getElementById('ins_c_novedades').checked = true;
+
+  actualizarCuentaCampo();
+  document.getElementById('ins-modal-campo').hidden = false;
+}
+
+/* Cuántas hojas van a salir. Imprimir once por descuido es
+   fácil; verlo antes de pulsar, no cuesta nada. */
+function actualizarCuentaCampo() {
+  const n = document.querySelectorAll('#ins-c-lista input:checked').length;
+  const $b = document.getElementById('ins-btn-imprimir-campo');
+  const $t = document.getElementById('ins-c-cuenta');
+
+  if ($t) {
+    $t.textContent = n === 0
+      ? 'Ninguna seleccionada'
+      : `${n} hoja${n === 1 ? '' : 's'} para imprimir`;
+  }
+  if ($b) $b.disabled = n === 0;
+}
+
+function imprimirHojasCampo() {
+  const marcadas = new Set(
+    [...document.querySelectorAll('#ins-c-lista input:checked')]
+      .map((x) => x.value));
+
+  const conNovedades = document.getElementById('ins_c_novedades').checked;
+  const lista = ins.instalaciones.filter((i) => marcadas.has(i.id));
+
+  if (lista.length === 0) return;
+
+  document.getElementById('ins-modal-campo').hidden = true;
 
   const hojas = lista.map((i, n) => {
     const criterios = ins.criterios.filter((c) => c.tipo === i.tipo);
     if (criterios.length === 0) return '';
 
-    /* Novedades de la última inspección de esta instalación */
+    /* Novedades de la última inspección, si se pidieron */
     const previas = new Map();
-    ins.novedades
-      .filter((x) => x.instalacion_id === i.id)
-      .forEach((x) => previas.set(x.criterio_id, x));
+    if (conNovedades) {
+      ins.novedades
+        .filter((x) => x.instalacion_id === i.id)
+        .forEach((x) => previas.set(x.criterio_id, x));
+    }
 
     let grupoPrevio = null;
     const cuerpo = criterios.map((c) => {
@@ -1316,7 +1399,8 @@ function conectar() {
   enIns('ins-btn-reabrir', 'click', reabrirInspeccion);
 
   enIns('ins-btn-hoja', 'click', imprimirHoja);
-  enIns('ins-btn-campo', 'click', imprimirHojasCampo);
+  enIns('ins-btn-campo', 'click', abrirSeleccionCampo);
+  enIns('ins-btn-imprimir-campo', 'click', imprimirHojasCampo);
 
   enIns('ins-btn-alimentacion', 'click', () => generarInforme('alimentacion'));
   enIns('ins-btn-sanitarios', 'click', () => generarInforme('sanitarios'));
