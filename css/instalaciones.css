@@ -1,0 +1,427 @@
+/* ============================================
+   NEXUS · instalaciones.css
+   Inspección de cocina, comedores, servicios higiénicos
+   y lavabos.
+
+   La lista de verificación se llena en el teléfono, de pie y
+   con una mano. De ahí que los botones sean grandes, que el
+   campo de observación solo aparezca cuando hace falta y que
+   el avance esté siempre visible.
+   ============================================ */
+
+/* --- Subpestañas --- */
+
+.ins-subpestanas {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.9rem;
+  border-bottom: 1px solid var(--color-borde);
+}
+
+.ins-subpestana {
+  padding: 0.5rem 1rem;
+  font: inherit;
+  font-size: 0.86rem;
+  color: var(--color-texto-tenue, #8a8f98);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+
+.ins-subpestana:hover { color: var(--color-texto); }
+
+.ins-subpestana.activa {
+  color: var(--color-acento, #7ee2a8);
+  border-bottom-color: var(--color-acento, #7ee2a8);
+  font-weight: 600;
+}
+
+/* --- Listado --- */
+
+.ins-separador td {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-acento, #7ee2a8);
+  background: rgba(126, 226, 168, 0.05);
+  border-top: 1px solid var(--color-borde);
+}
+
+.ins-marca,
+.ins-tipo-menor {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.03rem 0.4rem;
+  font-size: 0.64rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-texto-tenue, #8a8f98);
+  border: 1px solid var(--color-borde);
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
+.ins-alerta { color: #f57373; font-weight: 600; }
+
+.ins-critico {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.03rem 0.4rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #f57373;
+  border: 1px solid rgba(245, 115, 115, 0.45);
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
+
+.boton-icono-destacado {
+  color: var(--color-acento, #7ee2a8);
+  border-color: rgba(126, 226, 168, 0.4);
+}
+
+/* --- Avance de la lista --- */
+
+.ins-avance-barra {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.9rem 0 0.6rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-fondo);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.ins-barra-fondo {
+  flex: 1;
+  height: 6px;
+  background: var(--color-borde);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.ins-barra {
+  height: 100%;
+  width: 0;
+  background: var(--color-acento, #7ee2a8);
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+
+.ins-avance {
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  color: var(--color-texto-tenue, #8a8f98);
+  font-variant-numeric: tabular-nums;
+}
+
+.ins-avance-completo { color: var(--color-acento, #7ee2a8); font-weight: 600; }
+
+/* --- Criterios --- */
+
+.ins-grupo {
+  margin: 1rem 0 0.4rem;
+  padding-bottom: 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-acento, #7ee2a8);
+  border-bottom: 1px solid var(--color-borde);
+}
+
+.ins-criterio {
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.4rem;
+  background: var(--color-fondo);
+  border: 1px solid var(--color-borde);
+  border-left: 3px solid transparent;
+  border-radius: var(--radio);
+}
+
+/* Lo ya evaluado se distingue de lo pendiente sin leerlo */
+.ins-criterio.ins-evaluado { border-left-color: var(--color-borde); }
+
+.ins-criterio-texto {
+  font-size: 0.88rem;
+  line-height: 1.4;
+  margin-bottom: 0.5rem;
+}
+
+.ins-norma {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.72rem;
+  color: var(--color-texto-tenue, #8a8f98);
+}
+
+.ins-opciones { display: flex; gap: 0.4rem; }
+
+/* Botones anchos: se pulsan con el pulgar, en movimiento */
+.ins-opcion {
+  flex: 1;
+  padding: 0.55rem 0.5rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-texto-tenue, #8a8f98);
+  background: var(--color-panel, transparent);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  cursor: pointer;
+}
+
+.ins-opcion:hover { color: var(--color-texto); }
+
+.ins-conforme.activa {
+  color: #0d2b16;
+  background: #7ee2a8;
+  border-color: #7ee2a8;
+}
+
+.ins-no-conforme.activa {
+  color: #fff;
+  background: #f57373;
+  border-color: #f57373;
+}
+
+.ins-no-aplica.activa {
+  color: var(--color-texto);
+  background: var(--color-borde);
+  border-color: var(--color-borde);
+}
+
+.ins-observacion { margin-top: 0.5rem; }
+
+.ins-i-periodo {
+  margin: 0.15rem 0 0;
+  font-size: 0.82rem;
+  color: var(--color-texto-tenue, #8a8f98);
+}
+
+/* --- Teléfono --- */
+
+@media (max-width: 700px) {
+  .ins-criterio-texto { font-size: 0.92rem; }
+
+  /* En vertical los tres botones no caben cómodos en fila */
+  .ins-opciones { flex-wrap: wrap; }
+  .ins-opcion {
+    flex: 1 1 30%;
+    padding: 0.7rem 0.4rem;
+    font-size: 0.82rem;
+  }
+
+  .ins-avance-barra { flex-wrap: wrap; }
+  .ins-avance { width: 100%; text-align: right; }
+
+  .ins-subpestana { flex: 1; text-align: center; padding: 0.6rem 0.5rem; }
+}
+
+/* ============================================
+   Novedades y memoria
+   ============================================ */
+
+.ins-explica {
+  margin: 0 0 0.8rem;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.83rem;
+  line-height: 1.45;
+  color: var(--color-texto-tenue, #8a8f98);
+  background: rgba(126, 226, 168, 0.05);
+  border-left: 3px solid var(--color-acento, #7ee2a8);
+  border-radius: var(--radio);
+}
+
+.ins-sep-meta {
+  margin-left: 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--color-texto-tenue, #8a8f98);
+}
+
+.ins-fila-reincide { background: rgba(245, 115, 115, 0.05); }
+
+.ins-reincide {
+  display: inline-block;
+  padding: 0.05rem 0.45rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #f57373;
+  border: 1px solid rgba(245, 115, 115, 0.45);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.ins-primera {
+  font-size: 0.72rem;
+  color: var(--color-texto-tenue, #8a8f98);
+}
+
+.ins-aviso-previo {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.03rem 0.42rem;
+  font-size: 0.64rem;
+  font-weight: 600;
+  color: #f0a868;
+  border: 1px solid rgba(240, 168, 104, 0.4);
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
+/* Lo anotado la vez pasada, bajo el criterio.
+   Se distingue del criterio sin competir con él: es contexto,
+   no una segunda pregunta. */
+.ins-previa {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin: 0 0 0.5rem;
+  padding: 0.35rem 0.55rem;
+  background: rgba(240, 168, 104, 0.06);
+  border-left: 2px solid rgba(240, 168, 104, 0.5);
+  border-radius: 3px;
+}
+
+.ins-previa-etiqueta {
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #f0a868;
+}
+
+.ins-previa-texto {
+  flex: 1;
+  font-size: 0.8rem;
+  color: var(--color-texto);
+}
+
+
+/* ============================================
+   HOJA DE RECORRIDO
+
+   Se lleva doblada en el bolsillo y se lee de pie, así que la
+   letra es mayor que la de un informe y la lista va suelta,
+   sin recuadros que compriman el texto.
+   ============================================ */
+
+.ins-impresion { display: none; }
+
+@media print {
+  body.imprimiendo-instalaciones .barra-lateral,
+  body.imprimiendo-instalaciones .contenedor,
+  body.imprimiendo-instalaciones .cabecera,
+  body.imprimiendo-instalaciones .modal,
+  body.imprimiendo-instalaciones nav,
+  body.imprimiendo-instalaciones main { display: none !important; }
+
+  body.imprimiendo-instalaciones .ins-impresion {
+    display: block !important;
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    width: 100%;
+    background: #fff;
+  }
+
+  .hr-hoja {
+    font-family: 'Times New Roman', Georgia, serif;
+    color: #000;
+    font-size: 12pt;
+    padding: 20mm 15mm 20mm 25mm;
+    box-sizing: border-box;
+  }
+
+  .hr-cabecera {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.8rem;
+    border-bottom: 2pt solid var(--doc-verde, #1b5e20);
+  }
+
+  .hr-logo { height: 20mm; width: auto; }
+
+  .hr-empresa {
+    font-size: 14pt;
+    font-weight: bold;
+    color: var(--doc-verde, #1b5e20);
+  }
+
+  .hr-unidad {
+    font-size: 9pt;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #333;
+  }
+
+  .hr-fecha-hoja { margin-left: auto; font-size: 10pt; color: #444; }
+
+  .hr-encabezado {
+    margin: 0 0 0.2rem;
+    font-size: 13pt;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .hr-nota {
+    margin: 0 0 1rem;
+    font-size: 9pt;
+    font-style: italic;
+    color: #555;
+  }
+
+  .hr-sitio { margin-bottom: 0.9rem; page-break-inside: avoid; }
+
+  .hr-titulo {
+    margin: 0 0 0.2rem;
+    padding: 2pt 5pt;
+    font-size: 11.5pt;
+    background: var(--doc-verde-claro, #e6f0e6);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .hr-tipo,
+  .hr-fecha {
+    font-size: 9pt;
+    font-weight: normal;
+    color: #444;
+    margin-left: 0.5rem;
+  }
+
+  .hr-lista { margin: 0.2rem 0 0 1.2rem; padding: 0; }
+
+  .hr-lista li {
+    font-size: 11.5pt;
+    line-height: 1.5;
+    margin-bottom: 0.15rem;
+  }
+
+  .hr-reincide { font-weight: bold; }
+
+  .hr-veces {
+    margin-left: 0.4rem;
+    padding: 0 4pt;
+    font-size: 9pt;
+    font-weight: bold;
+    border: 0.75pt solid #000;
+    border-radius: 8pt;
+  }
+}
