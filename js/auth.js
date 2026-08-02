@@ -8,7 +8,7 @@
    ARCHIVO COMPARTIDO — no modificar por módulo.
    ============================================ */
 
-import { supabase } from './supabase.js?v=8';
+import { supabase } from './supabase.js?v=11';
 
 export const ROLES = {
   ADMIN: 'admin',

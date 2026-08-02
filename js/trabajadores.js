@@ -11,12 +11,12 @@
     · La antigüedad se cuenta desde el último ingreso.
    ============================================ */
 
-import { supabase } from './supabase.js?v=8';
-import { protegerPagina, ROLES, puedeVerClinica } from './auth.js?v=8';
-import { montarNavegacion } from './nav.js?v=8';
-import { validarCedula, escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=8';
+import { supabase } from './supabase.js?v=11';
+import { protegerPagina, ROLES, puedeVerClinica } from './auth.js?v=11';
+import { montarNavegacion } from './nav.js?v=11';
+import { validarCedula, escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=11';
 import { montarEmergencia, fijarEmpresaEmergencia, traerAlertas,
-         insigniasNomina, abrirFichaEmergencia } from './emergencia.js?v=8';
+         insigniasNomina, abrirFichaEmergencia } from './emergencia.js?v=11';
 
 /* --- Estado --- */
 const estado = {

@@ -19,13 +19,13 @@
       repositorio; duplicarlo genera versiones divergentes.
    ============================================ */
 
-import { supabase } from './supabase.js?v=8';
-import { protegerPagina, ROLES } from './auth.js?v=8';
-import { montarNavegacion } from './nav.js?v=8';
-import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=8';
-import { montarGrupos, cargarGrupos, pintarGrupos } from './grupos.js?v=8';
+import { supabase } from './supabase.js?v=11';
+import { protegerPagina, ROLES } from './auth.js?v=11';
+import { montarNavegacion } from './nav.js?v=11';
+import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=11';
+import { montarGrupos, cargarGrupos, pintarGrupos } from './grupos.js?v=11';
 import { montarBotiquines, cargarBotiquines, pintarBotiquines }
-  from './botiquines.js?v=8';
+  from './botiquines.js?v=11';
 
 /* Ámbito y módulo declarados por el HTML que carga este archivo */
 const AMBITO = document.body.dataset.ambito || 'salud';

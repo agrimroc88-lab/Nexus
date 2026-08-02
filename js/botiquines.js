@@ -19,15 +19,28 @@
        entrega y quien recibe.
    ============================================ */
 
-import { supabase } from './supabase.js?v=9';
-import { ROLES } from './auth.js?v=9';
-import { escapar, formatearFecha } from './utils.js?v=9';
-import { esperarImagenes } from './impresion.js?v=9';
+import { supabase } from './supabase.js?v=11';
+import { ROLES } from './auth.js?v=11';
+import { escapar, formatearFecha } from './utils.js?v=11';
+import { esperarImagenes } from './impresion.js?v=11';
 import { envolverWord, descargarWord, recuadroFoto, bloqueFirmas,
          membreteWord, bandaTitulo, tablaWord,
          listaDocumento, seccionDocumento, logoEnBase64,
          encabezadoMemo, escaparTexto, fijarEscala }
-  from './documento.js?v=9';
+  from './documento.js?v=11';
+
+/* Marca de versión.
+   GitHub Pages sirve los archivos a través de una caché que
+   puede tardar en refrescarse, y el navegador guarda además
+   su propia copia. Comprobar en la consola qué versión está
+   corriendo evita perseguir errores ya corregidos. */
+const VERSION = 'v11';
+
+/* La versión se anuncia en consola y se estampa al pie de cada
+   documento. Dos equipos con archivos distintos producían
+   informes distintos y no había forma de saber cuál era cuál
+   sin abrir las herramientas del navegador. */
+console.info('NEXUS · botiquines', VERSION);
 
 const bt = {
   perfil: null,
@@ -41,7 +54,8 @@ const bt = {
   motivos: [],          // catálogo de motivos de reposición
   destinatarios: [],    // del informe general
   nomina: [],           // para el buscador de destinatario
-  logo: null            // en base64, para que viaje en el .doc
+  logo: null,           // en base64, para que viaje en el .doc
+  logoChico: null       // versión reducida para las páginas de continuación
 };
 
 /* Debe coincidir con es_personal_salud() de la base */
@@ -84,9 +98,11 @@ export function montarBotiquines(perfil) {
   prepararPeriodos();
   conectar();
 
-  /* El logo se lee al abrir la pestaña, no al pulsar imprimir:
-     así ya está en memoria cuando hace falta. */
-  logoEnBase64().then((l) => { if (l) bt.logo = l; });
+  /* Los logotipos se leen al abrir la pestaña, no al pulsar
+     imprimir: así ya están en memoria cuando hacen falta.
+     Se generan a los dos tamaños que usan los documentos. */
+  logoEnBase64('logo.png', 76).then((l) => { if (l) bt.logo = l; });
+  logoEnBase64('logo.png', 49).then((l) => { if (l) bt.logoChico = l; });
 }
 
 function prepararPeriodos() {
@@ -122,8 +138,12 @@ export async function cargarBotiquines(empresaId, empresaNombre) {
       .eq('empresa_id', empresaId).eq('periodo', primerDia(bt.periodo)).order('orden'),
     supabase.from('botiquin_motivos').select('*')
       .eq('activo', true).order('orden').order('nombre'),
+    /* Sin filtrar por empresa: quien firma y a quién se dirige
+       el informe son cargos del departamento, no de una sede.
+       Filtrarlo dejaba el documento sin destinatarios cuando el
+       registro había quedado asociado a otra empresa. */
     supabase.from('botiquin_destinatarios').select('*')
-      .eq('empresa_id', empresaId).eq('activo', true).order('orden'),
+      .eq('activo', true).order('orden'),
     supabase.from('v_trabajadores')
       .select('id, codigo, cedula, nombre_completo')
       .eq('empresa_id', empresaId).eq('activo', true).order('codigo')
@@ -141,21 +161,23 @@ export async function cargarBotiquines(empresaId, empresaNombre) {
      primera que encuentra— la consulta anterior no lo trae y el
      informe saldría firmado dos veces por la misma persona.
      Se busca entonces sin filtrar por empresa. */
-  if (!bt.destinatarios.some((d) => d.tipo === 'elabora')) {
-    const { data } = await supabase
-      .from('botiquin_destinatarios')
-      .select('*')
-      .eq('tipo', 'elabora')
-      .eq('activo', true)
-      .order('orden')
-      .limit(1);
-
-    if (data && data.length > 0) bt.destinatarios.push(data[0]);
+  /* Los errores de consulta se informaban como lista vacía, así
+     que un fallo de permisos era indistinguible de "no hay
+     datos". El documento salía mal sin que nada lo dijera. */
+  if (dest.error) {
+    console.error('NEXUS · No se pudieron leer los destinatarios del informe:',
+                  dest.error.message, '· código', dest.error.code);
+  } else if (bt.destinatarios.length === 0) {
+    console.warn('NEXUS · La tabla de destinatarios está vacía. '
+               + 'Ejecute 032_firma_informe.sql.');
   }
+
+  bt.errorDestinatarios = dest.error || null;
 
   /* El logo se lee una vez: va incrustado en cada documento
      para que no se rompa al enviarlo por correo. */
-  if (!bt.logo) bt.logo = await logoEnBase64();
+  if (!bt.logo) bt.logo = await logoEnBase64('logo.png', 76);
+  if (!bt.logoChico) bt.logoChico = await logoEnBase64('logo.png', 49);
 
   await cargarDetalle();
 }
@@ -740,9 +762,12 @@ async function generarInforme() {
      misma persona, que es un error difícil de notar hasta que
      alguien lo revisa. */
   if (!elabora) {
-    pendientes.push(
-      'quién elabora el informe. Sin ese dato, ambas firmas saldrán con el '
-    + 'nombre de quien tiene la sesión abierta.');
+    pendientes.push(bt.errorDestinatarios
+      ? 'quién elabora el informe: su usuario no tiene permiso para leer esa '
+      + 'tabla (' + bt.errorDestinatarios.message + '). '
+      + 'Avise a quien administra la plataforma.'
+      : 'quién elabora el informe. Falta ejecutar la configuración inicial '
+      + '(032_firma_informe.sql).');
   }
 
   if (pendientes.length > 0 && !confirm(
@@ -990,7 +1015,12 @@ async function generarInforme() {
       ${bloqueFirmas(columnas, 50)}
     </div>`;
 
-  const html = envolverWord(caratula + detalle + evidencia + cierre,
+  const sello = `
+    <p style="font-size:6.5pt;color:#999999;text-align:right;margin-top:6pt;">
+      NEXUS ${VERSION} · generado el ${new Date().toLocaleString('es-EC')}
+    </p>`;
+
+  const html = envolverWord(caratula + detalle + evidencia + cierre + sello,
     'Informe de inspección de botiquines · ' + nombreMes(bt.periodo),
     { superior: 15, inferior: 15, izquierdo: 28, derecho: 12 });
 

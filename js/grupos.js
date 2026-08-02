@@ -19,10 +19,10 @@
       El histórico sostiene la trazabilidad.
    ============================================ */
 
-import { supabase } from './supabase.js?v=8';
-import { ROLES } from './auth.js?v=8';
-import { escapar, formatearFecha } from './utils.js?v=8';
-import { imprimirHoja } from './impresion.js?v=8';
+import { supabase } from './supabase.js?v=11';
+import { ROLES } from './auth.js?v=11';
+import { escapar, formatearFecha } from './utils.js?v=11';
+import { imprimirHoja } from './impresion.js?v=11';
 
 /* --- Estado --- */
 const gp = {

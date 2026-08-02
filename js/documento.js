@@ -261,7 +261,7 @@ export function membreteWord(empresa, logo) {
       <tr>
         ${logo
           ? `<td style="width:66pt;vertical-align:middle;padding-right:10pt;">
-               <img src="${logo}" height="76" style="height:57pt;width:auto;">
+               <img src="${logo}" width="78" height="76" style="width:58pt;height:57pt;" alt="">
              </td>` : ''}
         <td style="vertical-align:middle;">
           <div style="font-size:${pt(12.5)}pt;font-weight:bold;color:${PALETA.verde};">
@@ -291,7 +291,7 @@ export function membreteCompacto(empresa, logo, referencia) {
       <tr>
         ${logo
           ? `<td style="width:44pt;vertical-align:middle;padding-right:8pt;">
-               <img src="${logo}" height="49" style="height:37pt;width:auto;">
+               <img src="${logo}" width="50" height="49" style="height:37pt;width:38pt;" alt="">
              </td>` : ''}
         <td style="vertical-align:middle;font-size:9.5pt;
                    font-weight:bold;color:${PALETA.verde};">
@@ -405,17 +405,42 @@ export function tablaWord(columnas, filas) {
  * se rompe en cuanto el documento sale de la carpeta de la
  * aplicación, y estos documentos se envían por correo.
  */
-export async function logoEnBase64(ruta = 'logo.png') {
+export async function logoEnBase64(ruta = 'logo.png', altoPx = 76) {
   try {
     const r = await fetch(ruta);
     if (!r.ok) return null;
+
     const blob = await r.blob();
-    return await new Promise((resolver) => {
-      const lector = new FileReader();
-      lector.onloadend = () => resolver(lector.result);
-      lector.onerror = () => resolver(null);
-      lector.readAsDataURL(blob);
+    const original = await new Promise((listo, falla) => {
+      const img = new Image();
+      img.onload = () => listo(img);
+      img.onerror = falla;
+      img.src = URL.createObjectURL(blob);
     });
+
+    /* La imagen se reduce antes de incrustarla.
+
+       Word decide por su cuenta cuándo respetar el tamaño
+       declarado en el HTML y cuándo usar el natural de la
+       imagen, y esa decisión cambia entre versiones: el mismo
+       archivo salía con el logotipo de dos centímetros en un
+       equipo y de ocho en otro. Si la imagen ya viene del
+       tamaño correcto, no queda nada que interpretar.
+
+       De paso, un logotipo de 301 píxeles pesa 95 KB y viaja
+       en base64 dentro de cada documento; reducido baja a una
+       fracción. */
+    const escala = altoPx / original.naturalHeight;
+    const lienzo = document.createElement('canvas');
+    lienzo.height = altoPx;
+    lienzo.width = Math.round(original.naturalWidth * escala);
+
+    const ctx = lienzo.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(original, 0, 0, lienzo.width, lienzo.height);
+
+    URL.revokeObjectURL(original.src);
+    return lienzo.toDataURL('image/png');
   } catch {
     return null;
   }

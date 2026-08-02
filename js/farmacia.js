@@ -10,11 +10,11 @@
     · El kárdex es inmutable; se corrige con ajustes.
    ============================================ */
 
-import { supabase } from './supabase.js?v=8';
-import { protegerPagina, puedeVerClinica } from './auth.js?v=8';
-import { montarNavegacion } from './nav.js?v=8';
-import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=8';
-import { imprimirHoja } from './impresion.js?v=8';
+import { supabase } from './supabase.js?v=11';
+import { protegerPagina, puedeVerClinica } from './auth.js?v=11';
+import { montarNavegacion } from './nav.js?v=11';
+import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=11';
+import { imprimirHoja } from './impresion.js?v=11';
 
 /* --- Estado --- */
 const estado = {

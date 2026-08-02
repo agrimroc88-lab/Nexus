@@ -5,8 +5,8 @@
    para el catálogo de módulos del sistema.
    ============================================ */
 
-import { cerrarSesion, puedeVerModulo } from './auth.js?v=8';
-import { supabase } from './supabase.js?v=8';
+import { cerrarSesion, puedeVerModulo } from './auth.js?v=11';
+import { supabase } from './supabase.js?v=11';
 
 /* --- Catálogo de módulos ---
    Orden de aparición en el sidebar = orden de este arreglo.

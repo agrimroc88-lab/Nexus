@@ -13,10 +13,10 @@
     · Dato reservado: solo psicologo, psico_social y admin.
    ============================================ */
 
-import { supabase } from './supabase.js?v=8';
-import { protegerPagina, puedeVerPsicologia } from './auth.js?v=8';
-import { montarNavegacion } from './nav.js?v=8';
-import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=8';
+import { supabase } from './supabase.js?v=11';
+import { protegerPagina, puedeVerPsicologia } from './auth.js?v=11';
+import { montarNavegacion } from './nav.js?v=11';
+import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=11';
 
 /* --- Estado --- */
 const estado = {
