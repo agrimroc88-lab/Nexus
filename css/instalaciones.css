@@ -424,4 +424,170 @@
     border: 0.75pt solid #000;
     border-radius: 8pt;
   }
+
+  /* ============================================
+     HOJAS DE CAMPO
+
+     La lista completa en blanco, para llenar a mano durante
+     el recorrido. Las casillas son grandes porque se marcan
+     de pie y con bolígrafo; la columna de observación va
+     ancha porque ahí se escribe.
+     ============================================ */
+
+  .hc-hoja {
+    font-family: 'Times New Roman', Georgia, serif;
+    color: #000;
+    font-size: 10pt;
+    padding: 12mm 10mm 12mm 18mm;
+    box-sizing: border-box;
+  }
+
+  .hc-nueva { page-break-before: always; }
+
+  .hc-cabecera {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding-bottom: 0.4rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 2pt solid var(--doc-verde, #1b5e20);
+  }
+
+  .hc-logo { height: 14mm; width: auto; }
+  .hc-identidad { flex: 1; }
+
+  .hc-empresa {
+    font-size: 12pt;
+    font-weight: bold;
+    color: var(--doc-verde, #1b5e20);
+  }
+
+  .hc-unidad {
+    font-size: 7.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #333;
+  }
+
+  .hc-ref {
+    font-size: 7.5pt;
+    text-align: right;
+    color: #444;
+    line-height: 1.3;
+  }
+
+  .hc-titulo {
+    padding: 3pt 6pt;
+    margin-bottom: 0.4rem;
+    font-size: 11.5pt;
+    font-weight: bold;
+    text-align: center;
+    text-transform: uppercase;
+    background: var(--doc-verde-claro, #e6f0e6);
+    border-top: 0.75pt solid var(--doc-verde, #1b5e20);
+    border-bottom: 0.75pt solid var(--doc-verde, #1b5e20);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .hc-datos {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9pt;
+    margin-bottom: 0.5rem;
+  }
+
+  .hc-datos th,
+  .hc-datos td {
+    border: 0.5pt solid #666;
+    padding: 3pt 5pt;
+    text-align: left;
+  }
+
+  .hc-datos th {
+    width: 13%;
+    background: #f2f2f2;
+    font-size: 8pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Celda para escribir a mano: se deja alta y vacía */
+  .hc-linea { height: 14pt; }
+
+  .hc-tabla {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9pt;
+  }
+
+  .hc-tabla th,
+  .hc-tabla td { border: 0.5pt solid #555; padding: 2pt 4pt; }
+
+  .hc-tabla thead th {
+    background: var(--doc-verde-claro, #e6f0e6);
+    font-size: 7.5pt;
+    text-align: center;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .hc-th-texto   { width: 46%; text-align: left !important; }
+  .hc-th-casilla { width: 9%; }
+  .hc-th-obs     { width: 27%; }
+
+  .hc-grupo {
+    background: #f2f2f2;
+    font-size: 8pt;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 2pt 5pt !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .hc-texto { line-height: 1.25; }
+
+  .hc-critico {
+    margin-left: 3pt;
+    padding: 0 3pt;
+    font-size: 7pt;
+    font-weight: bold;
+    text-transform: uppercase;
+    border: 0.5pt solid #000;
+    border-radius: 6pt;
+  }
+
+  /* Lo que quedó pendiente la vez pasada, bajo el criterio */
+  .hc-previa {
+    margin-top: 1pt;
+    font-size: 7.5pt;
+    font-style: italic;
+    color: #444;
+  }
+
+  /* Casillas altas: se marcan con bolígrafo, de pie */
+  .hc-casilla { height: 20pt; }
+
+  .hc-obs { }
+
+  .hc-pie {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 14mm;
+    page-break-inside: avoid;
+  }
+
+  .hc-firma { width: 40%; text-align: center; }
+  .hc-firma-linea { border-top: 0.75pt solid #000; }
+  .hc-firma-rotulo { font-size: 8pt; padding-top: 2pt; }
+
+  .hc-nota {
+    margin-top: 0.5rem;
+    font-size: 7.5pt;
+    font-style: italic;
+    color: #555;
+    text-align: justify;
+  }
 }
