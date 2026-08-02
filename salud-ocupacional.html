@@ -1705,6 +1705,38 @@
     </div>
   </div>
 
+  <!-- ============ Modal: Elegir hojas de campo ============ -->
+  <div class="modal" id="ins-modal-campo" hidden>
+    <div class="modal-caja modal-estrecho" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <div>
+          <h2 class="modal-titulo">Hojas de campo</h2>
+          <p class="ins-i-periodo">Elija qué listas de verificación imprimir</p>
+        </div>
+        <button class="modal-cerrar" data-cierra="ins-modal-campo" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+        <div class="ins-c-lista" id="ins-c-lista"></div>
+
+        <label class="alternador">
+          <input type="checkbox" id="ins_c_novedades" checked>
+          <span>Incluir lo pendiente de la inspección anterior</span>
+        </label>
+        <span class="ayuda">Añade bajo cada criterio una nota con lo que se
+          encontró la vez pasada, para no llevar dos papeles.</span>
+      </div>
+
+      <footer class="modal-pie">
+        <span class="ins-c-cuenta" id="ins-c-cuenta">—</span>
+        <button class="boton-secundario" data-cierra="ins-modal-campo" type="button">Cancelar</button>
+        <button class="boton-primario" id="ins-btn-imprimir-campo" type="button">Imprimir</button>
+      </footer>
+
+    </div>
+  </div>
+
   <!-- Zona de impresión de la hoja de recorrido -->
   <div class="ins-impresion" id="ins-impresion"></div>
 
