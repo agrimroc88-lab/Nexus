@@ -591,3 +591,82 @@
     text-align: justify;
   }
 }
+
+/* ============================================
+   Selección de hojas de campo
+   ============================================ */
+
+.ins-c-lista {
+  max-height: 340px;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+  padding-right: 0.25rem;
+}
+
+.ins-c-grupo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0.9rem 0 0.35rem;
+  padding-bottom: 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-acento, #7ee2a8);
+  border-bottom: 1px solid var(--color-borde);
+}
+
+.ins-c-grupo:first-child { margin-top: 0; }
+
+.ins-c-todos {
+  padding: 0;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--color-texto-tenue, #8a8f98);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.ins-c-todos:hover { color: var(--color-acento, #7ee2a8); }
+
+.ins-c-opcion {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.5rem 0.65rem;
+  margin-bottom: 0.3rem;
+  background: var(--color-fondo);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  cursor: pointer;
+}
+
+.ins-c-opcion:hover { border-color: var(--color-acento, #7ee2a8); }
+
+.ins-c-opcion input { margin-top: 0.2rem; flex-shrink: 0; }
+
+.ins-c-cuerpo { display: flex; flex-direction: column; gap: 0.1rem; }
+
+.ins-c-nombre { font-size: 0.86rem; }
+
+.ins-c-meta {
+  font-size: 0.72rem;
+  color: var(--color-texto-tenue, #8a8f98);
+}
+
+.ins-c-meta b { color: #f0a868; font-weight: 600; }
+
+/* La cuenta va a la izquierda del pie, separada de los
+   botones: informa, no es una acción. */
+.ins-c-cuenta {
+  margin-right: auto;
+  font-size: 0.78rem;
+  color: var(--color-texto-tenue, #8a8f98);
+}
