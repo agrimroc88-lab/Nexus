@@ -34,7 +34,7 @@ import { envolverWord, descargarWord, recuadroFoto, bloqueFirmas,
          logoEnBase64, encabezadoMemo, escaparTexto, fijarEscala }
   from './documento.js?v=11';
 
-const VERSION = 'v2';
+const VERSION = 'v3';
 console.info('NEXUS · instalaciones', VERSION);
 
 const ins = {
@@ -257,8 +257,10 @@ export function pintarInstalaciones() {
   const $hoja = document.getElementById('ins-btn-hoja');
   if ($hoja) $hoja.disabled = ins.novedades.length === 0;
 
+  /* Las listas de verificación son las de la norma: están
+     disponibles aunque no haya nada dado de alta. */
   const $campo = document.getElementById('ins-btn-campo');
-  if ($campo) $campo.disabled = ins.instalaciones.length === 0;
+  if ($campo) $campo.disabled = ins.criterios.length === 0;
 }
 
 function pintarResumen() {
@@ -813,6 +815,15 @@ function imprimirHoja() {
  * pasada va una nota: así una sola hoja recuerda qué mirar y
  * sirve para anotar.
  */
+/**
+ * Selección de hojas de campo.
+ *
+ * Las listas de verificación existen por sí mismas: son las
+ * de la norma, no dependen de que haya instalaciones dadas de
+ * alta. De ahí que se ofrezcan siempre en blanco, y además,
+ * si hay instalaciones registradas, con su nombre ya puesto y
+ * lo pendiente de la vez anterior.
+ */
 function abrirSeleccionCampo() {
   const $c = document.getElementById('ins-c-lista');
 
@@ -827,59 +838,80 @@ function abrirSeleccionCampo() {
     return;
   }
 
-  if (ins.instalaciones.length === 0) {
-    alert('Todavía no hay instalaciones registradas.');
-    return;
-  }
-
   $c.innerHTML = '';
-  let tipoPrevio = null;
 
-  ins.instalaciones.forEach((i) => {
-    if (i.tipo !== tipoPrevio) {
-      tipoPrevio = i.tipo;
+  /* --- Listas en blanco, una por tipo --- */
+  const cabecera = document.createElement('div');
+  cabecera.className = 'ins-c-grupo';
+  cabecera.innerHTML = '<span>Listas en blanco</span>';
+  $c.appendChild(cabecera);
 
-      const cabecera = document.createElement('div');
-      cabecera.className = 'ins-c-grupo';
-      cabecera.innerHTML = `
-        <span>${escapar(TIPOS[i.tipo] || i.tipo)}</span>
-        <button class="ins-c-todos" type="button" data-tipo="${i.tipo}">
-          Marcar todas
-        </button>`;
-
-      /* Marcar por tipo: lo habitual es recorrer todos los
-         baños o todas las cocinas, no una suelta. */
-      cabecera.querySelector('.ins-c-todos').addEventListener('click', () => {
-        const casillas = [...$c.querySelectorAll(`input[data-tipo="${i.tipo}"]`)];
-        const marcar = casillas.some((x) => !x.checked);
-        casillas.forEach((x) => { x.checked = marcar; });
-        actualizarCuentaCampo();
-      });
-
-      $c.appendChild(cabecera);
-    }
-
-    const criterios = ins.criterios.filter((c) => c.tipo === i.tipo).length;
-    const pendientes = ins.novedades.filter(
-      (n) => n.instalacion_id === i.id).length;
+  Object.entries(TIPOS).forEach(([tipo, nombre]) => {
+    const n = ins.criterios.filter((c) => c.tipo === tipo).length;
+    if (n === 0) return;
 
     const fila = document.createElement('label');
     fila.className = 'ins-c-opcion';
     fila.innerHTML = `
-      <input type="checkbox" value="${i.id}" data-tipo="${i.tipo}" checked>
+      <input type="checkbox" value="tipo:${tipo}" data-clase="tipo">
       <span class="ins-c-cuerpo">
-        <span class="ins-c-nombre">${escapar(i.nombre)}</span>
-        <span class="ins-c-meta">
-          ${criterios} criterios
-          ${pendientes > 0
-            ? ` · <b>${pendientes} novedad${pendientes === 1 ? '' : 'es'} de la vez pasada</b>`
-            : ''}
-        </span>
+        <span class="ins-c-nombre">${escapar(nombre)}</span>
+        <span class="ins-c-meta">${n} criterios · hoja en blanco</span>
       </span>`;
-
     fila.querySelector('input').addEventListener('change', actualizarCuentaCampo);
     $c.appendChild(fila);
   });
+
+  /* --- Instalaciones registradas --- */
+  if (ins.instalaciones.length > 0) {
+    const cab2 = document.createElement('div');
+    cab2.className = 'ins-c-grupo';
+    cab2.innerHTML = `
+      <span>Instalaciones registradas</span>
+      <button class="ins-c-todos" type="button">Marcar todas</button>`;
+
+    cab2.querySelector('.ins-c-todos').addEventListener('click', () => {
+      const casillas = [...$c.querySelectorAll('input[data-clase="instalacion"]')];
+      const marcar = casillas.some((x) => !x.checked);
+      casillas.forEach((x) => { x.checked = marcar; });
+      actualizarCuentaCampo();
+    });
+
+    $c.appendChild(cab2);
+
+    ins.instalaciones.forEach((i) => {
+      const n = ins.criterios.filter((c) => c.tipo === i.tipo).length;
+      const pendientes = ins.novedades.filter(
+        (x) => x.instalacion_id === i.id).length;
+
+      const fila = document.createElement('label');
+      fila.className = 'ins-c-opcion';
+      fila.innerHTML = `
+        <input type="checkbox" value="inst:${i.id}" data-clase="instalacion" checked>
+        <span class="ins-c-cuerpo">
+          <span class="ins-c-nombre">${escapar(i.nombre)}</span>
+          <span class="ins-c-meta">
+            ${escapar(TIPOS[i.tipo] || i.tipo)} · ${n} criterios
+            ${pendientes > 0
+              ? ` · <b>${pendientes} novedad${pendientes === 1 ? '' : 'es'} de la vez pasada</b>`
+              : ''}
+          </span>
+        </span>`;
+      fila.querySelector('input').addEventListener('change', actualizarCuentaCampo);
+      $c.appendChild(fila);
+    });
+  } else {
+    /* Sin instalaciones, las listas en blanco vienen marcadas:
+       es lo único que se puede imprimir y lo que se ha pedido. */
+    $c.querySelectorAll('input[data-clase="tipo"]')
+      .forEach((x) => { x.checked = true; });
+
+    const nota = document.createElement('p');
+    nota.className = 'ins-c-nota';
+    nota.textContent = 'Todavía no hay instalaciones registradas. '
+      + 'Las hojas saldrán en blanco, con espacio para anotar el sitio.';
+    $c.appendChild(nota);
+  }
 
   document.getElementById('ins_c_novedades').checked = true;
 
@@ -903,39 +935,45 @@ function actualizarCuentaCampo() {
 }
 
 function imprimirHojasCampo() {
-  const marcadas = new Set(
-    [...document.querySelectorAll('#ins-c-lista input:checked')]
-      .map((x) => x.value));
+  const marcadas = [...document.querySelectorAll('#ins-c-lista input:checked')]
+    .map((x) => x.value);
+
+  if (marcadas.length === 0) return;
 
   const conNovedades = document.getElementById('ins_c_novedades').checked;
-  const lista = ins.instalaciones.filter((i) => marcadas.has(i.id));
-
-  if (lista.length === 0) return;
-
   document.getElementById('ins-modal-campo').hidden = true;
 
-  const hojas = lista.map((i, n) => {
-    const criterios = ins.criterios.filter((c) => c.tipo === i.tipo);
+  /* Cada hoja es o bien una lista en blanco de un tipo, o bien
+     la de una instalación concreta. Se unifican aquí para que
+     el maquetado sea uno solo. */
+  const hojas = marcadas.map((valor, n) => {
+    const [clase, id] = valor.split(':');
+
+    const inst = clase === 'inst'
+      ? ins.instalaciones.find((i) => i.id === id)
+      : null;
+
+    const tipo = inst ? inst.tipo : id;
+    const criterios = ins.criterios.filter((c) => c.tipo === tipo);
     if (criterios.length === 0) return '';
 
-    /* Novedades de la última inspección, si se pidieron */
     const previas = new Map();
-    if (conNovedades) {
+    if (inst && conNovedades) {
       ins.novedades
-        .filter((x) => x.instalacion_id === i.id)
+        .filter((x) => x.instalacion_id === inst.id)
         .forEach((x) => previas.set(x.criterio_id, x));
     }
 
     let grupoPrevio = null;
     const cuerpo = criterios.map((c) => {
-      const cabecera = c.grupo !== grupoPrevio
+      const cab = c.grupo !== grupoPrevio
         ? `<tr><td colspan="5" class="hc-grupo">${escaparTexto(c.grupo)}</td></tr>`
         : '';
       grupoPrevio = c.grupo;
 
       const previa = previas.get(c.id);
 
-      return cabecera + `
+      return cab + `
         <tr>
           <td class="hc-texto">
             ${escaparTexto(c.texto)}
@@ -964,11 +1002,15 @@ function imprimirHojasCampo() {
           <div class="hc-ref">Hoja de campo<br>SG-SST-FOR-013</div>
         </header>
 
-        <div class="hc-titulo">
-          ${escaparTexto(TIPOS[i.tipo] || i.tipo)} · ${escaparTexto(i.nombre)}
-        </div>
+        <div class="hc-titulo">${escaparTexto(TIPOS[tipo] || tipo)}</div>
 
         <table class="hc-datos">
+          <tr>
+            <th>Sitio</th>
+            <td colspan="3" class="${inst ? '' : 'hc-linea'}">
+              ${inst ? escaparTexto(inst.nombre) : ''}
+            </td>
+          </tr>
           <tr>
             <th>Fecha</th><td class="hc-linea"></td>
             <th>Inspecciona</th><td class="hc-linea"></td>
@@ -976,7 +1018,9 @@ function imprimirHojasCampo() {
           <tr>
             <th>Acompaña</th><td class="hc-linea"></td>
             <th>Responsable del área</th>
-            <td>${escaparTexto(i.responsable || '')}</td>
+            <td class="${inst && inst.responsable ? '' : 'hc-linea'}">
+              ${inst ? escaparTexto(inst.responsable || '') : ''}
+            </td>
           </tr>
         </table>
 
@@ -1006,8 +1050,7 @@ function imprimirHojasCampo() {
 
         <p class="hc-nota">
           Anote en esta hoja durante el recorrido y traslade los resultados al
-          sistema al regresar. Los criterios con nota de «vez anterior» son los
-          que quedaron pendientes en la última inspección.
+          sistema al regresar.
         </p>
       </div>`;
   }).join('');
