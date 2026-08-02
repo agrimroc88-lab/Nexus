@@ -52,6 +52,7 @@
   </style>
   <link rel="stylesheet" href="css/grupos.css">
   <link rel="stylesheet" href="css/botiquines.css">
+  <link rel="stylesheet" href="css/instalaciones.css">
 </head>
 <body class="app" data-ambito="salud" data-modulo="salud_ocup">
 
@@ -89,6 +90,7 @@
           <button class="pestana" data-vista="eventos" type="button">Enfermedades profesionales</button>
           <button class="pestana" data-vista="grupos" type="button">Grupos prioritarios</button>
           <button class="pestana" data-vista="botiquines" type="button">Botiquines</button>
+          <button class="pestana" data-vista="instalaciones" type="button">Instalaciones</button>
           <button class="pestana" data-vista="ocupacionales" type="button">Atenciones ocupacionales</button>
         </nav>
 
@@ -533,6 +535,106 @@
           </div>
 
         </section>
+
+        <!-- ============ Vista: Instalaciones ============ -->
+        <section class="vista" id="vista-instalaciones" hidden>
+
+          <section class="resumen">
+            <article class="resumen-item">
+              <span class="resumen-etiqueta">Instalaciones</span>
+              <span class="resumen-valor" id="ins-total">0</span>
+            </article>
+            <article class="resumen-item">
+              <span class="resumen-etiqueta">Inspecciones cerradas</span>
+              <span class="resumen-valor" id="ins-inspeccionadas">0</span>
+            </article>
+            <article class="resumen-item resumen-critico">
+              <span class="resumen-etiqueta">Novedades</span>
+              <span class="resumen-valor" id="ins-novedades-total">0</span>
+            </article>
+            <article class="resumen-item resumen-critico">
+              <span class="resumen-etiqueta">Reincidentes</span>
+              <span class="resumen-valor" id="ins-reincidentes">0</span>
+            </article>
+          </section>
+
+          <nav class="ins-subpestanas">
+            <button class="ins-subpestana activa" data-ins-vista="inspecciones" type="button">
+              Inspecciones
+            </button>
+            <button class="ins-subpestana" data-ins-vista="novedades" type="button"
+                    id="ins-btn-novedades">
+              Novedades
+            </button>
+          </nav>
+
+          <section class="herramientas">
+            <select class="entrada filtro" id="ins-periodo"></select>
+            <select class="entrada filtro" id="ins-filtro-tipo">
+              <option value="todos">Todos los tipos</option>
+              <option value="cocina">Cocina</option>
+              <option value="comedor">Comedor</option>
+              <option value="servicios_higienicos">Servicios higiénicos</option>
+              <option value="lavabos">Lavabos</option>
+            </select>
+            <button class="boton-secundario" id="ins-btn-hoja" type="button" disabled>
+              Imprimir hoja de recorrido
+            </button>
+            <button class="boton-secundario" id="ins-btn-alimentacion" type="button" disabled>
+              Informe de alimentación
+            </button>
+            <button class="boton-secundario" id="ins-btn-sanitarios" type="button" disabled>
+              Informe sanitario
+            </button>
+            <button class="boton-primario" id="ins-btn-nueva" type="button" hidden>
+              + Nueva instalación
+            </button>
+          </section>
+
+          <div class="panel" id="ins-panel-inspecciones">
+            <div class="tabla-envoltura">
+              <table class="tabla">
+                <thead>
+                  <tr>
+                    <th>Instalación</th>
+                    <th class="celda-centro">Criterios</th>
+                    <th class="celda-centro">Cumple</th>
+                    <th class="celda-centro">No cumple</th>
+                    <th class="celda-centro">Conformidad</th>
+                    <th class="celda-centro">Estado</th>
+                    <th class="celda-centro"></th>
+                  </tr>
+                </thead>
+                <tbody id="ins-cuerpo"></tbody>
+              </table>
+            </div>
+            <p class="vacio" id="ins-vacio" hidden></p>
+          </div>
+
+          <div class="panel" id="ins-panel-novedades" hidden>
+            <p class="ins-explica">
+              Lo hallado en la última inspección de cada instalación. Imprima esta
+              hoja y llévela al recorrido: la inspección se registra en el sistema,
+              el papel solo recuerda qué revisar.
+            </p>
+            <div class="tabla-envoltura">
+              <table class="tabla">
+                <thead>
+                  <tr>
+                    <th>Aspecto</th>
+                    <th>Criterio</th>
+                    <th>Lo observado</th>
+                    <th class="celda-centro">Veces</th>
+                  </tr>
+                </thead>
+                <tbody id="ins-cuerpo-novedades"></tbody>
+              </table>
+            </div>
+            <p class="vacio" id="ins-vacio-novedades" hidden></p>
+          </div>
+
+        </section>
+
 
 
 </div>
@@ -1463,6 +1565,146 @@
     </div>
   </div>
 
-  <script type="module" src="js/anexo1.js?v=11"></script>
+
+  <!-- ============ Modal: Nueva instalación ============ -->
+  <div class="modal" id="ins-modal-nueva" hidden>
+    <div class="modal-caja modal-estrecho" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo">Nueva instalación</h2>
+        <button class="modal-cerrar" data-cierra="ins-modal-nueva" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+        <div class="campo">
+          <label class="etiqueta" for="ins_n_tipo">Tipo <span class="obligatorio">*</span></label>
+          <select class="entrada" id="ins_n_tipo">
+            <option value="cocina">Cocina</option>
+            <option value="comedor">Comedor</option>
+            <option value="servicios_higienicos">Servicios higiénicos</option>
+            <option value="lavabos">Lavabos</option>
+          </select>
+          <span class="ayuda" id="ins-ayuda-frecuencia">
+            Cocinas y comedores se inspeccionan cada mes.
+          </span>
+        </div>
+
+        <div class="rejilla">
+          <div class="campo">
+            <label class="etiqueta" for="ins_n_departamento">Departamento <span class="obligatorio">*</span></label>
+            <input class="entrada" id="ins_n_departamento" type="text"
+                   placeholder="PLANTA" autocomplete="off">
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="ins_n_area">Área</label>
+            <input class="entrada" id="ins_n_area" type="text"
+                   placeholder="Circuito 2" autocomplete="off">
+            <span class="ayuda">Solo si hay más de una del mismo tipo.</span>
+          </div>
+        </div>
+
+        <div class="campo">
+          <label class="etiqueta" for="ins_n_ubicacion">Cómo se nombra en el informe</label>
+          <input class="entrada" id="ins_n_ubicacion" type="text"
+                 placeholder="en el comedor de planta">
+        </div>
+
+        <div class="rejilla">
+          <div class="campo">
+            <label class="etiqueta" for="ins_n_responsable">Responsable del área</label>
+            <input class="entrada" id="ins_n_responsable" type="text" autocomplete="off">
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="ins_n_cargo">Cargo</label>
+            <input class="entrada" id="ins_n_cargo" type="text" autocomplete="off">
+          </div>
+        </div>
+
+        <div class="rejilla">
+          <div class="campo">
+            <label class="etiqueta" for="ins_n_usuarios">Trabajadores que la usan</label>
+            <input class="entrada" id="ins_n_usuarios" type="number" min="0">
+          </div>
+          <div class="campo" id="ins-bloque-piezas" hidden>
+            <label class="etiqueta" for="ins_n_piezas">Piezas instaladas</label>
+            <input class="entrada" id="ins_n_piezas" type="number" min="0">
+            <span class="ayuda">Excusados, urinarios o lavabos.</span>
+          </div>
+        </div>
+
+        <p class="ayuda">Al guardar se abrirá su lista de verificación.</p>
+        <p class="alerta" id="ins-alerta-nueva" role="alert" hidden></p>
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" data-cierra="ins-modal-nueva" type="button">Cancelar</button>
+        <button class="boton-primario" id="ins-btn-guardar-nueva" type="button">
+          Guardar e inspeccionar
+        </button>
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- ============ Modal: Lista de verificación ============ -->
+  <div class="modal" id="ins-modal-inspeccion" hidden>
+    <div class="modal-caja" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <div>
+          <h2 class="modal-titulo" id="ins-i-titulo">—</h2>
+          <p class="ins-i-periodo" id="ins-i-periodo">—</p>
+        </div>
+        <button class="modal-cerrar" data-cierra="ins-modal-inspeccion" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+
+        <div class="rejilla">
+          <div class="campo">
+            <label class="etiqueta" for="ins_fecha">Fecha</label>
+            <input class="entrada" id="ins_fecha" type="date">
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="ins_inspector">Inspeccionado por</label>
+            <input class="entrada" id="ins_inspector" type="text" autocomplete="off">
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="ins_acompanante">Acompaña por el área</label>
+            <input class="entrada" id="ins_acompanante" type="text" autocomplete="off">
+          </div>
+        </div>
+
+        <div class="ins-avance-barra">
+          <div class="ins-barra-fondo"><div class="ins-barra" id="ins-barra"></div></div>
+          <span class="ins-avance" id="ins-avance">0 de 0 evaluados</span>
+        </div>
+
+        <div id="ins-i-criterios"></div>
+
+        <div class="campo">
+          <label class="etiqueta" for="ins_observacion">Observación general</label>
+          <input class="entrada" id="ins_observacion" type="text">
+        </div>
+
+        <p class="alerta" id="ins-alerta-inspeccion" role="alert" hidden></p>
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" data-cierra="ins-modal-inspeccion" type="button">Cerrar</button>
+        <button class="boton-secundario" id="ins-btn-reabrir" type="button" hidden>Reabrir</button>
+        <button class="boton-secundario" id="ins-btn-guardar" type="button" hidden>Guardar</button>
+        <button class="boton-primario" id="ins-btn-cerrar-inspeccion" type="button" hidden>
+          Guardar y cerrar
+        </button>
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- Zona de impresión de la hoja de recorrido -->
+  <div class="ins-impresion" id="ins-impresion"></div>
+
+  <script type="module" src="js/anexo1.js?v=12"></script>
 </body>
 </html>
