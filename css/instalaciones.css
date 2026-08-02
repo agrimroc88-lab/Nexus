@@ -670,3 +670,13 @@
   font-size: 0.78rem;
   color: var(--color-texto-tenue, #8a8f98);
 }
+
+.ins-c-nota {
+  margin: 0.6rem 0 0;
+  padding: 0.6rem 0.7rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--color-texto-tenue, #8a8f98);
+  border: 1px dashed var(--color-borde);
+  border-radius: var(--radio);
+}
