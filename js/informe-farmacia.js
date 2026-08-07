@@ -42,7 +42,7 @@ import {
   seccionDocumento, tablaWord, logoEnBase64
 } from './documento.js?v=11';
 
-const VERSION = 'v2';
+const VERSION = 'v4';
 console.info('NEXUS · informe-farmacia', VERSION);
 
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -107,6 +107,31 @@ const TEXTOS = {
   + 'de los artículos cuyo saldo se encuentra por debajo del mínimo '
   + 'establecido.'
 };
+
+/* Supabase devuelve como máximo mil filas por consulta.
+
+   Hoy el kardex tiene ciento cincuenta y nueve movimientos y
+   el problema no se nota, pero crece cada mes: el día que
+   pase de mil, el informe empezaría a dar cifras incompletas
+   SIN AVISAR de nada. Un error que se manifiesta como un
+   número plausible es el peor de todos, así que se pagina
+   desde ahora.
+
+   @param consulta  función que recibe (desde, hasta) y
+                    devuelve la consulta ya acotada
+*/
+async function traerTodo(consulta) {
+  const TAMANO = 1000;
+  const filas = [];
+
+  for (let desde = 0; ; desde += TAMANO) {
+    const { data, error } = await consulta(desde, desde + TAMANO - 1);
+    if (error) throw error;
+
+    filas.push(...(data || []));
+    if (!data || data.length < TAMANO) return filas;
+  }
+}
 
 const inf = {
   empresaId: null,
@@ -195,22 +220,23 @@ function limitesDelMes(valor) {
  * como que ya no existe, no como que está agotado.
  */
 async function filasMedicamentos(inicio, fin) {
-  const [cat, mov] = await Promise.all([
+  const [cat, movimientos] = await Promise.all([
     supabase.from('v_stock_medicamentos')
       .select('id, nombre_generico, nombre_comercial, concentracion, forma')
       .eq('empresa_id', inf.empresaId).eq('activo', true)
       .order('nombre_generico'),
-    supabase.from('kardex')
+    traerTodo((d, h) => supabase.from('kardex')
       .select('medicamento_id, tipo, cantidad, fecha')
       .eq('empresa_id', inf.empresaId)
       .lte('fecha', fin)
+      .order('fecha')
+      .range(d, h))
   ]);
 
   if (cat.error) throw new Error('No se pudo leer el catálogo de medicamentos');
-  if (mov.error) throw new Error('No se pudo leer el kardex');
 
   const acumulado = new Map();
-  (mov.data || []).forEach((k) => {
+  movimientos.forEach((k) => {
     const signo = ENTRADAS_MED.includes(k.tipo) ? 1 : -1;
     const cant = Number(k.cantidad) || 0;
     const x = acumulado.get(k.medicamento_id)
@@ -253,53 +279,88 @@ async function filasInsumos(inicio, fin) {
   const [cat, mov] = await Promise.all([
     /* La columna es `unidad`, no `presentacion`: en insumos la
        presentación ES la unidad de despacho (frasco, funda,
-       par). Pedir una columna inexistente hacía fallar el
-       informe entero. */
+       par). */
     supabase.from('insumos')
       .select('id, nombre, unidad, stock_disponible')
       .eq('empresa_id', inf.empresaId).eq('activo', true)
       .order('nombre'),
-    supabase.from('insumos_kardex')
+
+    /* TODOS los movimientos, sin filtrar por fecha.
+       Hacen falta los posteriores al periodo para deducir el
+       saldo inicial; ver más abajo. */
+    traerTodo((d, h) => supabase.from('insumos_kardex')
       .select('insumo_id, tipo, cantidad, creado_en')
-      .lte('creado_en', fin + 'T23:59:59')
+      .order('creado_en')
+      .range(d, h))
   ]);
 
   if (cat.error) throw new Error('No se pudo leer el catálogo de insumos');
-  if (mov.error) throw new Error('No se pudo leer el kardex de insumos');
 
   const suyos = new Set((cat.data || []).map((i) => i.id));
-  const acumulado = new Map();
 
-  (mov.data || []).filter((k) => suyos.has(k.insumo_id)).forEach((k) => {
+  /* Se acumulan tres cosas por insumo:
+       total     todos los movimientos de la historia
+       anterior  los ocurridos antes del mes informado
+       mes       ingresos y egresos dentro del mes */
+  const acum = new Map();
+  const dame = (id) => {
+    if (!acum.has(id)) {
+      acum.set(id, { total: 0, anterior: 0, ingresos: 0, egresos: 0 });
+    }
+    return acum.get(id);
+  };
+
+  mov.filter((k) => suyos.has(k.insumo_id)).forEach((k) => {
     const signo = ENTRADAS_INS.includes(k.tipo) ? 1 : -1;
     const cant = Number(k.cantidad) || 0;
     const fecha = String(k.creado_en).slice(0, 10);
-    const x = acumulado.get(k.insumo_id)
-           || { anterior: 0, ingresos: 0, egresos: 0 };
+    const x = dame(k.insumo_id);
+
+    x.total += signo * cant;
 
     if (fecha < inicio) {
       x.anterior += signo * cant;
-    } else if (signo > 0) {
-      x.ingresos += cant;
-    } else {
-      x.egresos += cant;
+    } else if (fecha <= fin) {
+      if (signo > 0) x.ingresos += cant; else x.egresos += cant;
     }
-    acumulado.set(k.insumo_id, x);
   });
 
   return (cat.data || []).map((s, i) => {
-    const x = acumulado.get(s.id) || { anterior: 0, ingresos: 0, egresos: 0 };
+    const x = acum.get(s.id) || { total: 0, anterior: 0, ingresos: 0, egresos: 0 };
+    const declarado = Number(s.stock_disponible) || 0;
+
+    /* SALDO INICIAL NO REGISTRADO.
+
+       Los insumos llevan el stock escrito directamente en la
+       ficha desde antes de que existiera el kardex de
+       insumos, así que sumar solo los movimientos daba cero
+       en todas las columnas aunque la bodega estuviera llena.
+
+       La diferencia entre lo que dice la ficha hoy y lo que
+       explican todos los movimientos registrados es
+       precisamente el inventario con el que se arrancó y que
+       nadie llegó a anotar. Se le atribuye al saldo anterior,
+       que es donde corresponde: es existencia previa al
+       periodo, no un ingreso del mes.
+
+       Con esto el ACTUAL del mes en curso coincide siempre
+       con la ficha, y los meses pasados quedan coherentes
+       entre sí.
+
+       Los medicamentos no necesitan esto: su stock se calcula
+       desde el kardex, así que la diferencia es cero. */
+    const base = declarado - x.total;
+    const anterior = base + x.anterior;
+
     return {
       n: i + 1,
       nombre: (s.nombre || '').toUpperCase(),
       presentacion: (s.unidad || 'UNIDAD').toUpperCase(),
-      anterior: x.anterior,
+      anterior,
       ingresos: x.ingresos,
       egresos: x.egresos,
-      actual: x.anterior + x.ingresos - x.egresos,
-      /* Lo que dice la ficha hoy, para poder avisar si no
-         cuadra con lo que dicen los movimientos. */
-      declarado: Number(s.stock_disponible) || 0
+      actual: anterior + x.ingresos - x.egresos,
+      declarado
     };
   });
 }
@@ -331,10 +392,11 @@ export async function generarInformeMensual() {
       return avisar('No hay artículos activos en el catálogo.');
     }
 
-    /* El descuadre solo tiene sentido comprobarlo cuando el
-       informe llega hasta hoy: en uno de hace medio año, la
-       diferencia con el stock actual es normal y avisar sería
-       ruido. */
+    /* Red de seguridad. Con el saldo inicial deducido, el
+       actual del mes en curso debería coincidir siempre con
+       la ficha; si no coincide, hay algo que no entendemos y
+       vale más avisar que callar. En meses pasados la
+       diferencia es normal y no se comprueba. */
     const desajustes = fin >= hoy()
       ? insumos.filter((f) => f.actual !== f.declarado)
       : [];

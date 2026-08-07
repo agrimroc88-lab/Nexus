@@ -18,7 +18,7 @@ import { alCrear, alEditar, autorId } from './autoria.js?v=1';
 import { imprimirHoja } from './impresion.js?v=11';
 import {
   iniciarInforme, generarInformeMensual, guardarInforme, descargarActual
-} from './informe-farmacia.js?v=2';
+} from './informe-farmacia.js?v=4';
 
 /* --- Estado --- */
 const estado = {
