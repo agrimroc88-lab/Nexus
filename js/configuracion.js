@@ -178,7 +178,9 @@ async function initCargos() {
       document.querySelectorAll('.pestana').forEach((x) => x.classList.toggle('activa', x === p));
       document.getElementById('vista-apariencia').hidden = v !== 'apariencia';
       document.getElementById('vista-cargos').hidden = v !== 'cargos';
+      document.getElementById('vista-bitacora').hidden = v !== 'bitacora';
       if (v === 'cargos') cargarEmpresasCargos();
+      if (v === 'bitacora') iniciarBitacora();
     }));
 
   document.getElementById('cfg-empresa').addEventListener('change', (e) => {
@@ -275,3 +277,204 @@ async function addCargo() {
 }
 
 initCargos();
+
+
+/* ============================================
+   Bitácora · quién hizo qué
+
+   Lo escribe un disparador de la base cada vez que alguien
+   crea, cambia o da de baja un registro de las tablas
+   vigiladas. Aquí solo se lee.
+
+   ADVERTENCIA: el autor lo declara el navegador. Mientras el
+   login no emita una sesión de verdad, alguien con
+   conocimientos puede escribir el identificador de otra
+   persona. Sirve para saber quién hizo qué entre el equipo;
+   no es prueba ante una discrepancia laboral.
+   ============================================ */
+
+const POR_PAGINA = 100;
+
+const bit = { pagina: 0, filas: [], hayMas: false, listo: false };
+
+/* Nombres de columna que nadie fuera de programación
+   reconocería. Lo que no esté aquí se muestra tal cual, con
+   los guiones bajos cambiados por espacios: es preferible un
+   nombre imperfecto a esconder que algo cambió. */
+const CAMPOS_LEGIBLES = {
+  stock_disponible: 'stock disponible',
+  stock_minimo: 'stock mínimo',
+  stock_optimo: 'stock óptimo',
+  fecha_caducidad: 'fecha de caducidad',
+  numero_lote: 'número de lote',
+  nombre_generico: 'nombre genérico',
+  fecha_ingreso: 'fecha de ingreso',
+  fecha_salida: 'fecha de salida',
+  motivo_salida: 'motivo de salida',
+  ubicacion_texto: 'ubicación en el acta',
+  responsable_cargo: 'cargo del responsable',
+  destinatario_cargo: 'cargo del destinatario',
+  fecha_inspeccion: 'fecha de inspección',
+  fecha_revision: 'fecha de revisión',
+  sin_destinatario: 'sin destinatario',
+  exige_codigo: 'exige código',
+  activo: 'estado'
+};
+
+const ACCIONES = {
+  alta:   ['insignia-activa', 'Alta'],
+  cambio: ['insignia-aviso',  'Cambio'],
+  baja:   ['insignia-critica','Baja']
+};
+
+async function iniciarBitacora() {
+  if (bit.listo) return;
+  bit.listo = true;
+
+  ['bit-modulo', 'bit-usuario', 'bit-accion', 'bit-desde'].forEach((id) =>
+    document.getElementById(id).addEventListener('change', () => {
+      bit.pagina = 0;
+      bit.filas = [];
+      cargarBitacora();
+    }));
+
+  document.getElementById('bit-btn-mas').addEventListener('click', () => {
+    bit.pagina += 1;
+    cargarBitacora();
+  });
+
+  await llenarFiltrosBitacora();
+  await cargarBitacora();
+}
+
+/* Los desplegables se arman con lo que REALMENTE hay en la
+   bitácora, no con una lista fija de módulos y usuarios.
+   Ofrecer un filtro que siempre devuelve vacío es peor que no
+   ofrecerlo. */
+async function llenarFiltrosBitacora() {
+  const { data } = await supabase
+    .from('v_bitacora')
+    .select('modulo, usuario, usuario_id')
+    .order('creado_en', { ascending: false })
+    .limit(1000);
+
+  const modulos = [...new Set((data || []).map((r) => r.modulo))].sort();
+  const $m = document.getElementById('bit-modulo');
+  modulos.forEach((m) => {
+    const o = document.createElement('option');
+    o.value = m; o.textContent = m;
+    $m.appendChild(o);
+  });
+
+  const vistos = new Map();
+  (data || []).forEach((r) => {
+    if (r.usuario_id && !vistos.has(r.usuario_id)) vistos.set(r.usuario_id, r.usuario);
+  });
+  const $u = document.getElementById('bit-usuario');
+  [...vistos.entries()]
+    .sort((a, b) => String(a[1]).localeCompare(String(b[1])))
+    .forEach(([id, nombre]) => {
+      const o = document.createElement('option');
+      o.value = id; o.textContent = nombre;
+      $u.appendChild(o);
+    });
+}
+
+async function cargarBitacora() {
+  const modulo  = document.getElementById('bit-modulo').value;
+  const usuario = document.getElementById('bit-usuario').value;
+  const accion  = document.getElementById('bit-accion').value;
+  const desde   = document.getElementById('bit-desde').value;
+
+  const inicio = bit.pagina * POR_PAGINA;
+
+  let q = supabase.from('v_bitacora').select('*')
+    .order('creado_en', { ascending: false })
+    .range(inicio, inicio + POR_PAGINA - 1);
+
+  if (modulo)  q = q.eq('modulo', modulo);
+  if (usuario) q = q.eq('usuario_id', usuario);
+  if (accion)  q = q.eq('accion', accion);
+  if (desde)   q = q.gte('creado_en', desde);
+
+  const { data, error } = await q;
+
+  if (error) {
+    document.getElementById('bit-vacio').hidden = false;
+    document.getElementById('bit-vacio').textContent =
+      'No se pudo leer la bitácora. ¿Ejecutó el SQL 038?';
+    return;
+  }
+
+  bit.filas = bit.pagina === 0 ? (data || []) : bit.filas.concat(data || []);
+  bit.hayMas = (data || []).length === POR_PAGINA;
+  pintarBitacora();
+}
+
+function pintarBitacora() {
+  const $c = document.getElementById('bit-cuerpo');
+  const $vacio = document.getElementById('bit-vacio');
+  $c.innerHTML = '';
+
+  $vacio.hidden = bit.filas.length > 0;
+  document.getElementById('bit-btn-mas').hidden = !bit.hayMas;
+  document.getElementById('bit-cuenta').textContent = bit.filas.length === 0
+    ? '—'
+    : `${bit.filas.length} movimiento${bit.filas.length === 1 ? '' : 's'}`;
+
+  bit.filas.forEach((r) => {
+    const [clase, texto] = ACCIONES[r.accion] || ['insignia-inactiva', r.accion];
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="bit-fecha">${escapar(momento(r.creado_en))}</td>
+      <td>${escapar(r.usuario || 'No identificado')}</td>
+      <td class="celda-centro">
+        <span class="insignia ${clase}">${texto}</span>
+      </td>
+      <td class="celda-tenue">${escapar(r.modulo)}</td>
+      <td class="bit-cambios">${describir(r)}</td>
+    `;
+    $c.appendChild(tr);
+  });
+}
+
+/* Fecha y hora juntas: en una bitácora, saber que dos cambios
+   ocurrieron el mismo día no sirve de nada si no se sabe
+   cuál fue primero. */
+function momento(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString('es-EC') + ' · '
+       + d.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' });
+}
+
+function describir(r) {
+  if (r.accion === 'alta') return '<span class="celda-tenue">Registro creado</span>';
+  if (r.accion === 'baja') return '<span class="celda-tenue">Registro eliminado</span>';
+
+  const campos = r.campos || [];
+  if (campos.length === 0) return '<span class="celda-tenue">—</span>';
+
+  /* Se muestra el valor anterior y el nuevo, no solo el nombre
+     del campo: «cambió el stock» no responde la pregunta que
+     lleva a alguien a abrir la bitácora. */
+  return campos.slice(0, 4).map((c) => {
+    const antes = valorLegible(r.antes?.[c]);
+    const ahora = valorLegible(r.despues?.[c]);
+    return `<span class="bit-campo">${escapar(CAMPOS_LEGIBLES[c] || c.replace(/_/g, ' '))}</span>
+            <span class="bit-antes">${escapar(antes)}</span>
+            <span class="bit-flecha">→</span>
+            <span class="bit-ahora">${escapar(ahora)}</span>`;
+  }).join('<br>')
+    + (campos.length > 4
+        ? `<br><span class="celda-tenue">y ${campos.length - 4} campo${
+            campos.length - 4 === 1 ? '' : 's'} más</span>` : '');
+}
+
+function valorLegible(v) {
+  if (v === null || v === undefined) return 'vacío';
+  if (v === true) return 'sí';
+  if (v === false) return 'no';
+  const t = String(v);
+  return t.length > 40 ? t.slice(0, 40) + '…' : t;
+}

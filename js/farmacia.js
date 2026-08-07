@@ -11,9 +11,10 @@
    ============================================ */
 
 import { supabase } from './supabase.js?v=11';
-import { protegerPagina, puedeVerClinica } from './auth.js?v=11';
+import { protegerPagina, puedeVerClinica, sesionActual } from './auth.js?v=11';
 import { montarNavegacion } from './nav.js?v=11';
 import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=11';
+import { alCrear, alEditar, autorId } from './autoria.js?v=1';
 import { imprimirHoja } from './impresion.js?v=11';
 
 /* --- Estado --- */
@@ -26,6 +27,7 @@ const estado = {
   kardex: [],
   trabajadores: [],
   editandoMedId: null,
+  ordenes: [],
   vista: 'existencias'
 };
 
@@ -120,7 +122,7 @@ async function cargarTodo() {
   pintarKardex();
   // Repintar también la vista activa, si es una de las nuevas
   if (estado.vista === 'insumos') pintarInsumos();
-  if (estado.vista === 'orden') pintarOrden();
+  if (estado.vista === 'orden') { pintarOrden(); cargarOrdenes().then(pintarOrdenes); }
 }
 
 async function cargarMedicamentos() {
@@ -345,7 +347,7 @@ async function bajaPorCaducidad(lote) {
   if (!confirm(`¿Dar de baja ${lote.saldo} unidades del lote ${lote.numero_lote}?\n\n` +
                `${lote.nombre_generico} · venció el ${formatearFecha(lote.fecha_caducidad)}`)) return;
 
-  const { error } = await supabase.from('kardex').insert({
+  const { error } = await supabase.from('kardex').insert(alCrear({
     empresa_id: estado.empresaId,
     medicamento_id: lote.medicamento_id,
     lote_id: lote.lote_id,
@@ -353,7 +355,7 @@ async function bajaPorCaducidad(lote) {
     fecha: HOY(),
     cantidad: lote.saldo,
     observacion: `Baja automática por caducidad del ${formatearFecha(lote.fecha_caducidad)}`
-  });
+  }));
 
   if (error) { alert('No fue posible registrar la baja: ' + error.message); return; }
   await cargarTodo();
@@ -465,8 +467,8 @@ async function guardarMedicamento() {
   $btn.disabled = true;
 
   const { error } = estado.editandoMedId
-    ? await supabase.from('medicamentos').update(datos).eq('id', estado.editandoMedId)
-    : await supabase.from('medicamentos').insert({ ...datos, empresa_id: estado.empresaId });
+    ? await supabase.from('medicamentos').update(alEditar(datos)).eq('id', estado.editandoMedId)
+    : await supabase.from('medicamentos').insert(alCrear({ ...datos, empresa_id: estado.empresaId }));
 
   $btn.disabled = false;
 
@@ -587,11 +589,11 @@ async function guardarIngreso() {
   if (!loteId) {
     const { data: lote, error: errorLote } = await supabase
       .from('lotes')
-      .insert({
+      .insert(alCrear({
         medicamento_id: medId,
         numero_lote: loteDesdeCaducidad(caducidad),
         fecha_caducidad: caducidad
-      })
+      }))
       .select('id')
       .single();
 
@@ -602,7 +604,7 @@ async function guardarIngreso() {
     loteId = lote.id;
   }
 
-  const { error } = await supabase.from('kardex').insert({
+  const { error } = await supabase.from('kardex').insert(alCrear({
     empresa_id: estado.empresaId,
     medicamento_id: medId,
     lote_id: loteId,
@@ -610,7 +612,7 @@ async function guardarIngreso() {
     fecha,
     cantidad,
     observacion: document.getElementById('ing_observacion').value.trim() || null
-  });
+  }));
 
   $btn.disabled = false;
 
@@ -774,7 +776,7 @@ async function guardarSalida() {
   const $btn = document.getElementById('btn-guardar-salida');
   $btn.disabled = true;
 
-  const { error } = await supabase.from('kardex').insert({
+  const { error } = await supabase.from('kardex').insert(alCrear({
     empresa_id: estado.empresaId,
     medicamento_id: medId,
     lote_id: loteId,
@@ -783,7 +785,7 @@ async function guardarSalida() {
     cantidad,
     trabajador_id: tipo === 'salida_consumo' ? trabajadorId : null,
     observacion: document.getElementById('sal_observacion').value.trim() || null
-  });
+  }));
 
   $btn.disabled = false;
 
@@ -876,9 +878,11 @@ async function reponerInsumo(insumo) {
   const n = parseInt(cant, 10);
   if (isNaN(n) || n <= 0) { alert('Cantidad no válida.'); return; }
   const nuevo = Number(insumo.stock_disponible) + n;
-  const { error } = await supabase.from('insumos').update({ stock_disponible: nuevo }).eq('id', insumo.id);
+  const { error } = await supabase.from('insumos')
+    .update(alEditar({ stock_disponible: nuevo })).eq('id', insumo.id);
   if (error) { alert('No se pudo reponer: ' + error.message); return; }
-  await supabase.from('insumos_kardex').insert({ insumo_id: insumo.id, tipo: 'entrada', cantidad: n, nota: 'Reposición' });
+  await supabase.from('insumos_kardex').insert(alCrear({
+    insumo_id: insumo.id, tipo: 'entrada', cantidad: n, nota: 'Reposición' }));
   await cargarInsumos();
   pintarInsumos();
 }
@@ -903,13 +907,14 @@ async function salidaInsumo(insumo) {
   }
 
   const nuevo = Number(insumo.stock_disponible) - n;
-  const { error } = await supabase.from('insumos').update({ stock_disponible: nuevo }).eq('id', insumo.id);
+  const { error } = await supabase.from('insumos')
+    .update(alEditar({ stock_disponible: nuevo })).eq('id', insumo.id);
   if (error) { alert('No se pudo registrar la salida: ' + error.message); return; }
-  await supabase.from('insumos_kardex').insert({
+  await supabase.from('insumos_kardex').insert(alCrear({
     insumo_id: insumo.id,
     tipo: op.trim() === '1' ? 'salida_consumo' : 'baja_' + motivo.toLowerCase(),
     cantidad: n, nota: motivo
-  });
+  }));
   await cargarInsumos();
   pintarInsumos();
 }
@@ -929,10 +934,11 @@ async function guardarInsumo() {
 
   let error;
   if (insumoActual) {
-    ({ error } = await supabase.from('insumos').update(fila).eq('id', insumoActual.id));
+    ({ error } = await supabase.from('insumos')
+      .update(alEditar(fila)).eq('id', insumoActual.id));
   } else {
     fila.empresa_id = estado.empresaId;
-    ({ error } = await supabase.from('insumos').insert(fila));
+    ({ error } = await supabase.from('insumos').insert(alCrear(fila)));
   }
   if (error) {
     $alerta.textContent = error.message.includes('duplicate') ? 'Ese insumo ya existe.' : 'No se pudo guardar: ' + error.message;
@@ -946,7 +952,8 @@ async function guardarInsumo() {
 async function eliminarInsumo() {
   if (!insumoActual) return;
   if (!confirm('¿Eliminar el insumo ' + insumoActual.nombre + '?')) return;
-  await supabase.from('insumos').update({ activo: false }).eq('id', insumoActual.id);
+  await supabase.from('insumos')
+    .update(alEditar({ activo: false })).eq('id', insumoActual.id);
   document.getElementById('modal-insumo').hidden = true;
   await cargarInsumos();
   pintarInsumos();
@@ -1027,7 +1034,103 @@ function pintarOrden() {
   }
 }
 
-function imprimirOrden() {
+/**
+ * Guarda la orden y devuelve su número, o null si falló.
+ *
+ * El número lo da la base y no el navegador: dos personas
+ * pueden emitir a la vez, y el navegador no puede saber qué
+ * número acaba de tomar la otra.
+ */
+async function registrarOrden(medicamentos, insumos) {
+  const { data: numero, error: errNum } = await supabase
+    .rpc('siguiente_numero_orden', { p_empresa: estado.empresaId });
+
+  if (errNum || !numero) {
+    alert('No se pudo obtener el número de orden.\n\n'
+        + '¿Ejecutó el SQL 039_ordenes_compra.sql?');
+    return null;
+  }
+
+  const perfil = sesionActual();
+  const solicitante = perfil
+    ? [perfil.nombres, perfil.apellidos].filter(Boolean).join(' ').trim()
+    : null;
+
+  const { data: orden, error } = await supabase
+    .from('ordenes_compra')
+    .insert(alCrear({
+      empresa_id: estado.empresaId,
+      numero,
+      fecha: HOY(),
+      solicitado_por: solicitante || null
+    }))
+    .select('id')
+    .maybeSingle();
+
+  if (error || !orden) {
+    alert('No se pudo registrar la orden: ' + (error?.message || 'sin respuesta'));
+    return null;
+  }
+
+  /* El detalle guarda la descripción además del identificador:
+     si mañana se corrige el nombre de un medicamento o se da
+     de baja, esta orden tiene que seguir diciendo qué se pidió
+     exactamente. */
+  const detalle = [
+    ...medicamentos.map((m, i) => ({
+      orden_id: orden.id,
+      clase: 'medicamento',
+      articulo_id: m.medicamento_id || m.id || null,
+      descripcion: m.nombre_generico
+        + (m.nombre_comercial ? ` (${m.nombre_comercial})` : ''),
+      presentacion: `${m.concentracion || ''} ${m.forma || ''}`.trim() || null,
+      stock_actual: Number(m.stock_disponible) || 0,
+      cantidad: m.pedir,
+      orden: i
+    })),
+    ...insumos.map((x, i) => ({
+      orden_id: orden.id,
+      clase: 'insumo',
+      articulo_id: x.id || null,
+      descripcion: x.nombre,
+      presentacion: x.presentacion || null,
+      stock_actual: Number(x.stock_disponible) || 0,
+      cantidad: x.pedir,
+      orden: i
+    }))
+  ];
+
+  const { error: errDet } = await supabase
+    .from('orden_compra_detalle').insert(detalle);
+
+  if (errDet) {
+    /* Una orden sin detalle es un número reservado sin
+       contenido: se retira para que no quede un hueco
+       inexplicable en la numeración. */
+    await supabase.from('ordenes_compra').delete().eq('id', orden.id);
+    alert('No se pudo registrar el detalle de la orden: ' + errDet.message);
+    return null;
+  }
+
+  await cargarOrdenes();
+  pintarOrdenes();
+  return numero;
+}
+
+/* La orden se GUARDA antes de imprimirse.
+
+   Antes solo se imprimía: se calculaba al vuelo, salía por la
+   impresora y se perdía. Nadie sabía quién la había pedido, y
+   el número se armaba con la hora del reloj, así que
+   reimprimir la misma orden al día siguiente producía otro
+   número. Un documento que va a compras no puede cambiar de
+   número según cuándo se imprima.
+
+   Ahora se registra primero, con número correlativo tomado de
+   la base, y se imprime con ese número. Si el guardado falla
+   se avisa y NO se imprime: una hoja con un número que no
+   existe en el sistema es peor que ninguna hoja. */
+async function imprimirOrden() {
   const lista = medicamentosAReponer();
   const insumos = insumosAReponer();
   if (lista.length === 0 && insumos.length === 0) {
@@ -1038,10 +1141,14 @@ function imprimirOrden() {
   const empresaNombre = ($empresa.options[$empresa.selectedIndex] || {}).textContent || 'Empresa';
   const hoy = new Date();
   const fecha = hoy.toLocaleDateString('es-EC', { year: 'numeric', month: 'long', day: 'numeric' });
-  const numOrden = 'OC-' + hoy.getFullYear() +
-    String(hoy.getMonth() + 1).padStart(2, '0') +
-    String(hoy.getDate()).padStart(2, '0') +
-    '-' + String(hoy.getHours()).padStart(2, '0') + String(hoy.getMinutes()).padStart(2, '0');
+
+  const $btn = document.getElementById('btn-imprimir-orden');
+  $btn.disabled = true;
+
+  const numOrden = await registrarOrden(lista, insumos);
+
+  $btn.disabled = false;
+  if (!numOrden) return;
 
   const filasMed = lista.map((m, i) => {
     const presentacion = `${m.concentracion || ''} ${m.forma || ''}`.trim();
@@ -1139,7 +1246,7 @@ function cambiarVista(vista) {
   ['existencias', 'lotes', 'kardex', 'insumos', 'orden'].forEach((v) => {
     document.getElementById('vista-' + v).hidden = v !== vista;
   });
-  if (vista === 'orden') pintarOrden();
+  if (vista === 'orden') { pintarOrden(); cargarOrdenes().then(pintarOrdenes); }
   if (vista === 'insumos') pintarInsumos();
 }
 
@@ -1247,4 +1354,134 @@ function conectarEventos() {
       if (!$m.hidden) $m.hidden = true;
     });
   });
+}
+
+
+/* ============================================
+   Historial de órdenes emitidas
+
+   Sin esto, la orden guardada no le serviría a nadie: quedaría
+   en la base sin forma de consultarla desde la aplicación, y
+   la única copia útil seguiría siendo el papel.
+   ============================================ */
+
+async function cargarOrdenes() {
+  if (!estado.empresaId) { estado.ordenes = []; return; }
+
+  const { data, error } = await supabase
+    .from('v_ordenes_compra').select('*')
+    .eq('empresa_id', estado.empresaId)
+    .order('creado_en', { ascending: false })
+    .limit(50);
+
+  if (error) {
+    console.warn('NEXUS · órdenes: falta ejecutar 039_ordenes_compra.sql');
+    estado.ordenes = [];
+    return;
+  }
+  estado.ordenes = data || [];
+}
+
+function pintarOrdenes() {
+  const $c = document.getElementById('cuerpo-ordenes');
+  const $vacio = document.getElementById('vacio-ordenes');
+  if (!$c) return;
+
+  $c.innerHTML = '';
+  const lista = estado.ordenes || [];
+
+  if ($vacio) $vacio.hidden = lista.length > 0;
+
+  lista.forEach((o) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><span class="codigo">${escapar(o.numero)}</span></td>
+      <td>${escapar(formatearFecha(o.fecha))}</td>
+      <td>${escapar(o.solicitado_por || 'No identificado')}</td>
+      <td class="celda-centro">${o.medicamentos}</td>
+      <td class="celda-centro">${o.insumos}</td>
+      <td class="celda-centro">${o.unidades}</td>
+      <td class="celda-centro"></td>
+    `;
+
+    const btn = document.createElement('button');
+    btn.className = 'boton-icono';
+    btn.type = 'button';
+    btn.textContent = 'Reimprimir';
+    btn.title = 'Vuelve a imprimir esta orden con su mismo número';
+    btn.addEventListener('click', () => reimprimirOrden(o));
+    tr.lastElementChild.appendChild(btn);
+
+    $c.appendChild(tr);
+  });
+}
+
+/* Reimprime lo que se pidió ese día, no lo que haría falta
+   hoy. Recalcular contra el stock actual daría un documento
+   distinto con el mismo número, que es precisamente lo que
+   este cambio vino a evitar. */
+async function reimprimirOrden(o) {
+  const { data, error } = await supabase
+    .from('orden_compra_detalle').select('*')
+    .eq('orden_id', o.id)
+    .order('clase').order('orden');
+
+  if (error || !data || data.length === 0) {
+    alert('No se pudo recuperar el detalle de esta orden.');
+    return;
+  }
+
+  const empresaNombre =
+    ($empresa.options[$empresa.selectedIndex] || {}).textContent || 'Empresa';
+
+  const filas = (clase) => data
+    .filter((d) => d.clase === clase)
+    .map((d, i) => `<tr>
+        <td style="text-align:center">${i + 1}</td>
+        <td>${escapar(d.descripcion)}</td>
+        <td>${escapar(d.presentacion || '')}</td>
+        <td style="text-align:center">${d.stock_actual ?? ''}</td>
+        <td style="text-align:center"><strong>${d.cantidad}</strong></td>
+      </tr>`).join('');
+
+  const bloque = (titulo, clase) => {
+    const f = filas(clase);
+    if (!f) return '';
+    return `<h2 class="oc-seccion">${titulo}</h2>
+      <table class="oc-tabla">
+        <thead><tr>
+          <th style="width:6%">N°</th><th>Descripción</th>
+          <th style="width:22%">Presentación</th>
+          <th style="width:12%">Stock</th><th style="width:12%">Cantidad</th>
+        </tr></thead>
+        <tbody>${f}</tbody>
+      </table>`;
+  };
+
+  document.getElementById('orden-impresion').innerHTML = `
+    <div class="oc-hoja">
+      <div class="oc-cabecera">
+        <img src="logo.png" class="oc-logo" alt="">
+        <div>
+          <h1>ORDEN DE COMPRA / REPOSICIÓN DE MEDICAMENTOS E INSUMOS</h1>
+          <p><strong>${escapar(empresaNombre)}</strong></p>
+          <p>Unidad de Seguridad y Salud Ocupacional</p>
+        </div>
+      </div>
+      <div class="oc-datos">
+        <span><strong>N° de orden:</strong> ${escapar(o.numero)}</span>
+        <span><strong>Fecha:</strong> ${escapar(formatearFecha(o.fecha))}</span>
+      </div>
+      ${bloque('Medicamentos', 'medicamento')}
+      ${bloque('Insumos', 'insumo')}
+      <div class="oc-firmas">
+        <div class="oc-firma"><div class="oc-linea"></div>
+          <p>Solicitado por${o.solicitado_por
+            ? '<br>' + escapar(o.solicitado_por) : ''}</p></div>
+        <div class="oc-firma"><div class="oc-linea"></div><p>Autorizado por</p></div>
+      </div>
+    </div>`;
+
+  imprimirHoja('orden-impresion', 'imprimiendo-orden',
+    'Orden ' + o.numero + ' · ' + empresaNombre);
 }
