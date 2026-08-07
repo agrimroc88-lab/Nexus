@@ -52,7 +52,7 @@
   </style>
   <link rel="stylesheet" href="css/grupos.css">
   <link rel="stylesheet" href="css/botiquines.css?v=12">
-  <link rel="stylesheet" href="css/instalaciones.css">
+  <link rel="stylesheet" href="css/instalaciones.css?v=7">
 </head>
 <body class="app" data-ambito="salud" data-modulo="salud_ocup">
 
@@ -604,6 +604,7 @@
               <table class="tabla">
                 <thead>
                   <tr>
+                    <th>Código</th>
                     <th>Instalación</th>
                     <th class="celda-centro">Criterios</th>
                     <th class="celda-centro">Cumple</th>
@@ -1746,7 +1747,7 @@
     <div class="modal-caja modal-estrecho" role="dialog" aria-modal="true">
 
       <header class="modal-cabecera">
-        <h2 class="modal-titulo">Nueva instalación</h2>
+        <h2 class="modal-titulo" id="ins-n-titulo">Nueva instalación</h2>
         <button class="modal-cerrar" data-cierra="ins-modal-nueva" type="button" aria-label="Cerrar">×</button>
       </header>
 
@@ -1768,13 +1769,42 @@
           <div class="campo">
             <label class="etiqueta" for="ins_n_departamento">Departamento <span class="obligatorio">*</span></label>
             <input class="entrada" id="ins_n_departamento" type="text"
-                   placeholder="PLANTA" autocomplete="off">
+                   placeholder="BASE 7" autocomplete="off">
           </div>
           <div class="campo">
             <label class="etiqueta" for="ins_n_area">Área</label>
             <input class="entrada" id="ins_n_area" type="text"
-                   placeholder="Circuito 2" autocomplete="off">
+                   placeholder="Bloque 1" autocomplete="off">
             <span class="ayuda">Solo si hay más de una del mismo tipo.</span>
+          </div>
+        </div>
+
+        <div class="campo campo-corto">
+          <label class="etiqueta" for="ins_n_codigo">Código <span class="obligatorio">*</span></label>
+          <input class="entrada entrada-codigo" id="ins_n_codigo" type="text"
+                 maxlength="20" autocomplete="off" placeholder="B7-B1">
+          <span class="ayuda">
+            Se propone solo con las iniciales del sitio. Encabeza la columna en la
+            hoja de campo, así que conviene que sea corto.
+          </span>
+        </div>
+
+        <!-- Solo al editar una pieza -->
+        <div class="rejilla" id="ins-bloque-pieza" hidden>
+          <div class="campo">
+            <label class="etiqueta" for="ins_n_clase">Clase de pieza</label>
+            <select class="entrada" id="ins_n_clase">
+              <option value="sanitario">Sanitario</option>
+              <option value="urinario">Urinario</option>
+              <option value="lavabo">Lavabo</option>
+              <option value="ducha">Ducha</option>
+              <option value="vestidor">Vestidor</option>
+              <option value="mesa">Mesa</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="ins_n_numero">Número</label>
+            <input class="entrada" id="ins_n_numero" type="number" min="1" step="1">
           </div>
         </div>
 
@@ -1812,10 +1842,90 @@
       </div>
 
       <footer class="modal-pie">
+        <button class="boton-peligro" id="ins-btn-eliminar" type="button" hidden>
+          Eliminar
+        </button>
         <button class="boton-secundario" data-cierra="ins-modal-nueva" type="button">Cancelar</button>
         <button class="boton-primario" id="ins-btn-guardar-nueva" type="button">
           Guardar e inspeccionar
         </button>
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- ============ Modal: Piezas del bloque ============ -->
+  <div class="modal" id="ins-modal-piezas" hidden>
+    <div class="modal-caja modal-estrecho" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <div class="modal-encabezado">
+          <h2 class="modal-titulo" id="ins-p-titulo">Piezas</h2>
+          <span class="modal-sub">
+            Bloque <span class="ins-codigo" id="ins-p-codigo">—</span>
+          </span>
+        </div>
+        <button class="modal-cerrar" data-cierra="ins-modal-piezas" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+
+        <p class="ayuda">
+          Numere cada sanitario, urinario, lavabo o ducha del bloque. Cada pieza se
+          inspecciona por separado y lleva su propio historial, de modo que el
+          sistema puede decir que el sanitario 2 lleva tres trimestres sin descarga
+          en lugar de que «al bloque le falta algo».
+        </p>
+
+        <div class="tabla-envoltura">
+          <table class="tabla tabla-compacta">
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Pieza</th>
+                <th class="celda-centro"></th>
+                <th class="celda-centro"></th>
+              </tr>
+            </thead>
+            <tbody id="ins-p-cuerpo"></tbody>
+          </table>
+        </div>
+        <p class="vacio" id="ins-p-vacio" hidden>
+          El bloque todavía no tiene piezas numeradas.
+        </p>
+
+        <div class="bt-dot-agregar">
+          <div class="campo campo-ancho">
+            <label class="etiqueta" for="ins_p_clase">Agregar</label>
+            <select class="entrada" id="ins_p_clase">
+              <option value="sanitario">Sanitarios</option>
+              <option value="urinario">Urinarios</option>
+              <option value="lavabo">Lavabos</option>
+              <option value="ducha">Duchas</option>
+              <option value="vestidor">Vestidores</option>
+              <option value="mesa">Mesas</option>
+            </select>
+          </div>
+          <div class="campo campo-corto">
+            <label class="etiqueta" for="ins_p_cantidad">Cuántas</label>
+            <input class="entrada" id="ins_p_cantidad" type="number" min="1" step="1" value="1">
+          </div>
+          <button class="boton-secundario" id="ins-btn-agregar-piezas" type="button">
+            Agregar
+          </button>
+        </div>
+
+        <p class="ayuda" id="ins-p-cuenta">Sin piezas</p>
+        <p class="ayuda">
+          Al guardar, las piezas nuevas quedan listas para inspeccionar. El bloque
+          deja de inspeccionarse por sí mismo: lo que se revisa pasa a ser cada pieza.
+        </p>
+        <p class="alerta" id="ins-alerta-piezas" role="alert" hidden></p>
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" data-cierra="ins-modal-piezas" type="button">Cancelar</button>
+        <button class="boton-primario" id="ins-btn-guardar-piezas" type="button">Guardar</button>
       </footer>
 
     </div>
@@ -1842,11 +1952,17 @@
           </div>
           <div class="campo">
             <label class="etiqueta" for="ins_inspector">Inspeccionado por</label>
-            <input class="entrada" id="ins_inspector" type="text" autocomplete="off">
+            <input class="entrada entrada-fija" id="ins_inspector" type="text"
+                   readonly autocomplete="off">
+            <span class="ayuda">Quien tiene la sesión abierta.</span>
           </div>
           <div class="campo">
             <label class="etiqueta" for="ins_acompanante">Acompaña por el área</label>
-            <input class="entrada" id="ins_acompanante" type="text" autocomplete="off">
+            <input class="entrada" id="ins_acompanante" type="text" autocomplete="off"
+                   placeholder="Nombre de quien acompaña">
+            <input class="entrada ins-buscador" id="ins_acomp_buscar" type="text"
+                   autocomplete="off" placeholder="Buscar por código o nombre…">
+            <div class="ins-sugerencias" id="ins_acomp_sugerencias" hidden></div>
           </div>
         </div>
 
@@ -1893,6 +2009,15 @@
         <div class="ins-c-lista" id="ins-c-lista"></div>
 
         <label class="alternador">
+          <input type="checkbox" id="ins_c_rejilla">
+          <span>Una sola hoja en rejilla</span>
+        </label>
+        <span class="ayuda">Los criterios en las filas y una columna por cada
+          instalación, identificada con su código. El inspector anota
+          <b>S</b> si cumple, <b>N</b> si no cumple y <b>/</b> si no aplica. Un
+          bloque de baños entero cabe en una página en vez de veinte.</span>
+
+        <label class="alternador">
           <input type="checkbox" id="ins_c_novedades" checked>
           <span>Incluir lo pendiente de la inspección anterior</span>
         </label>
@@ -1912,6 +2037,6 @@
   <!-- Zona de impresión de la hoja de recorrido -->
   <div class="ins-impresion" id="ins-impresion"></div>
 
-  <script type="module" src="js/anexo1.js?v=18"></script>
+  <script type="module" src="js/anexo1.js?v=19"></script>
 </body>
 </html>
