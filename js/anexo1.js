@@ -25,7 +25,7 @@ import { montarNavegacion } from './nav.js?v=11';
 import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=11';
 import { montarGrupos, cargarGrupos, pintarGrupos } from './grupos.js?v=11';
 import { montarBotiquines, cargarBotiquines, pintarBotiquines }
-  from './botiquines.js?v=11';
+  from './botiquines.js?v=12';
 import { montarInstalaciones, cargarInstalaciones, pintarInstalaciones }
   from './instalaciones.js?v=16';
 

@@ -34,7 +34,7 @@ import { envolverWord, descargarWord, recuadroFoto, bloqueFirmas,
    puede tardar en refrescarse, y el navegador guarda además
    su propia copia. Comprobar en la consola qué versión está
    corriendo evita perseguir errores ya corregidos. */
-const VERSION = 'v11';
+const VERSION = 'v12';
 
 /* La versión se anuncia en consola y se estampa al pie de cada
    documento. Dos equipos con archivos distintos producían
@@ -51,6 +51,10 @@ const bt = {
   revisiones: [],       // del periodo elegido
   detalle: {},          // revision_id → [líneas]
   actual: null,         // revisión abierta
+  dotacion: {},         // botiquin_id → [{id, insumo_id, cantidad}]
+  insumos: [],          // catálogo global de insumos de botiquín
+  bAbierto: null,       // botiquín en edición (ficha o dotación)
+  dotEdicion: [],       // dotación en edición dentro del modal
   motivos: [],          // catálogo de motivos de reposición
   destinatarios: [],    // del informe general
   nomina: [],           // para el buscador de destinatario
@@ -131,9 +135,13 @@ export async function cargarBotiquines(empresaId, empresaNombre) {
 
   bt.periodo = document.getElementById('bt-periodo')?.value || bt.periodo;
 
-  const [bots, revs, mot, dest, nom] = await Promise.all([
-    supabase.from('v_botiquines').select('*')
-      .eq('empresa_id', empresaId).eq('activo', true).order('orden'),
+  /* Se lee la tabla base y no la vista: el módulo ahora edita el
+     botiquín, y para escribir hacen falta sus columnas reales.
+     La vista solo servía para contarlos. */
+  const [bots, revs, mot, dest, nom, ins] = await Promise.all([
+    supabase.from('botiquines').select('*')
+      .eq('empresa_id', empresaId).eq('activo', true)
+      .order('orden').order('area'),
     supabase.from('v_botiquin_revisiones').select('*')
       .eq('empresa_id', empresaId).eq('periodo', primerDia(bt.periodo)).order('orden'),
     supabase.from('botiquin_motivos').select('*')
@@ -146,7 +154,12 @@ export async function cargarBotiquines(empresaId, empresaNombre) {
       .eq('activo', true).order('orden'),
     supabase.from('v_trabajadores')
       .select('id, codigo, cedula, nombre_completo')
-      .eq('empresa_id', empresaId).eq('activo', true).order('codigo')
+      .eq('empresa_id', empresaId).eq('activo', true).order('codigo'),
+    /* Catálogo de insumos: es común a todas las empresas, como el
+       de motivos. Un botiquín de cocina y uno de mina llevan las
+       mismas gasas; lo que cambia es cuántas. */
+    supabase.from('botiquin_insumos').select('*')
+      .eq('activo', true).order('orden').order('nombre')
   ]);
 
   bt.botiquines = bots.data || [];
@@ -154,6 +167,7 @@ export async function cargarBotiquines(empresaId, empresaNombre) {
   bt.motivos = mot.data || [];
   bt.destinatarios = dest.data || [];
   bt.nomina = nom.data || [];
+  bt.insumos = ins.data || [];
 
   /* Quien firma la elaboración del informe es del departamento,
      no de una empresa concreta. Si el registro quedó asociado a
@@ -179,7 +193,29 @@ export async function cargarBotiquines(empresaId, empresaNombre) {
   if (!bt.logo) bt.logo = await logoEnBase64('logo.png', 76);
   if (!bt.logoChico) bt.logoChico = await logoEnBase64('logo.png', 49);
 
-  await cargarDetalle();
+  await Promise.all([cargarDotacion(), cargarDetalle()]);
+}
+
+/* La dotación es lo que el botiquín DEBE tener. Existe con
+   independencia de que se haya abierto la revisión del mes:
+   por eso se lee siempre, y por eso el listado puede mostrar
+   los botiquines aunque nadie los haya revisado todavía. */
+async function cargarDotacion() {
+  bt.dotacion = {};
+  if (bt.botiquines.length === 0) return;
+
+  const ids = bt.botiquines.map((b) => b.id);
+  const { data, error } = await supabase
+    .from('botiquin_dotacion')
+    .select('id, botiquin_id, insumo_id, cantidad')
+    .in('botiquin_id', ids);
+
+  if (error) {
+    console.error('NEXUS · No se pudo leer la dotación:', error.message);
+    return;
+  }
+
+  (data || []).forEach((d) => (bt.dotacion[d.botiquin_id] ||= []).push(d));
 }
 
 async function cargarDetalle() {
@@ -200,13 +236,32 @@ async function cargarDetalle() {
    Listado
    ============================================ */
 
+/** Nombre visible del botiquín: el área, y el departamento si no hay área. */
+function nombreBotiquin(b) {
+  return b.area || b.departamento || 'Botiquín';
+}
+
+/** Líneas de dotación de un botiquín, resueltas contra el catálogo. */
+function dotacionDe(botiquinId) {
+  return (bt.dotacion[botiquinId] || [])
+    .map((d) => ({ ...d, insumo: bt.insumos.find((i) => i.id === d.insumo_id) }))
+    .filter((d) => d.insumo)
+    .sort((a, b) => (a.insumo.orden ?? 99) - (b.insumo.orden ?? 99)
+                 || a.insumo.nombre.localeCompare(b.insumo.nombre));
+}
+
 export function pintarBotiquines() {
   pintarResumen();
   pintarTabla();
 
   const abierto = bt.revisiones.length > 0;
   const $abrir = document.getElementById('bt-btn-abrir');
-  if ($abrir) $abrir.hidden = abierto || !puedeEscribir();
+  if ($abrir) {
+    $abrir.hidden = abierto || !puedeEscribir() || bt.botiquines.length === 0;
+  }
+
+  const $nuevo = document.getElementById('bt-btn-nuevo');
+  if ($nuevo) $nuevo.hidden = !puedeEscribir() || !bt.empresaId;
 
   ['bt-btn-informe', 'bt-btn-actas', 'bt-btn-actas-doc'].forEach((id) => {
     const $b = document.getElementById(id);
@@ -229,6 +284,14 @@ function pintarResumen() {
   poner('bt-pendientes', num(rev.reduce((s, r) => s + Number(r.total_pendiente || 0), 0)));
 }
 
+/* El listado recorre los BOTIQUINES, no las revisiones.
+
+   Antes se recorrían las revisiones, y eso hacía que la pestaña
+   apareciera vacía mientras no se abriera el mes: los botiquines
+   existían en la base pero no se veían por ninguna parte, y no
+   había modo de corregir su dotación. Ahora el botiquín se ve
+   siempre con lo que debe contener, y las cifras de consumo se
+   añaden encima cuando hay revisión abierta. */
 function pintarTabla() {
   const $c = document.getElementById('bt-cuerpo');
   const $vacio = document.getElementById('bt-vacio');
@@ -239,59 +302,84 @@ function pintarTabla() {
   if (bt.botiquines.length === 0) {
     if ($vacio) {
       $vacio.hidden = false;
-      $vacio.textContent = 'No hay botiquines registrados para esta empresa.';
-    }
-    return;
-  }
-
-  if (bt.revisiones.length === 0) {
-    if ($vacio) {
-      $vacio.hidden = false;
-      $vacio.textContent =
-        `La revisión de ${nombreMes(bt.periodo)} aún no se ha abierto.`;
+      $vacio.textContent = puedeEscribir()
+        ? 'No hay botiquines registrados. Use «+ Nuevo botiquín» para crear el primero.'
+        : 'No hay botiquines registrados para esta empresa.';
     }
     return;
   }
   if ($vacio) $vacio.hidden = true;
 
+  const porBotiquin = new Map(bt.revisiones.map((r) => [r.botiquin_id, r]));
+
   /* Agrupado por departamento, como se recorre en campo */
   let departamentoPrevio = null;
 
-  bt.revisiones.forEach((r) => {
-    if (r.departamento !== departamentoPrevio) {
-      departamentoPrevio = r.departamento;
+  bt.botiquines.forEach((b) => {
+    if (b.departamento !== departamentoPrevio) {
+      departamentoPrevio = b.departamento;
       const sep = document.createElement('tr');
       sep.className = 'bt-separador';
-      sep.innerHTML = `<td colspan="7">${escapar(r.departamento)}</td>`;
+      sep.innerHTML = `<td colspan="9">${escapar(b.departamento || 'Sin departamento')}</td>`;
       $c.appendChild(sep);
     }
 
-    const cerrada = r.estado === 'cerrada';
-    const faltan = Number(r.total_faltante || 0);
-    const pend = Number(r.total_pendiente || 0);
+    const dot = dotacionDe(b.id);
+    const unidades = dot.reduce((s, d) => s + Number(d.cantidad || 0), 0);
+
+    const r = porBotiquin.get(b.id);
+    const cerrada = r && r.estado === 'cerrada';
+    const faltan = r ? Number(r.total_faltante || 0) : 0;
+    const pend = r ? Number(r.total_pendiente || 0) : 0;
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${escapar(r.area || r.departamento)}</td>
-      <td class="celda-centro">${r.lineas}</td>
-      <td class="celda-centro">${faltan > 0 ? num(faltan) : '—'}</td>
-      <td class="celda-centro">${num(r.total_repuesto)}</td>
-      <td class="celda-centro">${pend > 0
+      <td>${escapar(nombreBotiquin(b))}</td>
+      <td class="celda-tenue">${escapar(b.ubicacion || '—')}</td>
+      <td class="celda-centro">${dot.length || '—'}</td>
+      <td class="celda-centro">${unidades > 0 ? num(unidades) : '—'}</td>
+      <td class="celda-centro">${r && faltan > 0 ? num(faltan) : '—'}</td>
+      <td class="celda-centro">${r ? num(r.total_repuesto) : '—'}</td>
+      <td class="celda-centro">${r && pend > 0
         ? `<span class="bt-pendiente">${num(pend)}</span>` : '—'}</td>
       <td class="celda-centro">
-        <span class="insignia ${cerrada ? 'insignia-activa' : 'insignia-aviso'}">
-          ${cerrada ? 'Cerrada' : 'Abierta'}
-        </span>
+        ${r
+          ? `<span class="insignia ${cerrada ? 'insignia-activa' : 'insignia-aviso'}">
+               ${cerrada ? 'Cerrada' : 'Abierta'}
+             </span>`
+          : '<span class="insignia insignia-neutra">Sin abrir</span>'}
       </td>
-      <td class="celda-centro"></td>
+      <td class="celda-centro bt-acciones"></td>
     `;
 
-    const btn = document.createElement('button');
-    btn.className = 'boton-icono';
-    btn.type = 'button';
-    btn.textContent = cerrada ? 'Ver' : 'Revisar';
-    btn.addEventListener('click', () => abrirRevision(r));
-    tr.lastElementChild.appendChild(btn);
+    const $acc = tr.lastElementChild;
+
+    const btnIns = document.createElement('button');
+    btnIns.className = 'boton-icono';
+    btnIns.type = 'button';
+    btnIns.textContent = 'Insumos';
+    btnIns.title = 'Ver y editar la dotación del botiquín';
+    btnIns.addEventListener('click', () => abrirDotacion(b));
+    $acc.appendChild(btnIns);
+
+    if (r) {
+      const btnRev = document.createElement('button');
+      btnRev.className = 'boton-icono';
+      btnRev.type = 'button';
+      btnRev.textContent = cerrada ? 'Ver' : 'Revisar';
+      btnRev.addEventListener('click', () => abrirRevision(r));
+      $acc.appendChild(btnRev);
+    }
+
+    if (puedeEscribir()) {
+      const btnEd = document.createElement('button');
+      btnEd.className = 'boton-icono';
+      btnEd.type = 'button';
+      btnEd.textContent = 'Editar';
+      btnEd.title = 'Datos del botiquín';
+      btnEd.addEventListener('click', () => abrirBotiquin(b));
+      $acc.appendChild(btnEd);
+    }
 
     $c.appendChild(tr);
   });
@@ -1295,6 +1383,389 @@ function alertaDestinatario(texto) {
 }
 
 /* ============================================
+   Dotación · qué debe contener cada botiquín
+
+   La dotación vive en botiquin_dotacion y es propia de cada
+   botiquín; el catálogo de insumos (botiquin_insumos) es común
+   a todos. Se separan porque el de cocina y el de mina llevan
+   las mismas gasas: lo que cambia es cuántas.
+
+   Se edita en memoria y se guarda de una vez. Escribir cada
+   celda al teclear dejaría la dotación a medio cambiar si
+   alguien cierra la pestaña en mitad de la corrección.
+   ============================================ */
+
+function abrirDotacion(b) {
+  bt.bAbierto = b;
+
+  /* Copia de trabajo: el original no se toca hasta guardar */
+  bt.dotEdicion = dotacionDe(b.id).map((d) => ({
+    id: d.id, insumo_id: d.insumo_id, cantidad: Number(d.cantidad || 0)
+  }));
+
+  document.getElementById('bt-dot-titulo').textContent = nombreBotiquin(b);
+  document.getElementById('bt-dot-sub').textContent =
+    [b.departamento, b.ubicacion].filter(Boolean).join(' · ');
+
+  const editable = puedeEscribir();
+  document.getElementById('bt-btn-guardar-dotacion').hidden = !editable;
+  document.querySelector('.bt-dot-agregar').hidden = !editable;
+  document.getElementById('bt-dot-plegable-nuevo').hidden = !editable;
+
+  pintarDotacion();
+  document.getElementById('bt-alerta-dotacion').hidden = true;
+  document.getElementById('bt-modal-dotacion').hidden = false;
+}
+
+function pintarDotacion() {
+  const editable = puedeEscribir();
+  const $c = document.getElementById('bt-dot-cuerpo');
+  const $vacio = document.getElementById('bt-dot-vacio');
+  $c.innerHTML = '';
+
+  const lineas = bt.dotEdicion
+    .map((d) => ({ ...d, insumo: bt.insumos.find((i) => i.id === d.insumo_id) }))
+    .filter((d) => d.insumo)
+    .sort((a, b) => (a.insumo.orden ?? 99) - (b.insumo.orden ?? 99)
+                 || a.insumo.nombre.localeCompare(b.insumo.nombre));
+
+  if ($vacio) $vacio.hidden = lineas.length > 0;
+
+  lineas.forEach((d) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapar(d.insumo.nombre)}${d.insumo.presentacion
+        ? `<span class="celda-tenue"> · ${escapar(d.insumo.presentacion)}</span>` : ''}
+        ${d.insumo.medicamento ? '<span class="bt-marca-med">Medicamento</span>' : ''}</td>
+      <td class="celda-centro celda-tenue">${escapar(d.insumo.unidad || '—')}</td>
+      <td class="celda-centro">
+        <input class="bt-num" type="number" min="0" step="1"
+               value="${num(d.cantidad)}" ${editable ? '' : 'disabled'}>
+      </td>
+      <td class="celda-centro"></td>
+    `;
+
+    tr.querySelector('input').addEventListener('input', (e) => {
+      const linea = bt.dotEdicion.find((x) => x.insumo_id === d.insumo_id);
+      if (linea) linea.cantidad = Number(e.target.value || 0);
+    });
+
+    if (editable) {
+      const btn = document.createElement('button');
+      btn.className = 'boton-icono boton-icono-peligro';
+      btn.type = 'button';
+      btn.textContent = 'Quitar';
+      btn.addEventListener('click', () => {
+        bt.dotEdicion = bt.dotEdicion.filter((x) => x.insumo_id !== d.insumo_id);
+        pintarDotacion();
+      });
+      tr.lastElementChild.appendChild(btn);
+    }
+
+    $c.appendChild(tr);
+  });
+
+  pintarCatalogo();
+}
+
+/* El desplegable solo ofrece lo que aún no está en el botiquín:
+   un insumo repetido rompería la clave y confundiría el conteo. */
+function pintarCatalogo() {
+  const $sel = document.getElementById('bt_dot_catalogo');
+  if (!$sel) return;
+
+  const puestos = new Set(bt.dotEdicion.map((d) => d.insumo_id));
+  const libres = bt.insumos.filter((i) => !puestos.has(i.id));
+
+  $sel.innerHTML = '';
+
+  if (libres.length === 0) {
+    const o = document.createElement('option');
+    o.value = '';
+    o.textContent = 'Todos los insumos del catálogo ya están en el botiquín';
+    $sel.appendChild(o);
+    $sel.disabled = true;
+    return;
+  }
+
+  $sel.disabled = false;
+  libres.forEach((i) => {
+    const o = document.createElement('option');
+    o.value = i.id;
+    o.textContent = i.nombre
+      + (i.presentacion ? ` · ${i.presentacion}` : '')
+      + (i.unidad ? ` (${i.unidad})` : '');
+    $sel.appendChild(o);
+  });
+}
+
+function agregarDeCatalogo() {
+  const id = document.getElementById('bt_dot_catalogo').value;
+  const cantidad = Number(document.getElementById('bt_dot_cantidad').value || 0);
+
+  if (!id) return;
+  if (cantidad <= 0) return alertaDotacion('Indique una cantidad mayor que cero');
+
+  bt.dotEdicion.push({ id: null, insumo_id: id, cantidad });
+  document.getElementById('bt_dot_cantidad').value = 1;
+  document.getElementById('bt-alerta-dotacion').hidden = true;
+  pintarDotacion();
+}
+
+async function crearInsumo() {
+  const nombre = document.getElementById('bt_ins_nombre').value.trim();
+  const unidad = document.getElementById('bt_ins_unidad').value.trim();
+  const cantidad = Number(document.getElementById('bt_ins_cantidad').value || 0);
+
+  if (!nombre) return alertaDotacion('Escriba el nombre del insumo');
+  if (!unidad) return alertaDotacion('Indique la unidad (unidad, sobre, frasco…)');
+  if (cantidad <= 0) return alertaDotacion('Indique una cantidad mayor que cero');
+
+  const $btn = document.getElementById('bt-btn-ins-crear');
+  $btn.disabled = true;
+
+  const fila = {
+    nombre,
+    presentacion: document.getElementById('bt_ins_presentacion').value.trim() || null,
+    unidad,
+    medicamento: document.getElementById('bt_ins_medicamento').checked,
+    orden: 90,
+    activo: true
+  };
+
+  const { data, error } = await supabase
+    .from('botiquin_insumos').insert(fila).select('*').maybeSingle();
+
+  $btn.disabled = false;
+  if (error) return alertaDotacion(traducir(error));
+  if (!data) return alertaDotacion('No se pudo crear el insumo');
+
+  bt.insumos.push(data);
+  bt.dotEdicion.push({ id: null, insumo_id: data.id, cantidad });
+
+  ['bt_ins_nombre', 'bt_ins_presentacion', 'bt_ins_unidad']
+    .forEach((id) => { document.getElementById(id).value = ''; });
+  document.getElementById('bt_ins_cantidad').value = 1;
+  document.getElementById('bt_ins_medicamento').checked = false;
+  document.getElementById('bt-dot-plegable-nuevo').open = false;
+  document.getElementById('bt-alerta-dotacion').hidden = true;
+
+  pintarDotacion();
+}
+
+async function guardarDotacion() {
+  const b = bt.bAbierto;
+  if (!b) return;
+
+  if (bt.dotEdicion.some((d) => Number(d.cantidad) <= 0)) {
+    return alertaDotacion('Todas las cantidades deben ser mayores que cero. '
+                        + 'Para retirar un insumo, use «Quitar».');
+  }
+
+  const $btn = document.getElementById('bt-btn-guardar-dotacion');
+  $btn.disabled = true;
+
+  const previas = bt.dotacion[b.id] || [];
+  const vivos = new Set(bt.dotEdicion.map((d) => d.insumo_id));
+
+  const retirados = previas.filter((p) => !vivos.has(p.insumo_id));
+  const nuevos = bt.dotEdicion.filter((d) => !d.id);
+  const cambiados = bt.dotEdicion.filter((d) => {
+    const p = previas.find((x) => x.id === d.id);
+    return p && Number(p.cantidad) !== Number(d.cantidad);
+  });
+
+  const fallo = (e) => { $btn.disabled = false; alertaDotacion(traducir(e)); };
+
+  if (retirados.length > 0) {
+    const { error } = await supabase.from('botiquin_dotacion')
+      .delete().in('id', retirados.map((r) => r.id));
+    if (error) return fallo(error);
+  }
+
+  if (nuevos.length > 0) {
+    const { error } = await supabase.from('botiquin_dotacion').insert(
+      nuevos.map((d) => ({
+        botiquin_id: b.id, insumo_id: d.insumo_id, cantidad: d.cantidad
+      })));
+    if (error) return fallo(error);
+  }
+
+  for (const d of cambiados) {
+    const { error } = await supabase.from('botiquin_dotacion')
+      .update({ cantidad: d.cantidad }).eq('id', d.id);
+    if (error) return fallo(error);
+  }
+
+  await sincronizarRevisionAbierta(b, retirados.map((r) => r.insumo_id),
+                                   nuevos.length > 0);
+
+  $btn.disabled = false;
+  document.getElementById('bt-modal-dotacion').hidden = true;
+  await refrescar();
+}
+
+/**
+ * Ajusta la revisión del mes en curso a la nueva dotación.
+ *
+ * Solo la abierta: una revisión cerrada es el acta de lo que se
+ * entregó ese mes, y reescribirla convertiría la corrección de
+ * hoy en historia falsa de ayer.
+ *
+ * @param {object}   b          botiquín editado
+ * @param {string[]} retirados  insumos que salieron de la dotación
+ * @param {boolean}  hayNuevos  si se añadió alguno
+ */
+async function sincronizarRevisionAbierta(b, retirados, hayNuevos) {
+  const r = bt.revisiones.find(
+    (x) => x.botiquin_id === b.id && x.estado !== 'cerrada');
+  if (!r) return;
+
+  if (retirados.length > 0) {
+    await supabase.from('botiquin_revision_detalle')
+      .delete().eq('revision_id', r.id).in('insumo_id', retirados);
+  }
+
+  /* La misma función que abre el mes añade las líneas que
+     falten sin tocar las que ya tienen anotaciones. */
+  if (hayNuevos) {
+    await supabase.rpc('abrir_revision_botiquin', {
+      p_botiquin: b.id, p_periodo: primerDia(bt.periodo)
+    });
+  }
+}
+
+function alertaDotacion(texto) {
+  const $a = document.getElementById('bt-alerta-dotacion');
+  if (!$a) return;
+  $a.textContent = texto;
+  $a.hidden = false;
+}
+
+/* ============================================
+   Alta, edición y baja de botiquines
+   ============================================ */
+
+function abrirBotiquin(b) {
+  bt.bAbierto = b || null;
+
+  document.getElementById('bt-b-titulo').textContent =
+    b ? 'Editar botiquín' : 'Nuevo botiquín';
+
+  const v = (id, valor) => { document.getElementById(id).value = valor ?? ''; };
+  v('bt_b_area', b?.area);
+  v('bt_b_departamento', b?.departamento);
+  v('bt_b_ubicacion', b?.ubicacion);
+  v('bt_b_ubicacion_texto', b?.ubicacion_texto);
+  v('bt_b_responsable', b?.responsable);
+  v('bt_b_objetivo', b?.objetivo);
+  v('bt_b_orden', b?.orden ?? siguienteOrden());
+
+  document.getElementById('bt-btn-eliminar-botiquin').hidden = !b;
+  document.getElementById('bt-alerta-botiquin').hidden = true;
+  document.getElementById('bt-modal-botiquin').hidden = false;
+}
+
+/* El nuevo va al final: el orden lo decide quien recorre la
+   planta, no el momento en que se dio de alta. */
+function siguienteOrden() {
+  return bt.botiquines.reduce((m, b) => Math.max(m, Number(b.orden || 0)), 0) + 1;
+}
+
+async function guardarBotiquin() {
+  const area = document.getElementById('bt_b_area').value.trim();
+  const departamento = document.getElementById('bt_b_departamento').value.trim();
+
+  if (!area) return alertaBotiquin('Escriba el nombre del botiquín');
+  if (!departamento) return alertaBotiquin('Indique el departamento');
+
+  const $btn = document.getElementById('bt-btn-guardar-botiquin');
+  $btn.disabled = true;
+
+  const fila = {
+    empresa_id: bt.empresaId,
+    area,
+    departamento,
+    ubicacion: document.getElementById('bt_b_ubicacion').value.trim() || null,
+    ubicacion_texto:
+      document.getElementById('bt_b_ubicacion_texto').value.trim() || null,
+    responsable: document.getElementById('bt_b_responsable').value.trim() || null,
+    objetivo: document.getElementById('bt_b_objetivo').value.trim() || null,
+    orden: Number(document.getElementById('bt_b_orden').value || 0)
+  };
+
+  let error;
+  if (bt.bAbierto) {
+    ({ error } = await supabase.from('botiquines')
+      .update(fila).eq('id', bt.bAbierto.id));
+  } else {
+    fila.activo = true;
+    ({ error } = await supabase.from('botiquines').insert(fila));
+  }
+
+  $btn.disabled = false;
+  if (error) return alertaBotiquin(traducir(error));
+
+  document.getElementById('bt-modal-botiquin').hidden = true;
+  await refrescar();
+}
+
+/**
+ * Baja de un botiquín.
+ *
+ * Si nunca se revisó, se borra de verdad: es un registro creado
+ * por error y conservarlo solo estorba. Si tiene revisiones, se
+ * desactiva —los informes de los meses cerrados siguen citándolo
+ * y borrarlo dejaría actas firmadas apuntando a nada.
+ */
+async function eliminarBotiquin() {
+  const b = bt.bAbierto;
+  if (!b) return;
+
+  const { count } = await supabase
+    .from('botiquin_revisiones')
+    .select('id', { count: 'exact', head: true })
+    .eq('botiquin_id', b.id);
+
+  const conHistoria = (count || 0) > 0;
+
+  const aviso = conHistoria
+    ? `«${nombreBotiquin(b)}» tiene ${count} `
+      + `${count === 1 ? 'revisión registrada' : 'revisiones registradas'}.\n\n`
+      + 'Se retirará del listado y de las próximas revisiones, pero los meses '
+      + 'ya cerrados conservarán su registro.\n\n¿Continuar?'
+    : `¿Eliminar «${nombreBotiquin(b)}»?\n\n`
+      + 'No tiene revisiones registradas, así que se borra por completo.';
+
+  if (!confirm(aviso)) return;
+
+  const $btn = document.getElementById('bt-btn-eliminar-botiquin');
+  $btn.disabled = true;
+
+  let error;
+  if (conHistoria) {
+    ({ error } = await supabase.from('botiquines')
+      .update({ activo: false }).eq('id', b.id));
+  } else {
+    await supabase.from('botiquin_dotacion').delete().eq('botiquin_id', b.id);
+    ({ error } = await supabase.from('botiquines').delete().eq('id', b.id));
+  }
+
+  $btn.disabled = false;
+  if (error) return alertaBotiquin(traducir(error));
+
+  document.getElementById('bt-modal-botiquin').hidden = true;
+  await refrescar();
+}
+
+function alertaBotiquin(texto) {
+  const $a = document.getElementById('bt-alerta-botiquin');
+  if (!$a) return;
+  $a.textContent = texto;
+  $a.hidden = false;
+}
+
+/* ============================================
    Refresco y eventos
    ============================================ */
 
@@ -1348,9 +1819,20 @@ function conectar() {
   enBt('bt-btn-completar', 'click', completarReposicion);
   enBt('bt-btn-reabrir', 'click', reabrirRevision);
 
+  /* Dotación */
+  enBt('bt-btn-dot-agregar', 'click', agregarDeCatalogo);
+  enBt('bt-btn-ins-crear', 'click', crearInsumo);
+  enBt('bt-btn-guardar-dotacion', 'click', guardarDotacion);
+
+  /* Alta y baja de botiquines */
+  enBt('bt-btn-nuevo', 'click', () => abrirBotiquin(null));
+  enBt('bt-btn-guardar-botiquin', 'click', guardarBotiquin);
+  enBt('bt-btn-eliminar-botiquin', 'click', eliminarBotiquin);
+
   document.querySelectorAll('[data-cierra]').forEach((b) => {
     const destino = b.dataset.cierra;
-    if (!['bt-modal-revision', 'bt-modal-destinatario'].includes(destino)) return;
+    if (!['bt-modal-revision', 'bt-modal-destinatario',
+          'bt-modal-dotacion', 'bt-modal-botiquin'].includes(destino)) return;
     b.addEventListener('click', () => {
       document.getElementById(destino).hidden = true;
     });
