@@ -39,7 +39,7 @@ import { escapar, formatearFecha } from './utils.js?v=11';
 import { alCrear } from './autoria.js?v=1';
 import { imprimirHoja } from './impresion.js?v=11';
 
-const VERSION = 'v6';
+const VERSION = 'v7';
 console.info('NEXUS · informe-farmacia', VERSION);
 
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -802,6 +802,14 @@ async function generarPdf(datos) {
   }
 
   $z.innerHTML = construirDocumento(datos);
+
+  /* El aviso sale ANTES de abrir el diálogo: una vez abierto,
+     el navegador bloquea la página y ya no se puede decir
+     nada. Los gráficos de fondo vienen desactivados en Chrome
+     y sin ellos la portada pierde las bandas y el sombreado
+     de las cabeceras. */
+  avisar('En el diálogo de impresión, active «Gráficos de fondo» '
+       + 'para que salgan los colores.', true);
 
   await imprimirHoja('inf-impresion', 'imprimiendo-informe',
     `Informe farmacia · ${datos.nombre}`);
