@@ -618,6 +618,101 @@
     color: #555;
     text-align: justify;
   }
+
+  /* ============================================
+     Hoja en rejilla · criterios x instalaciones
+
+     Los criterios en las filas y una columna por pieza. El
+     inspector escribe S, N o / en el cuadro. Un bloque de
+     baños entero cabe en una pagina, en vez de una hoja por
+     sanitario.
+     ============================================ */
+
+  .hc-tabla-rejilla { table-layout: fixed; }
+
+  .hc-tabla-rejilla th,
+  .hc-tabla-rejilla td { padding: 2pt 3pt; }
+
+  .hc-texto-rejilla { font-size: 8pt; line-height: 1.15; }
+
+  /* El codigo se escribe en vertical: en horizontal, nueve
+     caracteres necesitan mas ancho del que puede cederse
+     cuando hay diez columnas. */
+  .hc-th-codigo {
+    height: 22mm;
+    padding: 1pt !important;
+    vertical-align: bottom;
+    text-align: center;
+  }
+
+  .hc-vertical {
+    display: inline-block;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-size: 7.5pt;
+    font-weight: bold;
+    letter-spacing: 0.3pt;
+    white-space: nowrap;
+  }
+
+  /* El cuadro donde se anota. Cuadrado y con aire: se marca
+     de pie, con guante y sobre una carpeta. */
+  .hc-cuadro {
+    height: 9mm;
+    background: #fff;
+  }
+
+  .hc-obs-rejilla { background: #fff; }
+
+  /* Punto junto al criterio que fallo la vez pasada. Un punto
+     y no un texto: en rejilla no hay sitio para texto, y lo
+     que hace falta es la senal de mirar eso primero. */
+  .hc-marca-previa {
+    display: inline-block;
+    margin-left: 2pt;
+    font-size: 12pt;
+    font-weight: bold;
+    line-height: 0;
+    color: #b00;
+  }
+
+  .hc-leyenda {
+    margin-top: 3pt;
+    flex-shrink: 0;
+    font-size: 8pt;
+  }
+
+  .hc-clave {
+    display: inline-block;
+    min-width: 11pt;
+    padding: 0 2pt;
+    font-weight: bold;
+    text-align: center;
+    border: 0.5pt solid #555;
+  }
+
+  /* Pie de columnas: que codigo corresponde a que pieza. Sin
+     esto, quien no armo la hoja no sabe si B7-B1-S2 es el
+     sanitario del fondo o el de la entrada. */
+  .hc-referencia {
+    width: 100%;
+    margin-top: 3pt;
+    flex-shrink: 0;
+    font-size: 6.5pt;
+    border-collapse: collapse;
+  }
+
+  .hc-referencia td {
+    padding: 1pt 2pt;
+    vertical-align: top;
+    border: 0.5pt solid #999;
+  }
+
+  .hc-parte {
+    font-size: 8pt;
+    font-weight: normal;
+    font-style: italic;
+  }
 }
 
 /* ============================================
@@ -707,4 +802,93 @@
   color: var(--color-texto-tenue, #8a8f98);
   border: 1px dashed var(--color-borde);
   border-radius: var(--radio);
+}
+
+
+/* ============================================
+   Jerarquia, codigo y buscador · v7
+   ============================================ */
+
+/* El codigo identifica la instalacion en pantalla y encabeza
+   su columna en la hoja de campo. Monoespaciado para que
+   B7-B1-S1 y B7-B1-S2 se distingan de un golpe de vista. */
+.ins-codigo {
+  display: inline-block;
+  padding: 0.12rem 0.35rem;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-acento);
+  background: rgba(47, 129, 247, 0.1);
+  border-radius: 5px;
+}
+
+.ins-celda-codigo { white-space: nowrap; }
+
+.entrada-codigo {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  text-transform: uppercase;
+}
+
+/* La pieza se sangra bajo su bloque: la jerarquia se lee sin
+   leer, que es de lo que se trata. */
+.ins-fila-pieza > td:nth-child(2) { padding-left: 1.6rem; }
+
+.ins-sangria {
+  margin-right: 0.35rem;
+  color: var(--color-texto-tenue);
+}
+
+.ins-marca-piezas {
+  background: rgba(47, 129, 247, 0.12);
+  color: var(--color-acento);
+}
+
+.ins-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  justify-content: center;
+}
+
+/* --- Buscador de acompanante --- */
+
+.ins-buscador { margin-top: 0.35rem; }
+
+.ins-sugerencias {
+  max-height: 12rem;
+  margin-top: 0.25rem;
+  overflow-y: auto;
+  background: var(--color-superficie-alt);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+}
+
+.ins-sugerencia {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  font-size: 0.85rem;
+  color: var(--color-texto);
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+}
+
+.ins-sugerencia:hover { background: var(--color-acento-suave); }
+
+.ins-sug-vacia {
+  padding: 0.5rem 0.6rem;
+  font-size: 0.82rem;
+  color: var(--color-texto-tenue);
+}
+
+/* Campo que muestra un dato del sistema y no se teclea. */
+.entrada-fija {
+  color: var(--color-texto-tenue);
+  background: var(--color-superficie-alt);
+  cursor: default;
 }
