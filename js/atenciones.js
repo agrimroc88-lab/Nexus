@@ -30,7 +30,7 @@ const estado = {
   morbilidad: [],
   trabajador: null,     // trabajador de la atención en curso
   diagnosticos: [],     // [{codigo, descripcion, observacion}]
-  prescripciones: [],   // [{medicamento_id, nombre, cantidad, indicacion, disponible}]
+  prescripciones: [],   // [{medicamento_id, nombre, cantidad, indicacion, disponible, buscar}]
   cieDestino: null,     // índice del diagnóstico que abrió el buscador
   paciente: null,       // trabajador localizado en la pestaña Atenciones
   histAbierto: false,   // historial embebido desplegado
@@ -736,7 +736,7 @@ function agregarMedicamento() {
     alert('Esta empresa aún no tiene medicamentos en el catálogo de farmacia.');
     return;
   }
-  estado.prescripciones.push({ medicamento_id: '', cantidad: 1, indicacion: '' });
+  estado.prescripciones.push({ medicamento_id: '', cantidad: 1, indicacion: '', buscar: '' });
   pintarMedicamentos();
 }
 
@@ -756,19 +756,50 @@ function pintarMedicamentos() {
     const item = document.createElement('article');
     item.className = 'renglon';
 
-    const opciones = estado.medicamentos.map((m) => {
-      const etiqueta = `${m.nombre_generico} ${m.concentracion || ''} · ${m.forma}`.trim();
+    /* El desplegable se acota con lo que se teclee arriba.
+
+       El navegador solo busca por el principio del texto, así
+       que escribir «ibu» no encontraba «Paracetamol +
+       Ibuprofeno». Con doscientos medicamentos en la lista,
+       ahí es donde se pierde el tiempo en consulta. Se busca
+       por comercial, genérico, concentración y forma.
+
+       El medicamento ya elegido nunca se filtra: teclear una
+       letra de más borraría la prescripción sin avisar. */
+    const texto = (p.buscar || '').trim().toLowerCase();
+
+    const candidatos = estado.medicamentos.filter((m) => {
+      if (m.id === p.medicamento_id) return true;
+      if (!texto) return true;
+      return [m.nombre_comercial, m.nombre_generico, m.concentracion, m.forma]
+        .filter(Boolean).some((c) => c.toLowerCase().includes(texto));
+    });
+
+    const opciones = candidatos.map((m) => {
+      /* El comercial delante: es el nombre de la caja que se
+         tiene en la mano. El genérico va detrás porque es el
+         que identifica el principio activo y el que consta en
+         la receta. */
+      const detalle = `${m.nombre_generico} ${m.concentracion || ''} · ${m.forma}`.trim();
+      const etiqueta = m.nombre_comercial
+        ? `${m.nombre_comercial} · ${detalle}` : detalle;
       const stock = m.stock_disponible > 0 ? `(${m.stock_disponible})` : '(sin stock)';
       return `<option value="${m.id}" ${m.id === p.medicamento_id ? 'selected' : ''}>
                 ${escapar(etiqueta)} ${stock}
               </option>`;
     }).join('');
 
+    const sinCoincidencias = texto && candidatos.length === 0;
+
     item.innerHTML = `
       <div class="renglon-orden"><span class="orden-num">${i + 1}</span></div>
       <div class="renglon-cuerpo renglon-medicamento">
+        <input class="entrada entrada-mini entrada-buscar-med" type="text"
+               placeholder="Buscar por marca o genérico…" autocomplete="off"
+               value="${escapar(p.buscar || '')}" data-buscar="${i}">
         <select class="entrada entrada-mini" data-med="${i}">
-          <option value="">— Seleccionar medicamento —</option>
+          <option value="">${sinCoincidencias
+            ? '— Sin coincidencias —' : '— Seleccionar medicamento —'}</option>
           ${opciones}
         </select>
         <input class="entrada entrada-cantidad ${insuficiente ? 'entrada-alerta' : ''}"
@@ -790,6 +821,23 @@ function pintarMedicamentos() {
   });
 
   /* Eventos */
+  /* Se repinta la lista al teclear, así que hay que devolver
+     el foco y el cursor al campo: sin esto, la segunda letra
+     se escribiría fuera del cuadro. */
+  $lista.querySelectorAll('[data-buscar]').forEach((inp) => {
+    inp.addEventListener('input', (e) => {
+      const n = parseInt(e.target.dataset.buscar, 10);
+      const pos = e.target.selectionStart;
+      estado.prescripciones[n].buscar = e.target.value;
+      pintarMedicamentos();
+      const $nuevo = document.querySelector(`[data-buscar="${n}"]`);
+      if ($nuevo) {
+        $nuevo.focus();
+        $nuevo.setSelectionRange(pos, pos);
+      }
+    });
+  });
+
   $lista.querySelectorAll('[data-med]').forEach((sel) => {
     sel.addEventListener('change', (e) => {
       estado.prescripciones[parseInt(e.target.dataset.med, 10)].medicamento_id = e.target.value;

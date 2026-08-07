@@ -17,8 +17,9 @@ import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=11'
 import { alCrear, alEditar, autorId } from './autoria.js?v=1';
 import { imprimirHoja } from './impresion.js?v=11';
 import {
-  iniciarInforme, generarInformeMensual, guardarInforme, descargarActual
-} from './informe-farmacia.js?v=9';
+  iniciarInforme, generarInformeMensual, guardarInforme, descargarActual,
+  redactarAnalisis
+} from './informe-farmacia.js?v=10';
 
 /* --- Estado --- */
 const estado = {
@@ -235,8 +236,8 @@ function pintarExistencias() {
 
     fila.innerHTML = `
       <td>
-        <span class="principal">${escapar(m.nombre_generico)} ${escapar(m.concentracion || '')}</span>
-        ${m.nombre_comercial ? `<span class="secundario">${escapar(m.nombre_comercial)}</span>` : ''}
+        <span class="principal">${escapar(m.nombre_comercial || m.nombre_generico)}</span>
+        <span class="secundario">${escapar(m.nombre_generico)} ${escapar(m.concentracion || '')}</span>
       </td>
       <td class="celda-tenue">${escapar(m.forma)}</td>
       <td class="celda-centro">
@@ -527,9 +528,16 @@ function comercialDe(medicamentoId) {
 }
 
 /** Etiqueta completa: genérico, concentración, forma y marca. */
+/* El comercial va delante.
+
+   Es el nombre impreso en la caja que se tiene en la mano;
+   el genérico hay que recordarlo, sobre todo en las
+   combinaciones de varios compuestos. Se conserva detrás
+   porque es el que identifica el principio activo y el que
+   consta en la receta. */
 function etiquetaMedicamento(m) {
-  const base = `${m.nombre_generico} ${m.concentracion || ''} · ${m.forma}`.trim();
-  return m.nombre_comercial ? `${base} · ${m.nombre_comercial}` : base;
+  const detalle = `${m.nombre_generico} ${m.concentracion || ''} · ${m.forma}`.trim();
+  return m.nombre_comercial ? `${m.nombre_comercial} · ${detalle}` : detalle;
 }
 
 /**
@@ -1079,8 +1087,8 @@ function pintarOrden() {
       const tr = document.createElement('tr');
       const presentacion = `${m.concentracion || ''} ${m.forma || ''}`.trim();
       tr.innerHTML =
-        `<td><span class="principal">${escapar(m.nombre_generico)}</span>` +
-        (m.nombre_comercial ? `<br><span class="secundario">${escapar(m.nombre_comercial)}</span>` : '') + `</td>` +
+        `<td><span class="principal">${escapar(m.nombre_comercial || m.nombre_generico)}</span>` +
+        `<br><span class="secundario">${escapar(m.nombre_generico)} ${escapar(m.concentracion || '')}</span>` + `</td>` +
         `<td class="celda-tenue">${escapar(presentacion)}</td>` +
         `<td class="celda-centro">${m.stock_disponible}</td>` +
         `<td class="celda-centro celda-tenue">${m.stock_minimo}</td>` +
@@ -1423,6 +1431,7 @@ function conectarEventos() {
     .addEventListener('click', generarInformeMensual);
   document.getElementById('inf-btn-guardar').addEventListener('click', guardarInforme);
   document.getElementById('inf-btn-descargar').addEventListener('click', descargarActual);
+  document.getElementById('inf-btn-ia').addEventListener('click', redactarAnalisis);
 
   conectarBuscadorMed('ing_buscar', 'ing_medicamento');
   conectarBuscadorMed('sal_buscar', 'sal_medicamento');
