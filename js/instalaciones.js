@@ -34,7 +34,7 @@ import { envolverWord, descargarWord, recuadroFoto, bloqueFirmas,
          logoEnBase64, encabezadoMemo, escaparTexto, fijarEscala }
   from './documento.js?v=11';
 
-const VERSION = 'v7';
+const VERSION = 'v8';
 console.info('NEXUS · instalaciones', VERSION);
 
 const ins = {
@@ -1470,6 +1470,63 @@ function imprimirHojasCampo() {
    de encoger la letra hasta que no se pueda leer en campo. */
 const COLUMNAS_POR_HOJA = 10;
 
+/* Qué tipos comparten hoja.
+
+   Servicios higiénicos y lavabos van juntos porque se
+   recorren juntos: el bloque de baños tiene los sanitarios y
+   los lavabos en el mismo cuarto, y separarlos obliga a
+   cambiar de papel a medio metro de distancia.
+
+   Cocina y comedor no se juntan aunque sean del mismo informe:
+   están en sitios distintos y sus criterios apenas se
+   solapan, así que una hoja común saldría medio tachada. */
+const HOJAS_REJILLA = {
+  cocina:               { clave: 'cocina',     titulo: 'Cocina' },
+  comedor:              { clave: 'comedor',    titulo: 'Comedor' },
+  servicios_higienicos: { clave: 'sanitarios',
+                          titulo: 'Servicios higiénicos, lavabos y duchas' },
+  lavabos:              { clave: 'sanitarios',
+                          titulo: 'Servicios higiénicos, lavabos y duchas' }
+};
+
+/**
+ * Criterios de varios tipos fundidos en una sola lista.
+ *
+ * Cuando dos tipos comparten hoja, sus listas de verificación
+ * no son iguales. Se unen sin repetir, y de cada criterio se
+ * recuerda a qué tipos aplica: en la rejilla, la casilla de
+ * una columna a la que ese criterio no le corresponde sale
+ * sombreada, para que nadie la deje en blanco creyendo que se
+ * le olvidó.
+ */
+function criteriosUnificados(tipos) {
+  const mapa = new Map();
+  const ordenGrupo = new Map();
+
+  tipos.forEach((t) => {
+    ins.criterios.filter((c) => c.tipo === t).forEach((c) => {
+      if (!ordenGrupo.has(c.grupo)) ordenGrupo.set(c.grupo, ordenGrupo.size);
+
+      const clave = `${c.grupo}|${c.texto}`.toLowerCase().trim();
+      if (mapa.has(clave)) {
+        const x = mapa.get(clave);
+        x.tipos.add(t);
+        x.ids.push(c.id);
+        x.critico = x.critico || c.critico;
+      } else {
+        mapa.set(clave, {
+          grupo: c.grupo, texto: c.texto, critico: c.critico,
+          orden: c.orden ?? 99, tipos: new Set([t]), ids: [c.id]
+        });
+      }
+    });
+  });
+
+  return [...mapa.values()].sort((a, b) =>
+    (ordenGrupo.get(a.grupo) ?? 99) - (ordenGrupo.get(b.grupo) ?? 99)
+    || a.orden - b.orden);
+}
+
 function construirRejilla(marcadas, conNovedades) {
   /* Las listas en blanco no tienen columna: la rejilla se
      construye sobre instalaciones con código. */
@@ -1487,32 +1544,45 @@ function construirRejilla(marcadas, conNovedades) {
 
   const yo = firmante();
 
-  /* Agrupadas por tipo: los criterios de una cocina no son los
-     de un servicio higiénico, así que no comparten rejilla. */
-  const porTipo = new Map();
+  /* Agrupadas por hoja, no por tipo: sanitarios y lavabos
+     caen en la misma. */
+  const porHoja = new Map();
   elegidas.forEach((i) => {
-    if (!porTipo.has(i.tipo)) porTipo.set(i.tipo, []);
-    porTipo.get(i.tipo).push(i);
+    const h = HOJAS_REJILLA[i.tipo] || { clave: i.tipo, titulo: TIPOS[i.tipo] || i.tipo };
+    if (!porHoja.has(h.clave)) {
+      porHoja.set(h.clave, { titulo: h.titulo, tipos: new Set(), lista: [] });
+    }
+    const g = porHoja.get(h.clave);
+    g.tipos.add(i.tipo);
+    g.lista.push(i);
   });
 
   let n = 0;
   const hojas = [];
 
-  porTipo.forEach((lista, tipo) => {
-    const criterios = ins.criterios.filter((c) => c.tipo === tipo);
+  porHoja.forEach((g) => {
+    const criterios = criteriosUnificados([...g.tipos]);
     if (criterios.length === 0) return;
 
+    /* Ordenadas por bloque para que las columnas de un mismo
+       cuarto queden contiguas y no repartidas entre hojas. */
+    const lista = [...g.lista].sort((a, b) =>
+      (a.padre?.codigo || a.codigo || '').localeCompare(b.padre?.codigo || b.codigo || '')
+      || (a.codigo || '').localeCompare(b.codigo || ''));
+
+    const deCuantas = Math.ceil(lista.length / COLUMNAS_POR_HOJA);
+
     for (let d = 0; d < lista.length; d += COLUMNAS_POR_HOJA) {
-      const tanda = lista.slice(d, d + COLUMNAS_POR_HOJA);
-      hojas.push(hojaRejilla(tipo, criterios, tanda, conNovedades, yo, n++,
-                             Math.ceil(lista.length / COLUMNAS_POR_HOJA), d));
+      hojas.push(hojaRejilla(g.titulo, criterios,
+                             lista.slice(d, d + COLUMNAS_POR_HOJA),
+                             conNovedades, yo, n++, deCuantas, d));
     }
   });
 
   return hojas.join('');
 }
 
-function hojaRejilla(tipo, criterios, columnas, conNovedades, yo, n, deCuantas, desde) {
+function hojaRejilla(titulo, criterios, columnas, conNovedades, yo, n, deCuantas, desde) {
   /* El ancho del criterio cede terreno según cuántas columnas
      haya: con tres piezas sobra sitio, con diez va justo. */
   const anchoCol = Math.max(6, Math.min(11, 78 / columnas.length));
@@ -1538,21 +1608,31 @@ function hojaRejilla(tipo, criterios, columnas, conNovedades, yo, n, deCuantas, 
       : '';
     grupoPrevio = c.grupo;
 
+    const previo = c.ids.some((id) => pendientes.has(id));
+
     return cab + `
       <tr>
         <td class="hc-texto hc-texto-rejilla">
           ${escaparTexto(c.texto)}
           ${c.critico ? '<span class="hc-critico">crítico</span>' : ''}
-          ${pendientes.has(c.id) ? '<span class="hc-marca-previa">•</span>' : ''}
+          ${previo ? '<span class="hc-marca-previa">•</span>' : ''}
         </td>
-        ${columnas.map(() => '<td class="hc-cuadro"></td>').join('')}
+        ${columnas.map((i) => c.tipos.has(i.tipo)
+          ? '<td class="hc-cuadro"></td>'
+          : '<td class="hc-cuadro hc-no-aplica"></td>').join('')}
         <td class="hc-obs-rejilla"></td>
       </tr>`;
   }).join('');
 
-  const sitio = columnas[0];
-  const bloque = sitio.esPieza && sitio.padre
-    ? sitio.padre.nombreBloque : sitio.nombreBloque;
+  /* Con columnas de varios bloques, el subtítulo nombra el
+     sitio en vez de un bloque concreto. */
+  const sitios = [...new Set(columnas.map(
+    (i) => (i.esPieza && i.padre ? i.padre : i).nombreBloque))];
+  const subtitulo = sitios.length === 1 ? sitios[0]
+    : sitios.slice(0, 3).join(' · ') + (sitios.length > 3 ? ' …' : '');
+
+  const hayNoAplica = criterios.some(
+    (c) => columnas.some((i) => !c.tipos.has(i.tipo)));
 
   return `
     <div class="hc-hoja hc-rejilla${n > 0 ? ' hc-nueva' : ''}">
@@ -1566,7 +1646,7 @@ function hojaRejilla(tipo, criterios, columnas, conNovedades, yo, n, deCuantas, 
       </header>
 
       <div class="hc-titulo">
-        ${escaparTexto(TIPOS[tipo] || tipo)} · ${escaparTexto(bloque)}
+        ${escaparTexto(titulo)} · ${escaparTexto(subtitulo)}
         ${deCuantas > 1
           ? `<span class="hc-parte">hoja ${Math.floor(desde / COLUMNAS_POR_HOJA) + 1}
              de ${deCuantas}</span>` : ''}
@@ -1607,6 +1687,9 @@ function hojaRejilla(tipo, criterios, columnas, conNovedades, yo, n, deCuantas, 
         <span class="hc-clave">S</span> cumple ·
         <span class="hc-clave">N</span> no cumple ·
         <span class="hc-clave">/</span> no aplica
+        ${hayNoAplica
+          ? ' · <span class="hc-clave hc-clave-na"></span> no corresponde a esa instalación'
+          : ''}
         ${pendientes.size > 0
           ? ' · <span class="hc-marca-previa">•</span> falló en la inspección anterior'
           : ''}
