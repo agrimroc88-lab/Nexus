@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="css/layout.css">
   <link rel="stylesheet" href="css/empresas.css">
   <link rel="stylesheet" href="css/trabajadores.css">
-  <link rel="stylesheet" href="css/farmacia.css">
+  <link rel="stylesheet" href="css/farmacia.css?v=14">
   <style>
     /* Aviso breve de confirmación */
     .aviso-flotante {
@@ -142,7 +142,7 @@
 
           <div class="herramientas">
             <input class="busqueda" id="busqueda" type="search"
-                   placeholder="Buscar medicamento…">
+                   placeholder="Buscar por genérico, marca o concentración…">
             <select class="entrada filtro" id="filtro-nivel">
               <option value="todos">Todos</option>
               <option value="agotado">Agotados</option>
@@ -185,7 +185,7 @@
 
           <div class="herramientas">
             <input class="busqueda" id="busqueda-lotes" type="search"
-                   placeholder="Buscar por medicamento o lote…">
+                   placeholder="Buscar por genérico, marca o lote…">
             <select class="entrada filtro" id="filtro-caducidad">
               <option value="con_saldo">Con existencia</option>
               <option value="caducado">Caducados</option>
@@ -221,7 +221,7 @@
 
           <div class="herramientas">
             <input class="busqueda" id="busqueda-kardex" type="search"
-                   placeholder="Buscar por medicamento o trabajador…">
+                   placeholder="Buscar por genérico, marca o trabajador…">
             <select class="entrada filtro" id="filtro-tipo">
               <option value="todos">Todos los movimientos</option>
               <option value="entradas">Solo entradas</option>
@@ -505,7 +505,10 @@
 
           <div class="campo campo-ancho">
             <label class="etiqueta" for="ing_medicamento">Medicamento <span class="obligatorio">*</span></label>
-            <select class="entrada" id="ing_medicamento">
+            <input class="entrada entrada-buscador" id="ing_buscar" type="search"
+                   autocomplete="off"
+                   placeholder="Escriba el genérico o la marca para acotar la lista…">
+            <select class="entrada" id="ing_medicamento" size="1">
               <option value="">— Seleccionar —</option>
             </select>
           </div>
@@ -579,7 +582,10 @@
 
           <div class="campo campo-ancho">
             <label class="etiqueta" for="sal_medicamento">Medicamento <span class="obligatorio">*</span></label>
-            <select class="entrada" id="sal_medicamento">
+            <input class="entrada entrada-buscador" id="sal_buscar" type="search"
+                   autocomplete="off"
+                   placeholder="Escriba el genérico o la marca para acotar la lista…">
+            <select class="entrada" id="sal_medicamento" size="1">
               <option value="">— Seleccionar —</option>
             </select>
           </div>
@@ -632,6 +638,6 @@
   <!-- Zona de impresión de la orden (fuera de todo, para que no la oculte main) -->
   <div class="orden-impresion" id="orden-impresion"></div>
 
-  <script type="module" src="js/farmacia.js?v=13"></script>
+  <script type="module" src="js/farmacia.js?v=14"></script>
 </body>
 </html>
