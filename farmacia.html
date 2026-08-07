@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="css/layout.css">
   <link rel="stylesheet" href="css/empresas.css">
   <link rel="stylesheet" href="css/trabajadores.css">
-  <link rel="stylesheet" href="css/farmacia.css?v=20">
+  <link rel="stylesheet" href="css/farmacia.css?v=21">
   <style>
     /* Aviso breve de confirmación */
     .aviso-flotante {
@@ -374,7 +374,7 @@
           <p class="alerta" id="inf-alerta" role="alert" hidden></p>
 
           <!-- Textos del documento -->
-          <details class="panel plegable inf-textos">
+          <details class="panel plegable inf-textos" id="inf-panel-textos">
             <summary class="plegable-titulo">
               Objetivo, alcance, normativa y conclusión
             </summary>
@@ -401,6 +401,29 @@
               <label class="etiqueta" for="inf-normativa">Marco normativo</label>
               <textarea class="entrada area" id="inf-normativa" rows="5"></textarea>
               <span class="ayuda">Una norma por línea. Se imprime como lista.</span>
+            </div>
+
+            <div class="campo">
+              <label class="etiqueta" for="inf-analisis">
+                Análisis del periodo
+                <span class="ayuda-inline">se imprime en el punto 7, tras las cifras</span>
+              </label>
+              <textarea class="entrada area" id="inf-analisis" rows="7"
+                        placeholder="Interpretación del movimiento del mes. Puede escribirlo a mano, pedirle un borrador al asistente, o dejarlo vacío."></textarea>
+              <div class="inf-ia-fila">
+                <button class="boton-secundario" id="inf-btn-ia" type="button">
+                  Redactar borrador con IA
+                </button>
+                <span class="ayuda">
+                  Genere primero el informe. Se envían las cifras del mes y los
+                  nombres de los artículos — ningún dato de trabajadores.
+                </span>
+              </div>
+              <p class="inf-ia-aviso">
+                <b>El borrador no es el análisis: es el primer intento del análisis.</b>
+                Léalo entero y corrija lo que haga falta. El informe lo firma usted,
+                y la responsabilidad de lo que diga es suya.
+              </p>
             </div>
 
             <div class="campo">
@@ -790,6 +813,6 @@
        misma razón por la que la zona de la orden está aquí. -->
   <div class="if-impresion" id="inf-impresion"></div>
 
-  <script type="module" src="js/farmacia.js?v=23"></script>
+  <script type="module" src="js/farmacia.js?v=25"></script>
 </body>
 </html>
