@@ -37,12 +37,9 @@ import { supabase } from './supabase.js?v=11';
 import { sesionActual } from './auth.js?v=11';
 import { escapar, formatearFecha } from './utils.js?v=11';
 import { alCrear } from './autoria.js?v=1';
-import {
-  fijarEscala, envolverWord, descargarWord, bloqueFirmas,
-  seccionDocumento, tablaWord, logoEnBase64
-} from './documento.js?v=11';
+import { imprimirHoja } from './impresion.js?v=11';
 
-const VERSION = 'v4';
+const VERSION = 'v6';
 console.info('NEXUS · informe-farmacia', VERSION);
 
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -451,6 +448,15 @@ function pintarPrevia(datos, desajustes) {
   document.getElementById('inf-previa').hidden = false;
 }
 
+/* Se escribe 0 y no un guion.
+
+   El guion es la convención del resto del sistema para «no
+   hay dato», pero en un informe de inventario el cero SÍ es
+   un dato: significa que ese mes no se movió nada, y es lo
+   que va firmado en el documento. Además el Word ya imprimía
+   0, así que la pantalla decía una cosa y el papel otra.
+   El cero va atenuado para que las filas con movimiento
+   sigan saltando a la vista. */
 function pintarTabla(idCuerpo, filas) {
   const $c = document.getElementById(idCuerpo);
   if (!$c) return;
@@ -463,8 +469,8 @@ function pintarTabla(idCuerpo, filas) {
       <td>${escapar(f.nombre)}</td>
       <td class="celda-tenue">${escapar(f.presentacion)}</td>
       <td class="celda-centro">${f.anterior}</td>
-      <td class="celda-centro">${f.ingresos || '—'}</td>
-      <td class="celda-centro">${f.egresos || '—'}</td>
+      <td class="celda-centro${f.ingresos ? '' : ' celda-tenue'}">${f.ingresos}</td>
+      <td class="celda-centro${f.egresos ? '' : ' celda-tenue'}">${f.egresos}</td>
       <td class="celda-centro"><strong>${f.actual}</strong></td>
     `;
     $c.appendChild(tr);
@@ -599,7 +605,7 @@ async function descargarGuardado(resumen) {
         : { medicamentos: data.detalle, insumos: [] })
     : data.detalle;
 
-  await construirWord({
+  await generarPdf({
     medicamentos: d.medicamentos || [],
     insumos: d.insumos || [],
     nombre: `${MESES[m - 1]} de ${a}`,
@@ -613,7 +619,7 @@ async function descargarGuardado(resumen) {
 export async function descargarActual() {
   if (!inf.ultimo) return;
   const perfil = sesionActual();
-  await construirWord({
+  await generarPdf({
     medicamentos: inf.ultimo.medicamentos,
     insumos: inf.ultimo.insumos,
     nombre: inf.ultimo.nombre,
@@ -630,135 +636,175 @@ export async function descargarActual() {
    El documento
    ============================================ */
 
-async function construirWord({ medicamentos, insumos, nombre, quien, cargo, fecha, textos }) {
-  fijarEscala(1);
+/* ============================================
+   El documento
 
-  if (!inf.logo) inf.logo = await logoEnBase64('logo.png', 300);
+   Sale en PDF, no en Word.
 
+   Un .doc generado desde HTML depende de cómo lo interprete
+   la versión de Word de cada computador: márgenes que se
+   corren, tipografías que se sustituyen, tablas que se
+   parten donde no deben. El informe se firma y se archiva
+   tal cual, así que tiene que verse igual en todas partes.
+
+   Se arma como HTML con reglas de impresión y se manda a
+   imprimir: el navegador ofrece «Guardar como PDF» y el
+   resultado es idéntico en cualquier equipo.
+   ============================================ */
+
+function construirDocumento({ medicamentos, insumos, nombre, quien, cargo, fecha, textos }) {
   const t = textos || TEXTOS;
-
-  /* --- Portada ---
-     Hoja propia, separada por un salto de página forzado: si
-     la tabla empezara debajo, la portada dejaría de serlo. */
-  const caratula = `
-    <div style="text-align:center;padding-top:64pt;">
-      ${inf.logo ? `<img src="${inf.logo}" style="width:190pt;" alt="">` : ''}
-
-      <p style="margin-top:32pt;font-size:12pt;letter-spacing:2pt;color:#555555;">
-        SERVICIOS MÉDICOS DE LA EMPRESA
-      </p>
-
-      <p style="margin-top:4pt;font-size:22pt;font-weight:bold;letter-spacing:1pt;">
-        ${escapar(inf.empresaNombre || 'EMPRESA')}
-      </p>
-
-      <div style="width:38%;margin:26pt auto;border-top:2pt solid #1F4E79;"></div>
-
-      <p style="font-size:17pt;font-weight:bold;color:#1F4E79;letter-spacing:1pt;">
-        INFORME MENSUAL DE MEDICAMENTOS E INSUMOS MÉDICOS
-      </p>
-
-      <p style="margin-top:8pt;font-size:15pt;text-transform:uppercase;font-weight:bold;">
-        ${escapar(nombre)}
-      </p>
-
-      <div style="width:38%;margin:26pt auto;border-top:2pt solid #1F4E79;"></div>
-
-      <p style="margin-top:44pt;font-size:10.5pt;color:#555555;">
-        UNIDAD DE SEGURIDAD Y SALUD OCUPACIONAL
-      </p>
-      <p style="margin-top:2pt;font-size:10.5pt;color:#555555;">
-        Elaborado por ${escapar(quien || 'No identificado')}
-      </p>
-      <p style="font-size:10.5pt;color:#555555;">
-        ${escapar(formatearFecha(fecha))}
-      </p>
-    </div>
-
-    <br style="page-break-before:always;">`;
 
   const parrafos = (texto) => String(texto || '')
     .split(/\n+/).map((x) => x.trim()).filter(Boolean)
-    .map((x) => `<p style="text-align:justify;">${escapar(x)}</p>`).join('');
+    .map((x) => `<p>${escapar(x)}</p>`).join('');
 
-  /* La normativa va como lista y no como párrafo corrido:
-     son referencias que se consultan una por una, y en prosa
-     hay que leerlas enteras para encontrar la que interesa. */
+  /* La normativa va como lista y no como párrafo corrido: son
+     referencias que se consultan una por una, y en prosa hay
+     que leerlas enteras para encontrar la que interesa. */
   const listaNormativa = String(t.normativa || '')
     .split(/\n+/).map((x) => x.trim()).filter(Boolean)
-    .map((x) => `<li style="margin-bottom:3pt;">${escapar(x)}</li>`).join('');
+    .map((x) => `<li>${escapar(x)}</li>`).join('');
 
-  const cabeceras = (rotulo) => [
-    { titulo: 'N°',           ancho: 5,  centrado: true },
-    { titulo: rotulo,         ancho: 39 },
-    { titulo: 'PRESENTACIÓN', ancho: 16 },
-    { titulo: 'ANTERIOR',     ancho: 10, centrado: true },
-    { titulo: 'INGRESOS',     ancho: 10, centrado: true },
-    { titulo: 'EGRESOS',      ancho: 10, centrado: true },
-    { titulo: 'ACTUAL',       ancho: 10, centrado: true }
-  ];
-
-  const enFilas = (lista) => lista.map((f) => [
-    String(f.n), f.nombre, f.presentacion,
-    String(f.anterior), String(f.ingresos), String(f.egresos), String(f.actual)
-  ]);
+  const tabla = (rotulo, filas) => filas.length === 0
+    ? '<p class="if-nota">No hay artículos registrados en el catálogo.</p>'
+    : `<table class="if-tabla">
+        <colgroup>
+          <col style="width:5%"><col style="width:37%"><col style="width:16%">
+          <col style="width:10.5%"><col style="width:10.5%">
+          <col style="width:10.5%"><col style="width:10.5%">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>N°</th><th class="if-izq">${rotulo}</th>
+            <th class="if-izq">PRESENTACIÓN</th>
+            <th>ANTERIOR</th><th>INGRESOS</th><th>EGRESOS</th><th>ACTUAL</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${filas.map((f) => `<tr>
+            <td>${f.n}</td>
+            <td class="if-izq">${escapar(f.nombre)}</td>
+            <td class="if-izq">${escapar(f.presentacion)}</td>
+            <td>${f.anterior}</td>
+            <td>${f.ingresos}</td>
+            <td>${f.egresos}</td>
+            <td class="if-fuerte">${f.actual}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
 
   const todas = [...medicamentos, ...insumos];
   const totalIng = todas.reduce((s, f) => s + Number(f.ingresos || 0), 0);
   const totalEgr = todas.reduce((s, f) => s + Number(f.egresos || 0), 0);
 
-  const cuerpo = `
-    ${seccionDocumento('1. Objetivo')}
-    ${parrafos(t.objetivo)}
+  const anio = String(fecha).slice(0, 4);
 
-    ${seccionDocumento('2. Alcance')}
-    ${parrafos(t.alcance)}
+  return `
+    <!-- ===== Portada ===== -->
+    <section class="if-portada">
+      <div class="if-portada-banda"></div>
 
-    ${seccionDocumento('3. Marco normativo')}
-    <ul style="margin:0 0 8pt 16pt;padding:0;font-size:10pt;">
-      ${listaNormativa}
-    </ul>
+      <div class="if-portada-marca">
+        <img src="logo.png" class="if-portada-logo" alt="">
+      </div>
 
-    ${seccionDocumento('4. Metodología')}
-    ${parrafos(t.metodologia)}
+      <div class="if-portada-centro">
+        <p class="if-portada-unidad">Unidad de Seguridad y Salud Ocupacional</p>
+        <p class="if-portada-servicio">Servicios Médicos de la Empresa</p>
 
-    ${seccionDocumento('5. Medicamentos')}
-    ${medicamentos.length === 0
-      ? '<p>No hay medicamentos registrados en el catálogo.</p>'
-      : tablaWord(cabeceras('NOMBRE DEL MEDICAMENTO'), enFilas(medicamentos))}
+        <div class="if-portada-regla"></div>
 
-    ${seccionDocumento('6. Insumos médicos')}
-    ${insumos.length === 0
-      ? '<p>No hay insumos registrados en el catálogo.</p>'
-      : tablaWord(cabeceras('DESCRIPCIÓN'), enFilas(insumos))}
+        <h1 class="if-portada-titulo">
+          Informe mensual de<br>medicamentos e insumos médicos
+        </h1>
 
-    ${seccionDocumento('7. Resumen del periodo')}
-    <p style="text-align:justify;">
-      Durante ${escapar(nombre)} se verificaron
-      <strong>${medicamentos.length}</strong> medicamentos y
-      <strong>${insumos.length}</strong> insumos médicos, con un total de
-      <strong>${totalIng}</strong> unidades ingresadas y
-      <strong>${totalEgr}</strong> unidades egresadas.
-    </p>
+        <p class="if-portada-mes">${escapar(nombre)}</p>
 
-    ${seccionDocumento('8. Conclusión')}
-    ${parrafos(t.conclusion)}
+        <div class="if-portada-regla"></div>
 
-    <div class="no-partir" style="margin-top:26pt;">
-      ${bloqueFirmas([
-        { rotulo: 'Elaborado por:', nombre: quien || 'No identificado',
-          detalle: cargo || '' }
-      ], 46)}
-      <p style="font-size:6.5pt;color:#999999;text-align:right;margin-top:6pt;">
-        NEXUS ${VERSION} · generado el ${new Date().toLocaleString('es-EC')}
+        <p class="if-portada-empresa">${escapar(inf.empresaNombre || 'Empresa')}</p>
+      </div>
+
+      <div class="if-portada-pie">
+        <table class="if-portada-datos">
+          <tr><th>Elaborado por</th><td>${escapar(quien || 'No identificado')}</td></tr>
+          ${cargo ? `<tr><th>Cargo</th><td>${escapar(cargo)}</td></tr>` : ''}
+          <tr><th>Fecha de elaboración</th><td>${escapar(formatearFecha(fecha))}</td></tr>
+          <tr><th>Periodo informado</th><td>${escapar(nombre)}</td></tr>
+        </table>
+        <p class="if-portada-ref">SG-SST-FOR-021 · ${escapar(anio)}</p>
+      </div>
+
+      <div class="if-portada-banda if-portada-banda-baja"></div>
+    </section>
+
+    <!-- ===== Contenido ===== -->
+    <section class="if-contenido">
+
+      <header class="if-membrete">
+        <img src="logo.png" class="if-membrete-logo" alt="">
+        <div class="if-membrete-texto">
+          <strong>${escapar(inf.empresaNombre || 'Empresa')}</strong><br>
+          Unidad de Seguridad y Salud Ocupacional · Servicios Médicos
+        </div>
+        <div class="if-membrete-ref">
+          Informe mensual<br>${escapar(nombre)}
+        </div>
+      </header>
+
+      <h2 class="if-seccion">1. Objetivo</h2>
+      ${parrafos(t.objetivo)}
+
+      <h2 class="if-seccion">2. Alcance</h2>
+      ${parrafos(t.alcance)}
+
+      <h2 class="if-seccion">3. Marco normativo</h2>
+      <ul class="if-lista">${listaNormativa}</ul>
+
+      <h2 class="if-seccion">4. Metodología</h2>
+      ${parrafos(t.metodologia)}
+
+      <h2 class="if-seccion">5. Medicamentos</h2>
+      ${tabla('NOMBRE DEL MEDICAMENTO', medicamentos)}
+
+      <h2 class="if-seccion">6. Insumos médicos</h2>
+      ${tabla('DESCRIPCIÓN', insumos)}
+
+      <h2 class="if-seccion">7. Resumen del periodo</h2>
+      <p>
+        Durante ${escapar(nombre)} se verificaron
+        <strong>${medicamentos.length}</strong> medicamentos y
+        <strong>${insumos.length}</strong> insumos médicos, con un total de
+        <strong>${totalIng}</strong> unidades ingresadas y
+        <strong>${totalEgr}</strong> unidades egresadas.
       </p>
-    </div>`;
 
-  const html = envolverWord(caratula + cuerpo,
-    'Informe mensual de farmacia · ' + nombre,
-    { superior: 15, inferior: 15, izquierdo: 20, derecho: 15 });
+      <h2 class="if-seccion">8. Conclusión</h2>
+      ${parrafos(t.conclusion)}
 
-  descargarWord(html, `Informe farmacia ${nombre}`);
+      <div class="if-firmas" data-firmas>
+        <div class="if-firma">
+          <div class="if-firma-linea"></div>
+          <p class="if-firma-nombre">${escapar(quien || 'No identificado')}</p>
+          ${cargo ? `<p class="if-firma-cargo">${escapar(cargo)}</p>` : ''}
+        </div>
+      </div>
+
+    </section>`;
+}
+
+async function generarPdf(datos) {
+  const $z = document.getElementById('inf-impresion');
+  if (!$z) {
+    avisar('Falta actualizar la página en el servidor para poder imprimir.');
+    return;
+  }
+
+  $z.innerHTML = construirDocumento(datos);
+
+  await imprimirHoja('inf-impresion', 'imprimiendo-informe',
+    `Informe farmacia · ${datos.nombre}`);
 }
 
 /* ============================================
