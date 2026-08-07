@@ -18,7 +18,7 @@ import { alCrear, alEditar, autorId } from './autoria.js?v=1';
 import { imprimirHoja } from './impresion.js?v=11';
 import {
   iniciarInforme, generarInformeMensual, guardarInforme, descargarActual
-} from './informe-farmacia.js?v=1';
+} from './informe-farmacia.js?v=2';
 
 /* --- Estado --- */
 const estado = {
@@ -1173,7 +1173,7 @@ async function registrarOrden(medicamentos, insumos) {
       clase: 'insumo',
       articulo_id: x.id || null,
       descripcion: x.nombre,
-      presentacion: x.presentacion || null,
+      presentacion: x.unidad || null,
       stock_actual: Number(x.stock_disponible) || 0,
       cantidad: x.pedir,
       orden: i
@@ -1419,10 +1419,8 @@ function conectarEventos() {
   document.getElementById('btn-guardar-salida').addEventListener('click', guardarSalida);
   document.getElementById('sal_tipo').addEventListener('change', alternarTrabajador);
   document.getElementById('sal_medicamento').addEventListener('change', cargarLotesDeSalida);
-  document.getElementById('inf-btn-medicamentos')
-    .addEventListener('click', () => generarInformeMensual('medicamentos'));
-  document.getElementById('inf-btn-insumos')
-    .addEventListener('click', () => generarInformeMensual('insumos'));
+  document.getElementById('inf-btn-generar')
+    .addEventListener('click', generarInformeMensual);
   document.getElementById('inf-btn-guardar').addEventListener('click', guardarInforme);
   document.getElementById('inf-btn-descargar').addEventListener('click', descargarActual);
 
