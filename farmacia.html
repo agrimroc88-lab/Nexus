@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="css/layout.css">
   <link rel="stylesheet" href="css/empresas.css">
   <link rel="stylesheet" href="css/trabajadores.css">
-  <link rel="stylesheet" href="css/farmacia.css?v=17">
+  <link rel="stylesheet" href="css/farmacia.css?v=18">
   <style>
     /* Aviso breve de confirmación */
     .aviso-flotante {
@@ -491,8 +491,6 @@
 
         </section>
 
-        <!-- Zona de impresión del informe -->
-        <div class="if-impresion" id="inf-impresion"></div>
 
         <!-- Zona de impresión de la orden (movida fuera de main) -->
 
@@ -784,6 +782,14 @@
   <!-- Zona de impresión de la orden (fuera de todo, para que no la oculte main) -->
   <div class="orden-impresion" id="orden-impresion"></div>
 
-  <script type="module" src="js/farmacia.js?v=20"></script>
+  <!-- Zona de impresión del informe mensual.
+
+       Va FUERA de <main> a propósito: al imprimir se ocultan
+       los hijos directos de <body> salvo esta zona, y dentro
+       de <main> quedaba oculta junto con su contenedor. Es la
+       misma razón por la que la zona de la orden está aquí. -->
+  <div class="if-impresion" id="inf-impresion"></div>
+
+  <script type="module" src="js/farmacia.js?v=21"></script>
 </body>
 </html>
