@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="css/layout.css">
   <link rel="stylesheet" href="css/empresas.css">
   <link rel="stylesheet" href="css/trabajadores.css">
-  <link rel="stylesheet" href="css/farmacia.css?v=16">
+  <link rel="stylesheet" href="css/farmacia.css?v=17">
   <style>
     /* Aviso breve de confirmación */
     .aviso-flotante {
@@ -418,7 +418,7 @@
               </div>
               <div class="inf-previa-acciones">
                 <button class="boton-secundario" id="inf-btn-descargar" type="button" hidden>
-                  Descargar Word
+                  Descargar PDF
                 </button>
                 <button class="boton-primario" id="inf-btn-guardar" type="button" hidden>
                   Guardar informe
@@ -490,6 +490,9 @@
           </div>
 
         </section>
+
+        <!-- Zona de impresión del informe -->
+        <div class="if-impresion" id="inf-impresion"></div>
 
         <!-- Zona de impresión de la orden (movida fuera de main) -->
 
@@ -781,6 +784,6 @@
   <!-- Zona de impresión de la orden (fuera de todo, para que no la oculte main) -->
   <div class="orden-impresion" id="orden-impresion"></div>
 
-  <script type="module" src="js/farmacia.js?v=18"></script>
+  <script type="module" src="js/farmacia.js?v=20"></script>
 </body>
 </html>
