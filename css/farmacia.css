@@ -244,14 +244,30 @@
     background: #fff;
   }
 
-  /* Margen de pagina en cero y el margen real por dentro.
+  /* DOS PAGINAS CON REGLAS DISTINTAS.
 
-     Con margen de pagina, Chrome estampa arriba la fecha y la
-     hora y abajo la direccion web, y eso aparece impreso en
-     un documento que se firma. Con cero no los pone, y el
-     aire se consigue con relleno, que ademas permite que las
-     bandas de color de la portada lleguen al borde. */
-  @page { size: A4 portrait; margin: 0; }
+     La portada necesita margen cero para que las bandas de
+     color lleguen al borde de la hoja. El contenido necesita
+     margenes de verdad, y de verdad significa EN CADA
+     PAGINA.
+
+     Antes el margen del contenido era relleno del bloque, y
+     el relleno solo aparece donde el bloque empieza y donde
+     termina: la primera hoja y la ultima salian bien, y de la
+     tercera en adelante el texto se iba al filo del papel.
+     Ningun relleno puede repetirse por pagina porque el
+     bloque no sabe donde se corta.
+
+     Se resuelve con paginas con nombre: cada seccion declara
+     a que pagina pertenece y el navegador aplica el margen en
+     todas las hojas que ocupe. */
+  @page { size: A4 portrait; }
+
+  @page portada  { margin: 0; }
+  @page contenido { margin: 16mm 15mm 18mm 20mm; }
+
+  .if-portada   { page: portada; }
+  .if-contenido { page: contenido; }
 
   /* ---------- Portada ----------
 
@@ -387,7 +403,6 @@
 
   /* ---------- Contenido ---------- */
 
-  .if-contenido { padding: 16mm 15mm 18mm 20mm; }
 
   .if-contenido p {
     margin: 0 0 3mm;
@@ -475,17 +490,33 @@
 
   /* ---------- Firma ---------- */
 
+  /* Dos firmas, repartidas. La separacion es generosa porque
+     la rubrica se traza SOBRE la linea y hacia los lados: con
+     las columnas juntas, una firma amplia invade la de al
+     lado. */
   .if-firmas {
-    margin-top: 24mm;
+    display: flex;
+    gap: 18mm;
+    justify-content: space-around;
+    margin-top: 26mm;
     text-align: center;
     page-break-inside: avoid;
   }
 
-  .if-firma { display: inline-block; min-width: 80mm; }
+  .if-firma { flex: 1; max-width: 74mm; }
+
+  .if-firma-rotulo {
+    margin: 0 0 1.5mm !important;
+    font-size: 8pt;
+    letter-spacing: 0.6pt;
+    color: #1F4E79;
+    text-align: center !important;
+    text-transform: uppercase;
+  }
 
   .if-firma-linea {
     height: 0;
-    margin-bottom: 2mm;
+    margin-bottom: 2.5mm;
     border-top: 0.75pt solid #000;
   }
 
