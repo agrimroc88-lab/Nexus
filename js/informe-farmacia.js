@@ -38,8 +38,9 @@ import { sesionActual } from './auth.js?v=11';
 import { escapar, formatearFecha } from './utils.js?v=11';
 import { alCrear } from './autoria.js?v=1';
 import { imprimirHoja } from './impresion.js?v=11';
+import { redactar } from './ia.js?v=1';
 
-const VERSION = 'v9';
+const VERSION = 'v10';
 console.info('NEXUS · informe-farmacia', VERSION);
 
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -176,6 +177,10 @@ function textosActuales() {
     alcance:     leer('inf-alcance',     TEXTOS.alcance),
     normativa:   leer('inf-normativa',   TEXTOS.normativa),
     metodologia: TEXTOS.metodologia,
+    /* Vacío es válido: el informe sale sin análisis y sigue
+       siendo un informe. Por eso no cae a un texto por
+       defecto como los demás. */
+    analisis:    (document.getElementById('inf-analisis')?.value || '').trim(),
     conclusion:  leer('inf-conclusion',  TEXTOS.conclusion)
   };
 }
@@ -809,6 +814,7 @@ function construirDocumento({ medicamentos, insumos, nombre, quien, cargo, fecha
         <strong>${totalIng}</strong> unidades ingresadas y
         <strong>${totalEgr}</strong> unidades egresadas.
       </p>
+      ${parrafos(t.analisis)}
 
       <h2 class="if-seccion">8. Conclusión</h2>
       ${parrafos(t.conclusion)}
@@ -863,6 +869,84 @@ async function generarPdf(datos) {
 
   await imprimirHoja('inf-impresion', 'imprimiendo-informe',
     `Informe farmacia · ${datos.nombre}`);
+}
+
+/* ============================================
+   Asistente de redacción
+
+   Rellena el análisis del periodo. Lo que se envía son cifras
+   y nombres de artículo: ni un trabajador, ni una cédula, ni
+   un diagnóstico. El informe de farmacia no los contiene, y
+   este resumen es lo único que sale del navegador.
+
+   El texto se puede corregir antes de generar el PDF, y el
+   botón «Generar informe» funciona igual si el campo queda
+   vacío: el asistente ayuda, no hace falta.
+   ============================================ */
+
+export async function redactarAnalisis() {
+  if (!inf.ultimo) {
+    return avisar('Genere primero el informe: el análisis se escribe sobre '
+                + 'las cifras del mes.');
+  }
+
+  const { medicamentos, insumos, nombre } = inf.ultimo;
+  const $btn = document.getElementById('inf-btn-ia');
+  const $texto = document.getElementById('inf-analisis');
+
+  $btn.disabled = true;
+  const rotuloPrevio = $btn.textContent;
+  $btn.textContent = 'Redactando…';
+
+  /* Se envían las cifras del periodo y solo los artículos que
+     se movieron. Mandar noventa filas en cero no aporta nada
+     al análisis y multiplica el costo de cada llamada. */
+  const conMovimiento = (lista) => lista
+    .filter((f) => f.ingresos > 0 || f.egresos > 0)
+    .map((f) => ({
+      articulo: f.nombre,
+      presentacion: f.presentacion,
+      anterior: f.anterior,
+      ingresos: f.ingresos,
+      egresos: f.egresos,
+      actual: f.actual
+    }));
+
+  const sinStock = (lista) => lista
+    .filter((f) => f.actual === 0 && f.egresos > 0)
+    .map((f) => f.nombre);
+
+  const datos = {
+    periodo: nombre,
+    medicamentos: {
+      total_catalogo: medicamentos.length,
+      con_movimiento: conMovimiento(medicamentos),
+      agotados_tras_consumo: sinStock(medicamentos),
+      sin_movimiento: medicamentos.filter(
+        (f) => f.ingresos === 0 && f.egresos === 0).length
+    },
+    insumos: {
+      total_catalogo: insumos.length,
+      con_movimiento: conMovimiento(insumos),
+      agotados_tras_consumo: sinStock(insumos),
+      sin_movimiento: insumos.filter(
+        (f) => f.ingresos === 0 && f.egresos === 0).length
+    }
+  };
+
+  const r = await redactar('redactar-analisis', datos);
+
+  $btn.disabled = false;
+  $btn.textContent = rotuloPrevio;
+
+  if (!r.ok) return avisar(r.mensaje);
+
+  $texto.value = r.texto;
+  document.getElementById('inf-panel-textos').open = true;
+  $texto.focus();
+
+  avisar('Borrador listo. Léalo entero y corrija lo que haga falta antes '
+       + 'de generar el PDF: usted lo firma.', true);
 }
 
 /* ============================================
