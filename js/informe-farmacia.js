@@ -40,7 +40,7 @@ import { alCrear } from './autoria.js?v=1';
 import { imprimirHoja } from './impresion.js?v=11';
 import { redactar } from './ia.js?v=1';
 
-const VERSION = 'v10';
+const VERSION = 'v11';
 console.info('NEXUS · informe-farmacia', VERSION);
 
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -250,6 +250,9 @@ async function filasMedicamentos(inicio, fin) {
     supabase.from('v_stock_medicamentos')
       .select('id, nombre_generico, nombre_comercial, concentracion, forma')
       .eq('empresa_id', inf.empresaId).eq('activo', true)
+      /* Ordenado por comercial, que es como se busca la fila
+         en el papel. Los que no llevan marca caen al final. */
+      .order('nombre_comercial', { nullsFirst: false })
       .order('nombre_generico'),
     traerTodo((d, h) => supabase.from('kardex')
       .select('medicamento_id, tipo, cantidad, fecha')
@@ -282,7 +285,19 @@ async function filasMedicamentos(inicio, fin) {
     const x = acumulado.get(m.id) || { anterior: 0, ingresos: 0, egresos: 0 };
     return {
       n: i + 1,
-      nombre: (m.nombre_generico + ' ' + (m.concentracion || '')).trim().toUpperCase(),
+      /* El comercial encabeza y el generico va detras entre
+         parentesis.
+
+         Es el nombre impreso en la caja, y quien coteja el
+         informe contra la bodega tiene las cajas delante, no
+         el vademecum. El generico se conserva porque es lo
+         que identifica el principio activo y lo que hace
+         comparable el informe entre marcas distintas: sin el,
+         un cambio de proveedor pareceria un articulo nuevo. */
+      nombre: (m.nombre_comercial
+        ? `${m.nombre_comercial} (${m.nombre_generico} ${m.concentracion || ''})`
+        : `${m.nombre_generico} ${m.concentracion || ''}`)
+        .replace(/\s+/g, ' ').replace(' )', ')').trim().toUpperCase(),
       presentacion: (m.forma || '').toUpperCase(),
       anterior: x.anterior,
       ingresos: x.ingresos,
