@@ -39,7 +39,7 @@ import { escapar, formatearFecha } from './utils.js?v=11';
 import { alCrear } from './autoria.js?v=1';
 import { imprimirHoja } from './impresion.js?v=11';
 
-const VERSION = 'v8';
+const VERSION = 'v9';
 console.info('NEXUS · informe-farmacia', VERSION);
 
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -819,7 +819,12 @@ function construirDocumento({ medicamentos, insumos, nombre, quien, cargo, fecha
            revisa quien encabeza el departamento, que no
            cambia. Con una sola firma no se distinguía quién
            había hecho el trabajo de quién respondía por él. -->
-      <div class="if-firmas" data-firmas>
+      <!-- Sin data-firmas a proposito: impresion.js reconoce
+           ese atributo e inyecta cinco centimetros de espacio
+           antes del bloque. Aqui sobraba, y con ese empujon
+           las firmas ya no cabian en la pagina y salian solas
+           en una hoja en blanco. El aire lo pone el CSS. -->
+      <div class="if-firmas">
         <div class="if-firma">
           <div class="if-firma-linea"></div>
           <p class="if-firma-rotulo">Elaborado por</p>
