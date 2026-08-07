@@ -133,3 +133,16 @@
   .herramientas .boton-primario,
   .herramientas .boton-secundario { width: 100%; }
 }
+
+/* Buscador sobre el desplegable de medicamentos.
+
+   El desplegable llegaba a doscientas opciones, y el
+   navegador solo busca por el principio del texto: escribir
+   «ibu» no encuentra «Paracetamol + Ibuprofeno». Este campo
+   filtra por cualquier parte del genérico, de la marca o de
+   la concentracion, que es como se busca una caja que se
+   tiene en la mano. */
+.entrada-buscador {
+  margin-bottom: 0.4rem;
+  font-size: 0.88rem;
+}
