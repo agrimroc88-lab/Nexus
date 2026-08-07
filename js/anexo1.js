@@ -27,7 +27,7 @@ import { montarGrupos, cargarGrupos, pintarGrupos } from './grupos.js?v=11';
 import { montarBotiquines, cargarBotiquines, pintarBotiquines }
   from './botiquines.js?v=12';
 import { montarInstalaciones, cargarInstalaciones, pintarInstalaciones }
-  from './instalaciones.js?v=18';
+  from './instalaciones.js?v=19';
 
 /* Ámbito y módulo declarados por el HTML que carga este archivo */
 const AMBITO = document.body.dataset.ambito || 'salud';

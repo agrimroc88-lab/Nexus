@@ -34,7 +34,7 @@ import { envolverWord, descargarWord, recuadroFoto, bloqueFirmas,
          logoEnBase64, encabezadoMemo, escaparTexto, fijarEscala }
   from './documento.js?v=11';
 
-const VERSION = 'v8';
+const VERSION = 'v9';
 console.info('NEXUS · instalaciones', VERSION);
 
 const ins = {
@@ -206,7 +206,7 @@ export async function cargarInstalaciones(empresaId, empresaNombre) {
        a mano cada trimestre produce erratas que después no
        cuadran con ningún trabajador. */
     supabase.from('v_trabajadores')
-      .select('id, codigo, cedula, nombre_completo')
+      .select('id, codigo, cedula, nombre_completo, cargo')
       .eq('empresa_id', empresaId).eq('activo', true).order('codigo')
   ]);
 
@@ -574,6 +574,11 @@ function abrirFicha(i) {
     v('ins_n_numero', i.numero);
   }
 
+  const $br = document.getElementById('ins_resp_buscar');
+  if ($br) $br.value = '';
+  const $sr = document.getElementById('ins_resp_sugerencias');
+  if ($sr) $sr.hidden = true;
+
   document.getElementById('ins-btn-eliminar').hidden = !i;
   document.getElementById('ins-btn-guardar-nueva').textContent =
     i ? 'Guardar' : 'Guardar e inspeccionar';
@@ -665,6 +670,21 @@ async function guardarNueva() {
   if (i) {
     ({ error } = await supabase.from('instalaciones')
       .update(datos).eq('id', i.id));
+
+    /* Las piezas heredaron estos datos del bloque cuando se
+       crearon. Si cambian, tienen que cambiar en todas: de lo
+       contrario la hoja de campo del bloque nombra a una
+       persona y la de sus sanitarios a otra. */
+    if (!error && !i.esPieza) {
+      const hijas = piezasDe(i.id);
+      if (hijas.length > 0) {
+        await supabase.from('instalaciones').update({
+          responsable: datos.responsable,
+          responsable_cargo: datos.responsable_cargo,
+          ubicacion_texto: datos.ubicacion_texto
+        }).in('id', hijas.map((h) => h.id));
+      }
+    }
   } else {
     ({ data, error } = await supabase
       .from('instalaciones').insert(datos).select('id').maybeSingle());
@@ -2219,39 +2239,60 @@ function alertaPiezas(t)     { mostrar('ins-alerta-piezas', t); }
    como se registra a un contratista que no está en nómina.
    ============================================ */
 
-function buscarAcompanante() {
-  const texto = document.getElementById('ins_acomp_buscar').value.trim().toLowerCase();
-  const $s = document.getElementById('ins_acomp_sugerencias');
+/**
+ * Conecta un buscador de nómina a un campo de texto.
+ *
+ * Se busca por código, cédula o nombre porque en campo se
+ * conoce una cosa o la otra: el técnico sabe el nombre, la
+ * hoja impresa trae el código. El campo de destino sigue
+ * admitiendo texto libre, que es como se registra a un
+ * contratista que no está en nómina.
+ *
+ * @param {string}   idBuscador     campo donde se teclea
+ * @param {string}   idSugerencias  contenedor de resultados
+ * @param {function} alElegir       recibe el trabajador elegido
+ */
+function conectarBuscadorNomina(idBuscador, idSugerencias, alElegir) {
+  const $b = document.getElementById(idBuscador);
+  const $s = document.getElementById(idSugerencias);
+  if (!$b || !$s) return;
 
-  if (texto.length < 2) { $s.hidden = true; return; }
+  $b.addEventListener('input', () => {
+    const texto = $b.value.trim().toLowerCase();
 
-  const hallados = ins.nomina.filter((t) => {
-    const campo = `${t.codigo} ${t.cedula ?? ''} ${t.nombre_completo}`.toLowerCase();
-    return campo.includes(texto);
-  }).slice(0, 10);
+    if (texto.length < 2) { $s.hidden = true; return; }
 
-  if (hallados.length === 0) {
-    $s.innerHTML = '<p class="ins-sug-vacia">Sin coincidencias · '
-                 + 'puede escribirlo a mano arriba</p>';
-    $s.hidden = false;
-    return;
-  }
+    const hallados = ins.nomina.filter((t) => {
+      const campo = `${t.codigo ?? ''} ${t.cedula ?? ''} ${t.nombre_completo}`
+        .toLowerCase();
+      return campo.includes(texto);
+    }).slice(0, 10);
 
-  $s.innerHTML = '';
-  hallados.forEach((t) => {
-    const b = document.createElement('button');
-    b.className = 'ins-sugerencia';
-    b.type = 'button';
-    b.innerHTML = `<span class="codigo">${t.codigo ?? '—'}</span>
-                   <span>${escapar(t.nombre_completo)}</span>`;
-    b.addEventListener('click', () => {
-      document.getElementById('ins_acompanante').value = t.nombre_completo;
-      document.getElementById('ins_acomp_buscar').value = '';
-      $s.hidden = true;
+    if (hallados.length === 0) {
+      $s.innerHTML = '<p class="ins-sug-vacia">Sin coincidencias · '
+                   + 'puede escribirlo a mano arriba</p>';
+      $s.hidden = false;
+      return;
+    }
+
+    $s.innerHTML = '';
+    hallados.forEach((t) => {
+      const b = document.createElement('button');
+      b.className = 'ins-sugerencia';
+      b.type = 'button';
+      b.innerHTML = `<span class="codigo">${t.codigo ?? 's/c'}</span>
+                     <span>${escapar(t.nombre_completo)}</span>
+                     ${t.cargo
+                       ? `<span class="ins-sug-cargo">${escapar(t.cargo)}</span>` : ''}`;
+      b.addEventListener('click', () => {
+        alElegir(t);
+        $b.value = '';
+        $s.hidden = true;
+      });
+      $s.appendChild(b);
     });
-    $s.appendChild(b);
+    $s.hidden = false;
   });
-  $s.hidden = false;
 }
 
 function traducir(error) {
@@ -2291,7 +2332,18 @@ function conectar() {
   enIns('ins-btn-agregar-piezas', 'click', agregarPiezas);
   enIns('ins-btn-guardar-piezas', 'click', guardarPiezas);
 
-  enIns('ins_acomp_buscar', 'input', buscarAcompanante);
+  conectarBuscadorNomina('ins_acomp_buscar', 'ins_acomp_sugerencias', (t) => {
+    document.getElementById('ins_acompanante').value = t.nombre_completo;
+  });
+
+  /* Al elegir de nómina se rellena también el cargo: teclearlo
+     aparte es donde aparecen cargos que no coinciden con los
+     de la ficha del trabajador. Queda editable por si el cargo
+     que corresponde al acta es otro. */
+  conectarBuscadorNomina('ins_resp_buscar', 'ins_resp_sugerencias', (t) => {
+    document.getElementById('ins_n_responsable').value = t.nombre_completo;
+    if (t.cargo) document.getElementById('ins_n_cargo').value = t.cargo;
+  });
 
   enIns('ins-btn-guardar', 'click', () => guardarInspeccion(false));
   enIns('ins-btn-cerrar-inspeccion', 'click', () => guardarInspeccion(true));
