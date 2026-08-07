@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/layout.css">
   <link rel="stylesheet" href="css/empresas.css">
-  <link rel="stylesheet" href="css/configuracion.css">
+  <link rel="stylesheet" href="css/configuracion.css?v=4">
 </head>
 <body class="app">
 
@@ -33,6 +33,7 @@
       <nav class="pestanas">
         <button class="pestana activa" data-vista="apariencia" type="button">Apariencia</button>
         <button class="pestana" data-vista="cargos" type="button">Sucursales y cargos</button>
+        <button class="pestana" data-vista="bitacora" type="button">Bitácora</button>
       </nav>
 
       <!-- ===== Vista: Apariencia ===== -->
@@ -137,9 +138,74 @@
         </div>
       </section>
 
+      <!-- ===== Vista: Bitácora ===== -->
+      <section class="vista" id="vista-bitacora" hidden>
+
+        <p class="ayuda bit-aviso">
+          Registro de quién creó, cambió o dio de baja cada dato. Se llena solo:
+          nadie puede escribir aquí a mano.
+          <b>Tenga presente que el autor lo declara el navegador</b>, así que sirve
+          para saber quién hizo qué entre el equipo, pero no como prueba ante una
+          discrepancia laboral.
+        </p>
+
+        <section class="selector-empresa bit-filtros">
+          <div class="campo">
+            <label class="etiqueta" for="bit-modulo">Módulo</label>
+            <select class="entrada" id="bit-modulo">
+              <option value="">Todos</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="bit-usuario">Usuario</label>
+            <select class="entrada" id="bit-usuario">
+              <option value="">Todos</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="bit-accion">Acción</label>
+            <select class="entrada" id="bit-accion">
+              <option value="">Todas</option>
+              <option value="alta">Altas</option>
+              <option value="cambio">Cambios</option>
+              <option value="baja">Bajas</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="bit-desde">Desde</label>
+            <input class="entrada" id="bit-desde" type="date">
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="tabla-envoltura">
+            <table class="tabla">
+              <thead>
+                <tr>
+                  <th>Cuándo</th>
+                  <th>Quién</th>
+                  <th class="celda-centro">Acción</th>
+                  <th>Módulo</th>
+                  <th>Qué cambió</th>
+                </tr>
+              </thead>
+              <tbody id="bit-cuerpo"></tbody>
+            </table>
+          </div>
+          <p class="vacio" id="bit-vacio" hidden>Sin movimientos registrados.</p>
+          <div class="bit-pie">
+            <span class="ayuda" id="bit-cuenta">—</span>
+            <button class="boton-secundario" id="bit-btn-mas" type="button" hidden>
+              Ver más
+            </button>
+          </div>
+        </section>
+
+      </section>
+
     </main>
   </div>
 
-  <script type="module" src="js/configuracion.js?v=3"></script>
+  <script type="module" src="js/configuracion.js?v=4"></script>
 </body>
 </html>

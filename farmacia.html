@@ -323,6 +323,29 @@
             </div>
             <p class="vacio" id="vacio-orden-insumos" hidden>No hay insumos por debajo del mínimo.</p>
           </div>
+
+          <div class="panel">
+            <h3 class="est-titulo" style="padding:0.5rem 1rem 0;">Órdenes emitidas</h3>
+            <div class="tabla-envoltura">
+              <table class="tabla">
+                <thead>
+                  <tr>
+                    <th>N° de orden</th>
+                    <th>Fecha</th>
+                    <th>Solicitada por</th>
+                    <th class="celda-centro">Medicamentos</th>
+                    <th class="celda-centro">Insumos</th>
+                    <th class="celda-centro">Unidades</th>
+                    <th class="celda-centro"></th>
+                  </tr>
+                </thead>
+                <tbody id="cuerpo-ordenes"></tbody>
+              </table>
+            </div>
+            <p class="vacio" id="vacio-ordenes" hidden>
+              Todavía no se ha emitido ninguna orden.
+            </p>
+          </div>
         </section>
 
         <!-- Zona de impresión de la orden (movida fuera de main) -->
@@ -609,6 +632,6 @@
   <!-- Zona de impresión de la orden (fuera de todo, para que no la oculte main) -->
   <div class="orden-impresion" id="orden-impresion"></div>
 
-  <script type="module" src="js/farmacia.js?v=11"></script>
+  <script type="module" src="js/farmacia.js?v=13"></script>
 </body>
 </html>
