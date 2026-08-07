@@ -218,10 +218,21 @@
   min-width: 0;
 }
 
+/* Cuatro campos: buscador, medicamento, cantidad e
+   indicacion. El buscador va ENCIMA del desplegable y
+   ocupando toda la fila, no a su lado: se teclea una vez para
+   acotar y despues se elige, asi que compartir ancho con el
+   desplegable dejaria a los dos demasiado estrechos para
+   leer un nombre de medicamento. */
 .renglon-medicamento {
   display: grid;
   grid-template-columns: 1fr 80px 1fr;
   gap: 0.5rem;
+}
+
+.renglon-medicamento .entrada-buscar-med {
+  grid-column: 1 / -1;
+  font-size: 0.8rem;
 }
 
 .entrada-mini {
