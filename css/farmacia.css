@@ -192,3 +192,14 @@
   background: rgba(111, 207, 151, 0.1);
   border-color: rgba(111, 207, 151, 0.35);
 }
+
+.inf-textos { padding: 1rem; }
+.inf-textos .campo { margin-top: 0.8rem; }
+
+.inf-subtitulo {
+  padding: 0.9rem 1rem 0.4rem;
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-acento);
+}
