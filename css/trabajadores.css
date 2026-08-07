@@ -202,3 +202,15 @@
   .filtro { width: 100%; }
   .hallazgo { flex-direction: column; align-items: stretch; }
 }
+
+/* Trabajador sin codigo de nomina.
+
+   En Machala y Acacias no se asigna numero. Se marca en gris
+   y no en el azul del codigo real: asi se distingue de un
+   vistazo quien no lleva codigo de quien deberia tenerlo, sin
+   que parezca un dato faltante. */
+.codigo-vacio {
+  font-style: italic;
+  color: var(--color-texto-tenue);
+  background: rgba(139, 148, 158, 0.12);
+}
