@@ -664,6 +664,25 @@
 
   .hc-obs-rejilla { background: #fff; }
 
+  /* Casilla que no corresponde a esa instalacion.
+
+     Cuando servicios higienicos y lavabos comparten hoja, sus
+     listas no son iguales. La casilla sombreada dice «esto no
+     va aqui»: sin ella, quedaria en blanco y en la
+     transcripcion nadie sabria si es que no aplica o si se
+     olvido de marcarla. */
+  .hc-no-aplica {
+    background: repeating-linear-gradient(
+      45deg, #ffffff, #ffffff 2pt, #d8d8d8 2pt, #d8d8d8 4pt);
+  }
+
+  .hc-clave-na {
+    min-width: 11pt;
+    height: 9pt;
+    background: repeating-linear-gradient(
+      45deg, #ffffff, #ffffff 2pt, #d8d8d8 2pt, #d8d8d8 4pt);
+  }
+
   /* Punto junto al criterio que fallo la vez pasada. Un punto
      y no un texto: en rejilla no hay sitio para texto, y lo
      que hace falta es la senal de mirar eso primero. */
@@ -891,4 +910,13 @@
   color: var(--color-texto-tenue);
   background: var(--color-superficie-alt);
   cursor: default;
+}
+
+/* El cargo en la sugerencia. Dos personas pueden llamarse
+   igual; el cargo desempata sin tener que abrir la ficha. */
+.ins-sug-cargo {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--color-texto-tenue);
+  white-space: nowrap;
 }
