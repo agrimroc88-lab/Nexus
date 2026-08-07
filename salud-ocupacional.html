@@ -52,7 +52,7 @@
   </style>
   <link rel="stylesheet" href="css/grupos.css">
   <link rel="stylesheet" href="css/botiquines.css?v=12">
-  <link rel="stylesheet" href="css/instalaciones.css?v=7">
+  <link rel="stylesheet" href="css/instalaciones.css?v=9">
 </head>
 <body class="app" data-ambito="salud" data-modulo="salud_ocup">
 
@@ -1817,11 +1817,16 @@
         <div class="rejilla">
           <div class="campo">
             <label class="etiqueta" for="ins_n_responsable">Responsable del área</label>
-            <input class="entrada" id="ins_n_responsable" type="text" autocomplete="off">
+            <input class="entrada" id="ins_n_responsable" type="text" autocomplete="off"
+                   placeholder="Nombre de quien responde por el área">
+            <input class="entrada ins-buscador" id="ins_resp_buscar" type="text"
+                   autocomplete="off" placeholder="Buscar por código o nombre…">
+            <div class="ins-sugerencias" id="ins_resp_sugerencias" hidden></div>
           </div>
           <div class="campo">
             <label class="etiqueta" for="ins_n_cargo">Cargo</label>
             <input class="entrada" id="ins_n_cargo" type="text" autocomplete="off">
+            <span class="ayuda">Se rellena solo al elegir de nómina.</span>
           </div>
         </div>
 
@@ -2037,6 +2042,6 @@
   <!-- Zona de impresión de la hoja de recorrido -->
   <div class="ins-impresion" id="ins-impresion"></div>
 
-  <script type="module" src="js/anexo1.js?v=19"></script>
+  <script type="module" src="js/anexo1.js?v=21"></script>
 </body>
 </html>
