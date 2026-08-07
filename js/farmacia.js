@@ -162,7 +162,7 @@ async function cargarKardex() {
     .from('kardex')
     .select(`
       id, tipo, fecha, cantidad, documento, proveedor, observacion,
-      medicamentos ( nombre_generico, concentracion, forma ),
+      medicamentos ( nombre_generico, nombre_comercial, concentracion, forma ),
       lotes ( numero_lote, fecha_caducidad ),
       trabajadores ( codigo, apellidos, nombres )
     `)
@@ -291,7 +291,11 @@ function pintarLotes() {
     if (filtro === 'proximo' && !['proximo', 'critico'].includes(l.estado_caducidad)) return false;
 
     if (!texto) return true;
-    return [l.nombre_generico, l.numero_lote]
+    /* El comercial no viene en la vista de lotes, así que se
+       busca en el catálogo ya cargado. Sin esto habría que
+       recordar el genérico de una caja que solo lleva impreso
+       el nombre de marca. */
+    return [l.nombre_generico, comercialDe(l.medicamento_id), l.numero_lote]
       .filter(Boolean).some((c) => c.toLowerCase().includes(texto));
   });
 
@@ -377,7 +381,8 @@ function pintarKardex() {
 
     if (!texto) return true;
     const trab = k.trabajadores ? `${k.trabajadores.apellidos} ${k.trabajadores.nombres}` : '';
-    return [k.medicamentos?.nombre_generico, trab, k.lotes?.numero_lote]
+    return [k.medicamentos?.nombre_generico, k.medicamentos?.nombre_comercial,
+            trab, k.lotes?.numero_lote]
       .filter(Boolean).some((c) => c.toLowerCase().includes(texto));
   });
 
@@ -498,6 +503,8 @@ function abrirIngreso() {
     return;
   }
 
+  const $bi = document.getElementById('ing_buscar');
+  if ($bi) $bi.value = '';
   llenarSelectMedicamentos('ing_medicamento');
   document.getElementById('ing_tipo').value = 'inventario_inicial';
   document.getElementById('ing_fecha').value = HOY();
@@ -511,15 +518,65 @@ function abrirIngreso() {
   document.getElementById('modal-ingreso').hidden = false;
 }
 
-function llenarSelectMedicamentos(idSelect) {
-  const $sel = document.getElementById(idSelect);
-  $sel.innerHTML = '<option value="">— Seleccionar —</option>';
+/** Nombre comercial de un medicamento, buscado en el catálogo. */
+function comercialDe(medicamentoId) {
+  return estado.medicamentos.find((m) => m.id === medicamentoId)?.nombre_comercial || '';
+}
 
-  estado.medicamentos.forEach((m) => {
+/** Etiqueta completa: genérico, concentración, forma y marca. */
+function etiquetaMedicamento(m) {
+  const base = `${m.nombre_generico} ${m.concentracion || ''} · ${m.forma}`.trim();
+  return m.nombre_comercial ? `${base} · ${m.nombre_comercial}` : base;
+}
+
+/**
+ * Llena un desplegable de medicamentos.
+ *
+ * Se muestra también el nombre comercial: la caja que se tiene
+ * en la mano suele llevar solo la marca, y obligar a recordar
+ * el genérico —sobre todo en combinaciones de varios
+ * compuestos— es donde se pierde el tiempo.
+ *
+ * @param {string} idSelect
+ * @param {string} texto  filtro opcional; se aplica sobre
+ *                        genérico, comercial y concentración
+ */
+function llenarSelectMedicamentos(idSelect, texto = '') {
+  const $sel = document.getElementById(idSelect);
+  const buscado = texto.trim().toLowerCase();
+
+  /* Se conserva lo elegido si sigue estando tras filtrar: de
+     lo contrario, teclear una letra de más borraría la
+     selección sin avisar. */
+  const previo = $sel.value;
+
+  const lista = estado.medicamentos.filter((m) => {
+    if (!buscado) return true;
+    return [m.nombre_generico, m.nombre_comercial, m.concentracion, m.forma]
+      .filter(Boolean).some((c) => c.toLowerCase().includes(buscado));
+  });
+
+  $sel.innerHTML = lista.length === 0
+    ? '<option value="">— Sin coincidencias —</option>'
+    : '<option value="">— Seleccionar —</option>';
+
+  lista.forEach((m) => {
     const opcion = document.createElement('option');
     opcion.value = m.id;
-    opcion.textContent = `${m.nombre_generico} ${m.concentracion || ''} · ${m.forma}`.trim();
+    opcion.textContent = etiquetaMedicamento(m);
     $sel.appendChild(opcion);
+  });
+
+  if (previo && lista.some((m) => m.id === previo)) $sel.value = previo;
+}
+
+/* Conecta el buscador que hay encima de un desplegable. */
+function conectarBuscadorMed(idBuscador, idSelect) {
+  const $b = document.getElementById(idBuscador);
+  if (!$b) return;
+  $b.addEventListener('input', () => {
+    llenarSelectMedicamentos(idSelect, $b.value);
+    if (idSelect === 'sal_medicamento') cargarLotesDeSalida();
   });
 }
 
@@ -654,6 +711,8 @@ function abrirSalida() {
     return;
   }
 
+  const $bs = document.getElementById('sal_buscar');
+  if ($bs) $bs.value = '';
   llenarSelectMedicamentos('sal_medicamento');
 
   const $trab = document.getElementById('sal_trabajador');
@@ -1335,6 +1394,8 @@ function conectarEventos() {
   document.getElementById('btn-guardar-salida').addEventListener('click', guardarSalida);
   document.getElementById('sal_tipo').addEventListener('change', alternarTrabajador);
   document.getElementById('sal_medicamento').addEventListener('change', cargarLotesDeSalida);
+  conectarBuscadorMed('ing_buscar', 'ing_medicamento');
+  conectarBuscadorMed('sal_buscar', 'sal_medicamento');
   document.getElementById('sal_lote').addEventListener('change', evaluarCantidadSalida);
   document.getElementById('sal_cantidad').addEventListener('input', evaluarCantidadSalida);
 
