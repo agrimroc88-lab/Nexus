@@ -201,3 +201,97 @@
   .bt-impresion table { border-collapse: collapse; width: 100%; }
   .bt-impresion img { max-height: 38pt; }
 }
+
+/* ============================================
+   Dotación y gestión de botiquines · v12
+
+   El listado dejó de recorrer las revisiones para recorrer
+   los botiquines: ahora la pestaña muestra lo que cada uno
+   debe contener aunque el mes no se haya abierto todavía.
+   Estas reglas visten esa parte nueva.
+   ============================================ */
+
+/* Estado de un botiquín cuya revisión aún no se ha abierto.
+   No es un aviso —no hay nada mal— ni un logro: es ausencia. */
+.insignia-neutra {
+  color: var(--color-texto-tenue);
+  background: rgba(139, 148, 158, 0.12);
+}
+
+/* Varios botones en la última columna. Se envuelven en pantallas
+   estrechas en lugar de estirar la fila. */
+.bt-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  justify-content: center;
+}
+
+.boton-icono-peligro {
+  color: #f57373;
+  border-color: rgba(245, 115, 115, 0.4);
+}
+
+.boton-icono-peligro:hover {
+  background: rgba(245, 115, 115, 0.1);
+}
+
+.boton-peligro {
+  margin-right: auto;   /* al extremo opuesto de Guardar */
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #f57373;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid rgba(245, 115, 115, 0.4);
+  border-radius: var(--radio);
+}
+
+.boton-peligro:hover {
+  background: rgba(245, 115, 115, 0.1);
+}
+
+/* --- Modal de dotación --- */
+
+.modal-sub {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.8rem;
+  color: var(--color-texto-tenue);
+}
+
+.tabla-compacta th,
+.tabla-compacta td {
+  padding: 0.4rem 0.55rem;
+}
+
+/* Agregar del catálogo: el desplegable se lleva el ancho
+   sobrante y la cantidad ocupa lo justo. */
+.bt-dot-agregar {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-end;
+  padding-top: 0.9rem;
+  margin-top: 0.9rem;
+  border-top: 1px solid var(--color-borde);
+}
+
+.bt-dot-agregar .campo-ancho { flex: 1; }
+
+.campo-corto { width: 6.5rem; flex: 0 0 6.5rem; }
+
+.casilla {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.casilla input { width: auto; }
+
+@media (max-width: 700px) {
+  .bt-dot-agregar { flex-wrap: wrap; }
+  .campo-corto { flex: 0 0 100%; width: 100%; }
+}
