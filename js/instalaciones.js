@@ -2018,6 +2018,7 @@ async function generarInforme(clave) {
   let siguiente = 5 + (hallazgos.length ? 1 : 0) + (reincidentes.length ? 1 : 0);
   const nSeccion = (n) => String(siguiente + 1 + n);
 
+
   const recuadros = [];
   filas.forEach((r) => {
     recuadros.push({ pie: r.instalacion.toUpperCase(), alto: 64 });
