@@ -232,10 +232,15 @@
   body.imprimiendo-informe nav,
   body.imprimiendo-informe main { display: none !important; }
 
+  /* Sin posicionamiento absoluto.
+
+     Un contenedor absoluto se saca del flujo, y lo que esta
+     fuera del flujo no se pagina: el navegador deja de
+     aplicar el margen de pagina a partir de la segunda hoja y
+     el texto acaba al filo del papel. En la orden de compra
+     nunca se noto porque cabe en una pagina. */
   body.imprimiendo-informe .if-impresion {
     display: block !important;
-    position: absolute;
-    top: 0; left: 0; right: 0;
     width: 100%;
     font-family: Arial, Helvetica, sans-serif;
     font-size: 10pt;
@@ -244,30 +249,26 @@
     background: #fff;
   }
 
-  /* DOS PAGINAS CON REGLAS DISTINTAS.
+  /* UN SOLO MARGEN, PARA TODAS LAS HOJAS.
 
-     La portada necesita margen cero para que las bandas de
-     color lleguen al borde de la hoja. El contenido necesita
-     margenes de verdad, y de verdad significa EN CADA
-     PAGINA.
+     Se probaron dos caminos antes de este y los dos fallaron:
 
-     Antes el margen del contenido era relleno del bloque, y
-     el relleno solo aparece donde el bloque empieza y donde
-     termina: la primera hoja y la ultima salian bien, y de la
-     tercera en adelante el texto se iba al filo del papel.
-     Ningun relleno puede repetirse por pagina porque el
-     bloque no sabe donde se corta.
+       · Relleno en el bloque de contenido. El relleno solo
+         aparece donde el bloque empieza y donde termina, asi
+         que de la tercera hoja en adelante el texto se iba al
+         filo del papel.
 
-     Se resuelve con paginas con nombre: cada seccion declara
-     a que pagina pertenece y el navegador aplica el margen en
-     todas las hojas que ocupe. */
-  @page { size: A4 portrait; }
+       · Paginas con nombre, una para la portada y otra para
+         el contenido. En teoria es la solucion correcta, pero
+         aqui el contenedor de impresion estaba posicionado de
+         forma absoluta y eso rompe la paginacion: se perdio
+         el margen en todas partes.
 
-  @page portada  { margin: 0; }
-  @page contenido { margin: 16mm 15mm 18mm 20mm; }
-
-  .if-portada   { page: portada; }
-  .if-contenido { page: contenido; }
+     El margen de pagina se repite solo en cada hoja, que es
+     lo unico que hace falta. La portada renuncia a que las
+     bandas lleguen al borde del papel; a cambio, el documento
+     entero sale bien, que importa mas. */
+  @page { size: A4 portrait; margin: 16mm 15mm 18mm 20mm; }
 
   /* ---------- Portada ----------
 
@@ -279,10 +280,13 @@
      ser un margen que hay que calcular y pasa a ser lo que
      sobra, que es como se maquetan las portadas. */
 
+  /* A4 (297mm) menos los margenes superior e inferior. Se fija
+     el alto para que las tres franjas repartan el sobrante y
+     el bloque de datos quede abajo, no flotando a media hoja. */
   .if-portada {
     display: flex;
     flex-direction: column;
-    height: 296mm;
+    height: 261mm;
     page-break-after: always;
     text-align: center;
   }
@@ -299,7 +303,7 @@
   }
 
   .if-portada-marca {
-    padding-top: 20mm;
+    padding-top: 14mm;
     flex-shrink: 0;
   }
 
@@ -365,7 +369,7 @@
   }
 
   .if-portada-pie {
-    padding-bottom: 16mm;
+    padding-bottom: 6mm;
     flex-shrink: 0;
   }
 
@@ -494,11 +498,15 @@
      la rubrica se traza SOBRE la linea y hacia los lados: con
      las columnas juntas, una firma amplia invade la de al
      lado. */
+  /* El margen superior es holgado pero no tanto como para
+     empujar el bloque a una hoja nueva. Si aun asi no cabe,
+     salta entero: dos firmas partidas por un corte de pagina
+     no valdrian nada. */
   .if-firmas {
     display: flex;
     gap: 18mm;
     justify-content: space-around;
-    margin-top: 26mm;
+    margin-top: 16mm;
     text-align: center;
     page-break-inside: avoid;
   }
