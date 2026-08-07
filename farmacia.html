@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="css/layout.css">
   <link rel="stylesheet" href="css/empresas.css">
   <link rel="stylesheet" href="css/trabajadores.css">
-  <link rel="stylesheet" href="css/farmacia.css?v=15">
+  <link rel="stylesheet" href="css/farmacia.css?v=16">
   <style>
     /* Aviso breve de confirmación */
     .aviso-flotante {
@@ -354,10 +354,10 @@
 
           <div class="orden-acciones">
             <p class="orden-info">
-              Movimiento del mes por artículo: lo que quedó del mes anterior, lo que
-              entró, lo que salió y el saldo resultante. Se calcula del kardex — no
-              hay nada que transcribir. El corte es el fin del mes elegido, aunque el
-              informe se emita después.
+              Un solo informe con medicamentos e insumos: lo que quedó del mes
+              anterior, lo que entró, lo que salió y el saldo resultante. Las cifras
+              salen del kardex — no hay nada que transcribir. El corte es el fin del
+              mes elegido, aunque el informe se emita después.
             </p>
           </div>
 
@@ -366,15 +366,48 @@
               <label class="etiqueta" for="inf-periodo">Mes del informe</label>
               <input class="entrada" id="inf-periodo" type="month">
             </div>
-            <button class="boton-primario" id="inf-btn-medicamentos" type="button">
-              Medicamentos
-            </button>
-            <button class="boton-primario" id="inf-btn-insumos" type="button">
-              Insumos médicos
+            <button class="boton-primario" id="inf-btn-generar" type="button">
+              Generar informe
             </button>
           </div>
 
           <p class="alerta" id="inf-alerta" role="alert" hidden></p>
+
+          <!-- Textos del documento -->
+          <details class="panel plegable inf-textos">
+            <summary class="plegable-titulo">
+              Objetivo, alcance, normativa y conclusión
+            </summary>
+
+            <p class="ayuda">
+              Revise estos textos antes de firmar el primer informe: son un punto de
+              partida y deben ajustarse a lo que realmente aplica a su operación.
+              Se guardan <b>con cada informe</b>, de modo que si la normativa cambia
+              el año que viene, los informes de este año seguirán citando lo que
+              citaban cuando se firmaron.
+            </p>
+
+            <div class="campo">
+              <label class="etiqueta" for="inf-objetivo">Objetivo</label>
+              <textarea class="entrada area" id="inf-objetivo" rows="4"></textarea>
+            </div>
+
+            <div class="campo">
+              <label class="etiqueta" for="inf-alcance">Alcance</label>
+              <textarea class="entrada area" id="inf-alcance" rows="3"></textarea>
+            </div>
+
+            <div class="campo">
+              <label class="etiqueta" for="inf-normativa">Marco normativo</label>
+              <textarea class="entrada area" id="inf-normativa" rows="5"></textarea>
+              <span class="ayuda">Una norma por línea. Se imprime como lista.</span>
+            </div>
+
+            <div class="campo">
+              <label class="etiqueta" for="inf-conclusion">Conclusión</label>
+              <textarea class="entrada area" id="inf-conclusion" rows="4"></textarea>
+            </div>
+          </details>
 
           <!-- Previsualización -->
           <div class="panel" id="inf-previa" hidden>
@@ -395,12 +428,13 @@
 
             <p class="alerta inf-desajuste" id="inf-desajuste" hidden></p>
 
+            <h4 class="inf-subtitulo">Medicamentos</h4>
             <div class="tabla-envoltura">
               <table class="tabla">
                 <thead>
                   <tr>
                     <th class="celda-centro">N°</th>
-                    <th>Artículo</th>
+                    <th>Nombre del medicamento</th>
                     <th>Presentación</th>
                     <th class="celda-centro">Anterior</th>
                     <th class="celda-centro">Ingresos</th>
@@ -408,7 +442,25 @@
                     <th class="celda-centro">Actual</th>
                   </tr>
                 </thead>
-                <tbody id="inf-cuerpo"></tbody>
+                <tbody id="inf-cuerpo-med"></tbody>
+              </table>
+            </div>
+
+            <h4 class="inf-subtitulo">Insumos médicos</h4>
+            <div class="tabla-envoltura">
+              <table class="tabla">
+                <thead>
+                  <tr>
+                    <th class="celda-centro">N°</th>
+                    <th>Descripción</th>
+                    <th>Presentación</th>
+                    <th class="celda-centro">Anterior</th>
+                    <th class="celda-centro">Ingresos</th>
+                    <th class="celda-centro">Egresos</th>
+                    <th class="celda-centro">Actual</th>
+                  </tr>
+                </thead>
+                <tbody id="inf-cuerpo-ins"></tbody>
               </table>
             </div>
           </div>
@@ -421,7 +473,7 @@
                 <thead>
                   <tr>
                     <th>Mes</th>
-                    <th>Informe</th>
+                    <th>Tipo</th>
                     <th>Elaborado por</th>
                     <th>Fecha de elaboración</th>
                     <th class="celda-centro">Artículos</th>
@@ -729,6 +781,6 @@
   <!-- Zona de impresión de la orden (fuera de todo, para que no la oculte main) -->
   <div class="orden-impresion" id="orden-impresion"></div>
 
-  <script type="module" src="js/farmacia.js?v=15"></script>
+  <script type="module" src="js/farmacia.js?v=16"></script>
 </body>
 </html>
