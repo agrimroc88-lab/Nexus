@@ -34,7 +34,7 @@ import { envolverWord, descargarWord, recuadroFoto, bloqueFirmas,
          logoEnBase64, encabezadoMemo, escaparTexto, fijarEscala }
   from './documento.js?v=11';
 
-const VERSION = 'v6';
+const VERSION = 'v7';
 console.info('NEXUS · instalaciones', VERSION);
 
 const ins = {
@@ -50,8 +50,22 @@ const ins = {
   noConformes: [],        // incumplimientos con su racha
   novedades: [],          // los de la última inspección de cada sitio
   destinatarios: [],
+  nomina: [],             // para buscar al acompañante
   actual: null,           // inspección abierta
+  editando: null,         // instalación en edición (ficha o piezas)
+  piezasEdicion: [],      // piezas en edición dentro del modal
   logo: null
+};
+
+/* Clases de pieza. La letra encabeza la columna en la hoja de
+   campo: una sola, porque la columna mide ocho milímetros. */
+const PIEZAS = {
+  sanitario: { texto: 'Sanitario', letra: 'S', orden: 1 },
+  urinario:  { texto: 'Urinario',  letra: 'U', orden: 2 },
+  lavabo:    { texto: 'Lavabo',    letra: 'L', orden: 3 },
+  ducha:     { texto: 'Ducha',     letra: 'D', orden: 4 },
+  vestidor:  { texto: 'Vestidor',  letra: 'V', orden: 5 },
+  mesa:      { texto: 'Mesa',      letra: 'M', orden: 6 }
 };
 
 /* Debe coincidir con las políticas de la base */
@@ -167,9 +181,15 @@ export async function cargarInstalaciones(empresaId, empresaNombre) {
   const mes = primerDiaMes(ins.periodo);
   const trim = primerDiaTrimestre(ins.periodo);
 
-  const [inst, insp, hall, dest, crit] = await Promise.all([
-    supabase.from('v_instalaciones').select('*')
-      .eq('empresa_id', empresaId).eq('activo', true).order('tipo').order('orden'),
+  const [inst, insp, hall, dest, crit, nom] = await Promise.all([
+    /* Se lee la tabla base y no la vista: el módulo ahora edita
+       la instalación y necesita padre_id, codigo, pieza y
+       numero, que la vista no expone. Lo que la vista añadía
+       —el nombre compuesto y el número de criterios— se arma
+       aquí abajo, en decorar(). */
+    supabase.from('instalaciones').select('*')
+      .eq('empresa_id', empresaId).eq('activo', true)
+      .order('tipo').order('orden'),
     supabase.from('v_inspecciones').select('*')
       .eq('empresa_id', empresaId).in('periodo', [mes, trim]).order('orden'),
     supabase.from('v_no_conformes').select('*')
@@ -180,7 +200,14 @@ export async function cargarInstalaciones(empresaId, empresaNombre) {
     /* Catálogo completo: la hoja de campo se imprime en
        blanco, sin depender de que haya inspección abierta. */
     supabase.from('inspeccion_criterios').select('*')
-      .eq('activo', true).order('tipo').order('orden')
+      .eq('activo', true).order('tipo').order('orden'),
+
+    /* Nómina: el acompañante se elige, no se teclea. Escribirlo
+       a mano cada trimestre produce erratas que después no
+       cuadran con ningún trabajador. */
+    supabase.from('v_trabajadores')
+      .select('id, codigo, cedula, nombre_completo')
+      .eq('empresa_id', empresaId).eq('activo', true).order('codigo')
   ]);
 
   if (inst.error) console.error('NEXUS · instalaciones:', inst.error.message);
@@ -189,6 +216,9 @@ export async function cargarInstalaciones(empresaId, empresaNombre) {
   ins.noConformes = hall.data || [];
   ins.destinatarios = dest.data || [];
   ins.criterios = crit.data || [];
+  ins.nomina = nom.data || [];
+
+  decorar();
 
   /* Novedades: lo hallado en la última inspección de cada
      instalación, sea de este periodo o de uno anterior. */
@@ -212,6 +242,116 @@ export async function cargarInstalaciones(empresaId, empresaNombre) {
   });
 
   await cargarDetalle();
+}
+
+/* ============================================
+   Jerarquía · bloques y piezas
+
+   El bloque de baños es una instalación; cada sanitario,
+   urinario o lavabo es otra que cuelga de él. Se resuelve
+   aquí, en memoria, para que el resto del módulo siga viendo
+   una lista plana con los campos de siempre —nombre y
+   criterios— y no haya que reescribir informes y hojas.
+   ============================================ */
+
+function decorar() {
+  const porId = new Map(ins.instalaciones.map((i) => [i.id, i]));
+
+  ins.instalaciones.forEach((i) => {
+    const padre = i.padre_id ? porId.get(i.padre_id) : null;
+
+    i.esPieza = Boolean(i.pieza);
+    i.padre = padre || null;
+    i.nombreBloque = [i.departamento, i.area].filter(Boolean).join(' · ');
+
+    if (i.esPieza && padre) {
+      const p = PIEZAS[i.pieza] || { texto: i.pieza, orden: 9 };
+      i.nombreCorto = `${p.texto} ${i.numero ?? ''}`.trim();
+      i.nombre = `${padre.nombreBloque} · ${i.nombreCorto}`;
+    } else {
+      i.nombreCorto = i.nombreBloque || 'Instalación';
+      i.nombre = i.nombreCorto;
+    }
+
+    /* La vista lo traía calculado; aquí sale del catálogo que
+       ya está en memoria, sin una consulta más. */
+    i.criterios = ins.criterios.filter((c) => c.tipo === i.tipo).length;
+  });
+
+  ordenarJerarquico();
+}
+
+/* Cada pieza va detrás de su bloque y en el orden en que se
+   recorren: primero los sanitarios, después los urinarios,
+   los lavabos y las duchas. */
+function ordenarJerarquico() {
+  const bloques = ins.instalaciones.filter((i) => !i.esPieza);
+  const piezas = ins.instalaciones.filter((i) => i.esPieza);
+
+  bloques.sort((a, b) =>
+    String(a.tipo).localeCompare(String(b.tipo))
+    || (a.orden ?? 0) - (b.orden ?? 0)
+    || a.nombreBloque.localeCompare(b.nombreBloque));
+
+  const hijas = (id) => piezas
+    .filter((p) => p.padre_id === id)
+    .sort((a, b) => (PIEZAS[a.pieza]?.orden ?? 9) - (PIEZAS[b.pieza]?.orden ?? 9)
+                 || (a.numero ?? 0) - (b.numero ?? 0));
+
+  const orden = [];
+  bloques.forEach((b) => { orden.push(b, ...hijas(b.id)); });
+
+  /* Una pieza huérfana —su bloque se desactivó— seguiría
+     existiendo sin sitio donde pintarse. Va al final antes que
+     desaparecer sin aviso. */
+  piezas.filter((p) => !orden.includes(p)).forEach((p) => orden.push(p));
+
+  ins.instalaciones = orden;
+}
+
+function piezasDe(bloqueId) {
+  return ins.instalaciones.filter((i) => i.padre_id === bloqueId);
+}
+
+/**
+ * Sigla de un texto para armar el código.
+ * «Base 7» → B7 · «Bloque 1» → B1 · «Campamento Nuevo» → CN
+ *
+ * Se toma la inicial de cada palabra, salvo si la palabra es un
+ * número: ahí entra entero. Es lo que la gente ya escribe a
+ * mano en las hojas.
+ */
+function sigla(texto) {
+  return String(texto || '')
+    .split(/[\s\-_/]+/)
+    .filter(Boolean)
+    .map((p) => (/^\d+$/.test(p) ? p : p[0]))
+    .join('')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+    .slice(0, 6);
+}
+
+function codigoBloque(departamento, area) {
+  return [sigla(departamento), sigla(area)].filter(Boolean).join('-');
+}
+
+function codigoPieza(bloque, clase, numero) {
+  const letra = PIEZAS[clase]?.letra || 'X';
+  return `${bloque.codigo || codigoBloque(bloque.departamento, bloque.area)}`
+       + `-${letra}${numero}`;
+}
+
+/** Añade sufijo si el código ya está en uso por otra fila. */
+function codigoLibre(propuesto, exceptoId) {
+  const usados = new Set(ins.instalaciones
+    .filter((i) => i.id !== exceptoId && i.codigo)
+    .map((i) => i.codigo.toUpperCase()));
+
+  let c = propuesto;
+  let n = 2;
+  while (usados.has(c.toUpperCase())) c = `${propuesto}-${n++}`;
+  return c;
 }
 
 async function cargarDetalle() {
@@ -314,7 +454,7 @@ function pintarTabla() {
         tipoPrevio = i.tipo;
         const sep = document.createElement('tr');
         sep.className = 'ins-separador';
-        sep.innerHTML = `<td colspan="7">${escapar(TIPOS[i.tipo] || i.tipo)}</td>`;
+        sep.innerHTML = `<td colspan="8">${escapar(TIPOS[i.tipo] || i.tipo)}</td>`;
         $c.appendChild(sep);
       }
 
@@ -324,12 +464,22 @@ function pintarTabla() {
       const pendientes = ins.novedades.filter(
         (n) => n.instalacion_id === i.id).length;
 
+      const hijas = i.esPieza ? [] : piezasDe(i.id);
+
       const tr = document.createElement('tr');
+      if (i.esPieza) tr.className = 'ins-fila-pieza';
+
       tr.innerHTML = `
+        <td class="ins-celda-codigo">
+          <span class="ins-codigo">${escapar(i.codigo || '—')}</span>
+        </td>
         <td>
-          ${escapar(i.nombre)}
-          ${i.frecuencia === 'trimestral'
+          ${i.esPieza ? '<span class="ins-sangria">└</span>' : ''}
+          ${escapar(i.esPieza ? i.nombreCorto : i.nombreBloque)}
+          ${!i.esPieza && i.frecuencia === 'trimestral'
             ? '<span class="ins-marca">Trimestral</span>' : ''}
+          ${hijas.length > 0
+            ? `<span class="ins-marca ins-marca-piezas">${hijas.length} piezas</span>` : ''}
           ${pendientes > 0 && (!r || r.estado !== 'cerrada')
             ? `<span class="ins-aviso-previo" title="Novedades de la inspección anterior">${
                 pendientes} de la vez pasada</span>` : ''}
@@ -346,38 +496,92 @@ function pintarTabla() {
                  ${cerrada ? 'Cerrada' : 'Abierta'}</span>`
             : '<span class="insignia insignia-inactiva">Sin abrir</span>'}
         </td>
-        <td class="celda-centro"></td>
+        <td class="celda-centro ins-acciones"></td>
       `;
 
-      const btn = document.createElement('button');
-      btn.className = r ? 'boton-icono' : 'boton-icono boton-icono-destacado';
-      btn.type = 'button';
-      btn.textContent = !r ? 'Inspeccionar' : (cerrada ? 'Ver' : 'Continuar');
-      btn.addEventListener('click', () => r ? abrirInspeccion(r) : abrirYCargar(i));
-      tr.lastElementChild.appendChild(btn);
+      const $acc = tr.lastElementChild;
+
+      /* Un bloque con piezas no se inspecciona: lo que se
+         revisa es cada sanitario. Ofrecer las dos cosas
+         llevaría a llenar la lista del bloque y dejar las
+         piezas en blanco, o al revés, y el porcentaje saldría
+         de una mezcla de ambas. */
+      if (hijas.length === 0) {
+        const btn = document.createElement('button');
+        btn.className = r ? 'boton-icono' : 'boton-icono boton-icono-destacado';
+        btn.type = 'button';
+        btn.textContent = !r ? 'Inspeccionar' : (cerrada ? 'Ver' : 'Continuar');
+        btn.addEventListener('click', () => r ? abrirInspeccion(r) : abrirYCargar(i));
+        $acc.appendChild(btn);
+      }
+
+      if (!i.esPieza && puedeEscribir()) {
+        const btnP = document.createElement('button');
+        btnP.className = 'boton-icono';
+        btnP.type = 'button';
+        btnP.textContent = 'Piezas';
+        btnP.title = 'Numerar sanitarios, urinarios, lavabos y duchas';
+        btnP.addEventListener('click', () => abrirPiezas(i));
+        $acc.appendChild(btnP);
+      }
+
+      if (puedeEscribir()) {
+        const btnE = document.createElement('button');
+        btnE.className = 'boton-icono';
+        btnE.type = 'button';
+        btnE.textContent = 'Editar';
+        btnE.addEventListener('click', () => abrirFicha(i));
+        $acc.appendChild(btnE);
+      }
 
       $c.appendChild(tr);
     });
 }
 
 /* ============================================
-   Instalación nueva
+   Ficha de la instalación · alta, edición y baja
    ============================================ */
 
-function abrirNueva() {
-  document.getElementById('ins_n_tipo').value = 'cocina';
-  document.getElementById('ins_n_departamento').value = '';
-  document.getElementById('ins_n_area').value = '';
-  document.getElementById('ins_n_ubicacion').value = '';
-  document.getElementById('ins_n_responsable').value = '';
-  document.getElementById('ins_n_cargo').value = '';
-  document.getElementById('ins_n_usuarios').value = '';
-  document.getElementById('ins_n_piezas').value = '';
+function abrirNueva() { abrirFicha(null); }
+
+function abrirFicha(i) {
+  ins.editando = i || null;
+
+  document.getElementById('ins-n-titulo').textContent =
+    i ? (i.esPieza ? 'Editar pieza' : 'Editar instalación') : 'Nueva instalación';
+
+  const v = (id, valor) => { document.getElementById(id).value = valor ?? ''; };
+
+  v('ins_n_tipo', i?.tipo || 'cocina');
+  v('ins_n_departamento', i?.departamento);
+  v('ins_n_area', i?.area);
+  v('ins_n_codigo', i?.codigo);
+  v('ins_n_ubicacion', i?.ubicacion_texto);
+  v('ins_n_responsable', i?.responsable);
+  v('ins_n_cargo', i?.responsable_cargo);
+  v('ins_n_usuarios', i?.usuarios);
+  v('ins_n_piezas', i?.piezas);
+
+  /* En una pieza el tipo y el sitio los manda el bloque: se
+     bloquean para que no se puedan separar del padre. */
+  const esPieza = Boolean(i?.esPieza);
+  ['ins_n_tipo', 'ins_n_departamento', 'ins_n_area']
+    .forEach((id) => { document.getElementById(id).disabled = esPieza; });
+
+  document.getElementById('ins-bloque-pieza').hidden = !esPieza;
+  if (esPieza) {
+    v('ins_n_clase', i.pieza);
+    v('ins_n_numero', i.numero);
+  }
+
+  document.getElementById('ins-btn-eliminar').hidden = !i;
+  document.getElementById('ins-btn-guardar-nueva').textContent =
+    i ? 'Guardar' : 'Guardar e inspeccionar';
 
   alternarCamposTipo();
   document.getElementById('ins-alerta-nueva').hidden = true;
   document.getElementById('ins-modal-nueva').hidden = false;
-  document.getElementById('ins_n_departamento').focus();
+  if (!i) document.getElementById('ins_n_departamento').focus();
 }
 
 /* Las piezas solo importan donde hay proporción exigida */
@@ -393,13 +597,36 @@ function alternarCamposTipo() {
       ? 'Los servicios sanitarios se inspeccionan cada trimestre.'
       : 'Cocinas y comedores se inspeccionan cada mes.';
   }
+
+  sugerirCodigo();
+}
+
+/* El código se propone mientras se escribe el sitio y solo si
+   nadie lo ha tocado: escribirlo a mano es la excepción, no
+   la regla, pero corregirlo debe ser posible. */
+function sugerirCodigo() {
+  const $c = document.getElementById('ins_n_codigo');
+  if (!$c || $c.dataset.manual === '1' || ins.editando) return;
+
+  const propuesto = codigoBloque(
+    document.getElementById('ins_n_departamento').value,
+    document.getElementById('ins_n_area').value);
+
+  $c.value = propuesto ? codigoLibre(propuesto) : '';
 }
 
 async function guardarNueva() {
+  const i = ins.editando;
   const tipo = document.getElementById('ins_n_tipo').value;
   const departamento = document.getElementById('ins_n_departamento').value.trim();
+  const codigo = document.getElementById('ins_n_codigo').value.trim().toUpperCase();
 
   if (!departamento) return alertaNueva('Indique el departamento');
+  if (!codigo) return alertaNueva('Indique el código de la instalación');
+
+  const repetido = ins.instalaciones.some(
+    (x) => x.id !== i?.id && (x.codigo || '').toUpperCase() === codigo);
+  if (repetido) return alertaNueva(`El código ${codigo} ya está en uso`);
 
   const usuarios = document.getElementById('ins_n_usuarios').value;
   const piezas = document.getElementById('ins_n_piezas').value;
@@ -407,6 +634,7 @@ async function guardarNueva() {
   const datos = {
     empresa_id: ins.empresaId,
     tipo,
+    codigo,
     departamento: departamento.toUpperCase(),
     area: document.getElementById('ins_n_area').value.trim() || null,
     ubicacion_texto: document.getElementById('ins_n_ubicacion').value.trim() || null,
@@ -418,20 +646,39 @@ async function guardarNueva() {
     piezas: piezas === '' ? null : parseInt(piezas, 10)
   };
 
+  /* Una pieza conserva su sitio y su clase; solo cambia lo que
+     el formulario dejó editable. */
+  if (i?.esPieza) {
+    const numero = parseInt(document.getElementById('ins_n_numero').value, 10);
+    datos.tipo = i.tipo;
+    datos.departamento = i.departamento;
+    datos.area = i.area;
+    datos.frecuencia = i.frecuencia;
+    datos.pieza = document.getElementById('ins_n_clase').value;
+    datos.numero = Number.isFinite(numero) ? numero : i.numero;
+  }
+
   const $btn = document.getElementById('ins-btn-guardar-nueva');
   $btn.disabled = true;
 
-  const { data, error } = await supabase
-    .from('instalaciones').insert(datos).select('id').maybeSingle();
+  let data, error;
+  if (i) {
+    ({ error } = await supabase.from('instalaciones')
+      .update(datos).eq('id', i.id));
+  } else {
+    ({ data, error } = await supabase
+      .from('instalaciones').insert(datos).select('id').maybeSingle());
+  }
 
   $btn.disabled = false;
   if (error) return alertaNueva(traducir(error));
 
   document.getElementById('ins-modal-nueva').hidden = true;
+  document.getElementById('ins_n_codigo').dataset.manual = '0';
 
   /* Se abre su inspección de inmediato: la instalación se
      crea porque se está yendo a inspeccionar, no antes. */
-  if (data?.id) {
+  if (!i && data?.id) {
     await supabase.rpc('abrir_inspeccion', {
       p_instalacion: data.id,
       p_fecha: HOY()
@@ -440,8 +687,222 @@ async function guardarNueva() {
 
   await refrescar();
 
-  const nueva = ins.inspecciones.find((r) => r.instalacion_id === data?.id);
-  if (nueva) abrirInspeccion(nueva);
+  if (!i && data?.id) {
+    const nueva = ins.inspecciones.find((r) => r.instalacion_id === data.id);
+    if (nueva) abrirInspeccion(nueva);
+  }
+}
+
+/**
+ * Baja de una instalación.
+ *
+ * Si nunca se inspeccionó se borra de verdad; si tiene
+ * historial se desactiva, porque los informes de los periodos
+ * cerrados la citan y borrarla los dejaría apuntando a nada.
+ *
+ * Un bloque arrastra sus piezas: dejar sanitarios colgando de
+ * un bloque retirado los volvería inalcanzables.
+ */
+async function eliminarInstalacion() {
+  const i = ins.editando;
+  if (!i) return;
+
+  const hijas = i.esPieza ? [] : piezasDe(i.id);
+  const ids = [i.id, ...hijas.map((h) => h.id)];
+
+  const { count } = await supabase
+    .from('inspecciones')
+    .select('id', { count: 'exact', head: true })
+    .in('instalacion_id', ids);
+
+  const conHistoria = (count || 0) > 0;
+
+  const aviso = conHistoria
+    ? `«${i.nombre}» tiene ${count} `
+      + `${count === 1 ? 'inspección registrada' : 'inspecciones registradas'}.\n\n`
+      + (hijas.length > 0
+          ? `Se retirarán también sus ${hijas.length} piezas.\n\n` : '')
+      + 'Saldrá del listado y de las próximas inspecciones, pero los periodos '
+      + 'ya cerrados conservarán su registro.\n\n¿Continuar?'
+    : `¿Eliminar «${i.nombre}»?\n\n`
+      + (hijas.length > 0
+          ? `Se eliminarán también sus ${hijas.length} piezas.\n\n` : '')
+      + 'No tiene inspecciones registradas, así que se borra por completo.';
+
+  if (!confirm(aviso)) return;
+
+  const $btn = document.getElementById('ins-btn-eliminar');
+  $btn.disabled = true;
+
+  let error;
+  if (conHistoria) {
+    ({ error } = await supabase.from('instalaciones')
+      .update({ activo: false }).in('id', ids));
+  } else {
+    ({ error } = await supabase.from('instalaciones').delete().in('id', ids));
+  }
+
+  $btn.disabled = false;
+  if (error) return alertaNueva(traducir(error));
+
+  document.getElementById('ins-modal-nueva').hidden = true;
+  await refrescar();
+}
+
+/* ============================================
+   Piezas de un bloque
+
+   Numerar cada sanitario, urinario y lavabo. La pieza es la
+   unidad que se inspecciona: solo así el historial puede
+   decir que el sanitario 2 lleva tres trimestres sin
+   descarga, en lugar de que «al bloque le falta algo».
+   ============================================ */
+
+function abrirPiezas(bloque) {
+  ins.editando = bloque;
+
+  ins.piezasEdicion = piezasDe(bloque.id).map((p) => ({
+    id: p.id, pieza: p.pieza, numero: p.numero, codigo: p.codigo, nueva: false
+  }));
+
+  document.getElementById('ins-p-titulo').textContent = bloque.nombreBloque;
+  document.getElementById('ins-p-codigo').textContent = bloque.codigo || '—';
+  document.getElementById('ins_p_cantidad').value = 1;
+
+  pintarPiezas();
+  document.getElementById('ins-alerta-piezas').hidden = true;
+  document.getElementById('ins-modal-piezas').hidden = false;
+}
+
+function pintarPiezas() {
+  const $c = document.getElementById('ins-p-cuerpo');
+  const $vacio = document.getElementById('ins-p-vacio');
+  $c.innerHTML = '';
+
+  const lista = [...ins.piezasEdicion].sort(
+    (a, b) => (PIEZAS[a.pieza]?.orden ?? 9) - (PIEZAS[b.pieza]?.orden ?? 9)
+           || (a.numero ?? 0) - (b.numero ?? 0));
+
+  if ($vacio) $vacio.hidden = lista.length > 0;
+
+  lista.forEach((p) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><span class="ins-codigo">${escapar(p.codigo)}</span></td>
+      <td>${escapar(PIEZAS[p.pieza]?.texto || p.pieza)} ${p.numero}</td>
+      <td class="celda-centro">${p.nueva
+        ? '<span class="ins-marca">nueva</span>' : ''}</td>
+      <td class="celda-centro"></td>
+    `;
+
+    const btn = document.createElement('button');
+    btn.className = 'boton-icono boton-icono-peligro';
+    btn.type = 'button';
+    btn.textContent = 'Quitar';
+    btn.addEventListener('click', () => {
+      ins.piezasEdicion = ins.piezasEdicion.filter((x) => x !== p);
+      pintarPiezas();
+    });
+    tr.lastElementChild.appendChild(btn);
+
+    $c.appendChild(tr);
+  });
+
+  const total = ins.piezasEdicion.length;
+  document.getElementById('ins-p-cuenta').textContent = total === 0
+    ? 'Sin piezas'
+    : `${total} pieza${total === 1 ? '' : 's'}`;
+}
+
+/* Se agregan por tandas: «3 sanitarios» crea el 1, el 2 y el
+   3 con su código. Darlos de alta uno a uno para un bloque de
+   diez piezas es donde la gente abandona. */
+function agregarPiezas() {
+  const clase = document.getElementById('ins_p_clase').value;
+  const cantidad = parseInt(document.getElementById('ins_p_cantidad').value, 10);
+
+  if (!Number.isFinite(cantidad) || cantidad < 1) {
+    return alertaPiezas('Indique cuántas piezas agregar');
+  }
+
+  /* La numeración continúa donde se quedó: si ya hay dos
+     sanitarios, el siguiente es el 3 aunque el 1 se haya
+     retirado. Reutilizar un número rompería el historial. */
+  const usados = ins.piezasEdicion
+    .filter((p) => p.pieza === clase)
+    .map((p) => Number(p.numero) || 0);
+  let siguiente = (usados.length ? Math.max(...usados) : 0) + 1;
+
+  const tomados = new Set(ins.piezasEdicion.map((p) => p.codigo.toUpperCase()));
+
+  for (let n = 0; n < cantidad; n++, siguiente++) {
+    let codigo = codigoPieza(ins.editando, clase, siguiente);
+    let sufijo = 2;
+    while (tomados.has(codigo.toUpperCase())) codigo = `${codigo}-${sufijo++}`;
+    tomados.add(codigo.toUpperCase());
+
+    ins.piezasEdicion.push({
+      id: null, pieza: clase, numero: siguiente, codigo, nueva: true
+    });
+  }
+
+  document.getElementById('ins-alerta-piezas').hidden = true;
+  pintarPiezas();
+}
+
+async function guardarPiezas() {
+  const b = ins.editando;
+  if (!b) return;
+
+  const $btn = document.getElementById('ins-btn-guardar-piezas');
+  $btn.disabled = true;
+
+  const previas = piezasDe(b.id);
+  const vivos = new Set(ins.piezasEdicion.filter((p) => p.id).map((p) => p.id));
+  const retiradas = previas.filter((p) => !vivos.has(p.id));
+  const nuevas = ins.piezasEdicion.filter((p) => !p.id);
+
+  const fallo = (e) => { $btn.disabled = false; alertaPiezas(traducir(e)); };
+
+  /* Se retiran igual que un bloque: si nunca se inspeccionaron
+     se borran, si tienen historial se desactivan. */
+  if (retiradas.length > 0) {
+    const ids = retiradas.map((p) => p.id);
+    const { count } = await supabase
+      .from('inspecciones')
+      .select('id', { count: 'exact', head: true })
+      .in('instalacion_id', ids);
+
+    const { error } = (count || 0) > 0
+      ? await supabase.from('instalaciones').update({ activo: false }).in('id', ids)
+      : await supabase.from('instalaciones').delete().in('id', ids);
+
+    if (error) return fallo(error);
+  }
+
+  if (nuevas.length > 0) {
+    const { error } = await supabase.from('instalaciones').insert(
+      nuevas.map((p) => ({
+        empresa_id: ins.empresaId,
+        padre_id: b.id,
+        tipo: b.tipo,
+        frecuencia: b.frecuencia,
+        departamento: b.departamento,
+        area: b.area,
+        ubicacion_texto: b.ubicacion_texto,
+        responsable: b.responsable,
+        responsable_cargo: b.responsable_cargo,
+        codigo: p.codigo,
+        pieza: p.pieza,
+        numero: p.numero,
+        orden: b.orden ?? 0
+      })));
+    if (error) return fallo(error);
+  }
+
+  $btn.disabled = false;
+  document.getElementById('ins-modal-piezas').hidden = true;
+  await refrescar();
 }
 
 /** Abre la inspección de una instalación ya registrada */
@@ -470,12 +931,26 @@ function abrirInspeccion(r) {
       ? nombreTrimestre(ins.periodo) : nombreMes(ins.periodo)}`;
 
   document.getElementById('ins_fecha').value = r.fecha_inspeccion || HOY();
-  document.getElementById('ins_inspector').value = r.inspector || '';
+
+  /* El inspector es quien tiene la sesión abierta.
+
+     Antes era un campo libre y salía en blanco o con el nombre
+     de otro, porque se rellenaba a mano después del recorrido.
+     Quien firma la inspección es quien la hizo, y eso el
+     sistema ya lo sabe: no hay por qué preguntarlo. Se guarda
+     el texto —no el id— para que el informe de un trimestre
+     pasado siga diciendo quién fue aunque esa persona ya no
+     esté dada de alta. */
+  const yo = firmante();
+  document.getElementById('ins_inspector').value = r.inspector || yo.nombre;
+
   document.getElementById('ins_acompanante').value = r.acompanante || '';
+  document.getElementById('ins_acomp_buscar').value = '';
+  document.getElementById('ins_acomp_sugerencias').hidden = true;
   document.getElementById('ins_observacion').value = r.observacion || '';
 
   const editable = puedeEscribir() && r.estado !== 'cerrada';
-  ['ins_fecha', 'ins_inspector', 'ins_acompanante', 'ins_observacion']
+  ['ins_fecha', 'ins_acompanante', 'ins_acomp_buscar', 'ins_observacion']
     .forEach((id) => { document.getElementById(id).disabled = !editable; });
 
   pintarCriterios(editable);
@@ -941,8 +1416,231 @@ function imprimirHojasCampo() {
   if (marcadas.length === 0) return;
 
   const conNovedades = document.getElementById('ins_c_novedades').checked;
+  const enRejilla = document.getElementById('ins_c_rejilla')?.checked;
   document.getElementById('ins-modal-campo').hidden = true;
 
+  const hojas = enRejilla
+    ? construirRejilla(marcadas, conNovedades)
+    : construirHojasSueltas(marcadas, conNovedades);
+
+  if (!hojas) return;
+
+  const $z = document.getElementById('ins-impresion');
+  if (!$z) {
+    alert('Falta actualizar la página en el servidor para poder imprimir.');
+    return;
+  }
+
+  $z.innerHTML = hojas;
+
+  const titulo = document.title;
+  document.title = 'Hojas de campo · inspección de instalaciones';
+  document.body.classList.add('imprimiendo-instalaciones');
+  window.print();
+
+  setTimeout(() => {
+    document.body.classList.remove('imprimiendo-instalaciones');
+    document.title = titulo;
+  }, 500);
+}
+
+/* ============================================
+   Hoja de campo en rejilla
+
+   Una hoja por tipo, con los criterios en las filas y una
+   columna por instalación identificada con su código. El
+   inspector escribe S, N o / en el cuadro.
+
+   Por qué:
+     Una hoja por sanitario significa llevar veinte al
+     recorrido, y veinte hojas se traspapelan, se mojan y se
+     firman a medias. En rejilla, un bloque entero cabe en una
+     página y la comparación entre piezas se lee de un vistazo:
+     si la columna del sanitario 3 está llena de enes, salta a
+     la vista sin sumar nada.
+
+   Qué se pierde:
+     El espacio para observación por criterio. Va una sola
+     columna al final de la hoja, para lo que haya que anotar
+     del conjunto. Lo detallado se escribe al transcribir.
+   ============================================ */
+
+/* Diez columnas es lo que cabe en A4 vertical con el criterio
+   legible. A partir de ahí se pasa a una segunda hoja en vez
+   de encoger la letra hasta que no se pueda leer en campo. */
+const COLUMNAS_POR_HOJA = 10;
+
+function construirRejilla(marcadas, conNovedades) {
+  /* Las listas en blanco no tienen columna: la rejilla se
+     construye sobre instalaciones con código. */
+  const elegidas = marcadas
+    .filter((v) => v.startsWith('inst:'))
+    .map((v) => ins.instalaciones.find((i) => i.id === v.slice(5)))
+    .filter(Boolean);
+
+  if (elegidas.length === 0) {
+    alert('La hoja en rejilla necesita instalaciones registradas.\n\n'
+        + 'Marque al menos una en la lista de abajo, o desmarque la rejilla '
+        + 'para imprimir listas en blanco.');
+    return null;
+  }
+
+  const yo = firmante();
+
+  /* Agrupadas por tipo: los criterios de una cocina no son los
+     de un servicio higiénico, así que no comparten rejilla. */
+  const porTipo = new Map();
+  elegidas.forEach((i) => {
+    if (!porTipo.has(i.tipo)) porTipo.set(i.tipo, []);
+    porTipo.get(i.tipo).push(i);
+  });
+
+  let n = 0;
+  const hojas = [];
+
+  porTipo.forEach((lista, tipo) => {
+    const criterios = ins.criterios.filter((c) => c.tipo === tipo);
+    if (criterios.length === 0) return;
+
+    for (let d = 0; d < lista.length; d += COLUMNAS_POR_HOJA) {
+      const tanda = lista.slice(d, d + COLUMNAS_POR_HOJA);
+      hojas.push(hojaRejilla(tipo, criterios, tanda, conNovedades, yo, n++,
+                             Math.ceil(lista.length / COLUMNAS_POR_HOJA), d));
+    }
+  });
+
+  return hojas.join('');
+}
+
+function hojaRejilla(tipo, criterios, columnas, conNovedades, yo, n, deCuantas, desde) {
+  /* El ancho del criterio cede terreno según cuántas columnas
+     haya: con tres piezas sobra sitio, con diez va justo. */
+  const anchoCol = Math.max(6, Math.min(11, 78 / columnas.length));
+  const anchoTexto = 100 - anchoCol * columnas.length - 14;
+
+  /* Marca de lo que falló la vez pasada: un punto junto al
+     criterio, no un texto, porque no hay sitio para texto y lo
+     que hace falta es la señal de «mire esto primero». */
+  const pendientes = new Set();
+  if (conNovedades) {
+    columnas.forEach((i) => {
+      ins.novedades
+        .filter((x) => x.instalacion_id === i.id)
+        .forEach((x) => pendientes.add(x.criterio_id));
+    });
+  }
+
+  let grupoPrevio = null;
+  const cuerpo = criterios.map((c) => {
+    const cab = c.grupo !== grupoPrevio
+      ? `<tr><td colspan="${columnas.length + 2}" class="hc-grupo">${
+          escaparTexto(c.grupo)}</td></tr>`
+      : '';
+    grupoPrevio = c.grupo;
+
+    return cab + `
+      <tr>
+        <td class="hc-texto hc-texto-rejilla">
+          ${escaparTexto(c.texto)}
+          ${c.critico ? '<span class="hc-critico">crítico</span>' : ''}
+          ${pendientes.has(c.id) ? '<span class="hc-marca-previa">•</span>' : ''}
+        </td>
+        ${columnas.map(() => '<td class="hc-cuadro"></td>').join('')}
+        <td class="hc-obs-rejilla"></td>
+      </tr>`;
+  }).join('');
+
+  const sitio = columnas[0];
+  const bloque = sitio.esPieza && sitio.padre
+    ? sitio.padre.nombreBloque : sitio.nombreBloque;
+
+  return `
+    <div class="hc-hoja hc-rejilla${n > 0 ? ' hc-nueva' : ''}">
+      <header class="hc-cabecera">
+        <img src="logo.png" class="hc-logo" alt="">
+        <div class="hc-identidad">
+          <div class="hc-empresa">${escaparTexto(ins.empresaNombre || 'Empresa')}</div>
+          <div class="hc-unidad">Departamento de Seguridad y Salud Ocupacional</div>
+        </div>
+        <div class="hc-ref">Hoja de campo<br>SG-SST-FOR-013</div>
+      </header>
+
+      <div class="hc-titulo">
+        ${escaparTexto(TIPOS[tipo] || tipo)} · ${escaparTexto(bloque)}
+        ${deCuantas > 1
+          ? `<span class="hc-parte">hoja ${Math.floor(desde / COLUMNAS_POR_HOJA) + 1}
+             de ${deCuantas}</span>` : ''}
+      </div>
+
+      <table class="hc-datos">
+        <tr>
+          <th>Fecha</th><td class="hc-linea"></td>
+          <th>Inspecciona</th>
+          <td class="${yo.sinDatos ? 'hc-linea' : ''}">${escaparTexto(yo.nombre)}</td>
+        </tr>
+        <tr>
+          <th>Acompaña</th><td class="hc-linea" colspan="3"></td>
+        </tr>
+      </table>
+
+      <table class="hc-tabla hc-tabla-rejilla">
+        <colgroup>
+          <col style="width:${anchoTexto}%">
+          ${columnas.map(() => `<col style="width:${anchoCol}%">`).join('')}
+          <col style="width:14%">
+        </colgroup>
+        <thead>
+          <tr>
+            <th class="hc-th-texto">Criterio de verificación</th>
+            ${columnas.map((i) => `
+              <th class="hc-th-codigo">
+                <span class="hc-vertical">${escaparTexto(i.codigo || '—')}</span>
+              </th>`).join('')}
+            <th class="hc-th-obs">Observación</th>
+          </tr>
+        </thead>
+        <tbody>${cuerpo}</tbody>
+      </table>
+
+      <div class="hc-leyenda">
+        <b>Cómo anotar:</b>
+        <span class="hc-clave">S</span> cumple ·
+        <span class="hc-clave">N</span> no cumple ·
+        <span class="hc-clave">/</span> no aplica
+        ${pendientes.size > 0
+          ? ' · <span class="hc-marca-previa">•</span> falló en la inspección anterior'
+          : ''}
+      </div>
+
+      <table class="hc-referencia">
+        <tr>
+          ${columnas.map((i) => `
+            <td>
+              <b>${escaparTexto(i.codigo || '—')}</b>
+              ${escaparTexto(i.esPieza ? i.nombreCorto : i.nombreBloque)}
+            </td>`).join('')}
+        </tr>
+      </table>
+
+      <div class="hc-pie">
+        <div class="hc-firma">
+          <div class="hc-firma-linea"></div>
+          <div class="hc-firma-rotulo">Firma de quien inspecciona</div>
+        </div>
+        <div class="hc-firma">
+          <div class="hc-firma-linea"></div>
+          <div class="hc-firma-rotulo">Firma de quien acompaña</div>
+        </div>
+      </div>
+
+      <p class="hc-nota">
+        Anote en esta hoja durante el recorrido y traslade los resultados al
+        sistema al regresar.
+      </p>
+    </div>`;
+}
+
+function construirHojasSueltas(marcadas, conNovedades) {
   /* Cada hoja es o bien una lista en blanco de un tipo, o bien
      la de una instalación concreta. Se unifican aquí para que
      el maquetado sea uno solo. */
@@ -1075,23 +1773,7 @@ function imprimirHojasCampo() {
       </div>`;
   }).join('');
 
-  const $z = document.getElementById('ins-impresion');
-  if (!$z) {
-    alert('Falta actualizar la página en el servidor para poder imprimir.');
-    return;
-  }
-
-  $z.innerHTML = hojas;
-
-  const titulo = document.title;
-  document.title = 'Hojas de campo · inspección de instalaciones';
-  document.body.classList.add('imprimiendo-instalaciones');
-  window.print();
-
-  setTimeout(() => {
-    document.body.classList.remove('imprimiendo-instalaciones');
-    document.title = titulo;
-  }, 500);
+  return hojas;
 }
 
 /* ============================================
@@ -1442,6 +2124,51 @@ function mostrar(id, texto) {
 
 function alertaNueva(t)      { mostrar('ins-alerta-nueva', t); }
 function alertaInspeccion(t) { mostrar('ins-alerta-inspeccion', t); }
+function alertaPiezas(t)     { mostrar('ins-alerta-piezas', t); }
+
+/* ============================================
+   Buscador de nómina · acompañante
+
+   Se busca por código o por nombre porque en campo se conoce
+   una cosa o la otra: el técnico sabe el nombre, la hoja
+   impresa trae el código. Admite además texto libre, que es
+   como se registra a un contratista que no está en nómina.
+   ============================================ */
+
+function buscarAcompanante() {
+  const texto = document.getElementById('ins_acomp_buscar').value.trim().toLowerCase();
+  const $s = document.getElementById('ins_acomp_sugerencias');
+
+  if (texto.length < 2) { $s.hidden = true; return; }
+
+  const hallados = ins.nomina.filter((t) => {
+    const campo = `${t.codigo} ${t.cedula ?? ''} ${t.nombre_completo}`.toLowerCase();
+    return campo.includes(texto);
+  }).slice(0, 10);
+
+  if (hallados.length === 0) {
+    $s.innerHTML = '<p class="ins-sug-vacia">Sin coincidencias · '
+                 + 'puede escribirlo a mano arriba</p>';
+    $s.hidden = false;
+    return;
+  }
+
+  $s.innerHTML = '';
+  hallados.forEach((t) => {
+    const b = document.createElement('button');
+    b.className = 'ins-sugerencia';
+    b.type = 'button';
+    b.innerHTML = `<span class="codigo">${t.codigo ?? '—'}</span>
+                   <span>${escapar(t.nombre_completo)}</span>`;
+    b.addEventListener('click', () => {
+      document.getElementById('ins_acompanante').value = t.nombre_completo;
+      document.getElementById('ins_acomp_buscar').value = '';
+      $s.hidden = true;
+    });
+    $s.appendChild(b);
+  });
+  $s.hidden = false;
+}
 
 function traducir(error) {
   const m = error.message || '';
@@ -1471,7 +2198,16 @@ function conectar() {
 
   enIns('ins-btn-nueva', 'click', abrirNueva);
   enIns('ins-btn-guardar-nueva', 'click', guardarNueva);
+  enIns('ins-btn-eliminar', 'click', eliminarInstalacion);
   enIns('ins_n_tipo', 'change', alternarCamposTipo);
+  enIns('ins_n_departamento', 'input', sugerirCodigo);
+  enIns('ins_n_area', 'input', sugerirCodigo);
+  enIns('ins_n_codigo', 'input', (e) => { e.target.dataset.manual = '1'; });
+
+  enIns('ins-btn-agregar-piezas', 'click', agregarPiezas);
+  enIns('ins-btn-guardar-piezas', 'click', guardarPiezas);
+
+  enIns('ins_acomp_buscar', 'input', buscarAcompanante);
 
   enIns('ins-btn-guardar', 'click', () => guardarInspeccion(false));
   enIns('ins-btn-cerrar-inspeccion', 'click', () => guardarInspeccion(true));
