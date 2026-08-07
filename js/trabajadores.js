@@ -27,7 +27,13 @@ const estado = {
   cargos: [],
   editandoId: null,
   reingresoDe: null,   // trabajador detectado por cédula
-  salidaPeriodo: null
+  salidaPeriodo: null,
+
+  /* Sucursales que NO asignan número de nómina (Machala,
+     Acacias). Se guarda el conjunto de identificadores y no
+     los nombres: así la regla sobrevive a que alguien
+     renombre la sucursal. */
+  sinCodigo: new Set()
 };
 
 /* --- Referencias --- */
@@ -154,6 +160,23 @@ async function cargarSucursales() {
     $suc.appendChild(o);
   });
 
+  /* La marca vive en la tabla base y no en la vista, así que
+     se lee aparte. Si la columna todavía no existe —el SQL
+     037 sin ejecutar— el conjunto queda vacío y el código
+     sigue siendo obligatorio en todas partes, que es el
+     comportamiento anterior y el prudente. */
+  const { data: marcas, error: errMarcas } = await supabase
+    .from('sucursales')
+    .select('id, exige_codigo')
+    .eq('empresa_id', estado.empresaId);
+
+  if (errMarcas) {
+    console.warn('NEXUS · falta ejecutar 037_sucursal_exige_codigo.sql');
+  } else {
+    estado.sinCodigo = new Set(
+      (marcas || []).filter((m) => m.exige_codigo === false).map((m) => m.id));
+  }
+
   const $ayuda = document.getElementById('ayuda-sucursal');
   if ($ayuda && (!data || data.length === 0)) {
     $ayuda.textContent = 'Ejecute el SQL de sucursales';
@@ -185,6 +208,12 @@ function alCambiarSucursal() {
   const esMina = nombre.toLowerCase().includes('paralelas');
   document.getElementById('campo-subarea').hidden = !esMina;
   if (esMina) cargarSubareas($suc.value);
+
+  /* La regla del código depende de la sucursal, así que el
+     asterisco de obligatorio y la ayuda se actualizan aquí. */
+  const $obl = document.getElementById('codigo-obligatorio');
+  if ($obl) $obl.hidden = sucursalSinCodigo();
+  evaluarCodigo();
 }
 
 /* Agregar cargo nuevo al vuelo */
@@ -426,11 +455,12 @@ function pintarTabla() {
   const visibles = estado.trabajadores.filter((t) => {
     if (filtro === 'activos'   && !t.activo) return false;
     if (filtro === 'inactivos' && t.activo)  return false;
+    if (filtro === 'sin_codigo' && t.codigo != null) return false;
     if (filtro === 'por_programar' && t.estado_periodico !== 'por_programar') return false;
     if (filtro === 'vencido'   && t.estado_periodico !== 'vencido') return false;
 
     if (!texto) return true;
-    return [String(t.codigo), t.cedula, t.nombre_completo]
+    return [t.codigo == null ? 'sc' : String(t.codigo), t.cedula, t.nombre_completo]
       .filter(Boolean)
       .some((c) => c.toLowerCase().includes(texto));
   });
@@ -445,7 +475,9 @@ function pintarTabla() {
     if (!t.activo) fila.classList.add('fila-inactiva');
 
     fila.innerHTML = `
-      <td class="celda-centro"><span class="codigo">${t.codigo}</span></td>
+      <td class="celda-centro">${t.codigo != null
+        ? `<span class="codigo">${t.codigo}</span>`
+        : '<span class="codigo codigo-vacio" title="Sin código asignado">s/c</span>'}</td>
       <td class="celda-mono">${escapar(t.cedula)}</td>
       <td>
         <span class="principal">${escapar(t.nombre_completo)}</span>
@@ -531,9 +563,24 @@ async function abrirModal(trabajador = null) {
     if ($el) $el.value = trabajador ? (trabajador[campo] ?? '') : '';
   });
 
-  /* Cédula y código son identidad: no se editan */
+  /* La cédula es identidad y no se edita.
+
+     El código sí, pero solo mientras esté vacío: es el caso
+     de quien se registró sin él y más tarde recibe uno.
+     Cambiar un código ya asignado es otra cosa —arrastra
+     hojas de campo impresas y registros de entrega— y para
+     eso no basta con abrir la ficha. */
   document.getElementById('cedula').readOnly = Boolean(trabajador);
-  document.getElementById('codigo').readOnly = Boolean(trabajador);
+
+  const sinCodigo = !trabajador || trabajador.codigo == null;
+  const $codigo = document.getElementById('codigo');
+  $codigo.readOnly = !sinCodigo;
+
+  const $marca = document.getElementById('marca-sin-codigo');
+  if ($marca) $marca.hidden = !(trabajador && trabajador.codigo == null);
+
+  const $obl = document.getElementById('codigo-obligatorio');
+  if ($obl) $obl.hidden = sucursalSinCodigo();
 
   /* La vinculación solo se define al crear */
   document.getElementById('bloque-vinculacion').hidden = false;
@@ -624,7 +671,7 @@ async function abrirReingreso(trabajador) {
 
   document.getElementById('hallazgo-texto').innerHTML =
     `<strong>${escapar(trabajador.nombre_completo)}</strong> conserva el código
-     <strong>${trabajador.codigo}</strong>. La antigüedad se contará desde este nuevo ingreso.`;
+     <strong>${trabajador.codigo ?? 'sin código'}</strong>. La antigüedad se contará desde este nuevo ingreso.`;
   $hallazgo.hidden = false;
   document.getElementById('btn-reingresar').hidden = false;
   document.getElementById('btn-guardar').hidden = true;
@@ -665,8 +712,15 @@ function recolectar() {
 function validar(datos) {
   if (!datos.cedula) return { ok: false, mensaje: 'La cédula es obligatoria' };
   if (!validarCedula(datos.cedula)) return { ok: false, mensaje: 'La cédula no es válida' };
-  if (!datos.codigo) return { ok: false, mensaje: 'El código es obligatorio' };
-  if (datos.codigo < 1 || datos.codigo > 3000) {
+  /* El código solo es opcional en las sucursales marcadas
+     como que no asignan número de nómina. En el resto sigue
+     siendo obligatorio: en mina el código va en el casco y en
+     la hoja de campo, y un trabajador sin él no se puede
+     identificar en el recorrido. */
+  if (!datos.codigo && !sucursalSinCodigo()) {
+    return { ok: false, mensaje: 'El código es obligatorio en esta sucursal' };
+  }
+  if (datos.codigo !== null && (datos.codigo < 1 || datos.codigo > 3000)) {
     return { ok: false, mensaje: 'El código debe estar entre 1 y 3000' };
   }
   if (!datos.apellidos) return { ok: false, mensaje: 'Los apellidos son obligatorios' };
@@ -685,7 +739,7 @@ function validar(datos) {
 async function abrirHistorial(trabajador) {
   const $lista = document.getElementById('historial-lista');
   document.getElementById('historial-titulo').textContent =
-    `${trabajador.codigo} · ${trabajador.nombre_completo}`;
+    `${trabajador.codigo ?? 's/c'} · ${trabajador.nombre_completo}`;
   $lista.innerHTML = '<p class="vacio">Cargando…</p>';
   document.getElementById('modal-historial').hidden = false;
 
@@ -731,7 +785,7 @@ async function abrirHistorial(trabajador) {
 function abrirSalida(trabajador) {
   estado.salidaPeriodo = trabajador.periodo_id;
   document.getElementById('salida-sujeto').innerHTML =
-    `<strong>${trabajador.codigo}</strong> · ${escapar(trabajador.nombre_completo)}`;
+    `<strong>${trabajador.codigo ?? 's/c'}</strong> · ${escapar(trabajador.nombre_completo)}`;
   document.getElementById('fecha_salida').value = new Date().toISOString().slice(0, 10);
   document.getElementById('motivo_salida').value = '';
   document.getElementById('alerta-salida').hidden = true;
@@ -776,7 +830,8 @@ const evaluarCedula = retrasar(async () => {
   if (!existente) { $hallazgo.hidden = true; return; }
 
   if (existente.activo) {
-    $ayuda.textContent = `Ya registrado y activo · código ${existente.codigo}`;
+    $ayuda.textContent = 'Ya registrado y activo · '
+      + (existente.codigo != null ? `código ${existente.codigo}` : 'sin código');
     $ayuda.className = 'ayuda ayuda-error';
     $hallazgo.hidden = true;
     return;
@@ -799,7 +854,7 @@ const evaluarCedula = retrasar(async () => {
 
   document.getElementById('hallazgo-texto').innerHTML =
     `<strong>${escapar(existente.nombre_completo)}</strong> ya existe con código
-     <strong>${existente.codigo}</strong> y se encuentra inactivo.
+     <strong>${existente.codigo ?? 'sin código'}</strong> y se encuentra inactivo.
      Registre un reingreso para conservar su historial.`;
   $hallazgo.hidden = false;
   document.getElementById('btn-reingresar').hidden = false;
@@ -813,15 +868,39 @@ async function sugerirCodigo() {
   if (error || data == null) { $ayuda.textContent = ''; return; }
 
   document.getElementById('codigo').value = data;
-  $ayuda.textContent = `Sugerido: ${data}. Puede modificarlo.`;
+  $ayuda.textContent = `Sugerido: ${data}. Puede cambiarlo, `
+                     + 'o borrarlo si esta persona no lleva código.';
   $ayuda.className = 'ayuda';
 }
 
+/** ¿La sucursal elegida ahora mismo asigna código? */
+function sucursalSinCodigo() {
+  const $suc = document.getElementById('sucursal_id');
+  return Boolean($suc && estado.sinCodigo.has($suc.value));
+}
+
+/* Al cambiar de sucursal cambia la regla, así que la ayuda
+   bajo el campo tiene que decirlo en ese momento y no al
+   intentar guardar: descubrir la exigencia cuando ya se
+   llenó toda la ficha es la forma más molesta de enterarse. */
 function evaluarCodigo() {
   const valor = parseInt(document.getElementById('codigo').value, 10);
   const $ayuda = document.getElementById('ayuda-codigo');
 
-  if (!valor) { $ayuda.textContent = ''; $ayuda.className = 'ayuda'; return; }
+  /* Vacío ya no es un error a medio escribir: es una
+     decisión válida, y conviene decirlo para que nadie
+     rellene el campo por miedo a que no le deje guardar. */
+  if (!valor) {
+    if (sucursalSinCodigo()) {
+      $ayuda.textContent = 'Esta sucursal no asigna código · '
+                         + 'se le puede poner uno más adelante';
+      $ayuda.className = 'ayuda';
+    } else {
+      $ayuda.textContent = 'El código es obligatorio en esta sucursal';
+      $ayuda.className = 'ayuda ayuda-error';
+    }
+    return;
+  }
 
   if (valor < 1 || valor > 3000) {
     $ayuda.textContent = 'Fuera del rango permitido (1-3000)';
