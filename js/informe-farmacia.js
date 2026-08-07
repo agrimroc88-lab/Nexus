@@ -1,0 +1,578 @@
+/* ============================================
+   NEXUS · informe-farmacia.js
+
+   Informe mensual de medicamentos e insumos.
+
+   Reemplaza la hoja de Excel que se venía llenando a mano:
+   ciento sesenta filas transcritas cada mes desde el kardex,
+   con el riesgo de error que eso tiene y sin forma de saber
+   quién puso qué número.
+
+   Las cuatro columnas del informe:
+
+     ANTERIOR   saldo al cierre del mes previo
+     INGRESOS   entradas del mes
+     EGRESOS    salidas del mes
+     ACTUAL     anterior + ingresos − egresos
+
+   Todas salen del kardex. Ninguna se teclea.
+
+   Dos decisiones que conviene no revertir:
+
+   1 · El corte es el fin de mes, no el día en que se genera.
+       Si el informe de julio se hace el 10 de agosto, cubre
+       julio y nada más. La fecha de elaboración va aparte, en
+       la portada. Si el corte se moviera al día de emisión,
+       el ACTUAL de julio no coincidiría con el ANTERIOR de
+       agosto y la cadena se rompería para siempre.
+
+   2 · El informe se congela al guardarse.
+       Se almacenan las filas, no una consulta. Si dentro de
+       tres meses alguien corrige un movimiento de julio, el
+       informe de julio sigue diciendo lo que decía el papel
+       que se firmó.
+   ============================================ */
+
+import { supabase } from './supabase.js?v=11';
+import { sesionActual } from './auth.js?v=11';
+import { escapar, formatearFecha } from './utils.js?v=11';
+import { alCrear } from './autoria.js?v=1';
+import {
+  fijarEscala, envolverWord, descargarWord, bloqueFirmas,
+  seccionDocumento, tablaWord, logoEnBase64
+} from './documento.js?v=11';
+
+const VERSION = 'v1';
+console.info('NEXUS · informe-farmacia', VERSION);
+
+const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+               'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+/* Tipos de movimiento que suman. Lo que no está aquí, resta.
+   Se declara así y no al revés porque las salidas se
+   multiplican con el tiempo —bajas por caducidad, por daño,
+   por pérdida— y olvidar añadir una a la lista de egresos la
+   convertiría silenciosamente en un ingreso. */
+const ENTRADAS_MED = ['inventario_inicial', 'entrada_compra',
+                      'entrada_donacion', 'ajuste_positivo'];
+const ENTRADAS_INS = ['entrada', 'ajuste_positivo'];
+
+const inf = {
+  empresaId: null,
+  empresaNombre: '',
+  periodo: null,      // primer día del mes que cubre
+  logo: null,
+  informes: [],       // los ya emitidos
+  ultimo: null        // lo calculado, a la espera de guardarse
+};
+
+/* ============================================
+   Arranque
+   ============================================ */
+
+export function iniciarInforme(empresaId, empresaNombre) {
+  inf.empresaId = empresaId;
+  inf.empresaNombre = empresaNombre || '';
+
+  const $p = document.getElementById('inf-periodo');
+  if ($p && !$p.value) $p.value = mesAnterior();
+
+  cargarInformes().then(pintarInformes);
+}
+
+/* Por defecto, el mes pasado: el informe se hace cuando el
+   mes ya cerró. Ofrecer el mes en curso invitaría a emitir un
+   informe incompleto que después habría que rehacer. */
+function mesAnterior() {
+  const d = new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth() - 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function limitesDelMes(valor) {
+  const [a, m] = valor.split('-').map(Number);
+  const inicio = new Date(Date.UTC(a, m - 1, 1));
+  const fin = new Date(Date.UTC(a, m, 0));      // día 0 del siguiente = último del actual
+  return {
+    inicio: inicio.toISOString().slice(0, 10),
+    fin: fin.toISOString().slice(0, 10),
+    nombre: `${MESES[m - 1]} de ${a}`
+  };
+}
+
+/* ============================================
+   Cálculo
+   ============================================ */
+
+/**
+ * Arma las filas del informe de medicamentos.
+ *
+ * Se listan TODOS los medicamentos activos, incluidos los que
+ * quedaron en cero y no se movieron: el informe es un
+ * inventario, y un artículo que desaparece de la lista se lee
+ * como que ya no existe, no como que está agotado.
+ */
+async function filasMedicamentos(inicio, fin) {
+  const [cat, mov] = await Promise.all([
+    supabase.from('v_stock_medicamentos')
+      .select('id, nombre_generico, nombre_comercial, concentracion, forma')
+      .eq('empresa_id', inf.empresaId).eq('activo', true)
+      .order('nombre_generico'),
+    supabase.from('kardex')
+      .select('medicamento_id, tipo, cantidad, fecha')
+      .eq('empresa_id', inf.empresaId)
+      .lte('fecha', fin)
+  ]);
+
+  if (cat.error) throw new Error('No se pudo leer el catálogo de medicamentos');
+  if (mov.error) throw new Error('No se pudo leer el kardex');
+
+  const acumulado = new Map();
+  (mov.data || []).forEach((k) => {
+    const signo = ENTRADAS_MED.includes(k.tipo) ? 1 : -1;
+    const cant = Number(k.cantidad) || 0;
+    const x = acumulado.get(k.medicamento_id)
+           || { anterior: 0, ingresos: 0, egresos: 0 };
+
+    if (k.fecha < inicio) {
+      x.anterior += signo * cant;
+    } else if (signo > 0) {
+      x.ingresos += cant;
+    } else {
+      x.egresos += cant;
+    }
+    acumulado.set(k.medicamento_id, x);
+  });
+
+  return (cat.data || []).map((m, i) => {
+    const x = acumulado.get(m.id) || { anterior: 0, ingresos: 0, egresos: 0 };
+    return {
+      n: i + 1,
+      nombre: (m.nombre_generico + ' ' + (m.concentracion || '')).trim().toUpperCase(),
+      presentacion: (m.forma || '').toUpperCase(),
+      anterior: x.anterior,
+      ingresos: x.ingresos,
+      egresos: x.egresos,
+      actual: x.anterior + x.ingresos - x.egresos
+    };
+  });
+}
+
+/**
+ * Lo mismo para insumos.
+ *
+ * El kardex de insumos no tiene columna de fecha propia: se
+ * usa la de creación del movimiento. Es suficiente porque
+ * estos se registran el día que ocurren, pero conviene
+ * saberlo: un movimiento de julio anotado en agosto contaría
+ * como de agosto.
+ */
+async function filasInsumos(inicio, fin) {
+  const [cat, mov] = await Promise.all([
+    supabase.from('insumos')
+      .select('id, nombre, presentacion, stock_disponible')
+      .eq('empresa_id', inf.empresaId).eq('activo', true)
+      .order('nombre'),
+    supabase.from('insumos_kardex')
+      .select('insumo_id, tipo, cantidad, creado_en')
+      .lte('creado_en', fin + 'T23:59:59')
+  ]);
+
+  if (cat.error) throw new Error('No se pudo leer el catálogo de insumos');
+  if (mov.error) throw new Error('No se pudo leer el kardex de insumos');
+
+  const suyos = new Set((cat.data || []).map((i) => i.id));
+  const acumulado = new Map();
+
+  (mov.data || []).filter((k) => suyos.has(k.insumo_id)).forEach((k) => {
+    const signo = ENTRADAS_INS.includes(k.tipo) ? 1 : -1;
+    const cant = Number(k.cantidad) || 0;
+    const fecha = String(k.creado_en).slice(0, 10);
+    const x = acumulado.get(k.insumo_id)
+           || { anterior: 0, ingresos: 0, egresos: 0 };
+
+    if (fecha < inicio) {
+      x.anterior += signo * cant;
+    } else if (signo > 0) {
+      x.ingresos += cant;
+    } else {
+      x.egresos += cant;
+    }
+    acumulado.set(k.insumo_id, x);
+  });
+
+  return (cat.data || []).map((s, i) => {
+    const x = acumulado.get(s.id) || { anterior: 0, ingresos: 0, egresos: 0 };
+    return {
+      n: i + 1,
+      nombre: (s.nombre || '').toUpperCase(),
+      presentacion: (s.presentacion || 'UNIDAD').toUpperCase(),
+      anterior: x.anterior,
+      ingresos: x.ingresos,
+      egresos: x.egresos,
+      actual: x.anterior + x.ingresos - x.egresos,
+      /* Lo que dice la ficha hoy, para poder avisar si no
+         cuadra con lo que dicen los movimientos. */
+      declarado: Number(s.stock_disponible) || 0
+    };
+  });
+}
+
+/* ============================================
+   Generar
+   ============================================ */
+
+export async function generarInformeMensual(clase) {
+  const $p = document.getElementById('inf-periodo');
+  if (!$p.value) return avisar('Elija el mes del informe');
+  if (!inf.empresaId) return avisar('Elija primero una empresa');
+
+  const { inicio, fin, nombre } = limitesDelMes($p.value);
+
+  const $btn = document.getElementById(
+    clase === 'medicamentos' ? 'inf-btn-medicamentos' : 'inf-btn-insumos');
+  $btn.disabled = true;
+
+  try {
+    const filas = clase === 'medicamentos'
+      ? await filasMedicamentos(inicio, fin)
+      : await filasInsumos(inicio, fin);
+
+    if (filas.length === 0) {
+      $btn.disabled = false;
+      return avisar('No hay artículos activos en el catálogo.');
+    }
+
+    /* El descuadre solo tiene sentido comprobarlo cuando el
+       informe es del mes recién cerrado y no se han movido
+       cosas después: en un informe de hace medio año, la
+       diferencia con el stock de hoy es normal y avisar sería
+       ruido. */
+    const desajustes = clase === 'insumos' && fin >= hoy()
+      ? filas.filter((f) => f.actual !== f.declarado)
+      : [];
+
+    inf.periodo = inicio;
+    inf.ultimo = { clase, filas, inicio, fin, nombre };
+
+    pintarPrevia(clase, filas, nombre, desajustes);
+    document.getElementById('inf-btn-guardar').hidden = false;
+    document.getElementById('inf-btn-descargar').hidden = false;
+
+  } catch (e) {
+    avisar(e.message);
+  }
+
+  $btn.disabled = false;
+}
+
+const hoy = () => new Date().toISOString().slice(0, 10);
+
+function pintarPrevia(clase, filas, nombre, desajustes) {
+  const $t = document.getElementById('inf-previa-titulo');
+  $t.textContent = (clase === 'medicamentos'
+    ? 'Informe de medicamentos · ' : 'Informe de insumos médicos · ') + nombre;
+
+  const ing = filas.reduce((s, f) => s + f.ingresos, 0);
+  const egr = filas.reduce((s, f) => s + f.egresos, 0);
+  document.getElementById('inf-resumen').textContent =
+    `${filas.length} artículos · ${ing} unidades ingresadas · ${egr} egresadas`;
+
+  const $a = document.getElementById('inf-desajuste');
+  if (desajustes.length > 0) {
+    $a.innerHTML = `<b>${desajustes.length} insumo${desajustes.length === 1 ? '' : 's'} `
+      + `no cuadra${desajustes.length === 1 ? '' : 'n'}.</b> `
+      + 'Los movimientos registrados no explican el stock que figura en la ficha: '
+      + escapar(desajustes.slice(0, 5).map((d) =>
+          `${d.nombre} (movimientos ${d.actual}, ficha ${d.declarado})`).join('; '))
+      + (desajustes.length > 5 ? ' y otros.' : '.')
+      + ' Suele deberse a stocks corregidos a mano antes de que existiera el ajuste '
+      + 'de inventario. El informe usa la cifra de los movimientos, que es la que '
+      + 'se puede justificar.';
+    $a.hidden = false;
+  } else {
+    $a.hidden = true;
+  }
+
+  const $c = document.getElementById('inf-cuerpo');
+  $c.innerHTML = '';
+  filas.forEach((f) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="celda-centro celda-tenue">${f.n}</td>
+      <td>${escapar(f.nombre)}</td>
+      <td class="celda-tenue">${escapar(f.presentacion)}</td>
+      <td class="celda-centro">${f.anterior}</td>
+      <td class="celda-centro">${f.ingresos || '—'}</td>
+      <td class="celda-centro">${f.egresos || '—'}</td>
+      <td class="celda-centro"><strong>${f.actual}</strong></td>
+    `;
+    $c.appendChild(tr);
+  });
+
+  document.getElementById('inf-previa').hidden = false;
+}
+
+/* ============================================
+   Guardar
+   ============================================ */
+
+export async function guardarInforme() {
+  if (!inf.ultimo) return;
+  const { clase, filas, inicio, nombre } = inf.ultimo;
+
+  const perfil = sesionActual();
+  const quien = perfil
+    ? [perfil.titulo, perfil.nombres, perfil.apellidos].filter(Boolean).join(' ').trim()
+    : null;
+
+  const $btn = document.getElementById('inf-btn-guardar');
+  $btn.disabled = true;
+
+  /* upsert y no insert: rehacer el informe de un mes debe
+     sustituir al anterior. Dos informes del mismo mes con
+     cifras distintas es peor que ninguno. */
+  const { error } = await supabase.from('informes_farmacia').upsert(
+    alCrear({
+      empresa_id: inf.empresaId,
+      clase,
+      periodo: inicio,
+      elaborado_por: quien || 'No identificado',
+      elaborado_cargo: perfil?.cargo || null,
+      elaborado_el: hoy(),
+      lineas: filas.length,
+      total_ingresos: filas.reduce((s, f) => s + f.ingresos, 0),
+      total_egresos: filas.reduce((s, f) => s + f.egresos, 0),
+      detalle: filas
+    }),
+    { onConflict: 'empresa_id,clase,periodo' });
+
+  $btn.disabled = false;
+
+  if (error) return avisar('No se pudo guardar: ' + error.message);
+
+  avisar(`Informe de ${nombre} guardado.`, true);
+  await cargarInformes();
+  pintarInformes();
+}
+
+async function cargarInformes() {
+  if (!inf.empresaId) { inf.informes = []; return; }
+
+  const { data, error } = await supabase
+    .from('v_informes_farmacia').select('*')
+    .eq('empresa_id', inf.empresaId)
+    .order('periodo', { ascending: false })
+    .limit(24);
+
+  if (error) {
+    console.warn('NEXUS · informes: falta ejecutar 040_informes_farmacia.sql');
+    inf.informes = [];
+    return;
+  }
+  inf.informes = data || [];
+}
+
+/* Se muestran doce. Los anteriores siguen guardados: la lista
+   se acorta por comodidad de lectura, no porque los informes
+   caduquen. */
+function pintarInformes() {
+  const $c = document.getElementById('inf-cuerpo-historial');
+  const $v = document.getElementById('inf-vacio-historial');
+  if (!$c) return;
+
+  $c.innerHTML = '';
+  const lista = inf.informes.slice(0, 12);
+  if ($v) $v.hidden = lista.length > 0;
+
+  lista.forEach((r) => {
+    const [a, m] = r.periodo.split('-').map(Number);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapar(MESES[m - 1])} ${a}</td>
+      <td>${r.clase === 'medicamentos' ? 'Medicamentos' : 'Insumos médicos'}</td>
+      <td>${escapar(r.elaborado_por || '—')}</td>
+      <td>${escapar(formatearFecha(r.elaborado_el))}</td>
+      <td class="celda-centro">${r.lineas}</td>
+      <td class="celda-centro"></td>
+    `;
+
+    const btn = document.createElement('button');
+    btn.className = 'boton-icono';
+    btn.type = 'button';
+    btn.textContent = 'Descargar';
+    btn.title = 'Descarga el informe tal como se guardó';
+    btn.addEventListener('click', () => descargarGuardado(r));
+    tr.lastElementChild.appendChild(btn);
+
+    $c.appendChild(tr);
+  });
+
+  const $n = document.getElementById('inf-cuenta-historial');
+  if ($n) {
+    $n.textContent = inf.informes.length > 12
+      ? `Mostrando 12 de ${inf.informes.length} informes guardados`
+      : (inf.informes.length ? `${inf.informes.length} informes guardados` : '—');
+  }
+}
+
+/* Descarga la fotografía guardada, no un recálculo. Si el
+   kardex cambió después, este documento sigue diciendo lo que
+   decía el papel firmado. */
+async function descargarGuardado(resumen) {
+  const { data, error } = await supabase
+    .from('informes_farmacia').select('detalle')
+    .eq('id', resumen.id).maybeSingle();
+
+  if (error || !data) return avisar('No se pudo recuperar el informe.');
+
+  const [a, m] = resumen.periodo.split('-').map(Number);
+  await construirWord({
+    clase: resumen.clase,
+    filas: data.detalle,
+    nombre: `${MESES[m - 1]} de ${a}`,
+    quien: resumen.elaborado_por,
+    cargo: resumen.elaborado_cargo,
+    fecha: resumen.elaborado_el
+  });
+}
+
+export async function descargarActual() {
+  if (!inf.ultimo) return;
+  const perfil = sesionActual();
+  await construirWord({
+    clase: inf.ultimo.clase,
+    filas: inf.ultimo.filas,
+    nombre: inf.ultimo.nombre,
+    quien: perfil
+      ? [perfil.titulo, perfil.nombres, perfil.apellidos].filter(Boolean).join(' ').trim()
+      : 'No identificado',
+    cargo: perfil?.cargo || null,
+    fecha: hoy()
+  });
+}
+
+/* ============================================
+   El documento
+   ============================================ */
+
+async function construirWord({ clase, filas, nombre, quien, cargo, fecha }) {
+  fijarEscala(1);
+
+  if (!inf.logo) inf.logo = await logoEnBase64('logo.png', 300);
+
+  const titulo = clase === 'medicamentos'
+    ? 'INFORME DE MEDICAMENTOS' : 'INFORME DE INSUMOS MÉDICOS';
+
+  /* --- Portada ---
+     Una hoja propia, con el logo grande y el mes en el centro.
+     Se separa del contenido con un salto de página forzado:
+     si la tabla empezara en la misma hoja, la portada dejaría
+     de ser portada. */
+  const caratula = `
+    <div style="text-align:center;padding-top:70pt;">
+      ${inf.logo
+        ? `<img src="${inf.logo}" style="width:190pt;" alt="">`
+        : ''}
+
+      <p style="margin-top:34pt;font-size:12pt;letter-spacing:2pt;color:#555555;">
+        SERVICIOS MÉDICOS DE LA EMPRESA
+      </p>
+
+      <p style="margin-top:4pt;font-size:22pt;font-weight:bold;letter-spacing:1pt;">
+        ${escapar(inf.empresaNombre || 'EMPRESA')}
+      </p>
+
+      <div style="width:38%;margin:26pt auto;border-top:2pt solid #1F4E79;"></div>
+
+      <p style="font-size:17pt;font-weight:bold;color:#1F4E79;letter-spacing:1pt;">
+        ${titulo}
+      </p>
+
+      <p style="margin-top:6pt;font-size:14pt;text-transform:uppercase;">
+        ${escapar(nombre)}
+      </p>
+
+      <div style="width:38%;margin:26pt auto;border-top:2pt solid #1F4E79;"></div>
+
+      <p style="margin-top:40pt;font-size:10.5pt;color:#555555;">
+        UNIDAD DE SEGURIDAD Y SALUD OCUPACIONAL
+      </p>
+      <p style="font-size:10.5pt;color:#555555;">
+        Elaborado el ${escapar(formatearFecha(fecha))}
+      </p>
+    </div>
+
+    <br style="page-break-before:always;">`;
+
+  const totalIng = filas.reduce((s, f) => s + Number(f.ingresos || 0), 0);
+  const totalEgr = filas.reduce((s, f) => s + Number(f.egresos || 0), 0);
+
+  const cuerpo = `
+    ${seccionDocumento(titulo + ' · ' + nombre.toUpperCase())}
+
+    <p style="text-align:justify;">
+      Detalle del movimiento de ${clase === 'medicamentos'
+        ? 'medicamentos' : 'insumos médicos'} correspondiente a
+      ${escapar(nombre)}. La columna ANTERIOR corresponde al saldo al cierre del mes
+      previo; INGRESOS y EGRESOS, a los movimientos registrados durante el mes; y
+      ACTUAL, al saldo resultante.
+    </p>
+
+    ${tablaWord(
+      [
+        { titulo: 'N°',            ancho: 5,  centrado: true },
+        { titulo: clase === 'medicamentos'
+            ? 'NOMBRE DEL MEDICAMENTO' : 'DESCRIPCIÓN', ancho: 39 },
+        { titulo: 'PRESENTACIÓN',  ancho: 16 },
+        { titulo: 'ANTERIOR',      ancho: 10, centrado: true },
+        { titulo: 'INGRESOS',      ancho: 10, centrado: true },
+        { titulo: 'EGRESOS',       ancho: 10, centrado: true },
+        { titulo: 'ACTUAL',        ancho: 10, centrado: true }
+      ],
+      filas.map((f) => [
+        String(f.n),
+        f.nombre,
+        f.presentacion,
+        String(f.anterior),
+        String(f.ingresos),
+        String(f.egresos),
+        String(f.actual)
+      ]))}
+
+    <p style="margin-top:8pt;font-size:9pt;color:#555555;">
+      ${filas.length} artículos · ${totalIng} unidades ingresadas ·
+      ${totalEgr} unidades egresadas en el periodo.
+    </p>
+
+    <div class="no-partir" style="margin-top:26pt;">
+      ${bloqueFirmas([
+        { rotulo: 'Elaborado por:', nombre: quien || 'No identificado',
+          detalle: cargo || '' }
+      ], 46)}
+      <p style="font-size:6.5pt;color:#999999;text-align:right;margin-top:6pt;">
+        NEXUS ${VERSION} · generado el ${new Date().toLocaleString('es-EC')}
+      </p>
+    </div>`;
+
+  const html = envolverWord(caratula + cuerpo,
+    titulo + ' · ' + nombre,
+    { superior: 15, inferior: 15, izquierdo: 20, derecho: 15 });
+
+  descargarWord(html,
+    `${clase === 'medicamentos' ? 'Informe medicamentos' : 'Informe insumos'} ${nombre}`);
+}
+
+/* ============================================
+   Avisos
+   ============================================ */
+
+function avisar(texto, exito = false) {
+  const $a = document.getElementById('inf-alerta');
+  if (!$a) return alert(texto);
+  $a.textContent = texto;
+  $a.className = exito ? 'alerta alerta-ok' : 'alerta';
+  $a.hidden = false;
+  setTimeout(() => { $a.hidden = true; }, 6000);
+}

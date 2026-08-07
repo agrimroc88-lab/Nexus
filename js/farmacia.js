@@ -16,6 +16,9 @@ import { montarNavegacion } from './nav.js?v=11';
 import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=11';
 import { alCrear, alEditar, autorId } from './autoria.js?v=1';
 import { imprimirHoja } from './impresion.js?v=11';
+import {
+  iniciarInforme, generarInformeMensual, guardarInforme, descargarActual
+} from './informe-farmacia.js?v=1';
 
 /* --- Estado --- */
 const estado = {
@@ -991,6 +994,15 @@ async function guardarInsumo() {
     stock_optimo: parseInt(document.getElementById('ins_optimo').value, 10) || 0
   };
 
+  /* Si se corrige el stock a mano, queda un movimiento de
+     ajuste. Sin él, anterior + ingresos − egresos no daría el
+     actual en el informe mensual, y no habría forma de
+     explicar la diferencia. */
+  const ajuste = insumoActual
+    ? Number(fila.stock_disponible ?? insumoActual.stock_disponible)
+      - Number(insumoActual.stock_disponible)
+    : 0;
+
   let error;
   if (insumoActual) {
     ({ error } = await supabase.from('insumos')
@@ -1003,6 +1015,15 @@ async function guardarInsumo() {
     $alerta.textContent = error.message.includes('duplicate') ? 'Ese insumo ya existe.' : 'No se pudo guardar: ' + error.message;
     $alerta.hidden = false; return;
   }
+  if (ajuste !== 0) {
+    await supabase.from('insumos_kardex').insert(alCrear({
+      insumo_id: insumoActual.id,
+      tipo: ajuste > 0 ? 'ajuste_positivo' : 'ajuste_negativo',
+      cantidad: Math.abs(ajuste),
+      nota: 'Ajuste de inventario desde la ficha'
+    }));
+  }
+
   document.getElementById('modal-insumo').hidden = true;
   await cargarInsumos();
   pintarInsumos();
@@ -1302,10 +1323,14 @@ function cambiarVista(vista) {
     p.classList.toggle('activa', p.dataset.vista === vista);
   });
 
-  ['existencias', 'lotes', 'kardex', 'insumos', 'orden'].forEach((v) => {
+  ['existencias', 'lotes', 'kardex', 'insumos', 'orden', 'informe'].forEach((v) => {
     document.getElementById('vista-' + v).hidden = v !== vista;
   });
   if (vista === 'orden') { pintarOrden(); cargarOrdenes().then(pintarOrdenes); }
+  if (vista === 'informe') {
+    iniciarInforme(estado.empresaId,
+      ($empresa.options[$empresa.selectedIndex] || {}).textContent || '');
+  }
   if (vista === 'insumos') pintarInsumos();
 }
 
@@ -1394,6 +1419,13 @@ function conectarEventos() {
   document.getElementById('btn-guardar-salida').addEventListener('click', guardarSalida);
   document.getElementById('sal_tipo').addEventListener('change', alternarTrabajador);
   document.getElementById('sal_medicamento').addEventListener('change', cargarLotesDeSalida);
+  document.getElementById('inf-btn-medicamentos')
+    .addEventListener('click', () => generarInformeMensual('medicamentos'));
+  document.getElementById('inf-btn-insumos')
+    .addEventListener('click', () => generarInformeMensual('insumos'));
+  document.getElementById('inf-btn-guardar').addEventListener('click', guardarInforme);
+  document.getElementById('inf-btn-descargar').addEventListener('click', descargarActual);
+
   conectarBuscadorMed('ing_buscar', 'ing_medicamento');
   conectarBuscadorMed('sal_buscar', 'sal_medicamento');
   document.getElementById('sal_lote').addEventListener('change', evaluarCantidadSalida);
