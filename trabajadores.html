@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="css/documentos.css">
   <link rel="stylesheet" href="css/layout.css">
   <link rel="stylesheet" href="css/empresas.css">
-  <link rel="stylesheet" href="css/trabajadores.css">
+  <link rel="stylesheet" href="css/trabajadores.css?v=12">
   <style>
     /* Modal de trabajador: altura controlada, sin desborde horizontal */
     #modal .modal-caja { max-height: 92vh; display: flex; flex-direction: column; }
@@ -99,6 +99,7 @@
           <option value="activos">Activos</option>
           <option value="inactivos">Inactivos</option>
           <option value="todos">Todos</option>
+          <option value="sin_codigo">Sin código</option>
           <option value="por_programar">Por programar</option>
           <option value="vencido">Periódico vencido</option>
         </select>
@@ -164,9 +165,14 @@
           </div>
 
           <div class="campo">
-            <label class="etiqueta" for="codigo">Código <span class="obligatorio">*</span></label>
-            <input class="entrada" id="codigo" type="number" min="1" max="3000">
+            <label class="etiqueta" for="codigo">Código
+              <span class="obligatorio" id="codigo-obligatorio">*</span></label>
+            <input class="entrada" id="codigo" type="number" min="1" max="3000"
+                   placeholder="Sin código">
             <span class="ayuda" id="ayuda-codigo"></span>
+            <span class="ayuda ayuda-ok" id="marca-sin-codigo" hidden>
+              Esta persona se registró sin código. Puede asignarle uno ahora.
+            </span>
           </div>
 
           <div class="campo">
@@ -517,6 +523,6 @@
   <!-- Zona de impresión de la ficha de emergencia -->
   <div class="em-impresion" id="em-impresion"></div>
 
-  <script type="module" src="js/trabajadores.js?v=11"></script>
+  <script type="module" src="js/trabajadores.js?v=13"></script>
 </body>
 </html>
