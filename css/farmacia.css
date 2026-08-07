@@ -203,3 +203,281 @@
   font-weight: 600;
   color: var(--color-acento);
 }
+
+/* ============================================
+   Informe mensual · impresion en PDF
+
+   Se imprime, no se descarga como .doc. Un .doc generado
+   desde HTML depende de como lo interprete la version de Word
+   de cada computador: margenes que se corren, tipografias que
+   se sustituyen, tablas que se parten donde no deben. El
+   informe se firma y se archiva tal cual, asi que tiene que
+   verse igual en todas partes.
+   ============================================ */
+
+.if-impresion { display: none; }
+
+@media print {
+  body.imprimiendo-informe > *:not(.if-impresion) { display: none !important; }
+
+  body.imprimiendo-informe {
+    background: #fff;
+    color: #000;
+  }
+
+  body.imprimiendo-informe .if-impresion {
+    display: block;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 10pt;
+    line-height: 1.45;
+    color: #000;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 18mm 15mm 16mm 20mm;
+  }
+
+  /* ---------- Portada ----------
+
+     El problema de la anterior era el apiñamiento: todo caia
+     en el tercio superior y el resto de la hoja quedaba
+     vacio. Aqui la pagina se reparte en tres franjas —marca
+     arriba, titulo al centro, datos abajo— con el espacio
+     entre ellas repartido por la propia caja flexible. El
+     aire deja de ser un margen que hay que calcular y pasa a
+     ser lo que sobra, que es como se maquetan las portadas. */
+
+  .if-portada {
+    display: flex;
+    flex-direction: column;
+    height: 253mm;                  /* A4 menos margenes */
+    page-break-after: always;
+    text-align: center;
+  }
+
+  .if-portada-banda {
+    height: 4mm;
+    background: #1F4E79;
+    flex-shrink: 0;
+  }
+
+  .if-portada-banda-baja {
+    height: 2mm;
+    background: #7FA6C9;
+  }
+
+  .if-portada-marca {
+    padding-top: 16mm;
+    flex-shrink: 0;
+  }
+
+  .if-portada-logo {
+    max-width: 62mm;
+    max-height: 32mm;
+  }
+
+  /* Se lleva el espacio sobrante y centra su contenido: el
+     bloque del titulo queda en el eje optico de la hoja sin
+     depender de un margen fijo. */
+  .if-portada-centro {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex: 1;
+    padding: 0 14mm;
+  }
+
+  .if-portada-unidad {
+    margin: 0;
+    font-size: 10.5pt;
+    letter-spacing: 0.8pt;
+    color: #555;
+    text-transform: uppercase;
+  }
+
+  .if-portada-servicio {
+    margin: 1.5mm 0 0;
+    font-size: 10.5pt;
+    color: #555;
+  }
+
+  .if-portada-regla {
+    width: 46mm;
+    height: 0;
+    margin: 11mm auto;
+    border-top: 1.2pt solid #1F4E79;
+  }
+
+  .if-portada-titulo {
+    margin: 0;
+    font-size: 21pt;
+    font-weight: bold;
+    line-height: 1.35;
+    color: #1F4E79;
+  }
+
+  .if-portada-mes {
+    margin: 7mm 0 0;
+    font-size: 15pt;
+    font-weight: bold;
+    letter-spacing: 1.5pt;
+    text-transform: uppercase;
+  }
+
+  .if-portada-empresa {
+    margin: 0;
+    font-size: 13pt;
+    font-weight: bold;
+    letter-spacing: 0.6pt;
+    text-transform: uppercase;
+  }
+
+  .if-portada-pie {
+    padding-bottom: 12mm;
+    flex-shrink: 0;
+  }
+
+  /* Los datos de emision van en recuadro y no sueltos: quien
+     archiva el informe busca ahi el mes y quien lo firmo, y
+     un bloque delimitado se encuentra de un vistazo. */
+  .if-portada-datos {
+    width: 108mm;
+    margin: 0 auto;
+    font-size: 9.5pt;
+    text-align: left;
+    border-collapse: collapse;
+  }
+
+  .if-portada-datos th,
+  .if-portada-datos td {
+    padding: 2.2mm 3mm;
+    border: 0.5pt solid #B8CCE0;
+  }
+
+  .if-portada-datos th {
+    width: 42%;
+    font-weight: bold;
+    color: #1F4E79;
+    background: #EEF4FA;
+  }
+
+  .if-portada-ref {
+    margin: 5mm 0 0;
+    font-size: 8pt;
+    color: #888;
+  }
+
+  /* ---------- Contenido ---------- */
+
+  .if-contenido p {
+    margin: 0 0 3mm;
+    text-align: justify;
+  }
+
+  .if-membrete {
+    display: flex;
+    gap: 5mm;
+    align-items: center;
+    padding-bottom: 3mm;
+    margin-bottom: 6mm;
+    border-bottom: 1.2pt solid #1F4E79;
+  }
+
+  .if-membrete-logo { max-width: 24mm; max-height: 14mm; }
+
+  .if-membrete-texto {
+    flex: 1;
+    font-size: 9pt;
+    line-height: 1.35;
+  }
+
+  .if-membrete-ref {
+    font-size: 8.5pt;
+    color: #555;
+    text-align: right;
+  }
+
+  .if-seccion {
+    padding-bottom: 1.2mm;
+    margin: 7mm 0 3mm;
+    font-size: 11.5pt;
+    font-weight: bold;
+    color: #1F4E79;
+    border-bottom: 0.5pt solid #B8CCE0;
+    page-break-after: avoid;
+  }
+
+  .if-lista {
+    margin: 0 0 3mm 7mm;
+    padding: 0;
+  }
+
+  .if-lista li { margin-bottom: 1.5mm; }
+
+  .if-nota { font-style: italic; color: #555; }
+
+  /* ---------- Tablas ---------- */
+
+  .if-tabla {
+    width: 100%;
+    font-size: 8.5pt;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  .if-tabla th,
+  .if-tabla td {
+    padding: 1.1mm 1.6mm;
+    text-align: center;
+    vertical-align: top;
+    border: 0.5pt solid #9BB6CE;
+    word-wrap: break-word;
+  }
+
+  .if-tabla thead th {
+    font-size: 7.5pt;
+    font-weight: bold;
+    color: #1F4E79;
+    background: #EEF4FA;
+  }
+
+  /* La cabecera se repite en cada hoja: una tabla de noventa
+     filas cruza tres paginas, y sin esto en la segunda y la
+     tercera hay columnas de numeros sin rotulo. */
+  .if-tabla thead { display: table-header-group; }
+  .if-tabla tr { page-break-inside: avoid; }
+
+  .if-izq { text-align: left; }
+  .if-fuerte { font-weight: bold; }
+
+  /* ---------- Firma ---------- */
+
+  .if-firmas {
+    margin-top: 22mm;
+    text-align: center;
+    page-break-inside: avoid;
+  }
+
+  .if-firma { display: inline-block; min-width: 78mm; }
+
+  .if-firma-linea {
+    height: 0;
+    margin-bottom: 2mm;
+    border-top: 0.75pt solid #000;
+  }
+
+  .if-firma-nombre {
+    margin: 0 !important;
+    font-size: 10pt;
+    font-weight: bold;
+    text-align: center !important;
+  }
+
+  .if-firma-cargo {
+    margin: 0.8mm 0 0 !important;
+    font-size: 9pt;
+    color: #444;
+    text-align: center !important;
+  }
+}
