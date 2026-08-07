@@ -51,7 +51,7 @@
   
   </style>
   <link rel="stylesheet" href="css/grupos.css">
-  <link rel="stylesheet" href="css/botiquines.css">
+  <link rel="stylesheet" href="css/botiquines.css?v=12">
   <link rel="stylesheet" href="css/instalaciones.css">
 </head>
 <body class="app" data-ambito="salud" data-modulo="salud_ocup">
@@ -512,6 +512,9 @@
             <button class="boton-primario" id="bt-btn-abrir" type="button" hidden>
               Abrir revisión del mes
             </button>
+            <button class="boton-primario" id="bt-btn-nuevo" type="button" hidden>
+              + Nuevo botiquín
+            </button>
           </section>
 
           <div class="panel">
@@ -520,7 +523,9 @@
                 <thead>
                   <tr>
                     <th>Botiquín</th>
+                    <th>Ubicación</th>
                     <th class="celda-centro">Insumos</th>
+                    <th class="celda-centro">Unidades</th>
                     <th class="celda-centro">Consumido</th>
                     <th class="celda-centro">Repuesto</th>
                     <th class="celda-centro">Sin reponer</th>
@@ -1568,6 +1573,173 @@
     </div>
   </div>
 
+  <!-- ============ Modal: Insumos del botiquín (dotación) ============ -->
+  <div class="modal" id="bt-modal-dotacion" hidden>
+    <div class="modal-caja modal-ancho" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <div class="modal-encabezado">
+          <h2 class="modal-titulo" id="bt-dot-titulo">Insumos del botiquín</h2>
+          <span class="modal-sub" id="bt-dot-sub"></span>
+        </div>
+        <button class="modal-cerrar" data-cierra="bt-modal-dotacion" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+
+        <p class="ayuda">
+          Esta es la dotación que debe tener el botiquín. Sirve de referencia en la
+          revisión mensual y de detalle en el acta de entrega. Cambiarla no altera
+          las revisiones ya cerradas.
+        </p>
+
+        <div class="tabla-envoltura">
+          <table class="tabla tabla-compacta">
+            <thead>
+              <tr>
+                <th>Insumo</th>
+                <th class="celda-centro">Unidad</th>
+                <th class="celda-centro">Cantidad</th>
+                <th class="celda-centro"></th>
+              </tr>
+            </thead>
+            <tbody id="bt-dot-cuerpo"></tbody>
+          </table>
+        </div>
+        <p class="vacio" id="bt-dot-vacio" hidden>
+          El botiquín no tiene insumos asignados todavía.
+        </p>
+
+        <!-- Agregar del catálogo -->
+        <div class="bt-dot-agregar">
+          <div class="campo campo-ancho">
+            <label class="etiqueta" for="bt_dot_catalogo">Agregar insumo del catálogo</label>
+            <select class="entrada" id="bt_dot_catalogo"></select>
+          </div>
+          <div class="campo campo-corto">
+            <label class="etiqueta" for="bt_dot_cantidad">Cantidad</label>
+            <input class="entrada" id="bt_dot_cantidad" type="number" min="1" step="1" value="1">
+          </div>
+          <button class="boton-secundario" id="bt-btn-dot-agregar" type="button">Agregar</button>
+        </div>
+
+        <!-- Crear insumo nuevo -->
+        <details class="plegable" id="bt-dot-plegable-nuevo">
+          <summary class="plegable-titulo">El insumo no está en el catálogo</summary>
+          <div class="rejilla">
+            <div class="campo">
+              <label class="etiqueta" for="bt_ins_nombre">Nombre <span class="obligatorio">*</span></label>
+              <input class="entrada" id="bt_ins_nombre" type="text" maxlength="80"
+                     placeholder="Gasa estéril">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="bt_ins_presentacion">Presentación</label>
+              <input class="entrada" id="bt_ins_presentacion" type="text" maxlength="80"
+                     placeholder="10 x 10 cm">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="bt_ins_unidad">Unidad <span class="obligatorio">*</span></label>
+              <input class="entrada" id="bt_ins_unidad" type="text" maxlength="20"
+                     placeholder="unidad, sobre, frasco…">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="bt_ins_cantidad">Cantidad</label>
+              <input class="entrada" id="bt_ins_cantidad" type="number" min="1" step="1" value="1">
+            </div>
+            <div class="campo campo-ancho">
+              <label class="casilla">
+                <input id="bt_ins_medicamento" type="checkbox">
+                <span>Es medicamento</span>
+              </label>
+            </div>
+          </div>
+          <button class="boton-secundario" id="bt-btn-ins-crear" type="button">
+            Crear y agregar
+          </button>
+          <p class="ayuda">
+            El catálogo de insumos es común a todos los botiquines: lo que cree aquí
+            queda disponible para los demás.
+          </p>
+        </details>
+
+        <p class="alerta" id="bt-alerta-dotacion" role="alert" hidden></p>
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" data-cierra="bt-modal-dotacion" type="button">Cancelar</button>
+        <button class="boton-primario" id="bt-btn-guardar-dotacion" type="button">Guardar dotación</button>
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- ============ Modal: Alta y edición de botiquín ============ -->
+  <div class="modal" id="bt-modal-botiquin" hidden>
+    <div class="modal-caja modal-estrecho" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo" id="bt-b-titulo">Nuevo botiquín</h2>
+        <button class="modal-cerrar" data-cierra="bt-modal-botiquin" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+        <div class="campo">
+          <label class="etiqueta" for="bt_b_area">Nombre del botiquín <span class="obligatorio">*</span></label>
+          <input class="entrada" id="bt_b_area" type="text" maxlength="80"
+                 placeholder="Cocina, Mina, Taller…">
+          <p class="ayuda">Es el nombre con el que aparece en el informe y en el acta.</p>
+        </div>
+
+        <div class="campo">
+          <label class="etiqueta" for="bt_b_departamento">Departamento <span class="obligatorio">*</span></label>
+          <input class="entrada" id="bt_b_departamento" type="text" maxlength="80"
+                 placeholder="Operaciones, Administración…">
+          <p class="ayuda">Agrupa los botiquines en el listado y en el informe.</p>
+        </div>
+
+        <div class="campo">
+          <label class="etiqueta" for="bt_b_ubicacion">Ubicación</label>
+          <input class="entrada" id="bt_b_ubicacion" type="text" maxlength="120"
+                 placeholder="Planta baja, junto al comedor">
+        </div>
+
+        <div class="campo">
+          <label class="etiqueta" for="bt_b_ubicacion_texto">Ubicación en el acta</label>
+          <input class="entrada" id="bt_b_ubicacion_texto" type="text" maxlength="200"
+                 placeholder="en el área de cocina del campamento">
+          <p class="ayuda">Completa la frase «…el botiquín ubicado ___». Si se deja vacío, se usa el nombre.</p>
+        </div>
+
+        <div class="campo">
+          <label class="etiqueta" for="bt_b_responsable">Responsable del área</label>
+          <input class="entrada" id="bt_b_responsable" type="text" maxlength="120">
+        </div>
+
+        <div class="campo">
+          <label class="etiqueta" for="bt_b_objetivo">Objetivo del acta</label>
+          <textarea class="entrada area" id="bt_b_objetivo" rows="2"
+                    placeholder="Si se deja vacío se usa el texto estándar."></textarea>
+        </div>
+
+        <div class="campo campo-corto">
+          <label class="etiqueta" for="bt_b_orden">Orden</label>
+          <input class="entrada" id="bt_b_orden" type="number" min="0" step="1" value="0">
+        </div>
+
+        <p class="alerta" id="bt-alerta-botiquin" role="alert" hidden></p>
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-peligro" id="bt-btn-eliminar-botiquin" type="button" hidden>
+          Eliminar
+        </button>
+        <button class="boton-secundario" data-cierra="bt-modal-botiquin" type="button">Cancelar</button>
+        <button class="boton-primario" id="bt-btn-guardar-botiquin" type="button">Guardar</button>
+      </footer>
+
+    </div>
+  </div>
+
 
   <!-- ============ Modal: Nueva instalación ============ -->
   <div class="modal" id="ins-modal-nueva" hidden>
@@ -1740,6 +1912,6 @@
   <!-- Zona de impresión de la hoja de recorrido -->
   <div class="ins-impresion" id="ins-impresion"></div>
 
-  <script type="module" src="js/anexo1.js?v=17"></script>
+  <script type="module" src="js/anexo1.js?v=18"></script>
 </body>
 </html>
