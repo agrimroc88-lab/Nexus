@@ -39,7 +39,7 @@ import { escapar, formatearFecha } from './utils.js?v=11';
 import { alCrear } from './autoria.js?v=1';
 import { imprimirHoja } from './impresion.js?v=11';
 
-const VERSION = 'v7';
+const VERSION = 'v8';
 console.info('NEXUS · informe-farmacia', VERSION);
 
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -136,8 +136,31 @@ const inf = {
   periodo: null,      // primer día del mes que cubre
   logo: null,
   informes: [],       // los ya emitidos
-  ultimo: null        // lo calculado, a la espera de guardarse
+  ultimo: null,       // lo calculado, a la espera de guardarse
+  revisor: null       // quien revisa: jefe del departamento
 };
+
+/* Quien revisa el informe es quien encabeza el departamento, y
+   no cambia con la sesión. Se lee de la misma tabla que usa el
+   informe de botiquines para su firma fija, de modo que los
+   dos documentos nombren a la misma persona: si mañana cambia
+   el responsable, se corrige en un sitio y no en dos. */
+async function cargarRevisor() {
+  const { data, error } = await supabase
+    .from('botiquin_destinatarios')
+    .select('nombre, cargo')
+    .eq('tipo', 'elabora')
+    .eq('activo', true)
+    .maybeSingle();
+
+  if (error || !data) {
+    console.warn('NEXUS · informe: no hay firmante de revisión configurado '
+               + '(botiquin_destinatarios con tipo = elabora).');
+    inf.revisor = null;
+    return;
+  }
+  inf.revisor = { nombre: data.nombre, cargo: data.cargo || '' };
+}
 
 /* Lee los textos del formulario, cayendo al valor por defecto
    si el campo quedó vacío: un informe sin objetivo ni marco
@@ -180,6 +203,7 @@ export function iniciarInforme(empresaId, empresaNombre) {
   if ($p && !$p.value) $p.value = mesAnterior();
 
   pintarTextosPorDefecto();
+  cargarRevisor();
   cargarInformes().then(pintarInformes);
 }
 
@@ -510,7 +534,8 @@ export async function guardarInforme() {
       total_ingresos: todas.reduce((s, f) => s + f.ingresos, 0),
       total_egresos: todas.reduce((s, f) => s + f.egresos, 0),
       detalle: { medicamentos, insumos },
-      textos: textosActuales()
+      textos: textosActuales(),
+      revisor: inf.revisor
     }),
     { onConflict: 'empresa_id,clase,periodo' });
 
@@ -589,7 +614,7 @@ function pintarInformes() {
    decía el papel firmado. */
 async function descargarGuardado(resumen) {
   const { data, error } = await supabase
-    .from('informes_farmacia').select('detalle, textos, clase')
+    .from('informes_farmacia').select('detalle, textos, clase, revisor')
     .eq('id', resumen.id).maybeSingle();
 
   if (error || !data) return avisar('No se pudo recuperar el informe.');
@@ -612,7 +637,10 @@ async function descargarGuardado(resumen) {
     quien: resumen.elaborado_por,
     cargo: resumen.elaborado_cargo,
     fecha: resumen.elaborado_el,
-    textos: data.textos || TEXTOS
+    textos: data.textos || TEXTOS,
+    /* El revisor guardado con el informe, si lo hay. Los
+       informes viejos no lo tienen y caen al vigente. */
+    revisor: data.revisor || inf.revisor
   });
 }
 
@@ -628,7 +656,8 @@ export async function descargarActual() {
       : 'No identificado',
     cargo: perfil?.cargo || null,
     fecha: hoy(),
-    textos: textosActuales()
+    textos: textosActuales(),
+    revisor: inf.revisor
   });
 }
 
@@ -652,7 +681,7 @@ export async function descargarActual() {
    resultado es idéntico en cualquier equipo.
    ============================================ */
 
-function construirDocumento({ medicamentos, insumos, nombre, quien, cargo, fecha, textos }) {
+function construirDocumento({ medicamentos, insumos, nombre, quien, cargo, fecha, textos, revisor }) {
   const t = textos || TEXTOS;
 
   const parrafos = (texto) => String(texto || '')
@@ -730,6 +759,7 @@ function construirDocumento({ medicamentos, insumos, nombre, quien, cargo, fecha
         <table class="if-portada-datos">
           <tr><th>Elaborado por</th><td>${escapar(quien || 'No identificado')}</td></tr>
           ${cargo ? `<tr><th>Cargo</th><td>${escapar(cargo)}</td></tr>` : ''}
+          <tr><th>Revisado por</th><td>${escapar(revisor?.nombre || 'Por definir')}</td></tr>
           <tr><th>Fecha de elaboración</th><td>${escapar(formatearFecha(fecha))}</td></tr>
           <tr><th>Periodo informado</th><td>${escapar(nombre)}</td></tr>
         </table>
@@ -783,11 +813,25 @@ function construirDocumento({ medicamentos, insumos, nombre, quien, cargo, fecha
       <h2 class="if-seccion">8. Conclusión</h2>
       ${parrafos(t.conclusion)}
 
+      <!-- Dos firmas: quien lo hizo y quien lo revisa.
+
+           Elabora el profesional que tiene la sesión abierta;
+           revisa quien encabeza el departamento, que no
+           cambia. Con una sola firma no se distinguía quién
+           había hecho el trabajo de quién respondía por él. -->
       <div class="if-firmas" data-firmas>
         <div class="if-firma">
           <div class="if-firma-linea"></div>
+          <p class="if-firma-rotulo">Elaborado por</p>
           <p class="if-firma-nombre">${escapar(quien || 'No identificado')}</p>
           ${cargo ? `<p class="if-firma-cargo">${escapar(cargo)}</p>` : ''}
+        </div>
+        <div class="if-firma">
+          <div class="if-firma-linea"></div>
+          <p class="if-firma-rotulo">Revisado por</p>
+          <p class="if-firma-nombre">${escapar(revisor?.nombre || 'Por definir')}</p>
+          ${revisor?.cargo
+            ? `<p class="if-firma-cargo">${escapar(revisor.cargo)}</p>` : ''}
         </div>
       </div>
 
@@ -808,8 +852,9 @@ async function generarPdf(datos) {
      nada. Los gráficos de fondo vienen desactivados en Chrome
      y sin ellos la portada pierde las bandas y el sombreado
      de las cabeceras. */
-  avisar('En el diálogo de impresión, active «Gráficos de fondo» '
-       + 'para que salgan los colores.', true);
+  avisar('En el diálogo de impresión: active «Gráficos de fondo» para que '
+       + 'salgan los colores, y desactive «Encabezado y pie de página» para '
+       + 'que Chrome no estampe la fecha y la dirección web.', true);
 
   await imprimirHoja('inf-impresion', 'imprimiendo-informe',
     `Informe farmacia · ${datos.nombre}`);
