@@ -1,0 +1,110 @@
+/* ============================================
+   NEXUS · evaluacion.css
+   Evaluacion medica ocupacional periodica.
+   ============================================ */
+
+.ep-controles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+  padding: 1rem;
+}
+
+.ep-controles .campo { min-width: 16rem; }
+.ep-controles .ayuda { margin-left: auto; font-size: 0.88rem; }
+
+/* --- Buscador de trabajador --- */
+
+.ep-buscador { padding: 1rem 1rem 0; position: relative; }
+
+.ep-sugerencias {
+  max-height: 14rem;
+  margin-top: 0.25rem;
+  overflow-y: auto;
+  background: var(--color-superficie-alt);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+}
+
+.ep-sugerencia {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  width: 100%;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.88rem;
+  color: var(--color-texto);
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+}
+
+.ep-sugerencia:hover { background: var(--color-acento-suave); }
+
+.ep-sug-vacia {
+  padding: 0.55rem 0.7rem;
+  font-size: 0.85rem;
+  color: var(--color-texto-tenue);
+}
+
+/* Quien ya tiene resultados capturados. Sin esta marca, en
+   una nomina de cuarenta personas se vuelve a capturar al
+   mismo dos veces sin darse cuenta. */
+.ep-marca-hecho {
+  margin-left: auto;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.72rem;
+  color: #6fcf97;
+  background: rgba(111, 207, 151, 0.12);
+  border-radius: 5px;
+  white-space: nowrap;
+}
+
+/* --- Captura --- */
+
+.ep-cap-cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+}
+
+.ep-cap-acciones { display: flex; gap: 0.5rem; }
+
+/* El IMC ya medido en consulta. Se muestra para no volver a
+   pesar a nadie ni teclear el indice a mano. */
+.ep-imc {
+  padding: 0.55rem 0.8rem;
+  margin: 0 1rem 0.8rem;
+  font-size: 0.86rem;
+  color: var(--color-acento);
+  background: var(--color-acento-suave);
+  border-left: 3px solid var(--color-acento);
+  border-radius: var(--radio);
+}
+
+.ep-col-cie { width: 7rem; }
+
+/* Examen que no se hace a toda la poblacion. Importa porque
+   cambia el denominador del porcentaje: la audiometria se
+   calcula sobre quienes se la hicieron, no sobre la nomina. */
+.ep-marca {
+  margin-left: 0.4rem;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.7rem;
+  color: var(--color-texto-tenue);
+  background: rgba(139, 148, 158, 0.12);
+  border-radius: 5px;
+}
+
+.ep-alerta { font-weight: 600; color: #f57373; }
+
+.alerta-ok {
+  color: #6fcf97;
+  background: rgba(111, 207, 151, 0.1);
+  border-color: rgba(111, 207, 151, 0.35);
+}
