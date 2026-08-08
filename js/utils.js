@@ -175,3 +175,63 @@ export function retrasar(fn, ms = 300) {
     temporizador = setTimeout(() => fn(...args), ms);
   };
 }
+
+/* ============================================
+   Fechas de reposo
+
+   Estaba duplicado: certificados.js tenía su `finReposo` y
+   atenciones.js una copia. Dos funciones que calculan lo
+   mismo terminan divergiendo, y el día que alguien corrija
+   una, la otra sigue mal. Vive aquí y las dos la usan.
+   ============================================ */
+
+/**
+ * Último día de un periodo de reposo o rotación.
+ *
+ * El día de inicio CUENTA. Si empieza el 14 y son 2 días,
+ * termina el 15, no el 16: es el error de conteo que después
+ * discute el jefe de área.
+ *
+ * @param {string} inicioIso  fecha ISO
+ * @param {number} dias
+ * @returns {Date|null}
+ */
+export function finDeReposo(inicioIso, dias) {
+  if (!inicioIso || !dias || dias < 1) return null;
+  const d = new Date(inicioIso + 'T00:00');
+  d.setDate(d.getDate() + dias - 1);
+  return d;
+}
+
+/** Día en que se reincorpora: el siguiente al último de reposo. */
+export function fechaReintegro(inicioIso, dias) {
+  const fin = finDeReposo(inicioIso, dias);
+  if (!fin) return null;
+  const d = new Date(fin);
+  d.setDate(d.getDate() + 1);
+  return d;
+}
+
+/** Fecha en letras: «15 de julio de 2026». */
+export function fechaEnLetras(fecha) {
+  if (!fecha) return '';
+  return fecha.toLocaleDateString('es-EC',
+    { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+/**
+ * Renglón resumen del periodo, listo para pintar.
+ * Devuelve cadena vacía si no hay periodo que describir.
+ */
+export function resumenReposo(inicioIso, dias, rotulo = 'Reposo') {
+  const fin = finDeReposo(inicioIso, dias);
+  if (!fin) return '';
+
+  const inicio = new Date(inicioIso + 'T00:00');
+  const reintegro = fechaReintegro(inicioIso, dias);
+
+  return `<b>${rotulo}:</b> del ${escapar(fechaEnLetras(inicio))} al `
+       + `<b>${escapar(fechaEnLetras(fin))}</b> · ${dias} `
+       + `${dias === 1 ? 'día' : 'días'} · se reintegra el `
+       + `${escapar(fechaEnLetras(reintegro))}`;
+}

@@ -17,7 +17,8 @@
 import { supabase } from './supabase.js?v=11';
 import { protegerPagina, puedeVerClinica } from './auth.js?v=11';
 import { montarNavegacion } from './nav.js?v=11';
-import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=11';
+import { escapar, textoOGuion, retrasar, formatearFecha, resumenReposo }
+  from './utils.js?v=12';
 import { montarEmergencia, fijarEmpresaEmergencia, pintarPanelClinico }
   from './emergencia.js?v=11';
 import { sesionActual } from './auth.js?v=11';
@@ -938,49 +939,30 @@ function alternarCertificado() {
   pintarFechasCert();
 }
 
-/* Fecha de fin y de reintegro, calculadas mientras se escribe.
+/* Fecha de fin y de reintegro, mientras se escribe.
 
-   Contar días a mano es donde aparecen los errores que después
-   discute el jefe de área: si el reposo empieza el 14 y son 2
-   días, termina el 15 —no el 16— y el trabajador se reintegra
-   el 16. Mostrarlo antes de imprimir evita corregir el oficio
-   después de firmado.
-
-   La fecha de fin la calcula también la base al guardar; esto
-   es para verla antes, no para sustituirla. */
+   El cálculo vive en utils.js y lo comparte con el registro
+   manual de certificados: contar los días en dos sitios
+   distintos es como aparecen dos fechas distintas para el
+   mismo reposo. */
 function pintarFechasCert() {
-  const linea = (idSalida, inicio, dias, rotulo) => {
+  const poner = (idSalida, texto) => {
     const $s = document.getElementById(idSalida);
     if (!$s) return;
-
-    if (!inicio || !dias || dias < 1) { $s.hidden = true; return; }
-
-    const d0 = new Date(inicio + 'T00:00');
-    const fin = new Date(d0);
-    fin.setDate(fin.getDate() + dias - 1);
-    const reintegro = new Date(fin);
-    reintegro.setDate(reintegro.getDate() + 1);
-
-    const f = (d) => d.toLocaleDateString('es-EC',
-      { day: 'numeric', month: 'long', year: 'numeric' });
-
-    $s.innerHTML = `<b>${rotulo}:</b> del ${escapar(f(d0))} al `
-                 + `<b>${escapar(f(fin))}</b> · ${dias} `
-                 + `${dias === 1 ? 'día' : 'días'} · se reintegra el `
-                 + `${escapar(f(reintegro))}`;
-    $s.hidden = false;
+    $s.innerHTML = texto;
+    $s.hidden = !texto;
   };
 
-  linea('cert-fechas-reposo',
+  poner('cert-fechas-reposo', resumenReposo(
     document.getElementById('at_cert_inicio').value,
     parseInt(document.getElementById('at_reposo').value, 10) || 0,
-    'Reposo');
+    'Reposo'));
 
-  linea('cert-fechas-rotacion',
+  poner('cert-fechas-rotacion', resumenReposo(
     document.getElementById('at_cert_rot_inicio').value,
     document.getElementById('at_cert_rotacion').checked
       ? (parseInt(document.getElementById('at_cert_rot_dias').value, 10) || 0) : 0,
-    'Rotación');
+    'Rotación'));
 }
 
 async function emitirCertificadoInterno(diagnosticos) {

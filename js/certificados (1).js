@@ -7,7 +7,8 @@
 import { supabase } from './supabase.js';
 import { protegerPagina, empresasPermitidas } from './auth.js';
 import { montarNavegacion } from './nav.js';
-import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js';
+import { escapar, textoOGuion, retrasar, formatearFecha, finDeReposo }
+  from './utils.js?v=12';
 import { sesionActual } from './auth.js';
 import {
   cargarDatosOficio, llenarDestinatarios, destinatarioPorId,
@@ -464,11 +465,15 @@ function calcularRotFin() {
   document.getElementById('ce-rot-fin').textContent = finReposo(ini, dias);
 }
 
+/* Envoltorio del cálculo compartido. La cuenta vive en
+   utils.js; aquí solo se le da el formato corto que usa esta
+   pantalla. */
 function finReposo(inicioStr, dias) {
-  if (dias < 1 || !inicioStr) return '—';
-  const d = new Date(inicioStr + 'T00:00');
-  d.setDate(d.getDate() + dias - 1);
-  return d.toLocaleDateString('es-EC', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const fin = finDeReposo(inicioStr, dias);
+  return fin
+    ? fin.toLocaleDateString('es-EC',
+        { day: '2-digit', month: '2-digit', year: 'numeric' })
+    : '—';
 }
 
 /* Buscar por NOMBRE de la enfermedad en el campo diagnóstico.
