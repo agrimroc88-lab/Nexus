@@ -22,7 +22,11 @@
 import { supabase } from './supabase.js?v=11';
 import { protegerPagina, ROLES } from './auth.js?v=11';
 import { montarNavegacion } from './nav.js?v=11';
-import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=11';
+import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=12';
+import {
+  iniciarEvaluacion, crearCampana, elegirCampana, buscarTrabajador,
+  guardarCaptura, cerrarCaptura
+} from './evaluacion-periodica.js?v=1';
 import { montarGrupos, cargarGrupos, pintarGrupos } from './grupos.js?v=11';
 import { montarBotiquines, cargarBotiquines, pintarBotiquines }
   from './botiquines.js?v=12';
@@ -89,6 +93,7 @@ async function iniciar() {
   prepararAnios();
   prepararAniosEventos();
   ocultarPestanasAjenas();
+  conectarEvaluacion();
   montarGrupos(perfil, AMBITO);
   if (AMBITO === 'salud') {
     montarBotiquines(perfil);
@@ -2214,7 +2219,7 @@ function cambiarVista(vista) {
     p.classList.toggle('activa', p.dataset.vista === vista);
   });
   ['cumplimiento', 'capacitaciones', 'eventos', 'ocupacionales',
-   'grupos', 'botiquines', 'instalaciones'].forEach((v) => {
+   'grupos', 'botiquines', 'instalaciones', 'evaluacion'].forEach((v) => {
     const $v = document.getElementById('vista-' + v);
     if ($v) $v.hidden = v !== vista;
   });
@@ -2226,15 +2231,36 @@ function cambiarVista(vista) {
   if (vista === 'ocupacionales') {
     cargarOcupacionales().then(pintarOcupacionales);
   }
+  if (vista === 'evaluacion') {
+    const $e = document.getElementById('empresa-activa');
+    iniciarEvaluacion(estado.empresaId,
+      $e ? ($e.options[$e.selectedIndex] || {}).textContent || '' : '');
+  }
+}
+
+/* La evaluación periódica solo existe en salud: seguridad
+   industrial no hace exámenes médicos. */
+function conectarEvaluacion() {
+  const en = (id, ev2, fn) => {
+    const $e = document.getElementById(id);
+    if ($e) $e.addEventListener(ev2, fn);
+  };
+  en('ep-btn-nueva', 'click', crearCampana);
+  en('ep-campana', 'change', elegirCampana);
+  en('ep-buscar', 'input', buscarTrabajador);
+  en('ep-btn-guardar', 'click', guardarCaptura);
+  en('ep-btn-cerrar', 'click', cerrarCaptura);
 }
 
 /** Atenciones ocupacionales solo existen en salud */
 function ocultarPestanasAjenas() {
   if (AMBITO === 'salud') return;
-  const $p = document.querySelector('.pestana[data-vista="ocupacionales"]');
-  const $v = document.getElementById('vista-ocupacionales');
-  if ($p) $p.remove();
-  if ($v) $v.remove();
+  ['ocupacionales', 'evaluacion'].forEach((v) => {
+    const $p = document.querySelector(`.pestana[data-vista="${v}"]`);
+    const $v = document.getElementById('vista-' + v);
+    if ($p) $p.remove();
+    if ($v) $v.remove();
+  });
 }
 
 async function cambiarAnio() {
