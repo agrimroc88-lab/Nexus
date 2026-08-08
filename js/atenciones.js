@@ -20,6 +20,12 @@ import { montarNavegacion } from './nav.js?v=11';
 import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=11';
 import { montarEmergencia, fijarEmpresaEmergencia, pintarPanelClinico }
   from './emergencia.js?v=11';
+import { sesionActual } from './auth.js?v=11';
+import {
+  cargarDatosOficio, llenarDestinatarios, destinatarioPorId,
+  mostrarCiePorDefecto, rangoDias, imprimirOficio
+} from './oficio-certificado.js?v=2';
+import { alCrear } from './autoria.js?v=1';
 
 /* --- Estado --- */
 const estado = {
