@@ -237,3 +237,129 @@
   font-weight: 600;
   white-space: nowrap;
 }
+
+/* ============================================
+   Oficio de justificacion · impresion
+
+   A5 vertical, 148 x 210 mm, margenes de 12,7 mm. Es la
+   configuracion exacta del documento de Word que se venia
+   usando, medida sobre el archivo.
+
+   Se imprimen DOS por hoja A4 con linea de corte al medio.
+   La plantilla anterior ponia un A5 centrado en una A4 y
+   sobraba media hoja en cada certificado; asi se gasta la
+   mitad de papel y el corte queda marcado.
+   ============================================ */
+
+.oficio-impresion { display: none; }
+
+@media print {
+  body.imprimiendo-oficio .barra-lateral,
+  body.imprimiendo-oficio .contenedor,
+  body.imprimiendo-oficio .cabecera,
+  body.imprimiendo-oficio .modal,
+  body.imprimiendo-oficio nav,
+  body.imprimiendo-oficio main { display: none !important; }
+
+  body.imprimiendo-oficio .oficio-impresion {
+    display: block !important;
+    font-family: Arial, Helvetica, sans-serif;
+    color: #000;
+    background: #fff;
+  }
+
+  /* Margen cero en la pagina: los dos A5 y la linea de corte
+     tienen que llegar hasta donde toca, y el margen real lo
+     lleva cada A5 por dentro. */
+  @page { size: A4 portrait; margin: 0; }
+
+  .of-a4 {
+    display: flex;
+    flex-direction: column;
+    width: 210mm;
+    height: 297mm;
+  }
+
+  /* Cada mitad mide exactamente 148,5 mm: la mitad de 297. */
+  .of-hoja,
+  .of-hueco {
+    box-sizing: border-box;
+    height: 148.5mm;
+    padding: 12.7mm;
+    overflow: hidden;
+  }
+
+  .of-corte {
+    height: 0;
+    border-top: 0.4pt dashed #999;
+  }
+
+  /* --- Contenido --- */
+
+  .of-hoja { font-size: 10.5pt; line-height: 1.4; }
+
+  .of-para {
+    margin: 0 0 1mm;
+    font-size: 10.5pt;
+    font-weight: bold;
+  }
+
+  .of-fecha {
+    margin: 4mm 0 5mm;
+    font-size: 10.5pt;
+    text-align: right;
+  }
+
+  .of-saludo { margin: 0 0 3mm; }
+
+  .of-parrafo {
+    margin: 0 0 3mm;
+    text-align: justify;
+  }
+
+  .of-dato {
+    margin: 0 0 2mm;
+    text-align: justify;
+  }
+
+  .of-lista {
+    margin: 0 0 3mm 6mm;
+    padding: 0;
+  }
+
+  .of-lista li { margin-bottom: 1.5mm; text-align: justify; }
+
+  .of-cierre { margin: 4mm 0 0; }
+
+  /* --- Firma ---
+
+     Espacio para la rubrica manuscrita sobre la linea. Sin
+     ese hueco, la firma se traza encima del texto. */
+  .of-firma {
+    margin-top: 13mm;
+    text-align: center;
+  }
+
+  .of-firma-linea {
+    width: 62mm;
+    height: 0;
+    margin: 0 auto 1.5mm;
+    border-top: 0.6pt solid #000;
+  }
+
+  .of-firma-nombre {
+    margin: 0;
+    font-size: 9pt;
+  }
+
+  .of-firma-cargo {
+    margin: 0;
+    font-size: 9pt;
+    font-weight: bold;
+  }
+
+  .of-firma-tel {
+    margin: 0.6mm 0 0;
+    font-size: 9pt;
+  }
+}
