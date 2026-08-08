@@ -241,15 +241,21 @@
 /* ============================================
    Oficio de justificacion · impresion
 
-   Dos oficios por hoja A4 vertical, con linea de corte al
-   medio. Al cortar transversalmente, cada mitad queda de
-   210 x 148,5 mm: A5 HORIZONTAL, que es el formato con el que
-   se archivan.
+   Dos oficios por hoja A4 APAISADA, con linea de corte
+   vertical al medio. Cada mitad queda de 148,5 x 210 mm: A5
+   VERTICAL, que es el formato del documento de Word original
+   y con el que se archivan.
 
-   Por que dos por hoja y no uno apaisado por hoja:
+   Por que la hoja va apaisada:
+   dos A5 verticales caben lado a lado en una A4 apaisada
+   (297 x 210). En una A4 vertical no cabrian dos: habria que
+   partirla a lo largo y saldrian tiras de 105 mm. Se imprime
+   apaisado y se corta por la mitad, de arriba abajo.
+
+   Por que dos por hoja y no uno solo:
    porque se gastaria el doble de papel para el mismo
    resultado. El corte ya se hacia antes; lo unico que cambia
-   es que ahora la mitad de abajo tambien se aprovecha.
+   es que ahora la otra mitad tambien se aprovecha.
    ============================================ */
 
 .oficio-impresion { display: none; }
@@ -280,33 +286,39 @@
   /* Margen de pagina en cero: los dos A5 y la linea de corte
      tienen que llegar a su sitio exacto, y el margen real lo
      lleva cada oficio por dentro. */
-  @page { size: A4 portrait; margin: 0; }
+  @page { size: A4 landscape; margin: 0; }
 
+  /* En fila: los dos A5 verticales, uno junto al otro. */
   .of-a4 {
     display: flex;
-    flex-direction: column;
-    width: 210mm;
-    height: 297mm;
+    flex-direction: row;
+    width: 297mm;
+    height: 210mm;
   }
 
-  /* Cada mitad: 210 de ancho por 148,5 de alto. */
+  /* Cada mitad: 148,5 de ancho por 210 de alto. */
   .of-hoja,
   .of-hueco {
     box-sizing: border-box;
-    width: 210mm;
-    height: 148.5mm;
-    padding: 9mm 14mm;
+    width: 148.5mm;
+    height: 210mm;
+    padding: 12.7mm;
     overflow: hidden;
   }
 
-  .of-corte { height: 0; border-top: 0.4pt dashed #999; }
+  /* Linea de corte vertical, de arriba abajo. */
+  .of-corte {
+    width: 0;
+    height: 210mm;
+    border-left: 0.4pt dashed #999;
+  }
 
   /* --- Contenido ---
 
-     En horizontal el renglon mide 182 mm: casi el doble que
-     en vertical. Cuerpo algo menor y menos interlineado, para
-     que quepa lo mismo en menos alto sin apretar la lectura. */
-  .of-hoja { font-size: 9.5pt; line-height: 1.35; }
+     En vertical el renglon mide 123 mm y sobra alto: cuerpo
+     algo mayor e interlineado mas holgado, que es como estaba
+     el documento de Word. */
+  .of-hoja { font-size: 10pt; line-height: 1.45; }
 
   /* --- Encabezado con logo --- */
 
@@ -331,37 +343,30 @@
 
   .of-unidad { font-size: 8.5pt; }
 
-  /* Destinatario a la izquierda y fecha a la derecha, en la
-     misma linea: en horizontal sobra ancho, y apilarlos
-     desperdiciaria el alto, que es lo escaso. */
-  .of-cabecera {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 10mm;
-    margin-bottom: 3.5mm;
-  }
+  /* En vertical el ancho es lo escaso, asi que la fecha baja
+     a su propia linea y se alinea a la derecha, como en el
+     documento original. */
+  .of-cabecera { margin-bottom: 4mm; }
 
   .of-para {
-    margin: 0 0 0.8mm;
-    font-size: 9.5pt;
+    margin: 0 0 1mm;
+    font-size: 10pt;
   }
 
   .of-fecha {
-    margin: 0;
-    font-size: 9.5pt;
+    margin: 3.5mm 0 0;
+    font-size: 10pt;
     text-align: right;
-    white-space: nowrap;
   }
 
   .of-saludo { margin: 0 0 2mm; }
 
   .of-parrafo {
-    margin: 0 0 2.2mm;
+    margin: 0 0 3mm;
     text-align: justify;
   }
 
-  .of-dato { margin: 0 0 1.6mm; }
+  .of-dato { margin: 0 0 2mm; }
 
   .of-lista { margin: 0 0 2.2mm 6mm; padding: 0; }
   .of-lista li { margin-bottom: 1.2mm; text-align: justify; }
@@ -373,7 +378,7 @@
      Hueco para la rubrica manuscrita sobre la linea. Sin ese
      espacio, la firma se traza encima del texto. */
   .of-firma {
-    margin-top: 9mm;
+    margin-top: 14mm;
     text-align: center;
   }
 
