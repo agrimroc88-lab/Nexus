@@ -17,6 +17,7 @@ import { protegerPagina, empresasPermitidas } from './auth.js';
 import { montarNavegacion } from './nav.js';
 import { escapar, formatearFecha } from './utils.js';
 import { mostrarAvisosCertificados } from './avisos-certificados.js';
+import { avisarInformeFarmacia } from './aviso-informe-farmacia.js?v=2';
 
 /* --- Estado --- */
 const estado = {
@@ -72,6 +73,11 @@ async function iniciar() {
 
   /* Notificación de reposos/reubicaciones por vencer (todos los roles) */
   mostrarAvisosCertificados();
+
+  /* Después de los certificados: el reposo de un trabajador es
+     más urgente que un informe pendiente, y dos avisos a la
+     vez se estorban. Este espera a que se cierre el otro. */
+  avisarInformeFarmacia(perfil);
 }
 
 function prepararAnios() {
