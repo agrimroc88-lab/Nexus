@@ -28,7 +28,7 @@
 import { supabase } from './supabase.js';
 import { escapar } from './utils.js?v=12';
 
-const VERSION = 'v3';
+const VERSION = 'v4';
 console.info('NEXUS · oficio-certificado', VERSION);
 
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -66,6 +66,11 @@ export async function cargarDatosOficio(empresaId, empresaNombre) {
   }
 
   of.config = cfg.data || {};
+}
+
+/** Los destinatarios cargados, para armar menús a medida. */
+export function destinatariosLista() {
+  return of.destinatarios;
 }
 
 export function hayDestinatarios() {
@@ -180,11 +185,9 @@ function membrete(dest, firmante, fecha) {
   return `
     ${encabezado()}
     <div class="of-cabecera">
-      <div class="of-destino">
-        <p class="of-para"><b>PARA:</b> ${escapar(dest.nombre)} — ${escapar(dest.cargo)}</p>
-        <p class="of-para"><b>DE:</b> ${escapar(firmante || '')} — UNIDAD MÉDICA</p>
-      </div>
-      <p class="of-fecha">${escapar(ciudad)},<br>${escapar(fechaLarga(fecha))}</p>
+      <p class="of-para"><b>PARA:</b> ${escapar(dest.nombre)} — ${escapar(dest.cargo)}</p>
+      <p class="of-para"><b>DE:</b> ${escapar(firmante || '')} — UNIDAD MÉDICA</p>
+      <p class="of-fecha">${escapar(ciudad)}, ${escapar(fechaLarga(fecha))}</p>
     </div>`;
 }
 

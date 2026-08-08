@@ -24,8 +24,8 @@ import { montarEmergencia, fijarEmpresaEmergencia, pintarPanelClinico }
 import { sesionActual } from './auth.js?v=11';
 import {
   cargarDatosOficio, llenarDestinatarios, destinatarioPorId,
-  mostrarCiePorDefecto, rangoDias, imprimirOficio
-} from './oficio-certificado.js?v=3';
+  mostrarCiePorDefecto, rangoDias, imprimirOficio, destinatariosLista
+} from './oficio-certificado.js?v=4';
 import { alCrear } from './autoria.js?v=1';
 
 /* --- Estado --- */
@@ -37,6 +37,8 @@ const estado = {
   morbilidad: [],
   trabajador: null,     // trabajador de la atención en curso
   diagnosticos: [],     // [{codigo, descripcion, observacion}]
+  detalle: null,        // atención abierta en el modal de detalle
+  certDetalle: null,    // su certificado, si lo tuvo
   prescripciones: [],   // [{medicamento_id, nombre, cantidad, indicacion, disponible, buscar}]
   cieDestino: null,     // índice del diagnóstico que abrió el buscador
   paciente: null,       // trabajador localizado en la pestaña Atenciones
@@ -1118,6 +1120,84 @@ async function guardarAtencion() {
   await recargar();
 }
 
+/* ============================================
+   Reimpresión del certificado
+
+   El oficio se traspapela, se moja o lo pide otra área. Se
+   rehace desde la atención que lo originó, con las mismas
+   cifras: rehacerlo a mano produciría un segundo justificativo
+   con fechas que no coinciden con el primero.
+
+   El certificado se localiza por trabajador y fecha, porque
+   la atención y el certificado no guardan un vínculo directo.
+   Es suficiente: no se emiten dos justificativos internos al
+   mismo trabajador el mismo día.
+   ============================================ */
+
+async function buscarCertificadoDe(a) {
+  estado.certDetalle = null;
+
+  const { data } = await supabase
+    .from('certificados_medicos')
+    .select('*')
+    .eq('trabajador_id', a.trabajador_id)
+    .eq('fecha_emision', a.fecha)
+    .eq('origen', 'interno')
+    .order('creado_en', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!data) return;
+
+  estado.certDetalle = data;
+  document.getElementById('btn-reimprimir-cert').hidden = false;
+}
+
+async function reimprimirCertificado() {
+  const c = estado.certDetalle;
+  const a = estado.detalle;
+  if (!c || !a) return;
+
+  /* Se pregunta a quién va, porque una reimpresión suele ser
+     para dirigirla a otra área: si se reutilizara el
+     destinatario original, habría que rehacerlo a mano de
+     todos modos. */
+  const opciones = destinatariosLista();
+  if (opciones.length === 0) {
+    alert('No hay destinatarios configurados.');
+    return;
+  }
+
+  const menu = opciones.map((d, i) => `${i + 1}. ${d.nombre} — ${d.cargo}`).join('\n');
+  const eleccion = prompt(`¿A quién va dirigido?\n\n${menu}`, '1');
+  if (eleccion === null) return;
+
+  const elegido = opciones[parseInt(eleccion, 10) - 1];
+  if (!elegido) return;
+
+  imprimirOficio({
+    clase: 'justificacion',
+    destinatario: elegido,
+    trabajador: {
+      nombre_completo: a.nombre_completo,
+      cargo: a.cargo,
+      codigo: a.codigo_trabajador
+    },
+    firmante: c.medico_emisor || '',
+    cargoFirmante: '',
+    fecha: c.fecha_emision,
+    diagnostico: c.diagnostico || '',
+    cie10: c.codigo_cie10 || '',
+    mostrarCie: mostrarCiePorDefecto(),
+    motivo: c.observacion || '',
+    reposoInicio: c.reposo_inicio,
+    reposoDias: c.reposo_dias,
+    rotacion: c.amerita_reubicacion
+      ? (rangoDias(c.rotacion_inicio, c.rotacion_dias) || c.rotacion_detalle || '')
+      : ''
+  });
+}
+
 function valorNumerico(id) {
   const v = document.getElementById(id).value;
   return v === '' ? null : parseFloat(v);
@@ -1135,6 +1215,14 @@ function alertaAtencion(texto) {
 
 async function abrirDetalle(a) {
   const $cuerpo = document.getElementById('detalle-cuerpo');
+  estado.detalle = a;
+
+  /* El botón de reimprimir se oculta y solo reaparece si esta
+     atención llegó a emitir un certificado. Dejarlo siempre
+     visible llevaría a pulsarlo y encontrarse un aviso de que
+     no hay nada que imprimir. */
+  document.getElementById('btn-reimprimir-cert').hidden = true;
+  buscarCertificadoDe(a);
   document.getElementById('detalle-titulo').textContent =
     `${formatearFecha(a.fecha)} · ${a.nombre_completo}`;
   $cuerpo.innerHTML = '<p class="pista">Cargando…</p>';
@@ -1623,6 +1711,9 @@ function conectarEventos() {
   document.getElementById('btn-guardar-atencion').addEventListener('click', guardarAtencion);
   document.getElementById('at_certificado').addEventListener('change', alternarCertificado);
   document.getElementById('at_cert_rotacion').addEventListener('change', alternarCertificado);
+
+  document.getElementById('btn-reimprimir-cert')
+    .addEventListener('click', reimprimirCertificado);
 
   ['at_reposo', 'at_cert_inicio', 'at_cert_rot_inicio', 'at_cert_rot_dias']
     .forEach((id) => document.getElementById(id)
