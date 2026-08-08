@@ -4,10 +4,16 @@
    reubicación, ausentismo y configuración.
    ============================================ */
 
-import { supabase } from './supabase.js?v=11';
-import { protegerPagina, empresasPermitidas } from './auth.js?v=11';
-import { montarNavegacion } from './nav.js?v=11';
-import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=11';
+import { supabase } from './supabase.js';
+import { protegerPagina, empresasPermitidas } from './auth.js';
+import { montarNavegacion } from './nav.js';
+import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js';
+import { sesionActual } from './auth.js';
+import {
+  cargarDatosOficio, llenarDestinatarios, destinatarioPorId,
+  mostrarCiePorDefecto, imprimirOficio
+} from './oficio-certificado.js?v=2';
+import { alCrear } from './autoria.js?v=1';
 
 /* Roles que pueden registrar. El técnico solo lee. */
 const ROLES_ESCRITURA = ['admin', 'medico_ocupacional', 'enfermeria', 'psicologo', 'trabajo_social'];
@@ -122,6 +128,15 @@ async function cargarConfig() {
     aviso_dias_1: 7, aviso_dias_2: 3,
     ausentismo_ventana: 15, ausentismo_certif: 2, ausentismo_dias: 3
   };
+
+  /* Los destinatarios del oficio se leen aquí, junto con la
+     configuración: son del mismo bloque de ajustes y así no
+     hay una segunda consulta al abrir cada certificado. */
+  const $e = document.getElementById('empresa-activa');
+  const nombreEmpresa = $e
+    ? ($e.options[$e.selectedIndex] || {}).textContent || '' : '';
+  await cargarDatosOficio(estado.empresaId, nombreEmpresa);
+  llenarDestinatarios('of_destinatario');
   pintarConfig();
 }
 
@@ -701,6 +716,102 @@ async function eliminarCertificado() {
 }
 
 /* ============================================
+   Oficio a partir de un certificado registrado
+
+   Sirve para reimprimir, o para dirigir a otra persona un
+   oficio que ya se emitió. El que nace en la consulta se
+   genera desde atenciones.js; aquí solo se rehace.
+   ============================================ */
+
+function abrirOficio() {
+  /* La vista ya trae el trabajador dentro de la fila del
+     certificado, así que no hace falta una consulta más. */
+  const c = estado.certificados.find((x) => x.id === estado.verId);
+  if (!c) return;
+
+  document.getElementById('modal-ver-cert').hidden = true;
+
+  const sinReposo = !c.reposo_dias || c.reposo_dias === 0;
+  document.getElementById('of_clase').value =
+    (sinReposo && c.amerita_reubicacion) ? 'restricciones' : 'justificacion';
+
+  document.getElementById('of_motivo').value = c.observacion || '';
+  document.getElementById('of_cie').checked = mostrarCiePorDefecto();
+
+  alternarCamposOficio();
+  document.getElementById('alerta-oficio').hidden = true;
+  document.getElementById('modal-oficio').hidden = false;
+}
+
+function alternarCamposOficio() {
+  const clase = document.getElementById('of_clase').value;
+  document.getElementById('of-bloque-restricciones').hidden = clase !== 'restricciones';
+  document.getElementById('of-bloque-motivo').hidden = clase !== 'justificacion';
+}
+
+async function emitirOficio() {
+  const c = estado.certificados.find((x) => x.id === estado.verId);
+  if (!c) return;
+
+  const dest = destinatarioPorId(document.getElementById('of_destinatario').value);
+  if (!dest) {
+    const $a = document.getElementById('alerta-oficio');
+    $a.textContent = 'Elija un destinatario';
+    $a.hidden = false;
+    return;
+  }
+
+  const clase = document.getElementById('of_clase').value;
+  const perfil = sesionActual();
+  const firmante = c.medico_emisor
+    || (perfil ? [perfil.titulo, perfil.nombres, perfil.apellidos]
+          .filter(Boolean).join(' ').trim() : '');
+
+  const rotacion = c.amerita_reubicacion
+    ? (c.rotacion_detalle || '') : '';
+
+  const ok = imprimirOficio({
+    clase,
+    destinatario: dest,
+    trabajador: {
+      nombre_completo: c.nombre_completo,
+      cargo: c.cargo,
+      codigo: c.codigo_trabajador
+    },
+    firmante,
+    cargoFirmante: perfil?.cargo || '',
+    fecha: c.fecha_emision,
+    diagnostico: c.diagnostico || '',
+    cie10: c.codigo_cie10 || '',
+    mostrarCie: document.getElementById('of_cie').checked,
+    motivo: document.getElementById('of_motivo').value.trim(),
+    reposoInicio: c.reposo_inicio,
+    reposoDias: c.reposo_dias,
+    rotacion,
+    antecedente: document.getElementById('of_antecedente').value.trim(),
+    valoracion: document.getElementById('of_valoracion').value.trim(),
+    restricciones: document.getElementById('of_restricciones').value
+      .split(/\n+/).map((x) => x.trim()).filter(Boolean)
+  });
+
+  if (!ok) return;
+
+  document.getElementById('modal-oficio').hidden = true;
+
+  /* Se anota qué salió y para quién: es lo que se pregunta
+     cuando alguien dice que el justificativo no le llegó. */
+  const { error } = await supabase.from('oficios_emitidos').insert(alCrear({
+    certificado_id: c.id,
+    destinatario: dest.nombre,
+    destinatario_cargo: dest.cargo,
+    clase,
+    emitido_por: firmante || 'No identificado'
+  }));
+
+  if (error) console.warn('NEXUS · oficios: no se registró:', error.message);
+}
+
+/* ============================================
    Ver / imprimir
    ============================================ */
 
@@ -969,6 +1080,10 @@ function conectarEventos() {
   document.getElementById('ce_rot_inicio').addEventListener('change', calcularRotFin);
 
   document.getElementById('btn-imprimir-cert').addEventListener('click', imprimirCertificado);
+
+  document.getElementById('btn-oficio').addEventListener('click', abrirOficio);
+  document.getElementById('of_clase').addEventListener('change', alternarCamposOficio);
+  document.getElementById('btn-emitir-oficio').addEventListener('click', emitirOficio);
   document.getElementById('btn-guardar-config').addEventListener('click', guardarConfig);
 
   document.addEventListener('keydown', (e) => {

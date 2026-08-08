@@ -395,6 +395,17 @@ function abrirAtencion() {
   document.getElementById('at_motivo').value = '';
   document.getElementById('at_observacion').value = '';
   document.getElementById('at_reposo').value = '0';
+
+  /* El certificado empieza desmarcado en cada atención: es la
+     excepción, no la norma, y dejarlo marcado de la consulta
+     anterior generaría justificativos que nadie pidió. */
+  document.getElementById('at_certificado').checked = false;
+  document.getElementById('at_cert_rotacion').checked = false;
+  document.getElementById('at_cert_motivo').value = '';
+  document.getElementById('at_cert_rot_detalle').value = '';
+  document.getElementById('at_cert_rot_dias').value = '0';
+  document.getElementById('at_cert_cie').checked = mostrarCiePorDefecto();
+  alternarCertificado();
   document.getElementById('at_alergias').value = '';
   const $pc = document.getElementById('panel-clinico');
   if ($pc) { $pc.hidden = true; $pc.innerHTML = ''; }
@@ -414,14 +425,14 @@ function abrirAtencion() {
 
 function ocultarBloques() {
   ['ficha', 'antecedente', 'bloque-motivo', 'bloque-vitales', 'bloque-diagnosticos',
-   'bloque-medicamentos', 'bloque-cierre'].forEach((id) => {
+   'bloque-medicamentos', 'bloque-cierre', 'bloque-certificado'].forEach((id) => {
     document.getElementById(id).hidden = true;
   });
 }
 
 function mostrarBloques() {
   ['ficha', 'bloque-motivo', 'bloque-vitales', 'bloque-diagnosticos',
-   'bloque-medicamentos', 'bloque-cierre'].forEach((id) => {
+   'bloque-medicamentos', 'bloque-cierre', 'bloque-certificado'].forEach((id) => {
     document.getElementById(id).hidden = false;
   });
 }
@@ -889,6 +900,122 @@ function calcularImc() {
    Guardar
    ============================================ */
 
+/* ============================================
+   Certificado de justificación
+
+   Nace aquí, en la consulta, y no en el módulo de
+   certificados: el diagnóstico, los días de reposo y el
+   trabajador ya están en pantalla. Registrarlo aparte
+   obligaría a teclear dos veces lo mismo, y donde se teclea
+   dos veces aparecen dos versiones distintas.
+
+   Queda guardado como certificado interno, así que aparece
+   solo en el listado de certificados y en sus estadísticas
+   sin ningún paso más.
+   ============================================ */
+
+function alternarCertificado() {
+  const activo = document.getElementById('at_certificado').checked;
+  document.getElementById('cert-detalle').hidden = !activo;
+
+  const rota = document.getElementById('at_cert_rotacion').checked;
+  document.getElementById('cert-rotacion').hidden = !rota;
+
+  /* El reposo suele empezar el día de la atención; se propone
+     esa fecha para no teclearla, y se puede cambiar cuando el
+     trabajador viene a justificar días ya transcurridos. */
+  const $ini = document.getElementById('at_cert_inicio');
+  if (activo && !$ini.value) {
+    $ini.value = document.getElementById('at_fecha').value || HOY();
+  }
+}
+
+async function emitirCertificadoInterno(diagnosticos) {
+  const t = estado.trabajador;
+  if (!t) return;
+
+  /* El primero de la lista. Con varios diagnósticos, imprimir
+     todos llenaría el oficio y expondría más de lo que hace
+     falta para justificar una inasistencia. */
+  const dx = diagnosticos[0];
+  if (!dx) {
+    alert('No se emitió el certificado: la atención no tiene diagnóstico.');
+    return;
+  }
+
+  const dest = destinatarioPorId(document.getElementById('at_cert_dest').value);
+  if (!dest) {
+    alert('No se emitió el certificado: falta elegir a quién va dirigido.\n\n'
+        + 'La atención sí quedó registrada.');
+    return;
+  }
+
+  const perfil = sesionActual();
+  const firmante = perfil
+    ? [perfil.titulo, perfil.nombres, perfil.apellidos].filter(Boolean).join(' ').trim()
+    : '';
+
+  const fecha = document.getElementById('at_fecha').value || HOY();
+  const dias = parseInt(document.getElementById('at_reposo').value, 10) || 0;
+  const inicio = document.getElementById('at_cert_inicio').value || fecha;
+
+  const rota = document.getElementById('at_cert_rotacion').checked;
+  const rotDias = rota
+    ? (parseInt(document.getElementById('at_cert_rot_dias').value, 10) || 0) : 0;
+  const rotInicio = document.getElementById('at_cert_rot_inicio').value || null;
+  const rotDetalle = document.getElementById('at_cert_rot_detalle').value.trim() || null;
+
+  /* --- Se registra --- */
+  const { error } = await supabase.from('certificados_medicos').insert(alCrear({
+    empresa_id: estado.empresaId,
+    trabajador_id: t.id,
+    origen: 'interno',
+    beneficiario: 'trabajador',
+    fecha_emision: fecha,
+    codigo_cie10: dx.codigo || null,
+    diagnostico: dx.descripcion || dx.observacion || null,
+    reposo_inicio: dias > 0 ? inicio : null,
+    reposo_dias: dias,
+    amerita_reubicacion: rota,
+    rotacion_inicio: rota && rotDias > 0 ? (rotInicio || inicio) : null,
+    rotacion_dias: rotDias,
+    rotacion_detalle: rotDetalle,
+    medico_emisor: firmante || null,
+    observacion: document.getElementById('at_cert_motivo').value.trim() || null
+  }));
+
+  if (error) {
+    alert('La atención quedó registrada, pero no se pudo crear el certificado:\n\n'
+        + error.message);
+    return;
+  }
+
+  /* --- Se imprime --- */
+  const rotacion = rota
+    ? (rangoDias(rotInicio || inicio, rotDias) || rotDetalle || '')
+    : '';
+
+  imprimirOficio({
+    clase: 'justificacion',
+    destinatario: dest,
+    trabajador: {
+      nombre_completo: t.nombre_completo,
+      cargo: t.cargo,
+      codigo: t.codigo
+    },
+    firmante,
+    cargoFirmante: perfil?.cargo || '',
+    fecha,
+    diagnostico: dx.descripcion || dx.observacion || '',
+    cie10: dx.codigo || '',
+    mostrarCie: document.getElementById('at_cert_cie').checked,
+    motivo: document.getElementById('at_cert_motivo').value.trim(),
+    reposoInicio: inicio,
+    reposoDias: dias,
+    rotacion
+  });
+}
+
 async function guardarAtencion() {
   if (!estado.trabajador) return alertaAtencion('Identifique al trabajador');
 
@@ -942,6 +1069,14 @@ async function guardarAtencion() {
       .join('\n');
     alert('Atención registrada.\n\nSin existencia suficiente para entregar:\n\n' +
           detalle + '\n\nQuedaron registrados como no entregados.');
+  }
+
+  /* El certificado se crea DESPUÉS de que la atención quedó
+     registrada. Si se creara antes y el registro fallara,
+     habría un justificativo firmado de una consulta que no
+     existe. */
+  if (document.getElementById('at_certificado').checked) {
+    await emitirCertificadoInterno(diagnosticos);
   }
 
   document.getElementById('modal-atencion').hidden = true;
@@ -1387,6 +1522,12 @@ async function seleccionarEmpresa() {
   }
 
   sessionStorage.setItem('nexus_empresa', estado.empresaId);
+
+  /* Destinatarios y membrete del oficio: se leen una vez al
+     elegir la empresa, no en cada certificado. */
+  cargarDatosOficio(estado.empresaId,
+    ($empresa.options[$empresa.selectedIndex] || {}).textContent || '')
+    .then(() => llenarDestinatarios('at_cert_dest'));
   $area.hidden = false;
   $avisoIni.hidden = true;
 
@@ -1445,6 +1586,8 @@ function conectarEventos() {
 
   /* --- Formulario de atención --- */
   document.getElementById('btn-guardar-atencion').addEventListener('click', guardarAtencion);
+  document.getElementById('at_certificado').addEventListener('change', alternarCertificado);
+  document.getElementById('at_cert_rotacion').addEventListener('change', alternarCertificado);
   document.getElementById('at_codigo').addEventListener('input', buscarTrabajador);
   document.getElementById('btn-add-diagnostico').addEventListener('click', agregarDiagnostico);
   document.getElementById('btn-add-medicamento').addEventListener('click', agregarMedicamento);
