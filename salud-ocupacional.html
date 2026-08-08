@@ -53,6 +53,7 @@
   <link rel="stylesheet" href="css/grupos.css">
   <link rel="stylesheet" href="css/botiquines.css?v=12">
   <link rel="stylesheet" href="css/instalaciones.css?v=9">
+  <link rel="stylesheet" href="css/evaluacion.css?v=1">
 </head>
 <body class="app" data-ambito="salud" data-modulo="salud_ocup">
 
@@ -92,6 +93,7 @@
           <button class="pestana" data-vista="botiquines" type="button">Botiquines</button>
           <button class="pestana" data-vista="instalaciones" type="button">Instalaciones</button>
           <button class="pestana" data-vista="ocupacionales" type="button">Atenciones ocupacionales</button>
+          <button class="pestana" data-vista="evaluacion" type="button">Evaluación periódica</button>
         </nav>
 
         <!-- ============ Vista: Cumplimiento ============ -->
@@ -651,6 +653,93 @@
       <p class="aviso-inicial" id="aviso-inicial">
         Seleccione una empresa para gestionar su cumplimiento.
       </p>
+
+
+      <!-- ===== Vista: Evaluación médica periódica ===== -->
+      <section class="vista" id="vista-evaluacion" hidden>
+
+        <section class="panel ep-controles">
+          <div class="campo">
+            <label class="etiqueta" for="ep-campana">Campaña</label>
+            <select class="entrada" id="ep-campana"></select>
+          </div>
+          <button class="boton-secundario" id="ep-btn-nueva" type="button">
+            + Nueva campaña
+          </button>
+          <span class="ayuda" id="ep-avance">—</span>
+        </section>
+
+        <p class="alerta" id="ep-alerta" role="alert" hidden></p>
+
+        <!-- Captura por trabajador -->
+        <section class="panel">
+          <div class="campo campo-ancho ep-buscador">
+            <label class="etiqueta" for="ep-buscar">Capturar resultados</label>
+            <input class="entrada" id="ep-buscar" type="text" autocomplete="off"
+                   placeholder="Código, cédula o nombre del trabajador…">
+            <div class="ep-sugerencias" id="ep-sugerencias" hidden></div>
+            <span class="ayuda">
+              Se busca por código porque es lo que trae la hoja de laboratorio.
+              Al elegirlo se capturan todos sus exámenes de una vez.
+            </span>
+          </div>
+
+          <div id="ep-captura" hidden>
+            <div class="ep-cap-cabecera">
+              <div>
+                <h3 class="est-titulo" id="ep-cap-nombre">—</h3>
+                <span class="ayuda" id="ep-cap-datos"></span>
+              </div>
+              <div class="ep-cap-acciones">
+                <button class="boton-secundario" id="ep-btn-cerrar" type="button">
+                  Cancelar
+                </button>
+                <button class="boton-primario" id="ep-btn-guardar" type="button">
+                  Guardar resultados
+                </button>
+              </div>
+            </div>
+
+            <p class="ep-imc" id="ep-imc-aviso" hidden></p>
+
+            <div class="tabla-envoltura">
+              <table class="tabla">
+                <thead>
+                  <tr>
+                    <th>Examen</th>
+                    <th class="celda-centro">Resultado</th>
+                    <th>Condición encontrada</th>
+                    <th>CIE-10</th>
+                  </tr>
+                </thead>
+                <tbody id="ep-cap-cuerpo"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- Resumen -->
+        <section class="panel">
+          <h3 class="est-titulo" style="padding:0.5rem 1rem 0;">
+            Resumen de la campaña
+          </h3>
+          <div class="tabla-envoltura">
+            <table class="tabla">
+              <thead>
+                <tr>
+                  <th>Examen</th>
+                  <th class="celda-centro">Realizados</th>
+                  <th class="celda-centro">Normales</th>
+                  <th class="celda-centro">Anormales</th>
+                </tr>
+              </thead>
+              <tbody id="ep-cuerpo-resumen"></tbody>
+            </table>
+          </div>
+          <p class="vacio" id="ep-vacio" hidden></p>
+        </section>
+
+      </section>
 
     </main>
   </div>
@@ -2042,6 +2131,6 @@
   <!-- Zona de impresión de la hoja de recorrido -->
   <div class="ins-impresion" id="ins-impresion"></div>
 
-  <script type="module" src="js/anexo1.js?v=21"></script>
+  <script type="module" src="js/anexo1.js?v=22"></script>
 </body>
 </html>
