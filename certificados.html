@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="css/empresas.css">
   <link rel="stylesheet" href="css/trabajadores.css">
   <link rel="stylesheet" href="css/atenciones.css">
-  <link rel="stylesheet" href="css/certificados.css">
+  <link rel="stylesheet" href="css/certificados.css?v=12">
   <style>
     /* Desplegable de sugerencias CIE-10: visible y por encima de todo */
     #ce_cie { position: relative; }
@@ -526,6 +526,7 @@
       <div class="modal-cuerpo" id="verc-cuerpo"></div>
       <footer class="modal-pie">
         <button class="boton-secundario" data-cierra="modal-ver-cert" type="button">Cerrar</button>
+        <button class="boton-secundario" id="btn-oficio" type="button">Emitir oficio</button>
         <button class="boton-primario" id="btn-imprimir-cert" type="button">Imprimir</button>
       </footer>
     </div>
@@ -533,6 +534,96 @@
 
   <div id="zona-impresion" class="zona-impresion" aria-hidden="true"></div>
 
-  <script type="module" src="js/certificados.js?v=11"></script>
+  <script type="module" src="js/certificados.js?v=12"></script>
+  <!-- ============ Modal: Emitir oficio ============ -->
+  <div class="modal" id="modal-oficio" hidden>
+    <div class="modal-caja modal-ancho" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <div class="modal-encabezado">
+          <h2 class="modal-titulo">Emitir oficio</h2>
+          <span class="modal-sub">A5 vertical · dos por hoja A4 con línea de corte</span>
+        </div>
+        <button class="modal-cerrar" data-cierra="modal-oficio" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+
+        <div class="rejilla">
+          <div class="campo">
+            <label class="etiqueta" for="of_destinatario">Dirigido a <span class="obligatorio">*</span></label>
+            <select class="entrada" id="of_destinatario"></select>
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="of_clase">Modelo</label>
+            <select class="entrada" id="of_clase">
+              <option value="justificacion">Justificación de inasistencia</option>
+              <option value="restricciones">Restricciones laborales</option>
+            </select>
+          </div>
+        </div>
+
+        <label class="casilla">
+          <input type="checkbox" id="of_cie" checked>
+          <span>Incluir el código CIE-10 junto al diagnóstico</span>
+        </label>
+        <p class="ayuda">
+          El diagnóstico sale del certificado registrado. Recuerde que este oficio
+          va dirigido a personal no sanitario.
+        </p>
+
+        <!-- Justificación -->
+        <div id="of-bloque-motivo">
+          <div class="campo">
+            <label class="etiqueta" for="of_motivo">Motivo de la inasistencia</label>
+            <textarea class="entrada area" id="of_motivo" rows="3"
+                      placeholder="el mismo que se encuentra en proceso de recuperación, por accidente de moto."></textarea>
+            <span class="ayuda">
+              Completa la frase «…justifico la inasistencia del trabajador mencionado, ___».
+              Si se deja vacío se usa el texto estándar.
+            </span>
+          </div>
+        </div>
+
+        <!-- Restricciones -->
+        <div id="of-bloque-restricciones" hidden>
+          <div class="campo">
+            <label class="etiqueta" for="of_antecedente">Antecedente</label>
+            <input class="entrada" id="of_antecedente" type="text"
+                   placeholder="antecedentes de artrosis de rodilla y discopatía lumbar">
+            <span class="ayuda">Completa «…presenta ___». Si se deja vacío se usa el diagnóstico.</span>
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="of_valoracion">Valoración del especialista</label>
+            <textarea class="entrada area" id="of_valoracion" rows="3"
+                      placeholder="De acuerdo con la valoración realizada por el especialista en Traumatología, se recomienda…"></textarea>
+          </div>
+
+          <div class="campo">
+            <label class="etiqueta" for="of_restricciones">Restricciones</label>
+            <textarea class="entrada area" id="of_restricciones" rows="5"
+                      placeholder="Una por línea. Se imprimen como lista."></textarea>
+            <span class="ayuda">Una restricción por línea.</span>
+          </div>
+        </div>
+
+        <p class="alerta" id="alerta-oficio" role="alert" hidden></p>
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" data-cierra="modal-oficio" type="button">Cancelar</button>
+        <button class="boton-primario" id="btn-emitir-oficio" type="button">
+          Imprimir oficio
+        </button>
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- Zona de impresión del oficio. Fuera de <main>: al
+       imprimir se oculta todo lo demás. -->
+  <div class="oficio-impresion" id="oficio-impresion"></div>
+
 </body>
 </html>
