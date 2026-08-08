@@ -25,7 +25,7 @@ import { sesionActual } from './auth.js?v=11';
 import {
   cargarDatosOficio, llenarDestinatarios, destinatarioPorId,
   mostrarCiePorDefecto, rangoDias, imprimirOficio
-} from './oficio-certificado.js?v=2';
+} from './oficio-certificado.js?v=3';
 import { alCrear } from './autoria.js?v=1';
 
 /* --- Estado --- */

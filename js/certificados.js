@@ -13,7 +13,7 @@ import { sesionActual } from './auth.js';
 import {
   cargarDatosOficio, llenarDestinatarios, destinatarioPorId,
   mostrarCiePorDefecto, imprimirOficio
-} from './oficio-certificado.js?v=2';
+} from './oficio-certificado.js?v=3';
 import { alCrear } from './autoria.js?v=1';
 
 /* Roles que pueden registrar. El técnico solo lee. */

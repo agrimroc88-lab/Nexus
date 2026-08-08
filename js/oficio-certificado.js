@@ -26,9 +26,9 @@
    ============================================ */
 
 import { supabase } from './supabase.js';
-import { escapar } from './utils.js';
+import { escapar } from './utils.js?v=12';
 
-const VERSION = 'v2';
+const VERSION = 'v3';
 console.info('NEXUS · oficio-certificado', VERSION);
 
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -156,12 +156,36 @@ export function rangoDias(inicio, dias) {
    El documento
    ============================================ */
 
+/* Encabezado con el logo.
+
+   En el documento de Word vivía en la cabecera de página, que
+   es una parte del archivo que no se lee al extraer el
+   cuerpo; por eso faltaba. Va dentro de cada oficio y no como
+   cabecera de la hoja A4, porque en la hoja caben dos y cada
+   uno se corta por separado: una cabecera de página saldría
+   una sola vez, en el de arriba. */
+function encabezado() {
+  return `
+    <header class="of-membrete">
+      <img src="logo.png" class="of-logo" alt="">
+      <div class="of-membrete-texto">
+        <span class="of-empresa">${escapar(of.empresaNombre || 'Empresa')}</span>
+        <span class="of-unidad">Unidad de Seguridad y Salud Ocupacional</span>
+      </div>
+    </header>`;
+}
+
 function membrete(dest, firmante, fecha) {
   const ciudad = of.config.oficio_ciudad || 'San Antonio';
   return `
-    <p class="of-para"><b>PARA:</b> ${escapar(dest.nombre)} — ${escapar(dest.cargo)}</p>
-    <p class="of-para"><b>DE:</b> ${escapar(firmante || '')} — UNIDAD MÉDICA</p>
-    <p class="of-fecha">${escapar(ciudad)}, ${escapar(fechaLarga(fecha))}</p>`;
+    ${encabezado()}
+    <div class="of-cabecera">
+      <div class="of-destino">
+        <p class="of-para"><b>PARA:</b> ${escapar(dest.nombre)} — ${escapar(dest.cargo)}</p>
+        <p class="of-para"><b>DE:</b> ${escapar(firmante || '')} — UNIDAD MÉDICA</p>
+      </div>
+      <p class="of-fecha">${escapar(ciudad)},<br>${escapar(fechaLarga(fecha))}</p>
+    </div>`;
 }
 
 function pie(firmante, cargoFirmante) {
