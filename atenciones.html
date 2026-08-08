@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="css/trabajadores.css">
   <link rel="stylesheet" href="css/farmacia.css">
   <link rel="stylesheet" href="css/certificados.css?v=12">
-  <link rel="stylesheet" href="css/atenciones.css?v=12">
+  <link rel="stylesheet" href="css/atenciones.css?v=13">
   <link rel="stylesheet" href="css/emergencia.css">
 </head>
 <body class="app">
@@ -476,6 +476,8 @@
               </div>
             </div>
 
+            <p class="cert-fechas" id="cert-fechas-reposo" hidden></p>
+
             <div class="campo">
               <label class="etiqueta" for="at_cert_motivo">Motivo de la inasistencia</label>
               <textarea class="entrada area" id="at_cert_motivo" rows="2"
@@ -509,6 +511,8 @@
                        placeholder="Actividades livianas, sin levantamiento de carga">
               </div>
             </div>
+
+            <p class="cert-fechas" id="cert-fechas-rotacion" hidden></p>
 
             <label class="casilla">
               <input type="checkbox" id="at_cert_cie" checked>
@@ -758,7 +762,7 @@
   <!-- Zona de impresión de la ficha de emergencia -->
   <div class="em-impresion" id="em-impresion"></div>
 
-  <script type="module" src="js/atenciones.js?v=14"></script>
+  <script type="module" src="js/atenciones.js?v=15"></script>
   <!-- Zona de impresión del oficio. Fuera de <main>: al
        imprimir se oculta todo lo demás. -->
   <div class="oficio-impresion" id="oficio-impresion"></div>
