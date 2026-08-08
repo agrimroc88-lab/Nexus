@@ -978,3 +978,21 @@
   .filtro-ancho { min-width: 0; }
   .filtro-resumen { flex-direction: column; align-items: flex-start; }
 }
+
+/* Fecha de fin y de reintegro del reposo.
+
+   Contar dias a mano es donde aparecen los errores que
+   despues discute el jefe de area: si empieza el 14 y son 2
+   dias, termina el 15 y el reintegro es el 16. Se calcula
+   mientras se escribe, para verlo antes de imprimir y no
+   despues de firmado. */
+.cert-fechas {
+  padding: 0.55rem 0.75rem;
+  margin: 0.5rem 0 0.9rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--color-acento);
+  background: var(--color-acento-suave);
+  border-left: 3px solid var(--color-acento);
+  border-radius: var(--radio);
+}
