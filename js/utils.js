@@ -139,9 +139,30 @@ export function obligacionSst(n) {
    Formato
    ============================================ */
 
+/**
+ * Fecha ISO en formato ecuatoriano: 10/08/2026.
+ *
+ * El «T00:00» del final no es decorativo, es la corrección de
+ * un error que restaba un día a TODAS las fechas del sistema.
+ *
+ * `new Date('2026-08-10')` interpreta la cadena como
+ * medianoche en horario UTC. Al mostrarla, el navegador la
+ * pasa a la hora de Ecuador, cinco horas atrás: las 19:00 del
+ * día 9. Un accidente registrado hoy aparecía como de ayer.
+ *
+ * Con «T00:00» la cadena se interpreta en la hora local y el
+ * día se conserva. Los datos guardados siempre estuvieron
+ * bien; lo que fallaba era mostrarlos.
+ *
+ * Solo para fechas sin hora (columnas DATE). Si algún día se
+ * formatea una marca de tiempo completa, no debe pasar por
+ * aquí.
+ */
 export function formatearFecha(iso) {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('es-EC', {
+
+  const soloFecha = String(iso).slice(0, 10);
+  return new Date(soloFecha + 'T00:00').toLocaleDateString('es-EC', {
     day: '2-digit', month: '2-digit', year: 'numeric'
   });
 }
