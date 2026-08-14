@@ -231,8 +231,15 @@
 }
 
 .renglon-medicamento .entrada-buscar-med {
-  grid-column: 1 / -1;
   font-size: 0.8rem;
+}
+
+/* El buscador de medicamentos vive dentro de una rejilla, no
+   de un flex como el de pacientes: necesita su propia regla
+   de ancho completo, aunque comparta el resto del estilo
+   (posición relativa para anclar el panel de sugerencias). */
+.renglon-medicamento .campo-medicamento {
+  grid-column: 1 / -1;
 }
 
 .entrada-mini {
