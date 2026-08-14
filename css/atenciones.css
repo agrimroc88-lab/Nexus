@@ -386,6 +386,35 @@
   color: var(--color-texto-tenue);
 }
 
+/* --- Buscador CIE-10 inline (sin modal) --- */
+
+.campo-cie { position: relative; }
+
+.enlace-inline {
+  padding: 0;
+  margin-top: 0.4rem;
+  font-family: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--color-acento);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.enlace-inline:hover { opacity: 0.85; }
+
+.agregar-cie-inline {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-top: 1px solid var(--color-borde);
+}
+
+.agregar-cie-inline .boton-primario { align-self: flex-start; }
+
 /* --- Alta de código CIE --- */
 
 .agregar-cie {
