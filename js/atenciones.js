@@ -1075,7 +1075,14 @@ function pintarConsumos() {
           .map((x) => ({ tipo: 'insumo', id: x.id, etiqueta: etiquetaInsumo(x), stock: x.stock_disponible }))
       : [];
 
-    const candidatos = [...candidatosMed, ...candidatosIns].slice(0, 10);
+    /* Se recorta cada tipo POR SEPARADO antes de juntarlos.
+       Si se juntara todo primero y se recortara después, una
+       búsqueda como «inyec» —que también coincide con la forma
+       "Inyectable" de muchos medicamentos— llenaría las diez
+       posiciones solo con medicamentos, y el insumo
+       "Inyectadoras" nunca llegaría a aparecer. Reservando un
+       cupo fijo para cada tipo, ninguno tapa al otro. */
+    const candidatos = [...candidatosMed.slice(0, 6), ...candidatosIns.slice(0, 6)];
 
     const sugerenciasHtml = candidatos.length > 0
       ? candidatos.map((c) => {
