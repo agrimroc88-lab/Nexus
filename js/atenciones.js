@@ -783,11 +783,13 @@ const buscarCieInline = retrasar(async (indice, texto) => {
     d.resultados = [];
     d.buscando = false;
     pintarDiagnosticos();
+    enfocarBuscadorCie(indice);
     return;
   }
 
   d.buscando = true;
   pintarDiagnosticos();
+  enfocarBuscadorCie(indice);
 
   const { data, error } = await supabase
     .from('cie10')
@@ -806,7 +808,21 @@ const buscarCieInline = retrasar(async (indice, texto) => {
   d.buscando = false;
   d.resultados = error ? [] : (data || []);
   pintarDiagnosticos();
+  enfocarBuscadorCie(indice);
 }, 250);
+
+/* El campo se recrea entero en cada pintarDiagnosticos(), así
+   que el navegador no conserva el foco por sí solo. Como esta
+   función se llama después de una espera (el debounce y la
+   consulta a la base), nadie sigue escribiendo en ese momento:
+   el cursor va al final del texto, que es donde estaba. */
+function enfocarBuscadorCie(indice) {
+  const $campo = document.querySelector(`[data-buscar-cie="${indice}"]`);
+  if (!$campo) return;
+  $campo.focus();
+  const fin = $campo.value.length;
+  $campo.setSelectionRange(fin, fin);
+}
 
 async function guardarCieInline(indice) {
   const d = estado.diagnosticos[indice];
@@ -1081,7 +1097,7 @@ function pintarConsumos() {
        Pedirlo igual solo confundiría —por eso no aparece en
        absoluto cuando la fila es un insumo. */
     const campoIndicacion = p.tipo === 'insumo' ? '' : `
-        <input class="entrada entrada-mini" type="text" placeholder="Indicación · posología"
+        <input class="entrada campo-indicacion" type="text" placeholder="Indicación · posología"
                value="${escapar(p.indicacion)}" data-ind="${i}">`;
 
     fila.innerHTML = `
