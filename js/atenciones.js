@@ -880,8 +880,16 @@ function pintarMedicamentos() {
 
     inp.addEventListener('focus', (e) => {
       const n = parseInt(e.target.dataset.buscar, 10);
-      if (!estado.prescripciones[n].buscar) return;
-      estado.prescripciones[n].abierto = true;
+      const p = estado.prescripciones[n];
+      /* Si ya está abierto —por ejemplo, porque el propio
+         evento "input" lo acaba de abrir y enfocar— no hay
+         que repintar otra vez: eso creaba un campo nuevo a
+         mitad de la tecla y el cursor se perdía, mezclando
+         el orden de las letras. Solo se repinta al refocar
+         un campo que ya tenía texto pero el panel estaba
+         cerrado. */
+      if (!p || !p.buscar || p.abierto) return;
+      p.abierto = true;
       pintarMedicamentos();
       const $nuevo = document.querySelector(`[data-buscar="${n}"]`);
       if ($nuevo) $nuevo.focus();
