@@ -109,6 +109,14 @@ function pintarTextosPorDefecto() {
   poner('inat-normativa', TEXTOS.normativa);
   poner('inat-metodologia', TEXTOS.metodologia);
   poner('inat-conclusion', TEXTOS.conclusion);
+
+  /* Punto de partida desde la sesión, pero el campo queda
+     libre para escribir el nombre y cargo tal como deben
+     salir firmados —no siempre coincide con lo que hay
+     guardado en el usuario del sistema. */
+  const { quien, cargo } = sesionParaFirma();
+  poner('inat-firma-nombre', quien || '');
+  poner('inat-firma-cargo', cargo || '');
 }
 
 /** Muestra el campo de mes o el de trimestre según el tipo elegido. */
@@ -508,7 +516,7 @@ function construirDocumento(datos, textos, quien, cargo) {
       <h2 class="if-seccion">${numeroSiguiente + 2}. Conclusión</h2>
       ${parrafos(t.conclusion)}
 
-      <div class="if-firmas">
+      <div class="if-firmas" data-firmas>
         <div class="if-firma">
           <div class="if-firma-linea"></div>
           <p class="if-firma-rotulo">Elaborado por</p>
@@ -519,11 +527,25 @@ function construirDocumento(datos, textos, quien, cargo) {
     </section>`;
 }
 
-function datosDeSesionQuien() {
+/* Solo para el prellenado inicial del formulario. Una vez que
+   la persona edita el campo, esta función ya no se vuelve a
+   consultar: pintarTextosPorDefecto() no sobrescribe lo que
+   ya tiene contenido. */
+function sesionParaFirma() {
   const p = sesionActual();
   if (!p) return { quien: null, cargo: null };
   const quien = [p.titulo, p.nombres, p.apellidos].filter(Boolean).join(' ').trim();
   return { quien: quien || null, cargo: p.cargo || null };
+}
+
+/* Lo que de verdad se imprime y se guarda: siempre lo que hay
+   escrito en el formulario, nunca la sesión directamente —el
+   nombre y cargo de firma no siempre coinciden con lo que
+   quedó guardado en el usuario del sistema. */
+function datosDeFirma() {
+  const quien = document.getElementById('inat-firma-nombre').value.trim();
+  const cargo = document.getElementById('inat-firma-cargo').value.trim();
+  return { quien: quien || null, cargo: cargo || null };
 }
 
 function textosDesdeFormulario() {
@@ -544,7 +566,7 @@ export async function descargarInformeAtenciones() {
   const $z = document.getElementById('inat-impresion');
   if (!$z) return avisar('Falta actualizar la página para poder imprimir.');
 
-  const { quien, cargo } = datosDeSesionQuien();
+  const { quien, cargo } = datosDeFirma();
   $z.innerHTML = construirDocumento(inf.ultimo, textosDesdeFormulario(), quien, cargo);
 
   avisar('En el diálogo de impresión: active «Gráficos de fondo» para que salgan '
@@ -561,7 +583,7 @@ export async function descargarInformeAtenciones() {
 export async function guardarInformeAtenciones() {
   if (!inf.ultimo) return avisar('Genere primero el informe.');
 
-  const { quien, cargo } = datosDeSesionQuien();
+  const { quien, cargo } = datosDeFirma();
   const textos = textosDesdeFormulario();
   const { periodo } = inf.ultimo;
 
