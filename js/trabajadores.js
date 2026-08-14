@@ -6,6 +6,9 @@
     · El trabajador pertenece a una empresa.
     · El código (1-3000) es permanente e irrepetible.
       Nunca se recicla; se conserva al reingresar.
+      Excepción: el admin puede corregirlo si quien lo
+      asignó se equivocó al escribirlo. El resto de roles
+      solo lo asigna una vez, mientras esté vacío.
     · La cédula es la llave de identidad: si ya existe
       en la empresa, no se crea duplicado, se reingresa.
     · La antigüedad se cuenta desde el último ingreso.
@@ -296,6 +299,15 @@ async function guardarTrabajador() {
   /* --- Edición: datos personales + vinculación --- */
   if (estado.editandoId) {
     const { codigo, cedula, ...personales } = datos;
+
+    /* El código solo viaja al update si el campo estaba
+       editable: admin corrigiendo uno ya asignado, o
+       asignación de un código a quien no tenía. Si el campo
+       sigue readOnly (el caso normal), se descarta igual que
+       antes — nunca se manda por accidente. */
+    const $codigo = document.getElementById('codigo');
+    if (!$codigo.readOnly) personales.codigo = codigo;
+
     const { error } = await supabase
       .from('trabajadores')
       .update(personales)
@@ -565,19 +577,32 @@ async function abrirModal(trabajador = null) {
 
   /* La cédula es identidad y no se edita.
 
-     El código sí, pero solo mientras esté vacío: es el caso
-     de quien se registró sin él y más tarde recibe uno.
-     Cambiar un código ya asignado es otra cosa —arrastra
-     hojas de campo impresas y registros de entrega— y para
-     eso no basta con abrir la ficha. */
+     El código, en cambio, se puede editar en dos casos:
+      · Está vacío: es quien se registró sin él y más tarde
+        recibe uno.
+      · Quien edita es admin: cambiar un código ya asignado
+        arrastra hojas de campo impresas y registros de
+        entrega, así que solo el administrador —que puede
+        avisar a mina y reimprimir lo necesario— lo corrige.
+        El resto del personal sigue sin poder tocarlo. */
   document.getElementById('cedula').readOnly = Boolean(trabajador);
 
   const sinCodigo = !trabajador || trabajador.codigo == null;
+  const esAdmin = estado.perfil.rol === ROLES.ADMIN;
   const $codigo = document.getElementById('codigo');
-  $codigo.readOnly = !sinCodigo;
+  $codigo.readOnly = !(sinCodigo || esAdmin);
 
   const $marca = document.getElementById('marca-sin-codigo');
   if ($marca) $marca.hidden = !(trabajador && trabajador.codigo == null);
+
+  /* Aviso propio del admin cuando destraba un código que ya
+     existía: conviene que sepa que lo está corrigiendo antes
+     de que escriba nada, no solo al validar el nuevo valor. */
+  const $ayudaCodigo = document.getElementById('ayuda-codigo');
+  if ($ayudaCodigo && esAdmin && trabajador && trabajador.codigo != null) {
+    $ayudaCodigo.textContent = 'Corrigiendo código asignado · avise a mina si ya circula impreso';
+    $ayudaCodigo.className = 'ayuda ayuda-aviso';
+  }
 
   const $obl = document.getElementById('codigo-obligatorio');
   if ($obl) $obl.hidden = sucursalSinCodigo();
