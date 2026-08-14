@@ -614,7 +614,7 @@ function construirDocumento(datos, textos, quien, cargo) {
       <h2 class="if-seccion">${numeroSiguiente + 2}. Conclusión</h2>
       ${parrafos(t.conclusion)}
 
-      <div class="if-firmas" data-firmas>
+      <div class="if-firmas">
         <div class="if-firma">
           <div class="if-firma-linea"></div>
           <p class="if-firma-rotulo">Elaborado por</p>

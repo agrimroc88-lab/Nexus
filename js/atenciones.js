@@ -31,7 +31,7 @@ import {
   iniciarInformeAtenciones, cambiarTipoPeriodo, generarInformeAtenciones,
   descargarInformeAtenciones, guardarInformeAtenciones,
   usarPlanDeAccion, abrirNuevoPlan, cancelarNuevoPlan, guardarNuevoPlan
-} from './informe-atenciones.js?v=6';
+} from './informe-atenciones.js?v=7';
 
 /* --- Estado --- */
 const estado = {
