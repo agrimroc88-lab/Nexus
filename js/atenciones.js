@@ -569,7 +569,11 @@ function pintarFicha(t) {
    ============================================ */
 
 function agregarDiagnostico() {
-  estado.diagnosticos.push({ codigo: '', descripcion: '', observacion: '' });
+  estado.diagnosticos.push({
+    codigo: '', descripcion: '', observacion: '',
+    buscar: '', abierto: false, resultados: [], buscando: false, error: '',
+    creandoCie: false, nuevoCodigoTmp: '', nuevoDescTmp: '', errorNuevoCie: ''
+  });
   pintarDiagnosticos();
 }
 
@@ -587,16 +591,53 @@ function pintarDiagnosticos() {
     const item = document.createElement('article');
     item.className = 'renglon' + (i === 0 ? ' renglon-principal' : '');
 
+    const sinCoincidencias = !d.buscando && d.buscar.trim().length >= 2 && d.resultados.length === 0;
+
+    const listaResultados = d.resultados.map((c) => `
+      <button type="button" class="resultado" data-elegir-cie="${i}" data-codigo="${escapar(c.codigo)}">
+        <span class="cie-chip">${escapar(c.codigo)}</span>
+        <span class="resultado-desc">${escapar(c.descripcion)}</span>
+        ${c.capitulo ? `<span class="resultado-cap">${escapar(c.capitulo)}</span>` : ''}
+      </button>
+    `).join('');
+
+    const panelVacio = d.buscando
+      ? '<p class="pista">Buscando…</p>'
+      : sinCoincidencias
+        ? `<div class="pista">
+             Sin coincidencias.<br>
+             <button type="button" class="enlace-inline" data-nuevo-cie="${i}">+ Registrar código nuevo</button>
+           </div>`
+        : (d.buscar.trim().length < 2 ? '<p class="pista">Escriba al menos dos caracteres.</p>' : '');
+
+    const formNuevoCie = d.creandoCie ? `
+      <div class="agregar-cie-inline">
+        <input class="entrada entrada-mini" type="text" placeholder="Código · ej. M54.5"
+               value="${escapar(d.nuevoCodigoTmp)}" data-nuevo-codigo="${i}">
+        <input class="entrada entrada-mini" type="text" placeholder="Descripción"
+               value="${escapar(d.nuevoDescTmp)}" data-nuevo-desc="${i}">
+        <button type="button" class="boton-primario boton-compacto" data-guardar-cie="${i}">
+          Registrar código
+        </button>
+        ${d.errorNuevoCie ? `<p class="ayuda ayuda-error">${escapar(d.errorNuevoCie)}</p>` : ''}
+      </div>
+    ` : '';
+
+    const mostrarPanel = Boolean(d.abierto && (listaResultados || panelVacio || formNuevoCie));
+
     item.innerHTML = `
       <div class="renglon-orden">
         ${i === 0 ? '<span class="etiqueta-principal">Principal</span>' : `<span class="orden-num">${i + 1}</span>`}
       </div>
       <div class="renglon-cuerpo">
-        <button class="selector-cie ${d.codigo ? 'selector-lleno' : ''}" type="button" data-i="${i}">
-          ${d.codigo
-            ? `<span class="cie-chip">${escapar(d.codigo)}</span><span class="cie-desc">${escapar(d.descripcion)}</span>`
-            : '<span class="cie-vacio">Buscar diagnóstico CIE-10…</span>'}
-        </button>
+        <div class="campo-crece campo-cie">
+          <input class="entrada entrada-mini" type="text" autocomplete="off"
+                 placeholder="Buscar diagnóstico CIE-10 por código o descripción…"
+                 value="${escapar(d.buscar)}" data-buscar-cie="${i}">
+          <div class="sugerencias" data-sugerencias-cie="${i}" ${mostrarPanel ? '' : 'hidden'}>
+            ${listaResultados}${panelVacio}${formNuevoCie}
+          </div>
+        </div>
         <input class="entrada entrada-mini" type="text" placeholder="Observación"
                value="${escapar(d.observacion)}" data-obs="${i}">
       </div>
@@ -604,12 +645,109 @@ function pintarDiagnosticos() {
     `;
 
     $lista.appendChild(item);
+
+    if (d.error) {
+      const aviso = document.createElement('p');
+      aviso.className = 'ayuda ayuda-error';
+      aviso.textContent = d.error;
+      $lista.appendChild(aviso);
+    }
   });
 
   /* Eventos por renglón */
-  $lista.querySelectorAll('.selector-cie').forEach((btn) => {
-    btn.addEventListener('click', () => abrirBuscadorCie(parseInt(btn.dataset.i, 10)));
+  $lista.querySelectorAll('[data-buscar-cie]').forEach((inp) => {
+    inp.addEventListener('input', (e) => {
+      const n = parseInt(e.target.dataset.buscarCie, 10);
+      const pos = e.target.selectionStart;
+      const valor = e.target.value;
+      const d = estado.diagnosticos[n];
+      d.buscar = valor;
+      d.abierto = true;
+      d.error = '';
+      /* Campo vacío = ningún diagnóstico elegido todavía */
+      if (!valor.trim()) { d.codigo = ''; d.descripcion = ''; d.resultados = []; }
+      pintarDiagnosticos();
+      const $nuevo = document.querySelector(`[data-buscar-cie="${n}"]`);
+      if ($nuevo) {
+        $nuevo.focus();
+        $nuevo.setSelectionRange(pos, pos);
+      }
+      buscarCieInline(n, valor.trim());
+    });
+
+    inp.addEventListener('focus', (e) => {
+      const n = parseInt(e.target.dataset.buscarCie, 10);
+      const d = estado.diagnosticos[n];
+      /* Igual que en medicamentos: si ya está abierto —por
+         ejemplo, porque el propio evento "input" lo acaba de
+         abrir y enfocar— no se repinta otra vez. Repintar aquí
+         encima de eso creaba un campo nuevo a mitad de tecla y
+         desordenaba lo que se estaba escribiendo. */
+      if (!d || !d.buscar || d.abierto) return;
+      d.abierto = true;
+      pintarDiagnosticos();
+      const $nuevo = document.querySelector(`[data-buscar-cie="${n}"]`);
+      if ($nuevo) $nuevo.focus();
+    });
   });
+
+  $lista.querySelectorAll('[data-elegir-cie]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const n = parseInt(btn.dataset.elegirCie, 10);
+      const d = estado.diagnosticos[n];
+      const c = (d.resultados || []).find((x) => x.codigo === btn.dataset.codigo);
+      if (!c) return;
+
+      const yaEsta = estado.diagnosticos.some((x, j) => j !== n && x.codigo === c.codigo);
+      if (yaEsta) {
+        d.error = 'Ese diagnóstico ya está registrado en esta atención';
+        pintarDiagnosticos();
+        return;
+      }
+
+      d.codigo = c.codigo;
+      d.descripcion = c.descripcion;
+      d.buscar = `${c.codigo} · ${c.descripcion}`;
+      d.abierto = false;
+      d.error = '';
+      pintarDiagnosticos();
+      const $obs = document.querySelector(`[data-obs="${n}"]`);
+      if ($obs) $obs.focus();
+    });
+  });
+
+  $lista.querySelectorAll('[data-nuevo-cie]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const n = parseInt(btn.dataset.nuevoCie, 10);
+      const d = estado.diagnosticos[n];
+      const texto = d.buscar.trim();
+      /* Adivinar si lo escrito parece un código o una
+         descripción, igual que hacía el formulario del modal. */
+      const pareceCodigo = /^[A-Za-z][0-9]/.test(texto);
+      d.creandoCie = true;
+      d.nuevoCodigoTmp = pareceCodigo ? texto.toUpperCase() : '';
+      d.nuevoDescTmp = pareceCodigo ? '' : texto;
+      d.errorNuevoCie = '';
+      pintarDiagnosticos();
+      const $c = document.querySelector(`[data-nuevo-codigo="${n}"]`);
+      if ($c) $c.focus();
+    });
+  });
+
+  $lista.querySelectorAll('[data-nuevo-codigo]').forEach((inp) => {
+    inp.addEventListener('input', (e) => {
+      estado.diagnosticos[parseInt(e.target.dataset.nuevoCodigo, 10)].nuevoCodigoTmp = e.target.value;
+    });
+  });
+  $lista.querySelectorAll('[data-nuevo-desc]').forEach((inp) => {
+    inp.addEventListener('input', (e) => {
+      estado.diagnosticos[parseInt(e.target.dataset.nuevoDesc, 10)].nuevoDescTmp = e.target.value;
+    });
+  });
+  $lista.querySelectorAll('[data-guardar-cie]').forEach((btn) => {
+    btn.addEventListener('click', () => guardarCieInline(parseInt(btn.dataset.guardarCie, 10)));
+  });
+
   $lista.querySelectorAll('[data-obs]').forEach((inp) => {
     inp.addEventListener('input', (e) => {
       estado.diagnosticos[parseInt(e.target.dataset.obs, 10)].observacion = e.target.value;
@@ -619,6 +757,93 @@ function pintarDiagnosticos() {
     btn.addEventListener('click', () => quitarDiagnostico(parseInt(btn.dataset.quitar, 10)));
   });
 }
+
+/* Búsqueda en el catálogo CIE-10. Va a la base (son miles de
+   códigos, no se cargan todos en memoria como los
+   medicamentos), pero solo una fila busca a la vez —igual que
+   antes solo un modal podía estar abierto— así que un único
+   temporizador de espera basta. */
+const buscarCieInline = retrasar(async (indice, texto) => {
+  const d = estado.diagnosticos[indice];
+  if (!d) return;
+
+  if (texto.length < 2) {
+    d.resultados = [];
+    d.buscando = false;
+    pintarDiagnosticos();
+    return;
+  }
+
+  d.buscando = true;
+  pintarDiagnosticos();
+
+  const { data, error } = await supabase
+    .from('cie10')
+    .select('codigo, descripcion, capitulo')
+    .eq('activo', true)
+    .or(`codigo.ilike.${texto}%,descripcion.ilike.%${texto}%`)
+    .order('codigo')
+    .limit(8);
+
+  /* La respuesta puede llegar tarde, después de que ya se
+     siguió escribiendo: si el texto ya no coincide con lo que
+     se pidió, se descarta en vez de pintar un resultado que ya
+     no corresponde. */
+  if ((estado.diagnosticos[indice]?.buscar || '').trim() !== texto) return;
+
+  d.buscando = false;
+  d.resultados = error ? [] : (data || []);
+  pintarDiagnosticos();
+}, 250);
+
+async function guardarCieInline(indice) {
+  const d = estado.diagnosticos[indice];
+  if (!d) return;
+
+  const codigo = (d.nuevoCodigoTmp || '').trim().toUpperCase();
+  const descripcion = (d.nuevoDescTmp || '').trim();
+
+  if (!codigo) { d.errorNuevoCie = 'Indique el código'; pintarDiagnosticos(); return; }
+  if (!descripcion) { d.errorNuevoCie = 'Indique la descripción'; pintarDiagnosticos(); return; }
+  if (!/^[A-Z][0-9]{2}(\.[0-9X]{1,2})?$/.test(codigo)) {
+    d.errorNuevoCie = 'Formato inválido. Ejemplos válidos: M54, M54.5, Z57.0';
+    pintarDiagnosticos();
+    return;
+  }
+
+  const { error } = await supabase
+    .from('cie10')
+    .insert({ codigo, descripcion, capitulo: 'Añadido por el usuario', personalizado: true });
+
+  if (error) {
+    if (error.code === '23505') {
+      /* Ya existía: recuperarlo y usarlo igual */
+      const { data } = await supabase
+        .from('cie10').select('codigo, descripcion').eq('codigo', codigo).single();
+      if (data) {
+        d.codigo = data.codigo;
+        d.descripcion = data.descripcion;
+        d.buscar = `${data.codigo} · ${data.descripcion}`;
+        d.creandoCie = false;
+        d.abierto = false;
+        pintarDiagnosticos();
+        return;
+      }
+    }
+    d.errorNuevoCie = 'No fue posible registrar el código: ' + error.message;
+    pintarDiagnosticos();
+    return;
+  }
+
+  d.codigo = codigo;
+  d.descripcion = descripcion;
+  d.buscar = `${codigo} · ${descripcion}`;
+  d.creandoCie = false;
+  d.abierto = false;
+  pintarDiagnosticos();
+}
+
+
 
 /* ============================================
    Buscador CIE-10
@@ -1759,6 +1984,14 @@ function conectarEventos() {
       if (habiaAlguno) {
         estado.prescripciones.forEach((p) => { p.abierto = false; });
         pintarMedicamentos();
+      }
+    }
+    /* Lo mismo para el buscador de diagnósticos CIE-10. */
+    if (!e.target.closest('.campo-cie')) {
+      const habiaAlgunoCie = estado.diagnosticos.some((d) => d.abierto);
+      if (habiaAlgunoCie) {
+        estado.diagnosticos.forEach((d) => { d.abierto = false; d.creandoCie = false; });
+        pintarDiagnosticos();
       }
     }
   });
