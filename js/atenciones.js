@@ -30,7 +30,7 @@ import { alCrear } from './autoria.js?v=1';
 import {
   iniciarInformeAtenciones, cambiarTipoPeriodo, generarInformeAtenciones,
   descargarInformeAtenciones, guardarInformeAtenciones
-} from './informe-atenciones.js?v=2';
+} from './informe-atenciones.js?v=3';
 
 /* --- Estado --- */
 const estado = {

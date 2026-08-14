@@ -572,8 +572,30 @@ export async function descargarInformeAtenciones() {
   avisar('En el diálogo de impresión: active «Gráficos de fondo» para que salgan '
        + 'los colores y las barras, y desactive «Encabezado y pie de página».', true);
 
+  /* certificados.css también define @page en esta misma
+     página (para oficios y certificados, que sí necesitan ser
+     horizontales) y se carga DESPUÉS de farmacia.css, así que
+     gana su tamaño y su margen —incluso para este informe,
+     que nada tiene que ver con eso.
+
+     La única forma de que este informe imprima vertical sin
+     tocar ni farmacia.css ni certificados.css —y sin romper
+     la impresión de oficios, que sigue necesitando ser
+     horizontal en esta misma página— es declarar la regla acá
+     mismo, justo antes de imprimir, y quitarla apenas termina:
+     así nunca queda pisando la próxima impresión de un
+     certificado. */
+  const $paginaTmp = document.createElement('style');
+  $paginaTmp.id = 'inat-pagina-tmp';
+  $paginaTmp.textContent =
+    '@media print { @page { size: A4 portrait !important; '
+  + 'margin: 16mm 15mm 18mm 20mm !important; } }';
+  document.head.appendChild($paginaTmp);
+
   await imprimirHoja('inat-impresion', 'imprimiendo-informe',
     `Informe atenciones · ${inf.ultimo.periodo.nombre}`);
+
+  setTimeout(() => { $paginaTmp.remove(); }, 800);
 }
 
 /* ============================================
