@@ -1043,3 +1043,12 @@
   border-left: 3px solid var(--color-acento);
   border-radius: var(--radio);
 }
+
+/* --- Informe de atenciones: contenedor de gráficos en pantalla --- */
+.inat-grafico {
+  margin: 0.75rem 0 1.25rem;
+  padding: 0.75rem;
+  background: var(--color-fondo);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+}
