@@ -59,8 +59,10 @@ const TEXTOS = {
     'Código del Trabajo, artículo 430, sobre la asistencia médica y '
   + 'farmacéutica a cargo del empleador.\n'
   + 'Decreto Ejecutivo 255, Reglamento de Seguridad y Salud en el Trabajo.\n'
-  + 'Reglamento para el Funcionamiento de los Servicios Médicos de Empresa '
-  + '(Acuerdo Ministerial N.° 1404).\n'
+  + 'Acuerdo Ministerial N.° 00004-2026, Ministerio de Salud Pública, '
+  + 'Reglamento de los Servicios Integrales de Salud en el Trabajo (SISAT), '
+  + 'que deroga el Acuerdo Ministerial N.° 1404 (Reglamento para el '
+  + 'Funcionamiento de los Servicios Médicos de Empresa).\n'
   + 'Resolución CD 513, Reglamento del Seguro General de Riesgos del Trabajo.',
 
   metodologia:

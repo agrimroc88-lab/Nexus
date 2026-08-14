@@ -19,7 +19,7 @@ import { imprimirHoja } from './impresion.js?v=11';
 import {
   iniciarInforme, generarInformeMensual, guardarInforme, descargarActual,
   redactarAnalisis
-} from './informe-farmacia.js?v=11';
+} from './informe-farmacia.js?v=12';
 
 /* --- Estado --- */
 const estado = {
