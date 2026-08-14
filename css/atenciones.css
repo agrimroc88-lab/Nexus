@@ -1076,3 +1076,13 @@
   justify-content: flex-end;
   gap: 0.5rem;
 }
+
+/* Más aire antes de la firma que el que trae .if-firmas por
+   defecto (16mm, ajustado para Farmacia). Solo aplica dentro
+   del contenedor de impresión de este informe —no toca el
+   margen de Farmacia. */
+@media print {
+  #inat-impresion .if-firmas {
+    margin-top: 30mm;
+  }
+}
