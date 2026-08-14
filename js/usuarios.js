@@ -37,8 +37,11 @@ async function iniciar() {
   if (!perfil) return;
   estado.perfil = perfil;
   montarNavegacion(perfil, 'usuarios');
-  await cargarUsuarios();
-  await cargarEmpresas();
+
+  /* Ninguna consulta depende de la otra: se piden juntas
+     en vez de esperar a que termine la primera para pedir
+     la segunda. */
+  await Promise.all([cargarUsuarios(), cargarEmpresas()]);
   conectarEventos();
 }
 

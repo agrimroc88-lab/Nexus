@@ -172,8 +172,15 @@ async function cargarEmpresas() {
 }
 
 async function cargarTodo() {
+  /* Los indicadores no dependen de los requisitos —solo de la
+     empresa y el ámbito— así que se piden ya mismo en vez de
+     esperar a que termine cargarRequisitos(). Evidencias y
+     enlaces sí necesitan los códigos/ids de los requisitos,
+     por eso van después. */
+  const indicadoresListos = cargarIndicadores();
+
   await cargarRequisitos();
-  await Promise.all([cargarEvidencias(), cargarEnlaces(), cargarIndicadores()]);
+  await Promise.all([cargarEvidencias(), cargarEnlaces(), indicadoresListos]);
   pintarMedidor();
   pintarLista();
 }
