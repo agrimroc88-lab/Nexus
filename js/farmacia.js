@@ -73,6 +73,7 @@ async function iniciar() {
   }
 
   estado.perfil = perfil;
+  estado.esAdmin = perfil.rol === 'admin';
   montarNavegacion(perfil, 'farmacia');
 
   await cargarEmpresas();
@@ -261,6 +262,19 @@ function pintarExistencias() {
     editar.textContent = 'Editar';
     editar.addEventListener('click', () => abrirMedicamento(m));
     acciones.appendChild(editar);
+
+    /* Eliminar es exclusivo del admin: el catálogo de
+       medicamentos lo puede tocar cualquiera con acceso a
+       farmacia, pero borrar un registro —aunque sea un
+       duplicado— conviene que quede en manos de quien
+       responde por el sistema completo. */
+    if (estado.esAdmin) {
+      const eliminar = document.createElement('button');
+      eliminar.className = 'boton-icono boton-icono-critico';
+      eliminar.textContent = 'Eliminar';
+      eliminar.addEventListener('click', () => eliminarMedicamento(m));
+      acciones.appendChild(eliminar);
+    }
 
     frag.appendChild(fila);
   });
@@ -495,6 +509,70 @@ function alertaMed(texto) {
   const $a = document.getElementById('alerta-med');
   $a.textContent = texto;
   $a.hidden = false;
+}
+
+/**
+ * Elimina un medicamento del catálogo. Pensado para el caso
+ * de un duplicado que se dio de alta por error.
+ *
+ * Salvaguarda: si el medicamento ya tiene lotes (y por lo
+ * tanto, posiblemente kárdex), borrarlo rompería la
+ * trazabilidad — el kárdex es inmutable por regla del
+ * sistema. En ese caso se ofrece desactivarlo: deja de
+ * aparecer en existencias y en los selectores nuevos, pero
+ * su historial permanece intacto.
+ */
+async function eliminarMedicamento(med) {
+  const nombre = med.nombre_comercial || med.nombre_generico;
+
+  const { count, error: errCuenta } = await supabase
+    .from('lotes')
+    .select('id', { count: 'exact', head: true })
+    .eq('medicamento_id', med.id);
+
+  if (errCuenta) {
+    alert('No fue posible verificar si tiene movimientos: ' + errCuenta.message);
+    return;
+  }
+
+  if (count > 0) {
+    const desactivar = confirm(
+      `"${nombre}" ya tiene lotes o movimientos de kárdex registrados. `
+      + 'Eliminarlo perdería esa trazabilidad, así que no se puede borrar.\n\n'
+      + '¿Desea DESACTIVARLO en su lugar? Dejará de aparecer en existencias '
+      + 'y en los selectores, sin borrar su historial.'
+    );
+    if (!desactivar) return;
+
+    const { error } = await supabase
+      .from('medicamentos')
+      .update(alEditar({ activo: false }))
+      .eq('id', med.id);
+
+    if (error) { alert('No fue posible desactivar: ' + error.message); return; }
+
+    await cargarTodo();
+    return;
+  }
+
+  if (!confirm(`¿Eliminar definitivamente "${nombre}"? Esta acción no se puede deshacer.`)) {
+    return;
+  }
+
+  const { error } = await supabase.from('medicamentos').delete().eq('id', med.id);
+
+  if (error) {
+    /* Salvaguarda de respaldo: si la base rechaza el borrado
+       por una referencia que el conteo de lotes no detectó
+       (por ejemplo, un ajuste hecho por otra vía), se avisa
+       en vez de fallar en silencio. */
+    alert(error.code === '23503'
+      ? `No fue posible eliminar: "${nombre}" tiene registros relacionados.`
+      : 'Error al eliminar: ' + error.message);
+    return;
+  }
+
+  await cargarTodo();
 }
 
 /* ============================================
