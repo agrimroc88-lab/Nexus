@@ -243,6 +243,16 @@
   grid-column: 1 / -1;
 }
 
+/* El campo de indicación/posología va en su propia línea,
+   de ancho completo: compartiendo fila estrecha con la
+   cantidad quedaba muy chico para escribir y leer una
+   posología completa. */
+.renglon-medicamento .campo-indicacion {
+  grid-column: 1 / -1;
+  padding: 0.75rem 0.9rem;
+  font-size: 0.95rem;
+}
+
 .entrada-mini {
   padding: 0.5rem 0.65rem;
   font-size: 0.84rem;
