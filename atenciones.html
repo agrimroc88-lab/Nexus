@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="css/trabajadores.css">
   <link rel="stylesheet" href="css/farmacia.css">
   <link rel="stylesheet" href="css/certificados.css?v=14">
-  <link rel="stylesheet" href="css/atenciones.css?v=13">
+  <link rel="stylesheet" href="css/atenciones.css?v=14">
   <link rel="stylesheet" href="css/emergencia.css">
 </head>
 <body class="app">
@@ -69,6 +69,7 @@
           <button class="pestana" data-vista="consolidado" type="button">Consolidado</button>
           <button class="pestana" data-vista="morbilidad" type="button">Morbilidad</button>
           <button class="pestana" data-vista="externos" type="button">Externos</button>
+          <button class="pestana" data-vista="informe" type="button">Informe</button>
         </nav>
 
         <!-- ============ Vista: Atenciones ============ -->
@@ -339,6 +340,146 @@
               Todavía no hay personas externas registradas para esta empresa.
             </p>
           </div>
+        </section>
+
+        <!-- ============ Vista: Informe ============ -->
+        <section class="vista" id="vista-informe">
+
+          <p class="nota">
+            Informe mensual, trimestral o anual de atenciones a trabajadores,
+            con los diagnósticos más frecuentes del periodo. No incluye
+            atenciones externas (ADAE, pasantes, comunidad).
+          </p>
+
+          <div class="panel inf-controles">
+            <div class="campo campo-corto">
+              <label class="etiqueta" for="inat-tipo">Tipo de informe</label>
+              <select class="entrada" id="inat-tipo">
+                <option value="mensual">Mensual</option>
+                <option value="trimestral">Trimestral</option>
+                <option value="anual">Anual</option>
+              </select>
+            </div>
+            <div class="campo campo-corto">
+              <label class="etiqueta" for="inat-anio">Año</label>
+              <select class="entrada" id="inat-anio"></select>
+            </div>
+            <div class="campo campo-corto" id="inat-campo-mes">
+              <label class="etiqueta" for="inat-mes">Mes</label>
+              <select class="entrada" id="inat-mes">
+                <option value="1">Enero</option><option value="2">Febrero</option>
+                <option value="3">Marzo</option><option value="4">Abril</option>
+                <option value="5">Mayo</option><option value="6">Junio</option>
+                <option value="7">Julio</option><option value="8">Agosto</option>
+                <option value="9">Septiembre</option><option value="10">Octubre</option>
+                <option value="11">Noviembre</option><option value="12">Diciembre</option>
+              </select>
+            </div>
+            <div class="campo campo-corto" id="inat-campo-trimestre" hidden>
+              <label class="etiqueta" for="inat-trimestre">Trimestre</label>
+              <select class="entrada" id="inat-trimestre">
+                <option value="1">1.º (Ene-Mar)</option>
+                <option value="2">2.º (Abr-Jun)</option>
+                <option value="3">3.º (Jul-Sep)</option>
+                <option value="4">4.º (Oct-Dic)</option>
+              </select>
+            </div>
+            <button class="boton-primario" id="inat-btn-generar" type="button">
+              Generar informe
+            </button>
+          </div>
+
+          <p class="alerta" id="inat-alerta" role="alert" hidden></p>
+
+          <!-- Textos del documento -->
+          <details class="panel plegable inf-textos" id="inat-panel-textos">
+            <summary class="plegable-titulo">
+              Objetivo, alcance, normativa, análisis y plan de acción
+            </summary>
+
+            <p class="ayuda">
+              Revise estos textos antes de firmar el primer informe. Se guardan
+              con cada informe, así que si la normativa cambia el año que
+              viene, los informes de este año siguen citando lo que citaban
+              cuando se firmaron.
+            </p>
+
+            <div class="campo">
+              <label class="etiqueta" for="inat-objetivo">Objetivo</label>
+              <textarea class="entrada area" id="inat-objetivo" rows="3"></textarea>
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="inat-alcance">Alcance</label>
+              <textarea class="entrada area" id="inat-alcance" rows="3"></textarea>
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="inat-normativa">Marco normativo</label>
+              <textarea class="entrada area" id="inat-normativa" rows="4"></textarea>
+              <span class="ayuda">Una norma por línea. Se imprime como lista.</span>
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="inat-metodologia">Metodología</label>
+              <textarea class="entrada area" id="inat-metodologia" rows="3"></textarea>
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="inat-analisis">
+                Análisis del periodo
+                <span class="ayuda-inline">se redacta solo con las cifras del informe; revíselo y complételo</span>
+              </label>
+              <textarea class="entrada area" id="inat-analisis" rows="6"
+                        placeholder="Se completa al generar el informe."></textarea>
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="inat-plan-accion">Plan de acción</label>
+              <textarea class="entrada area" id="inat-plan-accion" rows="5"
+                        placeholder="Acciones derivadas del análisis: capacitaciones, seguimiento médico, revisión de puestos, etc."></textarea>
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="inat-conclusion">Conclusión</label>
+              <textarea class="entrada area" id="inat-conclusion" rows="3"></textarea>
+            </div>
+          </details>
+
+          <!-- Previsualización -->
+          <div class="panel" id="inat-previa" hidden>
+            <div class="inf-previa-cabecera">
+              <div>
+                <h3 class="est-titulo" id="inat-previa-titulo">—</h3>
+                <span class="ayuda" id="inat-resumen">—</span>
+              </div>
+              <div class="inf-previa-acciones">
+                <button class="boton-secundario" id="inat-btn-descargar" type="button" hidden>
+                  Descargar PDF
+                </button>
+                <button class="boton-primario" id="inat-btn-guardar" type="button" hidden>
+                  Guardar informe
+                </button>
+              </div>
+            </div>
+
+            <h4 class="inf-subtitulo">Diagnósticos más frecuentes</h4>
+            <div class="tabla-envoltura">
+              <table class="tabla">
+                <thead>
+                  <tr>
+                    <th class="celda-centro">#</th>
+                    <th class="celda-centro">CIE-10</th>
+                    <th>Diagnóstico</th>
+                    <th class="celda-centro">Casos</th>
+                    <th class="celda-centro">%</th>
+                  </tr>
+                </thead>
+                <tbody id="inat-cuerpo-dx"></tbody>
+              </table>
+            </div>
+            <div id="inat-grafico-dx" class="inat-grafico"></div>
+
+            <div id="inat-bloque-comparativo" hidden>
+              <h4 class="inf-subtitulo">Comparativo del periodo</h4>
+              <div id="inat-grafico-comparativo" class="inat-grafico"></div>
+            </div>
+          </div>
+
         </section>
 
       </div>
@@ -879,10 +1020,12 @@
   <!-- Zona de impresión de la ficha de emergencia -->
   <div class="em-impresion" id="em-impresion"></div>
 
-  <script type="module" src="js/atenciones.js?v=20"></script>
+  <script type="module" src="js/atenciones.js?v=21"></script>
   <!-- Zona de impresión del oficio. Fuera de <main>: al
        imprimir se oculta todo lo demás. -->
   <div class="oficio-impresion" id="oficio-impresion"></div>
+
+  <div class="if-impresion" id="inat-impresion"></div>
 
 </body>
 </html>
