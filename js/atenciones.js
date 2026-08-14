@@ -34,12 +34,13 @@ const estado = {
   empresaId: null,
   atenciones: [],
   medicamentos: [],
+  insumos: [],
   morbilidad: [],
   trabajador: null,     // trabajador de la atención en curso
   diagnosticos: [],     // [{codigo, descripcion, observacion}]
   detalle: null,        // atención abierta en el modal de detalle
   certDetalle: null,    // su certificado, si lo tuvo
-  prescripciones: [],   // [{medicamento_id, nombre, cantidad, indicacion, disponible, buscar}]
+  consumos: [],         // [{tipo:'medicamento'|'insumo', item_id, cantidad, indicacion, buscar, abierto}]
   cieDestino: null,     // índice del diagnóstico que abrió el buscador
   paciente: null,       // trabajador localizado en la pestaña Atenciones
   histAbierto: false,   // historial embebido desplegado
@@ -141,6 +142,17 @@ async function cargarMedicamentos() {
     .order('nombre_generico');
 
   estado.medicamentos = error ? [] : (data || []);
+}
+
+async function cargarInsumos() {
+  const { data, error } = await supabase
+    .from('insumos')
+    .select('id, nombre, unidad, stock_disponible')
+    .eq('empresa_id', estado.empresaId)
+    .eq('activo', true)
+    .order('nombre');
+
+  estado.insumos = error ? [] : (data || []);
 }
 
 async function cargarMorbilidad() {
@@ -397,7 +409,7 @@ function pintarMorbilidad() {
 function abrirAtencion() {
   estado.trabajador = null;
   estado.diagnosticos = [];
-  estado.prescripciones = [];
+  estado.consumos = [];
 
   document.getElementById('at_codigo').value = '';
   document.getElementById('at_fecha').value = HOY();
@@ -973,21 +985,30 @@ function alertaCie(texto) {
 }
 
 /* ============================================
-   Medicamentos
+   Medicamentos e insumos
+   Un solo buscador para ambos: la persona que atiende no
+   tiene por qué saber si "gasas" vive en la tabla de insumos
+   y "paracetamol" en la de medicamentos —para ella es lo mismo
+   que se le entrega al paciente. Cada fila recuerda de cuál
+   de las dos vino (tipo), porque el descuento de existencia y
+   los campos que hacen falta son distintos:
+    · Medicamento: cantidad + indicación/posología.
+    · Insumo: solo cantidad. No lleva posología porque no se
+      prescribe, se usa (ej. una inyectadora, un par de guantes).
    ============================================ */
 
-function agregarMedicamento() {
-  if (estado.medicamentos.length === 0) {
-    alert('Esta empresa aún no tiene medicamentos en el catálogo de farmacia.');
+function agregarConsumo() {
+  if (estado.medicamentos.length === 0 && estado.insumos.length === 0) {
+    alert('Esta empresa aún no tiene medicamentos ni insumos en el catálogo de farmacia.');
     return;
   }
-  estado.prescripciones.push({ medicamento_id: '', cantidad: 1, indicacion: '', buscar: '', abierto: false });
-  pintarMedicamentos();
+  estado.consumos.push({ tipo: '', item_id: '', cantidad: 1, indicacion: '', buscar: '', abierto: false });
+  pintarConsumos();
 }
 
-function quitarMedicamento(indice) {
-  estado.prescripciones.splice(indice, 1);
-  pintarMedicamentos();
+function quitarConsumo(indice) {
+  estado.consumos.splice(indice, 1);
+  pintarConsumos();
 }
 
 /* El comercial delante: es el nombre de la caja que se tiene
@@ -998,44 +1019,56 @@ function etiquetaMedicamento(m) {
   return m.nombre_comercial ? `${m.nombre_comercial} · ${detalle}` : detalle;
 }
 
-function pintarMedicamentos() {
+function etiquetaInsumo(ins) {
+  return `${ins.nombre} · ${ins.unidad || 'unidad'}`;
+}
+
+/** Encuentra el medicamento o insumo elegido en esta fila, sea cual sea su tipo. */
+function itemDeConsumo(p) {
+  if (p.tipo === 'medicamento') return estado.medicamentos.find((m) => m.id === p.item_id);
+  if (p.tipo === 'insumo') return estado.insumos.find((x) => x.id === p.item_id);
+  return null;
+}
+
+function pintarConsumos() {
   const $lista = document.getElementById('lista-medicamentos');
   $lista.innerHTML = '';
 
-  estado.prescripciones.forEach((p, i) => {
-    const med = estado.medicamentos.find((m) => m.id === p.medicamento_id);
-    const insuficiente = med && p.cantidad > med.stock_disponible;
+  estado.consumos.forEach((p, i) => {
+    const item = itemDeConsumo(p);
+    const insuficiente = item && p.cantidad > item.stock_disponible;
 
-    const item = document.createElement('article');
-    item.className = 'renglon';
+    const fila = document.createElement('article');
+    fila.className = 'renglon';
 
     /* Autocompletado de un solo paso: cada letra filtra la
-       lista de abajo, y un clic sobre una fila elige el
-       medicamento y llena el campo con su nombre completo.
-       Ya no hace falta un <select> aparte —escribir y luego
-       abrir un desplegable eran dos acciones para una sola
-       decisión.
-
-       El navegador solo buscaba por el principio del texto, y
-       con doscientos medicamentos en la lista «ibu» no
-       encontraba «Paracetamol + Ibuprofeno». Aquí se busca por
-       comercial, genérico, concentración y forma completos. */
+       lista de abajo (medicamentos e insumos juntos), y un
+       clic sobre una fila elige uno y llena el campo con su
+       nombre completo. */
     const texto = (p.buscar || '').trim().toLowerCase();
 
-    const candidatos = texto
+    const candidatosMed = texto
       ? estado.medicamentos.filter((m) =>
           [m.nombre_comercial, m.nombre_generico, m.concentracion, m.forma]
             .filter(Boolean).some((c) => c.toLowerCase().includes(texto))
-        ).slice(0, 10)
+        ).map((m) => ({ tipo: 'medicamento', id: m.id, etiqueta: etiquetaMedicamento(m), stock: m.stock_disponible }))
       : [];
 
+    const candidatosIns = texto
+      ? estado.insumos.filter((x) => x.nombre.toLowerCase().includes(texto))
+          .map((x) => ({ tipo: 'insumo', id: x.id, etiqueta: etiquetaInsumo(x), stock: x.stock_disponible }))
+      : [];
+
+    const candidatos = [...candidatosMed, ...candidatosIns].slice(0, 10);
+
     const sugerenciasHtml = candidatos.length > 0
-      ? candidatos.map((m) => {
-          const stock = m.stock_disponible > 0 ? `${m.stock_disponible} disp.` : 'sin stock';
+      ? candidatos.map((c) => {
+          const stock = c.stock > 0 ? `${c.stock} disp.` : 'sin stock';
+          const rotulo = c.tipo === 'medicamento' ? 'Medicamento' : 'Insumo';
           return `
-            <button type="button" class="sugerencia" data-elegir-med="${i}" data-id="${m.id}">
-              <span class="sugerencia-nombre">${escapar(etiquetaMedicamento(m))}</span>
-              <span class="sugerencia-meta">${escapar(stock)}</span>
+            <button type="button" class="sugerencia" data-elegir-consumo="${i}" data-tipo="${c.tipo}" data-id="${c.id}">
+              <span class="sugerencia-nombre">${escapar(c.etiqueta)}</span>
+              <span class="sugerencia-meta">${escapar(rotulo)} · ${escapar(stock)}</span>
             </button>
           `;
         }).join('')
@@ -1043,12 +1076,20 @@ function pintarMedicamentos() {
 
     const mostrarPanel = Boolean(p.abierto && texto);
 
-    item.innerHTML = `
+    /* El campo de indicación/posología solo tiene sentido
+       para un medicamento: un insumo no se prescribe, se usa.
+       Pedirlo igual solo confundiría —por eso no aparece en
+       absoluto cuando la fila es un insumo. */
+    const campoIndicacion = p.tipo === 'insumo' ? '' : `
+        <input class="entrada entrada-mini" type="text" placeholder="Indicación · posología"
+               value="${escapar(p.indicacion)}" data-ind="${i}">`;
+
+    fila.innerHTML = `
       <div class="renglon-orden"><span class="orden-num">${i + 1}</span></div>
       <div class="renglon-cuerpo renglon-medicamento">
         <div class="campo-crece campo-medicamento">
           <input class="entrada entrada-mini entrada-buscar-med" type="text"
-                 placeholder="Buscar por marca o genérico…" autocomplete="off"
+                 placeholder="Buscar medicamento o insumo…" autocomplete="off"
                  value="${escapar(p.buscar || '')}" data-buscar="${i}">
           <div class="sugerencias" data-sugerencias-med="${i}" ${mostrarPanel ? '' : 'hidden'}>
             ${sugerenciasHtml}
@@ -1056,27 +1097,24 @@ function pintarMedicamentos() {
         </div>
         <input class="entrada entrada-cantidad ${insuficiente ? 'entrada-alerta' : ''}"
                type="number" min="1" value="${p.cantidad}" data-cant="${i}" placeholder="Cant.">
-        <input class="entrada entrada-mini" type="text" placeholder="Indicación · posología"
-               value="${escapar(p.indicacion)}" data-ind="${i}">
+        ${campoIndicacion}
       </div>
       <button class="boton-quitar" type="button" data-quitar-med="${i}" aria-label="Quitar">×</button>
     `;
 
-    $lista.appendChild(item);
+    $lista.appendChild(fila);
 
-    if (!med && p.medicamento_id) {
-      /* Rareza: quedó un id que ya no está en el catálogo cargado */
-    } else if (!p.medicamento_id && p.buscar) {
+    if (!p.item_id && p.buscar) {
       const aviso = document.createElement('p');
       aviso.className = 'ayuda';
-      aviso.textContent = 'Aún no ha elegido un medicamento de la lista.';
+      aviso.textContent = 'Aún no ha elegido nada de la lista.';
       $lista.appendChild(aviso);
     }
 
     if (insuficiente) {
       const aviso = document.createElement('p');
       aviso.className = 'aviso-stock';
-      aviso.textContent = `Existencia disponible: ${med.stock_disponible}. Se registrará como no entregado.`;
+      aviso.textContent = `Existencia disponible: ${item.stock_disponible}. Se registrará como no entregado.`;
       $lista.appendChild(aviso);
     }
   });
@@ -1090,12 +1128,13 @@ function pintarMedicamentos() {
       const n = parseInt(e.target.dataset.buscar, 10);
       const pos = e.target.selectionStart;
       const valor = e.target.value;
-      estado.prescripciones[n].buscar = valor;
-      estado.prescripciones[n].abierto = true;
+      const p = estado.consumos[n];
+      p.buscar = valor;
+      p.abierto = true;
       /* Campo vacío = nada elegido: evita dejar una selección
          "fantasma" detrás de un cuadro que se ve en blanco. */
-      if (!valor.trim()) estado.prescripciones[n].medicamento_id = '';
-      pintarMedicamentos();
+      if (!valor.trim()) { p.tipo = ''; p.item_id = ''; }
+      pintarConsumos();
       const $nuevo = document.querySelector(`[data-buscar="${n}"]`);
       if ($nuevo) {
         $nuevo.focus();
@@ -1105,7 +1144,7 @@ function pintarMedicamentos() {
 
     inp.addEventListener('focus', (e) => {
       const n = parseInt(e.target.dataset.buscar, 10);
-      const p = estado.prescripciones[n];
+      const p = estado.consumos[n];
       /* Si ya está abierto —por ejemplo, porque el propio
          evento "input" lo acaba de abrir y enfocar— no hay
          que repintar otra vez: eso creaba un campo nuevo a
@@ -1115,21 +1154,32 @@ function pintarMedicamentos() {
          cerrado. */
       if (!p || !p.buscar || p.abierto) return;
       p.abierto = true;
-      pintarMedicamentos();
+      pintarConsumos();
       const $nuevo = document.querySelector(`[data-buscar="${n}"]`);
       if ($nuevo) $nuevo.focus();
     });
   });
 
-  $lista.querySelectorAll('[data-elegir-med]').forEach((btn) => {
+  $lista.querySelectorAll('[data-elegir-consumo]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const n = parseInt(btn.dataset.elegirMed, 10);
-      const m = estado.medicamentos.find((x) => x.id === btn.dataset.id);
-      if (!m) return;
-      estado.prescripciones[n].medicamento_id = m.id;
-      estado.prescripciones[n].buscar = etiquetaMedicamento(m);
-      estado.prescripciones[n].abierto = false;
-      pintarMedicamentos();
+      const n = parseInt(btn.dataset.elegirConsumo, 10);
+      const p = estado.consumos[n];
+      const tipo = btn.dataset.tipo;
+      const id = btn.dataset.id;
+
+      const etiqueta = tipo === 'medicamento'
+        ? etiquetaMedicamento(estado.medicamentos.find((m) => m.id === id))
+        : etiquetaInsumo(estado.insumos.find((x) => x.id === id));
+
+      p.tipo = tipo;
+      p.item_id = id;
+      p.buscar = etiqueta;
+      p.abierto = false;
+      /* Un insumo no lleva indicación: si la fila cambió de
+         medicamento a insumo, se limpia lo que hubiera quedado
+         escrito, para no arrastrar un dato que ya no se pide. */
+      if (tipo === 'insumo') p.indicacion = '';
+      pintarConsumos();
       const $cant = document.querySelector(`[data-cant="${n}"]`);
       if ($cant) { $cant.focus(); $cant.select(); }
     });
@@ -1137,18 +1187,18 @@ function pintarMedicamentos() {
 
   $lista.querySelectorAll('[data-cant]').forEach((inp) => {
     inp.addEventListener('input', (e) => {
-      estado.prescripciones[parseInt(e.target.dataset.cant, 10)].cantidad =
+      estado.consumos[parseInt(e.target.dataset.cant, 10)].cantidad =
         parseInt(e.target.value, 10) || 1;
-      pintarMedicamentos();
+      pintarConsumos();
     });
   });
   $lista.querySelectorAll('[data-ind]').forEach((inp) => {
     inp.addEventListener('input', (e) => {
-      estado.prescripciones[parseInt(e.target.dataset.ind, 10)].indicacion = e.target.value;
+      estado.consumos[parseInt(e.target.dataset.ind, 10)].indicacion = e.target.value;
     });
   });
   $lista.querySelectorAll('[data-quitar-med]').forEach((btn) => {
-    btn.addEventListener('click', () => quitarMedicamento(parseInt(btn.dataset.quitarMed, 10)));
+    btn.addEventListener('click', () => quitarConsumo(parseInt(btn.dataset.quitarMed, 10)));
   });
 }
 
@@ -1330,7 +1380,9 @@ async function guardarAtencion() {
   const diagnosticos = estado.diagnosticos.filter((d) => d.codigo);
   if (diagnosticos.length === 0) return alertaAtencion('Registre al menos un diagnóstico');
 
-  const prescripciones = estado.prescripciones.filter((p) => p.medicamento_id && p.cantidad > 0);
+  const consumosValidos = estado.consumos.filter((p) => p.tipo && p.item_id && p.cantidad > 0);
+  const prescripciones = consumosValidos.filter((p) => p.tipo === 'medicamento');
+  const consumosInsumos = consumosValidos.filter((p) => p.tipo === 'insumo');
 
   const $btn = document.getElementById('btn-guardar-atencion');
   $btn.disabled = true;
@@ -1358,7 +1410,12 @@ async function guardarAtencion() {
     p_alergias: document.getElementById('at_alergias').value,
     p_diagnosticos: diagnosticos.map((d) => ({ codigo: d.codigo, observacion: d.observacion })),
     p_medicamentos: prescripciones.map((p) => ({
-      medicamento_id: p.medicamento_id,
+      medicamento_id: p.item_id,
+      cantidad: p.cantidad,
+      indicacion: p.indicacion
+    })),
+    p_insumos: consumosInsumos.map((p) => ({
+      insumo_id: p.item_id,
       cantidad: p.cantidad,
       indicacion: p.indicacion
     }))
@@ -1369,12 +1426,14 @@ async function guardarAtencion() {
 
   if (error) return alertaAtencion('No fue posible registrar: ' + error.message);
 
-  /* Informar lo que no se pudo entregar */
+  /* Informar lo que no se pudo entregar, medicamentos e insumos juntos */
   const noEntregados = data?.no_entregados || [];
-  if (noEntregados.length > 0) {
-    const detalle = noEntregados
-      .map((n) => `· ${n.medicamento} (${n.solicitado} solicitadas)`)
-      .join('\n');
+  const insumosNoEntregados = data?.insumos_no_entregados || [];
+  if (noEntregados.length > 0 || insumosNoEntregados.length > 0) {
+    const detalle = [
+      ...noEntregados.map((n) => `· ${n.medicamento} (${n.solicitado} solicitadas)`),
+      ...insumosNoEntregados.map((n) => `· ${n.insumo} (${n.solicitado} solicitadas)`)
+    ].join('\n');
     alert('Atención registrada.\n\nSin existencia suficiente para entregar:\n\n' +
           detalle + '\n\nQuedaron registrados como no entregados.');
   }
@@ -1499,12 +1558,15 @@ async function abrirDetalle(a) {
   $cuerpo.innerHTML = '<p class="pista">Cargando…</p>';
   document.getElementById('modal-detalle').hidden = false;
 
-  const [dx, rx, at] = await Promise.all([
+  const [dx, rx, ri, at] = await Promise.all([
     supabase.from('atencion_diagnosticos')
       .select('codigo_cie10, orden, observacion, cie10(descripcion)')
       .eq('atencion_id', a.id).order('orden'),
     supabase.from('atencion_medicamentos')
       .select('cantidad, indicacion, entregado, motivo_no_entrega, medicamentos(nombre_generico, concentracion, forma)')
+      .eq('atencion_id', a.id),
+    supabase.from('insumos_kardex')
+      .select('cantidad, nota, insumos(nombre, unidad)')
       .eq('atencion_id', a.id),
     supabase.from('atenciones')
       .select('motivo_consulta, presion_sistolica, presion_diastolica, frecuencia_cardiaca, frecuencia_resp, temperatura, saturacion, peso, talla')
@@ -1574,6 +1636,15 @@ async function abrirDetalle(a) {
         ${m.indicacion ? `<span class="secundario">${escapar(m.indicacion)}</span>` : ''}
       </div>
     `).join('') || '<p class="pista">Sin prescripción.</p>'}
+
+    <h4 class="detalle-titulo">Insumos</h4>
+    ${(ri.data || []).map((r) => `
+      <div class="detalle-linea">
+        <span>${escapar(r.insumos?.nombre || '')}</span>
+        <span class="celda-mono">× ${r.cantidad} ${escapar(r.insumos?.unidad || '')}</span>
+        ${r.nota ? `<span class="secundario">${escapar(r.nota)}</span>` : ''}
+      </div>
+    `).join('') || '<p class="pista">Sin insumos registrados.</p>'}
 
     ${a.observacion ? `
       <h4 class="detalle-titulo">Observación</h4>
@@ -1929,7 +2000,7 @@ async function seleccionarEmpresa() {
 }
 
 async function recargar() {
-  await Promise.all([cargarAtenciones(), cargarMedicamentos(), cargarMorbilidad()]);
+  await Promise.all([cargarAtenciones(), cargarMedicamentos(), cargarInsumos(), cargarMorbilidad()]);
   pintarResumen();
   pintarHoy();
   llenarFiltroDx();
@@ -1976,14 +2047,14 @@ function conectarEventos() {
     if (!e.target.closest('#busca_nombre') && !e.target.closest('#busca_sugerencias')) {
       ocultarSugerencias();
     }
-    /* Medicamentos: cada renglón tiene su propio panel, así
-       que se cierra cualquiera que haya quedado abierto sin
-       clic sobre su propio campo o su propia lista. */
+    /* Medicamentos e insumos: cada renglón tiene su propio
+       panel, así que se cierra cualquiera que haya quedado
+       abierto sin clic sobre su propio campo o su propia lista. */
     if (!e.target.closest('.campo-medicamento')) {
-      const habiaAlguno = estado.prescripciones.some((p) => p.abierto);
+      const habiaAlguno = estado.consumos.some((p) => p.abierto);
       if (habiaAlguno) {
-        estado.prescripciones.forEach((p) => { p.abierto = false; });
-        pintarMedicamentos();
+        estado.consumos.forEach((p) => { p.abierto = false; });
+        pintarConsumos();
       }
     }
     /* Lo mismo para el buscador de diagnósticos CIE-10. */
@@ -2009,7 +2080,7 @@ function conectarEventos() {
       .addEventListener('input', pintarFechasCert));
   document.getElementById('at_codigo').addEventListener('input', buscarTrabajador);
   document.getElementById('btn-add-diagnostico').addEventListener('click', agregarDiagnostico);
-  document.getElementById('btn-add-medicamento').addEventListener('click', agregarMedicamento);
+  document.getElementById('btn-add-medicamento').addEventListener('click', agregarConsumo);
   document.getElementById('at_peso').addEventListener('input', calcularImc);
   document.getElementById('at_talla').addEventListener('input', calcularImc);
 
