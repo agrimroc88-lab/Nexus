@@ -68,6 +68,7 @@
           <button class="pestana activa" data-vista="atenciones" type="button">Atenciones</button>
           <button class="pestana" data-vista="consolidado" type="button">Consolidado</button>
           <button class="pestana" data-vista="morbilidad" type="button">Morbilidad</button>
+          <button class="pestana" data-vista="externos" type="button">Externos</button>
         </nav>
 
         <!-- ============ Vista: Atenciones ============ -->
@@ -295,6 +296,51 @@
           </div>
         </section>
 
+        <!-- ============ Vista: Externos ============ -->
+        <section class="vista" id="vista-externos" hidden>
+
+          <p class="nota">
+            ADAE, pasantes, comunidad: personas atendidas que no son trabajadores
+            de ninguna empresa registrada. Si alguna de ellas llega a entrar a
+            trabajar formalmente, avise al registrar el nuevo trabajador — el
+            sistema vincula el historial en vez de duplicarlo.
+          </p>
+
+          <section class="buscador-panel">
+            <div class="buscador-fila">
+              <div class="campo campo-crece">
+                <label class="etiqueta" for="ext_busqueda">Buscar por nombre o cédula</label>
+                <input class="entrada" id="ext_busqueda" type="search"
+                       placeholder="Apellidos, nombres o cédula" autocomplete="off">
+              </div>
+              <button class="boton-primario" id="btn-nueva-persona-externa" type="button">
+                + Nueva persona externa
+              </button>
+            </div>
+          </section>
+
+          <div class="panel">
+            <div class="tabla-envoltura">
+              <table class="tabla">
+                <thead>
+                  <tr>
+                    <th>Nombre</th>
+                    <th>Cédula</th>
+                    <th class="celda-centro">Edad</th>
+                    <th>Procedencia</th>
+                    <th class="celda-centro">Estado</th>
+                    <th class="celda-centro"></th>
+                  </tr>
+                </thead>
+                <tbody id="cuerpo-externos"></tbody>
+              </table>
+            </div>
+            <p class="vacio" id="vacio-externos" hidden>
+              Todavía no hay personas externas registradas para esta empresa.
+            </p>
+          </div>
+        </section>
+
       </div>
 
       <p class="aviso-inicial" id="aviso-inicial">
@@ -302,6 +348,55 @@
       </p>
 
     </main>
+  </div>
+
+  <!-- ============ Modal: Nueva persona externa ============ -->
+  <div class="modal" id="modal-persona-externa" hidden>
+    <div class="modal-caja" role="dialog" aria-modal="true">
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo">Nueva persona externa</h2>
+        <button class="modal-cerrar" data-cierra="modal-persona-externa" type="button" aria-label="Cerrar">×</button>
+      </header>
+      <div class="modal-cuerpo">
+        <div class="rejilla">
+          <div class="campo">
+            <label class="etiqueta" for="pe_cedula">Cédula <span class="obligatorio">*</span></label>
+            <input class="entrada" id="pe_cedula" type="text" maxlength="10" autocomplete="off">
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="pe_procedencia">Procedencia <span class="obligatorio">*</span></label>
+            <select class="entrada" id="pe_procedencia">
+              <option value="adae">ADAE</option>
+              <option value="pasante">Pasante</option>
+              <option value="comunidad">Comunidad</option>
+              <option value="otro">Otro</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="pe_nombres">Nombres <span class="obligatorio">*</span></label>
+            <input class="entrada" id="pe_nombres" type="text" autocomplete="off">
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="pe_apellidos">Apellidos <span class="obligatorio">*</span></label>
+            <input class="entrada" id="pe_apellidos" type="text" autocomplete="off">
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="pe_nacimiento">Fecha de nacimiento</label>
+            <input class="entrada" id="pe_nacimiento" type="date">
+          </div>
+        </div>
+        <div class="campo">
+          <label class="alergias-etiqueta" for="pe_alergias">⚠ Alergias conocidas</label>
+          <input class="alergias-entrada" id="pe_alergias" type="text"
+                 placeholder="Ninguna conocida · escriba aquí para registrar">
+        </div>
+        <span class="ayuda ayuda-error" id="pe-error"></span>
+      </div>
+      <footer class="modal-pie">
+        <button class="boton-secundario" data-cierra="modal-persona-externa" type="button">Cancelar</button>
+        <button class="boton-primario" id="btn-guardar-persona-externa" type="button">Guardar</button>
+      </footer>
+    </div>
   </div>
 
   <!-- ============ Modal: Nueva atención ============ -->
@@ -316,7 +411,7 @@
       <div class="modal-cuerpo">
 
         <!-- Identificación del trabajador -->
-        <div class="rejilla">
+        <div class="rejilla" id="bloque-identificacion-trabajador">
           <div class="campo">
             <label class="etiqueta" for="at_codigo">Código de trabajador <span class="obligatorio">*</span></label>
             <input class="entrada entrada-destacada" id="at_codigo" type="number" min="1" max="3000"
@@ -327,6 +422,24 @@
           <div class="campo">
             <label class="etiqueta" for="at_fecha">Fecha <span class="obligatorio">*</span></label>
             <input class="entrada" id="at_fecha" type="date">
+          </div>
+        </div>
+
+        <!-- Identificación de persona externa (ADAE, pasante, comunidad) -->
+        <div class="rejilla" id="bloque-identificacion-externo" hidden>
+          <div class="campo">
+            <span class="etiqueta">Persona externa</span>
+            <p class="ficha-valor" id="ext-f-nombre">—</p>
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="at_fecha_ext">Fecha <span class="obligatorio">*</span></label>
+            <input class="entrada" id="at_fecha_ext" type="date">
+          </div>
+          <div class="campo campo-ancho alergias">
+            <label class="alergias-etiqueta" for="at_alergias_ext">⚠ Alergias conocidas</label>
+            <input class="alergias-entrada" id="at_alergias_ext" type="text"
+                   placeholder="Ninguna conocida · escriba aquí para registrar">
+            <span class="alergias-nota">Se conserva en la ficha de la persona externa</span>
           </div>
         </div>
 
@@ -766,7 +879,7 @@
   <!-- Zona de impresión de la ficha de emergencia -->
   <div class="em-impresion" id="em-impresion"></div>
 
-  <script type="module" src="js/atenciones.js?v=19"></script>
+  <script type="module" src="js/atenciones.js?v=20"></script>
   <!-- Zona de impresión del oficio. Fuera de <main>: al
        imprimir se oculta todo lo demás. -->
   <div class="oficio-impresion" id="oficio-impresion"></div>
