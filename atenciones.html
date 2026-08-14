@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="css/trabajadores.css">
   <link rel="stylesheet" href="css/farmacia.css">
   <link rel="stylesheet" href="css/certificados.css?v=14">
-  <link rel="stylesheet" href="css/atenciones.css?v=14">
+  <link rel="stylesheet" href="css/atenciones.css?v=15">
   <link rel="stylesheet" href="css/emergencia.css">
 </head>
 <body class="app">
@@ -431,6 +431,27 @@
             </div>
             <div class="campo">
               <label class="etiqueta" for="inat-plan-accion">Plan de acción</label>
+
+              <div class="inat-biblioteca">
+                <select class="entrada" id="inat-plan-elegir">
+                  <option value="">— Elegir de la biblioteca de planes —</option>
+                </select>
+                <button class="boton-secundario" id="inat-plan-usar" type="button">Usar este plan</button>
+                <button class="boton-secundario" id="inat-plan-nuevo" type="button">+ Nuevo plan</button>
+              </div>
+
+              <div class="inat-plan-form" id="inat-plan-form" hidden>
+                <input class="entrada" id="inat-plan-nombre" type="text"
+                       placeholder="Nombre corto (ej. Enfermedades respiratorias)">
+                <textarea class="entrada area" id="inat-plan-texto" rows="4"
+                          placeholder="Texto del plan de acción"></textarea>
+                <div class="inat-plan-form-botones">
+                  <button class="boton-secundario" id="inat-plan-cancelar" type="button">Cancelar</button>
+                  <button class="boton-primario" id="inat-plan-guardar" type="button">Guardar en la biblioteca y usar</button>
+                </div>
+                <span class="ayuda ayuda-error" id="inat-plan-error"></span>
+              </div>
+
               <textarea class="entrada area" id="inat-plan-accion" rows="5"
                         placeholder="Acciones derivadas del análisis: capacitaciones, seguimiento médico, revisión de puestos, etc."></textarea>
             </div>
@@ -1033,7 +1054,7 @@
   <!-- Zona de impresión de la ficha de emergencia -->
   <div class="em-impresion" id="em-impresion"></div>
 
-  <script type="module" src="js/atenciones.js?v=23"></script>
+  <script type="module" src="js/atenciones.js?v=24"></script>
   <!-- Zona de impresión del oficio. Fuera de <main>: al
        imprimir se oculta todo lo demás. -->
   <div class="oficio-impresion" id="oficio-impresion"></div>
