@@ -29,8 +29,9 @@ import {
 import { alCrear } from './autoria.js?v=1';
 import {
   iniciarInformeAtenciones, cambiarTipoPeriodo, generarInformeAtenciones,
-  descargarInformeAtenciones, guardarInformeAtenciones
-} from './informe-atenciones.js?v=3';
+  descargarInformeAtenciones, guardarInformeAtenciones,
+  usarPlanDeAccion, abrirNuevoPlan, cancelarNuevoPlan, guardarNuevoPlan
+} from './informe-atenciones.js?v=4';
 
 /* --- Estado --- */
 const estado = {
@@ -2367,6 +2368,10 @@ function conectarEventos() {
   document.getElementById('inat-btn-generar').addEventListener('click', generarInformeAtenciones);
   document.getElementById('inat-btn-descargar').addEventListener('click', descargarInformeAtenciones);
   document.getElementById('inat-btn-guardar').addEventListener('click', guardarInformeAtenciones);
+  document.getElementById('inat-plan-usar').addEventListener('click', usarPlanDeAccion);
+  document.getElementById('inat-plan-nuevo').addEventListener('click', abrirNuevoPlan);
+  document.getElementById('inat-plan-cancelar').addEventListener('click', cancelarNuevoPlan);
+  document.getElementById('inat-plan-guardar').addEventListener('click', guardarNuevoPlan);
   document.getElementById('btn-add-medicamento').addEventListener('click', agregarConsumo);
   document.getElementById('at_peso').addEventListener('input', calcularImc);
   document.getElementById('at_talla').addEventListener('input', calcularImc);

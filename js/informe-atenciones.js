@@ -85,6 +85,7 @@ export function iniciarInformeAtenciones(empresaId, empresaNombre) {
   llenarAnios();
   pintarTextosPorDefecto();
   cambiarTipoPeriodo();
+  cargarPlanesAccion();
 }
 
 function llenarAnios() {
@@ -124,6 +125,101 @@ export function cambiarTipoPeriodo() {
   const tipo = document.getElementById('inat-tipo').value;
   document.getElementById('inat-campo-mes').hidden = tipo !== 'mensual';
   document.getElementById('inat-campo-trimestre').hidden = tipo !== 'trimestral';
+}
+
+/* ============================================
+   Biblioteca de planes de acción
+
+   Compartida entre empresas, igual que el catálogo CIE-10:
+   son campañas de salud genéricas (pancartas, afiches,
+   charlas), reutilizables sin importar la empresa. Se elige
+   una según el diagnóstico más prevalente del periodo, y si
+   no hay ninguna que se ajuste, se agrega nueva y queda
+   guardada para el próximo informe —de cualquier empresa.
+   ============================================ */
+
+let planesAccion = [];
+
+async function cargarPlanesAccion() {
+  const { data, error } = await supabase
+    .from('planes_accion')
+    .select('id, nombre, texto')
+    .eq('activo', true)
+    .order('nombre');
+
+  planesAccion = error ? [] : (data || []);
+  pintarSelectPlanes();
+}
+
+function pintarSelectPlanes() {
+  const $sel = document.getElementById('inat-plan-elegir');
+  if (!$sel) return;
+  const actual = $sel.value;
+  $sel.innerHTML = '<option value="">— Elegir de la biblioteca de planes —</option>'
+    + planesAccion.map((p) => `<option value="${p.id}">${escapar(p.nombre)}</option>`).join('');
+  $sel.value = actual;
+}
+
+export function usarPlanDeAccion() {
+  const id = document.getElementById('inat-plan-elegir').value;
+  if (!id) return;
+  const plan = planesAccion.find((p) => p.id === id);
+  if (!plan) return;
+
+  const $txt = document.getElementById('inat-plan-accion');
+  /* Si ya hay algo escrito, se agrega debajo en vez de
+     reemplazar: así se pueden combinar varios planes cuando
+     hay más de un diagnóstico prevalente en el periodo. */
+  $txt.value = $txt.value.trim()
+    ? `${$txt.value.trim()}\n\n${plan.texto}`
+    : plan.texto;
+
+  document.getElementById('inat-plan-elegir').value = '';
+}
+
+export function abrirNuevoPlan() {
+  document.getElementById('inat-plan-nombre').value = '';
+  document.getElementById('inat-plan-texto').value = '';
+  document.getElementById('inat-plan-error').textContent = '';
+  document.getElementById('inat-plan-form').hidden = false;
+  document.getElementById('inat-plan-nombre').focus();
+}
+
+export function cancelarNuevoPlan() {
+  document.getElementById('inat-plan-form').hidden = true;
+}
+
+export async function guardarNuevoPlan() {
+  const $error = document.getElementById('inat-plan-error');
+  $error.textContent = '';
+
+  const nombre = document.getElementById('inat-plan-nombre').value.trim();
+  const texto = document.getElementById('inat-plan-texto').value.trim();
+
+  if (!nombre) return $error.textContent = 'Indique un nombre corto para el plan';
+  if (!texto) return $error.textContent = 'Escriba el texto del plan de acción';
+
+  const { data, error } = await supabase
+    .from('planes_accion')
+    .insert(alCrear({ nombre, texto }))
+    .select()
+    .single();
+
+  if (error) {
+    $error.textContent = error.code === '23505'
+      ? 'Ya existe un plan con ese nombre en la biblioteca.'
+      : 'No se pudo guardar: ' + error.message;
+    return;
+  }
+
+  planesAccion.push(data);
+  planesAccion.sort((a, b) => a.nombre.localeCompare(b.nombre));
+  pintarSelectPlanes();
+
+  const $txt = document.getElementById('inat-plan-accion');
+  $txt.value = $txt.value.trim() ? `${$txt.value.trim()}\n\n${texto}` : texto;
+
+  document.getElementById('inat-plan-form').hidden = true;
 }
 
 /* ============================================
