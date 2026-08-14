@@ -438,6 +438,19 @@
               <label class="etiqueta" for="inat-conclusion">Conclusión</label>
               <textarea class="entrada area" id="inat-conclusion" rows="3"></textarea>
             </div>
+
+            <div class="rejilla">
+              <div class="campo">
+                <label class="etiqueta" for="inat-firma-nombre">Elaborado por (firma)</label>
+                <input class="entrada" id="inat-firma-nombre" type="text"
+                       placeholder="Dr. Leonardo Arias Espinoza">
+              </div>
+              <div class="campo">
+                <label class="etiqueta" for="inat-firma-cargo">Cargo</label>
+                <input class="entrada" id="inat-firma-cargo" type="text"
+                       placeholder="Salud Ocupacional">
+              </div>
+            </div>
           </details>
 
           <!-- Previsualización -->
@@ -1020,7 +1033,7 @@
   <!-- Zona de impresión de la ficha de emergencia -->
   <div class="em-impresion" id="em-impresion"></div>
 
-  <script type="module" src="js/atenciones.js?v=21"></script>
+  <script type="module" src="js/atenciones.js?v=22"></script>
   <!-- Zona de impresión del oficio. Fuera de <main>: al
        imprimir se oculta todo lo demás. -->
   <div class="oficio-impresion" id="oficio-impresion"></div>
