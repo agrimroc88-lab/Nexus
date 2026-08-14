@@ -1052,3 +1052,27 @@
   border: 1px solid var(--color-borde);
   border-radius: var(--radio);
 }
+
+/* --- Biblioteca de planes de acción --- */
+.inat-biblioteca {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+.inat-biblioteca select { flex: 1; }
+
+.inat-plan-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  border: 1px dashed var(--color-borde);
+  border-radius: var(--radio);
+}
+.inat-plan-form-botones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
