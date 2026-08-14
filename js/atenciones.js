@@ -756,13 +756,21 @@ function agregarMedicamento() {
     alert('Esta empresa aún no tiene medicamentos en el catálogo de farmacia.');
     return;
   }
-  estado.prescripciones.push({ medicamento_id: '', cantidad: 1, indicacion: '', buscar: '' });
+  estado.prescripciones.push({ medicamento_id: '', cantidad: 1, indicacion: '', buscar: '', abierto: false });
   pintarMedicamentos();
 }
 
 function quitarMedicamento(indice) {
   estado.prescripciones.splice(indice, 1);
   pintarMedicamentos();
+}
+
+/* El comercial delante: es el nombre de la caja que se tiene
+   en la mano. El genérico va detrás porque es el que
+   identifica el principio activo y el que consta en la receta. */
+function etiquetaMedicamento(m) {
+  const detalle = `${m.nombre_generico} ${m.concentracion || ''} · ${m.forma}`.trim();
+  return m.nombre_comercial ? `${m.nombre_comercial} · ${detalle}` : detalle;
 }
 
 function pintarMedicamentos() {
@@ -776,52 +784,51 @@ function pintarMedicamentos() {
     const item = document.createElement('article');
     item.className = 'renglon';
 
-    /* El desplegable se acota con lo que se teclee arriba.
+    /* Autocompletado de un solo paso: cada letra filtra la
+       lista de abajo, y un clic sobre una fila elige el
+       medicamento y llena el campo con su nombre completo.
+       Ya no hace falta un <select> aparte —escribir y luego
+       abrir un desplegable eran dos acciones para una sola
+       decisión.
 
-       El navegador solo busca por el principio del texto, así
-       que escribir «ibu» no encontraba «Paracetamol +
-       Ibuprofeno». Con doscientos medicamentos en la lista,
-       ahí es donde se pierde el tiempo en consulta. Se busca
-       por comercial, genérico, concentración y forma.
-
-       El medicamento ya elegido nunca se filtra: teclear una
-       letra de más borraría la prescripción sin avisar. */
+       El navegador solo buscaba por el principio del texto, y
+       con doscientos medicamentos en la lista «ibu» no
+       encontraba «Paracetamol + Ibuprofeno». Aquí se busca por
+       comercial, genérico, concentración y forma completos. */
     const texto = (p.buscar || '').trim().toLowerCase();
 
-    const candidatos = estado.medicamentos.filter((m) => {
-      if (m.id === p.medicamento_id) return true;
-      if (!texto) return true;
-      return [m.nombre_comercial, m.nombre_generico, m.concentracion, m.forma]
-        .filter(Boolean).some((c) => c.toLowerCase().includes(texto));
-    });
+    const candidatos = texto
+      ? estado.medicamentos.filter((m) =>
+          [m.nombre_comercial, m.nombre_generico, m.concentracion, m.forma]
+            .filter(Boolean).some((c) => c.toLowerCase().includes(texto))
+        ).slice(0, 10)
+      : [];
 
-    const opciones = candidatos.map((m) => {
-      /* El comercial delante: es el nombre de la caja que se
-         tiene en la mano. El genérico va detrás porque es el
-         que identifica el principio activo y el que consta en
-         la receta. */
-      const detalle = `${m.nombre_generico} ${m.concentracion || ''} · ${m.forma}`.trim();
-      const etiqueta = m.nombre_comercial
-        ? `${m.nombre_comercial} · ${detalle}` : detalle;
-      const stock = m.stock_disponible > 0 ? `(${m.stock_disponible})` : '(sin stock)';
-      return `<option value="${m.id}" ${m.id === p.medicamento_id ? 'selected' : ''}>
-                ${escapar(etiqueta)} ${stock}
-              </option>`;
-    }).join('');
+    const sugerenciasHtml = candidatos.length > 0
+      ? candidatos.map((m) => {
+          const stock = m.stock_disponible > 0 ? `${m.stock_disponible} disp.` : 'sin stock';
+          return `
+            <button type="button" class="sugerencia" data-elegir-med="${i}" data-id="${m.id}">
+              <span class="sugerencia-nombre">${escapar(etiquetaMedicamento(m))}</span>
+              <span class="sugerencia-meta">${escapar(stock)}</span>
+            </button>
+          `;
+        }).join('')
+      : '<p class="sugerencia-vacia">Sin coincidencias</p>';
 
-    const sinCoincidencias = texto && candidatos.length === 0;
+    const mostrarPanel = Boolean(p.abierto && texto);
 
     item.innerHTML = `
       <div class="renglon-orden"><span class="orden-num">${i + 1}</span></div>
       <div class="renglon-cuerpo renglon-medicamento">
-        <input class="entrada entrada-mini entrada-buscar-med" type="text"
-               placeholder="Buscar por marca o genérico…" autocomplete="off"
-               value="${escapar(p.buscar || '')}" data-buscar="${i}">
-        <select class="entrada entrada-mini" data-med="${i}">
-          <option value="">${sinCoincidencias
-            ? '— Sin coincidencias —' : '— Seleccionar medicamento —'}</option>
-          ${opciones}
-        </select>
+        <div class="campo-crece campo-medicamento">
+          <input class="entrada entrada-mini entrada-buscar-med" type="text"
+                 placeholder="Buscar por marca o genérico…" autocomplete="off"
+                 value="${escapar(p.buscar || '')}" data-buscar="${i}">
+          <div class="sugerencias" data-sugerencias-med="${i}" ${mostrarPanel ? '' : 'hidden'}>
+            ${sugerenciasHtml}
+          </div>
+        </div>
         <input class="entrada entrada-cantidad ${insuficiente ? 'entrada-alerta' : ''}"
                type="number" min="1" value="${p.cantidad}" data-cant="${i}" placeholder="Cant.">
         <input class="entrada entrada-mini" type="text" placeholder="Indicación · posología"
@@ -831,6 +838,15 @@ function pintarMedicamentos() {
     `;
 
     $lista.appendChild(item);
+
+    if (!med && p.medicamento_id) {
+      /* Rareza: quedó un id que ya no está en el catálogo cargado */
+    } else if (!p.medicamento_id && p.buscar) {
+      const aviso = document.createElement('p');
+      aviso.className = 'ayuda';
+      aviso.textContent = 'Aún no ha elegido un medicamento de la lista.';
+      $lista.appendChild(aviso);
+    }
 
     if (insuficiente) {
       const aviso = document.createElement('p');
@@ -848,7 +864,12 @@ function pintarMedicamentos() {
     inp.addEventListener('input', (e) => {
       const n = parseInt(e.target.dataset.buscar, 10);
       const pos = e.target.selectionStart;
-      estado.prescripciones[n].buscar = e.target.value;
+      const valor = e.target.value;
+      estado.prescripciones[n].buscar = valor;
+      estado.prescripciones[n].abierto = true;
+      /* Campo vacío = nada elegido: evita dejar una selección
+         "fantasma" detrás de un cuadro que se ve en blanco. */
+      if (!valor.trim()) estado.prescripciones[n].medicamento_id = '';
       pintarMedicamentos();
       const $nuevo = document.querySelector(`[data-buscar="${n}"]`);
       if ($nuevo) {
@@ -856,14 +877,31 @@ function pintarMedicamentos() {
         $nuevo.setSelectionRange(pos, pos);
       }
     });
-  });
 
-  $lista.querySelectorAll('[data-med]').forEach((sel) => {
-    sel.addEventListener('change', (e) => {
-      estado.prescripciones[parseInt(e.target.dataset.med, 10)].medicamento_id = e.target.value;
+    inp.addEventListener('focus', (e) => {
+      const n = parseInt(e.target.dataset.buscar, 10);
+      if (!estado.prescripciones[n].buscar) return;
+      estado.prescripciones[n].abierto = true;
       pintarMedicamentos();
+      const $nuevo = document.querySelector(`[data-buscar="${n}"]`);
+      if ($nuevo) $nuevo.focus();
     });
   });
+
+  $lista.querySelectorAll('[data-elegir-med]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const n = parseInt(btn.dataset.elegirMed, 10);
+      const m = estado.medicamentos.find((x) => x.id === btn.dataset.id);
+      if (!m) return;
+      estado.prescripciones[n].medicamento_id = m.id;
+      estado.prescripciones[n].buscar = etiquetaMedicamento(m);
+      estado.prescripciones[n].abierto = false;
+      pintarMedicamentos();
+      const $cant = document.querySelector(`[data-cant="${n}"]`);
+      if ($cant) { $cant.focus(); $cant.select(); }
+    });
+  });
+
   $lista.querySelectorAll('[data-cant]').forEach((inp) => {
     inp.addEventListener('input', (e) => {
       estado.prescripciones[parseInt(e.target.dataset.cant, 10)].cantidad =
@@ -1704,6 +1742,16 @@ function conectarEventos() {
   document.addEventListener('click', (e) => {
     if (!e.target.closest('#busca_nombre') && !e.target.closest('#busca_sugerencias')) {
       ocultarSugerencias();
+    }
+    /* Medicamentos: cada renglón tiene su propio panel, así
+       que se cierra cualquiera que haya quedado abierto sin
+       clic sobre su propio campo o su propia lista. */
+    if (!e.target.closest('.campo-medicamento')) {
+      const habiaAlguno = estado.prescripciones.some((p) => p.abierto);
+      if (habiaAlguno) {
+        estado.prescripciones.forEach((p) => { p.abierto = false; });
+        pintarMedicamentos();
+      }
     }
   });
 
