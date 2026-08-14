@@ -27,6 +27,10 @@ import {
   mostrarCiePorDefecto, rangoDias, imprimirOficio, destinatariosLista
 } from './oficio-certificado.js?v=4';
 import { alCrear } from './autoria.js?v=1';
+import {
+  iniciarInformeAtenciones, cambiarTipoPeriodo, generarInformeAtenciones,
+  descargarInformeAtenciones, guardarInformeAtenciones
+} from './informe-atenciones.js?v=1';
 
 /* --- Estado --- */
 const estado = {
@@ -47,6 +51,7 @@ const estado = {
   modoAtencion: 'trabajador',  // 'trabajador' | 'externo'
   personaExterna: null, // persona externa de la atención en curso
   externos: [],         // catálogo de personas externas (ADAE, pasantes, comunidad)
+  informeIniciado: false,
   vista: 'atenciones'
 };
 
@@ -2235,17 +2240,22 @@ function cambiarVista(vista) {
   document.querySelectorAll('.pestana').forEach((p) => {
     p.classList.toggle('activa', p.dataset.vista === vista);
   });
-  ['atenciones', 'consolidado', 'morbilidad', 'externos'].forEach((v) => {
+  ['atenciones', 'consolidado', 'morbilidad', 'externos', 'informe'].forEach((v) => {
     document.getElementById('vista-' + v).hidden = v !== vista;
   });
   if (vista === 'morbilidad') pintarMorbilidad();
   if (vista === 'consolidado') pintarConsolidado();
   if (vista === 'externos') pintarExternos();
+  if (vista === 'informe' && !estado.informeIniciado) {
+    estado.informeIniciado = true;
+    iniciarInformeAtenciones(estado.empresaId, $empresa.selectedOptions[0]?.textContent || '');
+  }
   if (vista === 'atenciones') document.getElementById('busca_codigo').focus();
 }
 
 async function seleccionarEmpresa() {
   estado.empresaId = $empresa.value || null;
+  estado.informeIniciado = false;
   fijarEmpresaEmergencia(estado.empresaId);
 
   if (!estado.empresaId) {
@@ -2353,6 +2363,10 @@ function conectarEventos() {
   document.getElementById('btn-nueva-persona-externa').addEventListener('click', abrirNuevaPersonaExterna);
   document.getElementById('btn-guardar-persona-externa').addEventListener('click', guardarPersonaExterna);
   document.getElementById('ext_busqueda').addEventListener('input', pintarExternos);
+  document.getElementById('inat-tipo').addEventListener('change', cambiarTipoPeriodo);
+  document.getElementById('inat-btn-generar').addEventListener('click', generarInformeAtenciones);
+  document.getElementById('inat-btn-descargar').addEventListener('click', descargarInformeAtenciones);
+  document.getElementById('inat-btn-guardar').addEventListener('click', guardarInformeAtenciones);
   document.getElementById('btn-add-medicamento').addEventListener('click', agregarConsumo);
   document.getElementById('at_peso').addEventListener('input', calcularImc);
   document.getElementById('at_talla').addEventListener('input', calcularImc);
