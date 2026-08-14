@@ -27,7 +27,7 @@ import {
   iniciarEvaluacion, crearCampana, elegirCampana, buscarTrabajador,
   guardarCaptura, cerrarCaptura
 } from './evaluacion-periodica.js?v=1';
-import { montarGrupos, cargarGrupos, pintarGrupos } from './grupos.js?v=11';
+import { montarGrupos, cargarGrupos, pintarGrupos } from './grupos.js?v=12';
 import { montarBotiquines, cargarBotiquines, pintarBotiquines }
   from './botiquines.js?v=12';
 import { montarInstalaciones, cargarInstalaciones, pintarInstalaciones }

@@ -112,6 +112,15 @@ function puedeRegistrar() {
   return PERSONAL_SALUD.includes(gp.perfil?.rol);
 }
 
+/* Eliminar (no cerrar) es más delicado que registrar: borra
+   el registro en vez de dejar constancia de que terminó. Por
+   eso, a diferencia de registrar/indicar/adaptar —que puede
+   hacer cualquiera del personal de salud—, esto queda
+   reservado al admin. */
+function esAdmin() {
+  return gp.perfil?.rol === ROLES.ADMIN;
+}
+
 /** Indicar */
 function puedeIndicar() {
   return PERSONAL_SALUD.includes(gp.perfil?.rol);
@@ -635,6 +644,9 @@ function abrirFicha(r) {
   pintarIndicaciones(r);
   pintarAdaptaciones(r);
 
+  const $elim = document.getElementById('gp-btn-eliminar-condicion');
+  if ($elim) $elim.hidden = !esAdmin();
+
   document.getElementById('gp-modal-ficha').hidden = false;
 }
 
@@ -1015,6 +1027,35 @@ async function cerrarCondicion() {
     .update({ fecha_fin: HOY(), motivo_cierre: motivo.trim() })
     .eq('id', r.id);
 
+  if (error) return alert(traducir(error));
+
+  document.getElementById('gp-modal-ficha').hidden = true;
+  await refrescar();
+}
+
+/* Eliminar borra el registro por completo —a diferencia de
+   cerrar, que conserva la fecha y el motivo—, así que solo
+   tiene sentido para corregir un registro dado de alta por
+   error. Si ya tiene indicaciones o adaptaciones encima, esas
+   filas dependen de este registro (grupo_id) y representan
+   trabajo clínico real ya hecho: ahí toca cerrar, no borrar. */
+async function eliminarCondicion() {
+  const r = gp.actual;
+  if (!r || !esAdmin()) return;
+
+  const tieneIndicaciones = (gp.indicaciones[r.id] || []).length > 0;
+  const tieneAdaptaciones = (gp.adaptaciones[r.id] || []).length > 0;
+
+  if (tieneIndicaciones || tieneAdaptaciones) {
+    alert('Este registro ya tiene indicaciones o adaptaciones asociadas: '
+        + 'eliminarlo perdería ese historial. Use "Cerrar condición" en su lugar.');
+    return;
+  }
+
+  if (!confirm(`¿Eliminar definitivamente el registro de ${r.nombre_completo} `
+             + 'en grupos prioritarios? Esta acción no se puede deshacer.')) return;
+
+  const { error } = await supabase.from('grupos_prioritarios').delete().eq('id', r.id);
   if (error) return alert(traducir(error));
 
   document.getElementById('gp-modal-ficha').hidden = true;
@@ -1406,6 +1447,7 @@ function conectar() {
 
   enEl('gp-btn-editar-registro', 'click', () => abrirRegistro(gp.actual));
   enEl('gp-btn-cerrar-condicion', 'click', cerrarCondicion);
+  enEl('gp-btn-eliminar-condicion', 'click', eliminarCondicion);
 
   enEl('gp_sin_adaptaciones', 'change', () => {
     document.getElementById('gp-bloque-sin-adaptaciones').hidden =
