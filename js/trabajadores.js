@@ -267,23 +267,37 @@ async function cargarTrabajadores() {
 
   estado.trabajadores = data || [];
 
-  // Traer el cargo (cargo_texto) del periodo vigente de cada trabajador
+  /* Primera pintura: código, cédula, nombre y estado del
+     periódico ya están completos con esta sola consulta. El
+     cargo y las alertas clínicas llegan después sin motivo
+     para retener lo que el usuario ya puede ver. */
+  pintarResumen();
+  pintarTabla();
+
+  // Traer el cargo (cargo_texto) del periodo vigente de cada trabajador,
+  // y las alertas clínicas, en paralelo: ninguna depende de la otra.
   const ids = estado.trabajadores.map((t) => t.id);
-  if (ids.length > 0) {
-    const { data: periodos } = await supabase
-      .from('periodos_laborales')
-      .select('trabajador_id, cargo_texto, fecha_ingreso')
-      .in('trabajador_id', ids)
-      .is('fecha_salida', null);
-    const mapa = {};
-    (periodos || []).forEach((p) => { mapa[p.trabajador_id] = p.cargo_texto; });
-    estado.trabajadores.forEach((t) => { t.cargo = mapa[t.id] || t.cargo || null; });
-  }
+
+  const [periodos, alertas] = await Promise.all([
+    ids.length > 0
+      ? supabase.from('periodos_laborales')
+          .select('trabajador_id, cargo_texto, fecha_ingreso')
+          .in('trabajador_id', ids)
+          .is('fecha_salida', null)
+          .then((r) => r.data || [])
+      : Promise.resolve([]),
+    traerAlertas(estado.empresaId)
+  ]);
+
+  const mapa = {};
+  periodos.forEach((p) => { mapa[p.trabajador_id] = p.cargo_texto; });
+  estado.trabajadores.forEach((t) => { t.cargo = mapa[t.id] || t.cargo || null; });
 
   /* Marcas clínicas del listado. Vista aparte y ligera:
      no trae diagnósticos, solo si hay algo que señalar. */
-  estado.alertas = await traerAlertas(estado.empresaId);
+  estado.alertas = alertas;
 
+  // Segunda pintura: ya con cargo e insignias clínicas completos.
   pintarResumen();
   pintarTabla();
 }
