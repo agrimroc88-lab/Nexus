@@ -17,7 +17,7 @@
 import { supabase } from './supabase.js?v=11';
 import { protegerPagina, puedeVerClinica } from './auth.js?v=11';
 import { montarNavegacion } from './nav.js?v=11';
-import { escapar, textoOGuion, retrasar, formatearFecha, resumenReposo }
+import { escapar, textoOGuion, retrasar, formatearFecha, resumenReposo, validarCedula }
   from './utils.js?v=12';
 import { montarEmergencia, fijarEmpresaEmergencia, pintarPanelClinico }
   from './emergencia.js?v=11';
@@ -44,6 +44,9 @@ const estado = {
   cieDestino: null,     // índice del diagnóstico que abrió el buscador
   paciente: null,       // trabajador localizado en la pestaña Atenciones
   histAbierto: false,   // historial embebido desplegado
+  modoAtencion: 'trabajador',  // 'trabajador' | 'externo'
+  personaExterna: null, // persona externa de la atención en curso
+  externos: [],         // catálogo de personas externas (ADAE, pasantes, comunidad)
   vista: 'atenciones'
 };
 
@@ -153,6 +156,17 @@ async function cargarInsumos() {
     .order('nombre');
 
   estado.insumos = error ? [] : (data || []);
+}
+
+async function cargarExternos() {
+  const { data, error } = await supabase
+    .from('personas_externas')
+    .select('id, cedula, nombres, apellidos, fecha_nacimiento, procedencia, alergias, activo, migrado_a_trabajador_id, migrado_en')
+    .eq('empresa_id', estado.empresaId)
+    .eq('activo', true)
+    .order('apellidos');
+
+  estado.externos = error ? [] : (data || []);
 }
 
 async function cargarMorbilidad() {
@@ -410,6 +424,11 @@ function abrirAtencion() {
   estado.trabajador = null;
   estado.diagnosticos = [];
   estado.consumos = [];
+  estado.modoAtencion = 'trabajador';
+  estado.personaExterna = null;
+
+  document.getElementById('bloque-identificacion-trabajador').hidden = false;
+  document.getElementById('bloque-identificacion-externo').hidden = true;
 
   document.getElementById('at_codigo').value = '';
   document.getElementById('at_fecha').value = HOY();
@@ -1226,6 +1245,164 @@ function pintarConsumos() {
 }
 
 /* ============================================
+   Personas externas
+   ADAE, pasantes, comunidad: se atienden y se descuenta
+   farmacia igual que a un trabajador, pero no viven en la
+   tabla de trabajadores. Si alguien de aquí llega a entrar a
+   trabajar formalmente, se vincula en vez de duplicar —ver
+   la migración en trabajadores.js.
+   ============================================ */
+
+function edadDeFecha(fecha) {
+  if (!fecha) return null;
+  const hoy = new Date();
+  const nac = new Date(fecha + 'T00:00:00');
+  let edad = hoy.getFullYear() - nac.getFullYear();
+  const aunNoCumple = (hoy.getMonth() < nac.getMonth())
+    || (hoy.getMonth() === nac.getMonth() && hoy.getDate() < nac.getDate());
+  if (aunNoCumple) edad -= 1;
+  return edad;
+}
+
+const PROCEDENCIA_TEXTO = { adae: 'ADAE', pasante: 'Pasante', comunidad: 'Comunidad', otro: 'Otro' };
+
+function pintarExternos() {
+  const $cuerpo = document.getElementById('cuerpo-externos');
+  const $vacio = document.getElementById('vacio-externos');
+  if (!$cuerpo) return;
+
+  const texto = (document.getElementById('ext_busqueda')?.value || '').trim().toLowerCase();
+  const lista = estado.externos.filter((p) => {
+    if (!texto) return true;
+    const campo = `${p.nombres} ${p.apellidos} ${p.cedula}`.toLowerCase();
+    return campo.includes(texto);
+  });
+
+  $cuerpo.innerHTML = '';
+
+  if (lista.length === 0) {
+    if ($vacio) {
+      $vacio.hidden = false;
+      $vacio.textContent = estado.externos.length === 0
+        ? 'Todavía no hay personas externas registradas para esta empresa.'
+        : 'Ninguna coincide con la búsqueda.';
+    }
+    return;
+  }
+  if ($vacio) $vacio.hidden = true;
+
+  lista.forEach((p) => {
+    const tr = document.createElement('tr');
+    const edad = edadDeFecha(p.fecha_nacimiento);
+
+    tr.innerHTML = `
+      <td>${escapar(p.apellidos)} ${escapar(p.nombres)}</td>
+      <td class="celda-mono">${escapar(p.cedula)}</td>
+      <td class="celda-centro">${edad ?? '—'}</td>
+      <td>${escapar(PROCEDENCIA_TEXTO[p.procedencia] || p.procedencia)}</td>
+      <td class="celda-centro">
+        ${p.migrado_a_trabajador_id
+          ? `<span class="insignia insignia-activa" title="Ya es trabajador desde ${formatearFecha(p.migrado_en)}">Migrado</span>`
+          : '<span class="insignia insignia-inactiva">Externo</span>'}
+      </td>
+      <td class="celda-centro"></td>
+    `;
+
+    const btn = document.createElement('button');
+    btn.className = 'boton-icono';
+    btn.type = 'button';
+    btn.textContent = 'Nueva atención';
+    btn.addEventListener('click', () => abrirAtencionExterna(p));
+    tr.lastElementChild.appendChild(btn);
+
+    $cuerpo.appendChild(tr);
+  });
+}
+
+function abrirNuevaPersonaExterna() {
+  document.getElementById('pe_cedula').value = '';
+  document.getElementById('pe_nombres').value = '';
+  document.getElementById('pe_apellidos').value = '';
+  document.getElementById('pe_nacimiento').value = '';
+  document.getElementById('pe_procedencia').value = 'adae';
+  document.getElementById('pe_alergias').value = '';
+  document.getElementById('pe-error').textContent = '';
+  document.getElementById('modal-persona-externa').hidden = false;
+  document.getElementById('pe_cedula').focus();
+}
+
+async function guardarPersonaExterna() {
+  const $error = document.getElementById('pe-error');
+  $error.textContent = '';
+
+  const cedula = document.getElementById('pe_cedula').value.trim();
+  const nombres = document.getElementById('pe_nombres').value.trim();
+  const apellidos = document.getElementById('pe_apellidos').value.trim();
+  const nacimiento = document.getElementById('pe_nacimiento').value || null;
+  const procedencia = document.getElementById('pe_procedencia').value;
+  const alergias = document.getElementById('pe_alergias').value.trim();
+
+  if (!cedula) return $error.textContent = 'La cédula es obligatoria';
+  if (!validarCedula(cedula)) return $error.textContent = 'Cédula inválida';
+  if (!nombres) return $error.textContent = 'Los nombres son obligatorios';
+  if (!apellidos) return $error.textContent = 'Los apellidos son obligatorios';
+
+  const datos = alCrear({
+    empresa_id: estado.empresaId, cedula, nombres, apellidos,
+    fecha_nacimiento: nacimiento, procedencia,
+    alergias: alergias || null
+  });
+
+  const { data, error } = await supabase.from('personas_externas').insert(datos).select().single();
+
+  if (error) {
+    $error.textContent = error.code === '23505'
+      ? 'Esta cédula ya está registrada como persona externa en esta empresa.'
+      : 'No se pudo guardar: ' + error.message;
+    return;
+  }
+
+  estado.externos.push(data);
+  document.getElementById('modal-persona-externa').hidden = true;
+  pintarExternos();
+  abrirAtencionExterna(data);
+}
+
+function abrirAtencionExterna(persona) {
+  estado.modoAtencion = 'externo';
+  estado.personaExterna = persona;
+  estado.diagnosticos = [];
+  estado.consumos = [];
+  agregarDiagnostico();
+
+  document.getElementById('bloque-identificacion-trabajador').hidden = true;
+  document.getElementById('bloque-identificacion-externo').hidden = false;
+  document.getElementById('bloque-cierre').hidden = true;
+  document.getElementById('bloque-certificado').hidden = true;
+
+  const edad = edadDeFecha(persona.fecha_nacimiento);
+  document.getElementById('ext-f-nombre').textContent =
+    `${persona.apellidos} ${persona.nombres} · Cédula ${persona.cedula}`
+    + (edad != null ? ` · ${edad} años` : '')
+    + ` · ${PROCEDENCIA_TEXTO[persona.procedencia] || persona.procedencia}`;
+
+  document.getElementById('at_fecha_ext').value = HOY();
+  document.getElementById('at_alergias_ext').value = persona.alergias || '';
+  document.getElementById('at_motivo').value = '';
+  document.getElementById('at_observacion').value = '';
+
+  pintarDiagnosticos();
+  pintarConsumos();
+
+  document.getElementById('bloque-motivo').hidden = false;
+  document.getElementById('bloque-vitales').hidden = true;
+  document.getElementById('bloque-diagnosticos').hidden = false;
+  document.getElementById('bloque-medicamentos').hidden = false;
+
+  document.getElementById('modal-atencion').hidden = false;
+}
+
+/* ============================================
    Índice de masa corporal
    ============================================ */
 
@@ -1398,6 +1575,8 @@ async function emitirCertificadoInterno(diagnosticos) {
 }
 
 async function guardarAtencion() {
+  if (estado.modoAtencion === 'externo') return guardarAtencionExterna();
+
   if (!estado.trabajador) return alertaAtencion('Identifique al trabajador');
 
   const diagnosticos = estado.diagnosticos.filter((d) => d.codigo);
@@ -1467,6 +1646,72 @@ async function guardarAtencion() {
      existe. */
   if (document.getElementById('at_certificado').checked) {
     await emitirCertificadoInterno(diagnosticos);
+  }
+
+  document.getElementById('modal-atencion').hidden = true;
+  await recargar();
+}
+
+/* Misma idea que guardarAtencion(), pero para ADAE, pasantes
+   o comunidad: sin vitales, sin reposo, sin certificado —esos
+   conceptos son de relación laboral y no aplican aquí. Las
+   alergias se guardan en personas_externas en vez de
+   trabajadores, con la misma regla: un campo vacío no borra
+   lo que ya estaba escrito. */
+async function guardarAtencionExterna() {
+  const persona = estado.personaExterna;
+  if (!persona) return alertaAtencion('Identifique a la persona externa');
+
+  const diagnosticos = estado.diagnosticos.filter((d) => d.codigo);
+  if (diagnosticos.length === 0) return alertaAtencion('Registre al menos un diagnóstico');
+
+  const consumosValidos = estado.consumos.filter((p) => p.tipo && p.item_id && p.cantidad > 0);
+  const prescripciones = consumosValidos.filter((p) => p.tipo === 'medicamento');
+  const consumosInsumos = consumosValidos.filter((p) => p.tipo === 'insumo');
+
+  const $btn = document.getElementById('btn-guardar-atencion');
+  $btn.disabled = true;
+  $btn.textContent = 'Registrando…';
+
+  const alergias = document.getElementById('at_alergias_ext').value.trim();
+  if (alergias) {
+    await supabase.from('personas_externas')
+      .update(alEditar({ alergias })).eq('id', persona.id);
+  }
+
+  const { data, error } = await supabase.rpc('registrar_atencion_externa', {
+    p_empresa: estado.empresaId,
+    p_persona_externa: persona.id,
+    p_fecha: document.getElementById('at_fecha_ext').value,
+    p_motivo: document.getElementById('at_motivo').value,
+    p_observacion: document.getElementById('at_observacion').value,
+    p_diagnosticos: diagnosticos.map((d) => ({ codigo: d.codigo, observacion: d.observacion })),
+    p_medicamentos: prescripciones.map((p) => ({
+      medicamento_id: p.item_id,
+      cantidad: p.cantidad,
+      indicacion: p.indicacion
+    })),
+    p_insumos: consumosInsumos.map((p) => ({
+      insumo_id: p.item_id,
+      cantidad: p.cantidad,
+      indicacion: p.indicacion
+    }))
+  });
+
+  $btn.disabled = false;
+  $btn.textContent = 'Registrar atención';
+
+  if (error) return alertaAtencion('No fue posible registrar: ' + error.message);
+
+  const noEntregados = data?.no_entregados || [];
+  const insumosNoEntregados = data?.insumos_no_entregados || [];
+  if (noEntregados.length > 0 || insumosNoEntregados.length > 0) {
+    const detalle = [
+      ...noEntregados.map((n) => `· ${n.medicamento} (${n.solicitado} solicitadas)`),
+      ...insumosNoEntregados.map((n) => `· ${n.insumo} (${n.solicitado} solicitadas)`)
+    ].join('\n');
+    alert('Atención registrada.\n\nSin existencia suficiente para entregar:\n\n' +
+          detalle + '\n\nQuedaron registrados como no entregados.');
   }
 
   document.getElementById('modal-atencion').hidden = true;
@@ -1990,11 +2235,12 @@ function cambiarVista(vista) {
   document.querySelectorAll('.pestana').forEach((p) => {
     p.classList.toggle('activa', p.dataset.vista === vista);
   });
-  ['atenciones', 'consolidado', 'morbilidad'].forEach((v) => {
+  ['atenciones', 'consolidado', 'morbilidad', 'externos'].forEach((v) => {
     document.getElementById('vista-' + v).hidden = v !== vista;
   });
   if (vista === 'morbilidad') pintarMorbilidad();
   if (vista === 'consolidado') pintarConsolidado();
+  if (vista === 'externos') pintarExternos();
   if (vista === 'atenciones') document.getElementById('busca_codigo').focus();
 }
 
@@ -2023,12 +2269,13 @@ async function seleccionarEmpresa() {
 }
 
 async function recargar() {
-  await Promise.all([cargarAtenciones(), cargarMedicamentos(), cargarInsumos(), cargarMorbilidad()]);
+  await Promise.all([cargarAtenciones(), cargarMedicamentos(), cargarInsumos(), cargarMorbilidad(), cargarExternos()]);
   pintarResumen();
   pintarHoy();
   llenarFiltroDx();
 
   if (estado.vista === 'consolidado') pintarConsolidado();
+  if (estado.vista === 'externos') pintarExternos();
   if (estado.vista === 'morbilidad') pintarMorbilidad();
 
   /* Si hay una ficha abierta, reflejar la nueva atención */
@@ -2103,6 +2350,9 @@ function conectarEventos() {
       .addEventListener('input', pintarFechasCert));
   document.getElementById('at_codigo').addEventListener('input', buscarTrabajador);
   document.getElementById('btn-add-diagnostico').addEventListener('click', agregarDiagnostico);
+  document.getElementById('btn-nueva-persona-externa').addEventListener('click', abrirNuevaPersonaExterna);
+  document.getElementById('btn-guardar-persona-externa').addEventListener('click', guardarPersonaExterna);
+  document.getElementById('ext_busqueda').addEventListener('input', pintarExternos);
   document.getElementById('btn-add-medicamento').addEventListener('click', agregarConsumo);
   document.getElementById('at_peso').addEventListener('input', calcularImc);
   document.getElementById('at_talla').addEventListener('input', calcularImc);

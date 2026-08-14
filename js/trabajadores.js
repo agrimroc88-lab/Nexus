@@ -364,7 +364,35 @@ async function guardarTrabajador() {
     return;
   }
 
-  /* --- Alta: trabajador + primer periodo --- */
+  /* --- Alta: trabajador + primer periodo ---
+     Antes de crear la ficha, se revisa si esta cédula ya
+     tiene historial como persona externa (ADAE, pasante,
+     comunidad) sin migrar todavía. Si es así, se pregunta
+     antes de seguir: vincular no duplica nada, solo marca esa
+     ficha externa como "ya es trabajador" y deja el historial
+     donde está —no se mueve ni se copia—, mientras que las
+     atenciones nuevas de ahora en adelante se registran como
+     trabajador. */
+  const { data: externo } = await supabase
+    .from('personas_externas')
+    .select('id, nombres, apellidos, procedencia')
+    .eq('empresa_id', estado.empresaId)
+    .eq('cedula', datos.cedula)
+    .is('migrado_a_trabajador_id', null)
+    .maybeSingle();
+
+  let vincularExterno = false;
+  if (externo) {
+    const PROCEDENCIA = { adae: 'ADAE', pasante: 'Pasante', comunidad: 'Comunidad', otro: 'Otro' };
+    vincularExterno = confirm(
+      `Esta cédula ya tiene historial como persona externa `
+      + `(${PROCEDENCIA[externo.procedencia] || externo.procedencia}): `
+      + `${externo.nombres} ${externo.apellidos}.\n\n`
+      + '¿Vincular ese historial a este nuevo trabajador? '
+      + 'El historial externo se queda donde está, solo queda conectado.'
+    );
+  }
+
   const { data: nuevo, error: errorTrab } = await supabase
     .from('trabajadores')
     .insert({ ...datos, empresa_id: estado.empresaId })
@@ -375,6 +403,12 @@ async function guardarTrabajador() {
     bloquear(false);
     mostrarAlerta(traducirBd(errorTrab));
     return;
+  }
+
+  if (vincularExterno) {
+    await supabase.from('personas_externas')
+      .update({ migrado_a_trabajador_id: nuevo.id, migrado_en: new Date().toISOString() })
+      .eq('id', externo.id);
   }
 
   const { error: errorPer } = await supabase
