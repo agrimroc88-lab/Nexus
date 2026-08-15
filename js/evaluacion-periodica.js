@@ -80,7 +80,6 @@ export async function iniciarEvaluacion(empresaId, empresaNombre) {
 
   const [cat, nom] = await Promise.all([
     supabase.from('examenes_catalogo').select('*')
-      .eq('activo', true)
       .or(`empresa_id.is.null,empresa_id.eq.${empresaId}`)
       .order('orden'),
     supabase.from('v_trabajadores')
@@ -237,7 +236,7 @@ function pintarCaptura() {
       .filter((r) => r.trabajador_id === ev.trabajador.id)
       .map((r) => [r.examen_id, r]));
 
-  ev.examenes.forEach((x) => {
+  ev.examenes.filter((x) => x.activo).forEach((x) => {
     const r = mios.get(x.id);
     const tr = document.createElement('tr');
     tr.dataset.examen = x.id;
@@ -259,6 +258,10 @@ function pintarCaptura() {
         <input class="entrada entrada-mini" data-campo="condicion" type="text"
                placeholder="Condición encontrada" autocomplete="off">
       </td>
+      <td>
+        <input class="entrada entrada-mini" data-campo="valor" type="text"
+               placeholder="Ej. Cobb 3°, Hb 10.2" autocomplete="off">
+      </td>
       <td class="ep-col-cie">
         <input class="entrada entrada-mini" data-campo="cie" type="text"
                placeholder="CIE-10" maxlength="8" autocomplete="off">
@@ -266,17 +269,24 @@ function pintarCaptura() {
 
     const $res = tr.querySelector('[data-campo="resultado"]');
     const $cond = tr.querySelector('[data-campo="condicion"]');
+    const $valor = tr.querySelector('[data-campo="valor"]');
     const $cie = tr.querySelector('[data-campo="cie"]');
 
     if (r) {
       $res.value = r.resultado;
       $cond.value = r.condicion || '';
+      $valor.value = r.valor || '';
       $cie.value = r.codigo_cie10 || '';
     }
 
-    /* La condición solo tiene sentido si el resultado es
-       anormal: dejarla escrita en un examen normal produce
-       hallazgos fantasma en el informe. */
+    /* La condición y el valor solo tienen sentido si el
+       resultado es anormal: dejarlos escritos en un examen
+       normal produce hallazgos fantasma en el informe. El
+       valor, sin embargo, se deja disponible incluso en
+       normal cuando la campaña lo requiera para seguimiento
+       (ej. un Cobb 0° normal que interesa comparar después
+       contra un Cobb futuro) —por eso solo la condición se
+       vacía al pasar a normal, el valor se conserva. */
     const ajustar = () => {
       const anormal = $res.value === 'anormal';
       $cond.disabled = !anormal;
@@ -327,6 +337,7 @@ async function pintarImcSugerido() {
 
   $res.value = c.normal ? 'normal' : 'anormal';
   $res.dispatchEvent(new Event('change'));
+  tr.querySelector('[data-campo="valor"]').value = `IMC ${c.valor}`;
   if (!c.normal) tr.querySelector('[data-campo="condicion"]').value = c.texto;
 }
 
@@ -339,6 +350,7 @@ export async function guardarCaptura() {
     examen_id: tr.dataset.examen,
     resultado: tr.querySelector('[data-campo="resultado"]').value,
     condicion: tr.querySelector('[data-campo="condicion"]').value.trim() || null,
+    valor: tr.querySelector('[data-campo="valor"]').value.trim() || null,
     codigo_cie10: tr.querySelector('[data-campo="cie"]').value.trim().toUpperCase() || null
   }));
 
@@ -382,6 +394,122 @@ export function cerrarCaptura() {
 function pintarTodo() {
   pintarResumen();
   pintarAvance();
+  pintarCatalogo();
+}
+
+/* ============================================
+   Catálogo de exámenes
+
+   Desactivar (no borrar): un examen con resultados ya
+   capturados no se puede eliminar sin perder ese historial.
+   La fila queda, solo deja de ofrecerse en capturas nuevas.
+   ============================================ */
+
+function pintarCatalogo() {
+  const $c = document.getElementById('ep-cuerpo-catalogo');
+  if (!$c) return;
+  $c.innerHTML = '';
+
+  ev.examenes.forEach((x) => {
+    const tr = document.createElement('tr');
+    if (!x.activo) tr.classList.add('fila-inactiva');
+
+    tr.innerHTML = `
+      <td>${escapar(x.nombre)}</td>
+      <td>${escapar(x.grupo || '—')}</td>
+      <td class="celda-centro">${x.universal ? 'Sí' : 'No'}</td>
+      <td class="celda-centro">${x.orden ?? 0}</td>
+      <td class="celda-centro">
+        <span class="insignia ${x.activo ? 'insignia-activa' : 'insignia-inactiva'}">
+          ${x.activo ? 'Activo' : 'Inactivo'}
+        </span>
+      </td>
+      <td class="celda-centro"></td>
+    `;
+
+    const $acc = tr.lastElementChild;
+    const $editar = document.createElement('button');
+    $editar.className = 'boton-icono';
+    $editar.type = 'button';
+    $editar.textContent = 'Editar';
+    $editar.addEventListener('click', () => abrirFormExamen(x));
+    $acc.appendChild($editar);
+
+    const $toggle = document.createElement('button');
+    $toggle.className = 'boton-icono' + (x.activo ? ' boton-icono-critico' : '');
+    $toggle.type = 'button';
+    $toggle.textContent = x.activo ? 'Desactivar' : 'Reactivar';
+    $toggle.addEventListener('click', () => alternarExamen(x));
+    $acc.appendChild($toggle);
+
+    $c.appendChild(tr);
+  });
+}
+
+export function abrirNuevoExamen() {
+  abrirFormExamen(null);
+}
+
+function abrirFormExamen(examen) {
+  document.getElementById('ep-examen-id').value = examen?.id || '';
+  document.getElementById('ep-examen-nombre').value = examen?.nombre || '';
+  document.getElementById('ep-examen-grupo').value = examen?.grupo || '';
+  document.getElementById('ep-examen-orden').value = examen?.orden ?? 0;
+  document.getElementById('ep-examen-universal').checked = examen ? !!examen.universal : true;
+  document.getElementById('ep-examen-error').textContent = '';
+  document.getElementById('ep-form-examen').hidden = false;
+  document.getElementById('ep-examen-nombre').focus();
+}
+
+export function cancelarFormExamen() {
+  document.getElementById('ep-form-examen').hidden = true;
+}
+
+export async function guardarExamen() {
+  const $error = document.getElementById('ep-examen-error');
+  $error.textContent = '';
+
+  const id = document.getElementById('ep-examen-id').value || null;
+  const nombre = document.getElementById('ep-examen-nombre').value.trim();
+  const grupo = document.getElementById('ep-examen-grupo').value.trim() || null;
+  const orden = parseInt(document.getElementById('ep-examen-orden').value, 10) || 0;
+  const universal = document.getElementById('ep-examen-universal').checked;
+
+  if (!nombre) return $error.textContent = 'Indique el nombre del examen';
+
+  const datos = { nombre, grupo, orden, universal };
+
+  const { data, error } = id
+    ? await supabase.from('examenes_catalogo').update(alEditar(datos)).eq('id', id).select().single()
+    : await supabase.from('examenes_catalogo')
+        .insert(alCrear({ ...datos, empresa_id: ev.empresaId, activo: true })).select().single();
+
+  if (error) { $error.textContent = 'No se pudo guardar: ' + error.message; return; }
+
+  if (id) {
+    const i = ev.examenes.findIndex((x) => x.id === id);
+    if (i >= 0) ev.examenes[i] = data;
+  } else {
+    ev.examenes.push(data);
+  }
+  ev.examenes.sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+
+  document.getElementById('ep-form-examen').hidden = true;
+  pintarCatalogo();
+  if (ev.trabajador) pintarCaptura();
+}
+
+async function alternarExamen(examen) {
+  const nuevo = !examen.activo;
+  if (!nuevo && !confirm(`¿Desactivar "${examen.nombre}"? Los resultados ya capturados con este examen se conservan.`)) return;
+
+  const { error } = await supabase.from('examenes_catalogo')
+    .update(alEditar({ activo: nuevo })).eq('id', examen.id);
+
+  if (error) return avisar('No se pudo actualizar: ' + error.message);
+
+  examen.activo = nuevo;
+  pintarCatalogo();
 }
 
 function pintarResumen() {
