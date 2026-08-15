@@ -76,6 +76,19 @@
 .modal-pie-spacer { flex: 1; }
 
 /* Ver certificado */
+.verc-membrete {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-bottom: 0.75rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 2px solid var(--doc-verde, #1b5e20);
+}
+.verc-logo { height: 42px; width: auto; }
+.verc-membrete-datos { display: flex; flex-direction: column; }
+.verc-membrete-datos strong { font-size: 0.95rem; color: var(--doc-verde, #1b5e20); }
+.verc-membrete-datos span { font-size: 0.78rem; color: var(--color-texto-tenue, #666); }
+
 .ver-datos {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
