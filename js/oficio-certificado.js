@@ -240,11 +240,10 @@ export function imprimirOficio(d) {
 
   const html = d.clase === 'restricciones' ? hojaRestricciones(d) : hojaJustificacion(d);
 
-  /* Dos por hoja. Si solo hay uno, la mitad de abajo va vacía
-     y la línea de corte igual: así el papel queda listo para
-     el siguiente sin volver a medir. */
-  $z.innerHTML = `<div class="of-a4">${html}`
-               + `<div class="of-corte"></div><div class="of-hueco"></div></div>`;
+  /* Dos copias del MISMO oficio en la misma hoja: una para el
+     archivo de la empresa, otra para el trabajador —en vez de
+     dejar la segunda mitad en blanco, como antes. */
+  $z.innerHTML = `<div class="of-a4">${html}<div class="of-corte"></div>${html}</div>`;
 
   const titulo = document.title;
   document.title = `Oficio · ${d.trabajador?.nombre_completo || ''}`;
