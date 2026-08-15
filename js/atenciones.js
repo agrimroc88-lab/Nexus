@@ -2348,6 +2348,118 @@ function nuevaAtencionDesdeFicha() {
   buscarTrabajador();
 }
 
+/* Atención subsecuente: en vez de partir de cero, se elige de
+   cuál atención anterior viene esta consulta, y el diagnóstico
+   más la medicación de esa vez quedan ya escritos —el médico
+   solo revisa y confirma, en vez de repetir todo el trabajo de
+   una atención nueva. */
+async function abrirSubsecuente() {
+  const t = estado.paciente;
+  if (!t) return;
+
+  const { data: previas, error } = await supabase
+    .from('atenciones')
+    .select('id, fecha, atencion_diagnosticos(id, codigo_cie10, orden, observacion, cie10(descripcion))')
+    .eq('trabajador_id', t.id)
+    .order('fecha', { ascending: false })
+    .limit(10);
+
+  if (error || !previas || previas.length === 0) {
+    alert('Este trabajador no tiene atenciones anteriores registradas.');
+    return;
+  }
+
+  const opciones = previas.map((a, i) => {
+    const dxs = [...(a.atencion_diagnosticos || [])].sort((x, y) => x.orden - y.orden);
+    const principal = dxs[0];
+    const desc = principal
+      ? `${principal.codigo_cie10} · ${principal.cie10?.descripcion || ''}`
+      : 'Sin diagnóstico registrado';
+    return `${i + 1}. ${formatearFecha(a.fecha)} — ${desc}`;
+  }).join('\n');
+
+  const elegido = prompt(
+    `¿De cuál atención da seguimiento esta consulta?\n\n${opciones}\n\nEscriba el número:`
+  );
+  const n = parseInt(elegido, 10);
+  if (!n || n < 1 || n > previas.length) return;
+
+  const origen = previas[n - 1];
+  const fechaOrigen = formatearFecha(origen.fecha);
+
+  const [medRes, insRes] = await Promise.all([
+    supabase.from('atencion_medicamentos')
+      .select('medicamento_id, cantidad, indicacion, medicamentos(nombre_generico, concentracion)')
+      .eq('atencion_id', origen.id),
+    supabase.from('insumos_kardex')
+      .select('insumo_id, cantidad, nota, insumos(nombre)')
+      .eq('atencion_id', origen.id).eq('tipo', 'salida_consumo')
+  ]);
+
+  /* Se abre el formulario limpio y se identifica al trabajador
+     directamente —sin pasar por la búsqueda con espera, para
+     no tener que sincronizar el llenado con ese retraso. */
+  abrirAtencion();
+  document.getElementById('at_codigo').value = t.codigo;
+
+  const { data: datosTrabajador } = await supabase
+    .from('v_trabajadores').select('*')
+    .eq('empresa_id', estado.empresaId).eq('codigo', t.codigo).maybeSingle();
+
+  if (!datosTrabajador) return;
+
+  estado.trabajador = datosTrabajador;
+  const $ayuda = document.getElementById('ayuda-codigo');
+  $ayuda.textContent = 'Trabajador identificado';
+  $ayuda.className = 'ayuda ayuda-ok';
+  pintarFicha(datosTrabajador);
+  pintarAntecedente(datosTrabajador);
+  mostrarBloques();
+
+  /* Diagnósticos de la atención elegida, todos marcados como
+     seguimiento de sus contrapartes originales. */
+  estado.diagnosticos = (origen.atencion_diagnosticos || [])
+    .sort((a, b) => a.orden - b.orden)
+    .map((d) => ({
+      codigo: d.codigo_cie10,
+      descripcion: d.cie10?.descripcion || '',
+      observacion: '',
+      buscar: `${d.codigo_cie10} · ${d.cie10?.descripcion || ''}`,
+      abierto: false, resultados: [], buscando: false, error: '',
+      creandoCie: false, nuevoCodigoTmp: '', nuevoDescTmp: '', errorNuevoCie: '',
+      tipoCaso: 'seguimiento', origenId: d.id, origenFecha: fechaOrigen
+    }));
+
+  if (estado.diagnosticos.length === 0) agregarDiagnostico();
+  else pintarDiagnosticos();
+
+  /* Medicamentos e insumos de esa misma atención, listos para
+     revisar cantidades antes de confirmar —no hay que
+     volver a buscarlos uno por uno. */
+  const consumosMed = (medRes.data || []).map((m) => ({
+    tipo: 'medicamento', item_id: m.medicamento_id, cantidad: m.cantidad,
+    indicacion: m.indicacion || '',
+    buscar: `${m.medicamentos?.nombre_generico || ''} ${m.medicamentos?.concentracion || ''}`.trim(),
+    abierto: false
+  }));
+  const consumosIns = (insRes.data || []).map((x) => ({
+    tipo: 'insumo', item_id: x.insumo_id, cantidad: x.cantidad,
+    indicacion: x.nota || '',
+    buscar: x.insumos?.nombre || '',
+    abierto: false
+  }));
+
+  estado.consumos = [...consumosMed, ...consumosIns];
+  if (estado.consumos.length === 0) agregarConsumo();
+  else pintarConsumos();
+
+  alert(
+    `Se cargó el diagnóstico y la medicación de la atención del ${fechaOrigen}.\n\n`
+    + 'Revise los datos, ajuste lo que corresponda (peso, presión, cantidades) '
+    + 'y agregue cualquier diagnóstico nuevo antes de guardar.'
+  );
+}
+
 /* ============================================
    Pestañas y empresa
    ============================================ */
@@ -2437,6 +2549,7 @@ function conectarEventos() {
   });
   document.getElementById('busca_nombre').addEventListener('input', buscarPorNombre);
   document.getElementById('btn-nueva-atencion').addEventListener('click', nuevaAtencionDesdeFicha);
+  document.getElementById('btn-subsecuente').addEventListener('click', abrirSubsecuente);
   document.getElementById('btn-historial').addEventListener('click', alternarHistorial);
 
   /* Cerrar sugerencias al hacer clic fuera */
