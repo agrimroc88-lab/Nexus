@@ -210,6 +210,44 @@
   white-space: nowrap;
 }
 
+.insignia-seguimiento {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #7a1f9c;
+  background: rgba(122, 31, 156, 0.1);
+  border-radius: 4px;
+  white-space: nowrap;
+  margin-top: 0.3rem;
+}
+
+.insignia-quitar {
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 0;
+}
+
+.insignia-marcar {
+  display: inline-block;
+  margin-top: 0.3rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.72rem;
+  color: var(--color-texto-tenue, #777);
+  background: none;
+  border: 1px dashed var(--color-borde, #ccc);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.insignia-marcar:hover { color: var(--color-acento); border-color: var(--color-acento); }
+
 .renglon-cuerpo {
   flex: 1;
   display: flex;
