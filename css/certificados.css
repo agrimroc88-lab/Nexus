@@ -404,7 +404,7 @@
      Hueco para la rubrica manuscrita sobre la linea. Sin ese
      espacio, la firma se traza encima del texto. */
   .of-firma {
-    margin-top: 14mm;
+    margin-top: 32mm;
     text-align: center;
   }
 
