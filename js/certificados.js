@@ -837,6 +837,13 @@ function linea(etq, val) {
 
 function cuerpoVer(c) {
   return `
+    <div class="verc-membrete">
+      <img src="logo.png" class="verc-logo" alt="">
+      <div class="verc-membrete-datos">
+        <strong>${escapar(c.empresa || 'Empresa')}</strong>
+        <span>Unidad de Seguridad y Salud Ocupacional</span>
+      </div>
+    </div>
     <div class="ver-datos">
       ${linea('Trabajador', c.nombre_completo)}
       ${linea('Código', c.codigo_trabajador)}
