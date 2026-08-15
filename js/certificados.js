@@ -1084,8 +1084,6 @@ function conectarEventos() {
   document.getElementById('ce_rot_dias').addEventListener('input', calcularRotFin);
   document.getElementById('ce_rot_inicio').addEventListener('change', calcularRotFin);
 
-  document.getElementById('btn-imprimir-cert').addEventListener('click', imprimirCertificado);
-
   document.getElementById('btn-oficio').addEventListener('click', abrirOficio);
   document.getElementById('of_clase').addEventListener('change', alternarCamposOficio);
   document.getElementById('btn-emitir-oficio').addEventListener('click', emitirOficio);
