@@ -283,45 +283,67 @@
   body.imprimiendo-oficio .of-hoja,
   body.imprimiendo-oficio .of-hoja * { color: #000 !important; }
 
-  /* Margen de página pequeño, NO cero: casi ninguna impresora
-     real imprime hasta el borde físico exacto de la hoja —el
-     margen "0" del navegador no evita que el hardware recorte
-     esos últimos milímetros. Con 4 mm de aire, ya no se pierde
-     nada del contenido. Los dos A5 y la línea de corte se
-     ajustan a esa área impresa real (289 x 202 mm), no ya a los
-     297 x 210 mm completos de la hoja. */
-  @page { size: A4 landscape; margin: 4mm; }
+  /* Margen de página de seguridad: los intentos anteriores
+     (4 mm, luego 8 mm) calculaban el ancho de cada mitad a
+     partir del ancho TOTAL asumido de la hoja (297 mm, A4
+     exacto). Si la impresora en realidad imprime en Carta/
+     Letter apaisada (279,4 x 215,9 mm) —muy común, aunque el
+     navegador diga A4—, el ancho real disponible es casi 18 mm
+     más angosto, y ese sobrante se recorta de un lado (la
+     mitad izquierda, en este caso). La solución: dejar de
+     calcular el ancho de cada mitad a partir del total de la
+     hoja. Cada mitad mide un valor fijo y conservador, pensado
+     para caber cómodo incluso en el papel más angosto de los
+     dos —si el papel resulta ser A4, sencillamente sobra un
+     poco más de aire al centro; nunca se recorta. */
+  @page { size: A4 landscape; margin: 8mm; }
 
-  /* En fila: los dos A5 verticales, uno junto al otro. */
+  /* En fila, centradas: los dos A5 verticales con la línea de
+     corte al medio. Sin ancho total forzado en el contenedor. */
   .of-a4 {
     display: flex;
     flex-direction: row;
-    width: 289mm;
-    height: 202mm;
+    justify-content: center;
   }
 
-  /* Cada mitad: la mitad del área impresa real. */
+  /* Cada mitad: 125 mm de ancho —deliberadamente menor que la
+     mitad exacta de un A4 (148,5 mm)— para entrar sin problema
+     incluso en Carta apaisada. */
   .of-hoja,
   .of-hueco {
     box-sizing: border-box;
-    width: 144.5mm;
-    height: 202mm;
-    padding: 11mm;
+    width: 125mm;
+    height: 190mm;
+    padding: 9mm;
     overflow: hidden;
+    flex-shrink: 0;
   }
 
-  /* Linea de corte vertical, de arriba abajo. */
+  /* Linea de corte vertical, de arriba abajo, con su propio
+     espacio a los lados en vez de depender de que el resto
+     encaje justo en un ancho total calculado. */
   .of-corte {
     width: 0;
-    height: 202mm;
+    height: 190mm;
     border-left: 0.4pt dashed #999;
+    margin: 0 5mm;
+    flex-shrink: 0;
+  }
+
+  /* La segunda copia (la de la derecha) lleva 3 cm extra de
+     aire a su izquierda, además del espacio de la línea de
+     corte —a pedido, para que quede mejor acomodada en esa
+     mitad de la hoja. */
+  .of-copia-derecha {
+    margin-left: 30mm;
   }
 
   /* --- Contenido ---
 
-     En vertical el renglon mide 123 mm y sobra alto: cuerpo
-     algo mayor e interlineado mas holgado, que es como estaba
-     el documento de Word. */
+     En vertical el renglón mide ahora unos 107 mm (125 mm de
+     ancho, menos 9 mm de margen interno a cada lado) y sobra
+     alto: cuerpo algo mayor e interlineado más holgado, que es
+     como estaba el documento de Word. */
   .of-hoja { font-size: 10pt; line-height: 1.45; }
 
   /* --- Encabezado con logo --- */
