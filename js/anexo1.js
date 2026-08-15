@@ -25,8 +25,14 @@ import { montarNavegacion } from './nav.js?v=11';
 import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=12';
 import {
   iniciarEvaluacion, crearCampana, elegirCampana, buscarTrabajador,
-  guardarCaptura, cerrarCaptura
-} from './evaluacion-periodica.js?v=1';
+  guardarCaptura, cerrarCaptura,
+  abrirNuevoExamen, cancelarFormExamen, guardarExamen
+} from './evaluacion-periodica.js?v=2';
+import {
+  iniciarInformeEvaluacion, generarInformeEpidemiologico, descargarInformeEpidemiologico,
+  generarInformeSeguimiento, descargarInformeSeguimiento,
+  usarRecomendacion, abrirNuevaRecomendacion, cancelarNuevaRecomendacion, guardarNuevaRecomendacion
+} from './informe-evaluacion-periodica.js?v=2';
 import { montarGrupos, cargarGrupos, pintarGrupos } from './grupos.js?v=12';
 import { montarBotiquines, cargarBotiquines, pintarBotiquines }
   from './botiquines.js?v=12';
@@ -2240,8 +2246,9 @@ function cambiarVista(vista) {
   }
   if (vista === 'evaluacion') {
     const $e = document.getElementById('empresa-activa');
-    iniciarEvaluacion(estado.empresaId,
-      $e ? ($e.options[$e.selectedIndex] || {}).textContent || '' : '');
+    const nombreEmpresa = $e ? ($e.options[$e.selectedIndex] || {}).textContent || '' : '';
+    iniciarEvaluacion(estado.empresaId, nombreEmpresa);
+    iniciarInformeEvaluacion(estado.empresaId, nombreEmpresa);
   }
 }
 
@@ -2257,6 +2264,17 @@ function conectarEvaluacion() {
   en('ep-buscar', 'input', buscarTrabajador);
   en('ep-btn-guardar', 'click', guardarCaptura);
   en('ep-btn-cerrar', 'click', cerrarCaptura);
+  en('ep-btn-nuevo-examen', 'click', abrirNuevoExamen);
+  en('ep-btn-cancelar-examen', 'click', cancelarFormExamen);
+  en('ep-btn-guardar-examen', 'click', guardarExamen);
+  en('epi-btn-generar', 'click', generarInformeEpidemiologico);
+  en('epi-btn-descargar', 'click', descargarInformeEpidemiologico);
+  en('epi-btn-usar-recomendacion', 'click', usarRecomendacion);
+  en('epi-btn-nueva-recomendacion', 'click', abrirNuevaRecomendacion);
+  en('epi-btn-cancelar-recomendacion', 'click', cancelarNuevaRecomendacion);
+  en('epi-btn-guardar-recomendacion', 'click', guardarNuevaRecomendacion);
+  en('seg-btn-generar', 'click', generarInformeSeguimiento);
+  en('seg-btn-descargar', 'click', descargarInformeSeguimiento);
 }
 
 /** Atenciones ocupacionales solo existen en salud */
