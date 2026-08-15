@@ -38,6 +38,11 @@ import { montarBotiquines, cargarBotiquines, pintarBotiquines }
   from './botiquines.js?v=12';
 import { montarInstalaciones, cargarInstalaciones, pintarInstalaciones }
   from './instalaciones.js?v=19';
+import {
+  iniciarInformeEventos, generarInformeEventos, descargarInformeEventos,
+  usarRecomendacionEventos, abrirNuevaRecomendacionEventos,
+  cancelarNuevaRecomendacionEventos, guardarNuevaRecomendacionEventos
+} from './informe-eventos.js?v=1';
 
 /* Ámbito y módulo declarados por el HTML que carga este archivo */
 const AMBITO = document.body.dataset.ambito || 'salud';
@@ -2232,7 +2237,7 @@ function cambiarVista(vista) {
     p.classList.toggle('activa', p.dataset.vista === vista);
   });
   ['cumplimiento', 'capacitaciones', 'eventos', 'ocupacionales',
-   'grupos', 'botiquines', 'instalaciones', 'evaluacion'].forEach((v) => {
+   'grupos', 'botiquines', 'instalaciones', 'evaluacion', 'informe-eventos'].forEach((v) => {
     const $v = document.getElementById('vista-' + v);
     if ($v) $v.hidden = v !== vista;
   });
@@ -2249,6 +2254,12 @@ function cambiarVista(vista) {
     const nombreEmpresa = $e ? ($e.options[$e.selectedIndex] || {}).textContent || '' : '';
     iniciarEvaluacion(estado.empresaId, nombreEmpresa);
     iniciarInformeEvaluacion(estado.empresaId, nombreEmpresa);
+  }
+  if (vista === 'informe-eventos' && !estado.informeEventosIniciado) {
+    estado.informeEventosIniciado = true;
+    const $e = document.getElementById('empresa-activa');
+    const nombreEmpresa = $e ? ($e.options[$e.selectedIndex] || {}).textContent || '' : '';
+    iniciarInformeEventos(estado.empresaId, nombreEmpresa);
   }
 }
 
@@ -2371,6 +2382,13 @@ function enEl(id, evento, fn) {
 
 function conectarEventos() {
   $empresa.addEventListener('change', seleccionarEmpresa);
+
+  enEl('infoev-btn-generar', 'click', generarInformeEventos);
+  enEl('infoev-btn-descargar', 'click', descargarInformeEventos);
+  enEl('infoev-btn-usar-recomendacion', 'click', usarRecomendacionEventos);
+  enEl('infoev-btn-nueva-recomendacion', 'click', abrirNuevaRecomendacionEventos);
+  enEl('infoev-btn-cancelar-recomendacion', 'click', cancelarNuevaRecomendacionEventos);
+  enEl('infoev-btn-guardar-recomendacion', 'click', guardarNuevaRecomendacionEventos);
 
   document.querySelectorAll('[data-cierra]').forEach((btn) => {
     btn.addEventListener('click', () => {
