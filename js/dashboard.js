@@ -137,7 +137,7 @@ async function cargarEmpresas() {
    ============================================ */
 
 async function cargarTodo() {
-  const [resumen, serie, indices, morbilidad, capac] = await Promise.all([
+  const [resumen, serie, indices, morbilidad, capac, segAtual] = await Promise.all([
     supabase.from('v_tablero_anual').select('*')
       .eq('empresa_id', estado.empresaId).eq('anio', estado.anio).maybeSingle(),
     supabase.from('v_serie_mensual').select('*')
@@ -148,7 +148,16 @@ async function cargarTodo() {
       .eq('empresa_id', estado.empresaId).eq('anio', estado.anio)
       .order('casos', { ascending: false }).limit(10),
     supabase.from('v_indicadores_capacitacion').select('*')
-      .eq('empresa_id', estado.empresaId).eq('anio', estado.anio)
+      .eq('empresa_id', estado.empresaId).eq('anio', estado.anio),
+    /* Consultas de seguimiento del año: se cuenta aparte, sin
+       tocar v_tablero_anual —así no se arriesga a romper nada
+       de lo que ya calcula esa vista. */
+    supabase.from('atencion_diagnosticos')
+      .select('atencion_id, atenciones!inner(fecha, empresa_id)')
+      .eq('tipo_caso', 'seguimiento')
+      .eq('atenciones.empresa_id', estado.empresaId)
+      .gte('atenciones.fecha', `${estado.anio}-01-01`)
+      .lte('atenciones.fecha', `${estado.anio}-12-31`)
   ]);
 
   estado.resumen = resumen.data;
@@ -156,24 +165,33 @@ async function cargarTodo() {
   estado.indices = indices.data;
   estado.morbilidad = morbilidad.data || [];
   estado.capacitacion = capac.data || [];
+  estado.seguimientos = new Set((segAtual.data || []).map((r) => r.atencion_id)).size;
 
   /* Año de comparación */
   if (estado.comparar) {
-    const [rc, sc, ic] = await Promise.all([
+    const [rc, sc, ic, segComp] = await Promise.all([
       supabase.from('v_tablero_anual').select('*')
         .eq('empresa_id', estado.empresaId).eq('anio', estado.comparar).maybeSingle(),
       supabase.from('v_serie_mensual').select('*')
         .eq('empresa_id', estado.empresaId).eq('anio', estado.comparar).order('mes'),
       supabase.from('v_indices_siniestralidad').select('*')
-        .eq('empresa_id', estado.empresaId).eq('anio', estado.comparar).maybeSingle()
+        .eq('empresa_id', estado.empresaId).eq('anio', estado.comparar).maybeSingle(),
+      supabase.from('atencion_diagnosticos')
+        .select('atencion_id, atenciones!inner(fecha, empresa_id)')
+        .eq('tipo_caso', 'seguimiento')
+        .eq('atenciones.empresa_id', estado.empresaId)
+        .gte('atenciones.fecha', `${estado.comparar}-01-01`)
+        .lte('atenciones.fecha', `${estado.comparar}-12-31`)
     ]);
     estado.resumenComp = rc.data;
     estado.serieComp = sc.data || [];
     estado.indicesComp = ic.data;
+    estado.seguimientosComp = new Set((segComp.data || []).map((r) => r.atencion_id)).size;
   } else {
     estado.resumenComp = null;
     estado.serieComp = [];
     estado.indicesComp = null;
+    estado.seguimientosComp = null;
   }
 }
 
@@ -258,6 +276,7 @@ function pintarCifras() {
     { etiqueta: 'Días perdidos',         valor: r?.dias_perdidos_at ?? 0, previo: c?.dias_perdidos_at, malo: true },
     { etiqueta: 'Enfermedad profesional', valor: r?.ep_total ?? 0,        previo: c?.ep_total, malo: true },
     { etiqueta: 'Atenciones médicas',    valor: r?.atenciones ?? 0,       previo: c?.atenciones },
+    { etiqueta: 'Consultas de seguimiento', valor: estado.seguimientos ?? 0, previo: estado.seguimientosComp },
     { etiqueta: 'Días de reposo',        valor: r?.dias_reposo ?? 0,      previo: c?.dias_reposo, malo: true },
     { etiqueta: 'Exámenes ocupacionales', valor: r?.examenes ?? 0,        previo: c?.examenes },
     { etiqueta: 'Capacitaciones',        valor: r?.capac_ejecutadas ?? 0, previo: c?.capac_ejecutadas }

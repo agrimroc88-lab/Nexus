@@ -31,7 +31,7 @@ import {
   iniciarInformeAtenciones, cambiarTipoPeriodo, generarInformeAtenciones,
   descargarInformeAtenciones, guardarInformeAtenciones,
   usarPlanDeAccion, abrirNuevoPlan, cancelarNuevoPlan, guardarNuevoPlan
-} from './informe-atenciones.js?v=7';
+} from './informe-atenciones.js?v=8';
 
 /* --- Estado --- */
 const estado = {
@@ -609,7 +609,8 @@ function agregarDiagnostico() {
   estado.diagnosticos.push({
     codigo: '', descripcion: '', observacion: '',
     buscar: '', abierto: false, resultados: [], buscando: false, error: '',
-    creandoCie: false, nuevoCodigoTmp: '', nuevoDescTmp: '', errorNuevoCie: ''
+    creandoCie: false, nuevoCodigoTmp: '', nuevoDescTmp: '', errorNuevoCie: '',
+    tipoCaso: 'nuevo', origenId: null, origenFecha: null
   });
   pintarDiagnosticos();
 }
@@ -662,6 +663,17 @@ function pintarDiagnosticos() {
 
     const mostrarPanel = Boolean(d.abierto && (listaResultados || panelVacio || formNuevoCie));
 
+    const insigniaTipo = d.codigo ? (
+      d.tipoCaso === 'seguimiento'
+        ? `<span class="insignia-seguimiento" title="Seguimiento de la atención del ${escapar(d.origenFecha || '')}">
+             Seguimiento ${d.origenFecha ? `· ${escapar(d.origenFecha)}` : ''}
+             <button type="button" class="insignia-quitar" data-quitar-seguimiento="${i}" aria-label="Marcar como caso nuevo">×</button>
+           </span>`
+        : `<button type="button" class="insignia-marcar" data-marcar-seguimiento="${i}">
+             ¿Es seguimiento de otra atención?
+           </button>`
+    ) : '';
+
     item.innerHTML = `
       <div class="renglon-orden">
         ${i === 0 ? '<span class="etiqueta-principal">Principal</span>' : `<span class="orden-num">${i + 1}</span>`}
@@ -677,6 +689,7 @@ function pintarDiagnosticos() {
         </div>
         <input class="entrada entrada-mini" type="text" placeholder="Observación"
                value="${escapar(d.observacion)}" data-obs="${i}">
+        ${insigniaTipo}
       </div>
       <button class="boton-quitar" type="button" data-quitar="${i}" aria-label="Quitar">×</button>
     `;
@@ -750,6 +763,8 @@ function pintarDiagnosticos() {
       pintarDiagnosticos();
       const $obs = document.querySelector(`[data-obs="${n}"]`);
       if ($obs) $obs.focus();
+
+      sugerirSeguimiento(n, c.codigo);
     });
   });
 
@@ -793,6 +808,61 @@ function pintarDiagnosticos() {
   $lista.querySelectorAll('[data-quitar]').forEach((btn) => {
     btn.addEventListener('click', () => quitarDiagnostico(parseInt(btn.dataset.quitar, 10)));
   });
+
+  $lista.querySelectorAll('[data-quitar-seguimiento]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const d = estado.diagnosticos[parseInt(btn.dataset.quitarSeguimiento, 10)];
+      d.tipoCaso = 'nuevo';
+      d.origenId = null;
+      d.origenFecha = null;
+      pintarDiagnosticos();
+    });
+  });
+
+  $lista.querySelectorAll('[data-marcar-seguimiento]').forEach((btn) => {
+    btn.addEventListener('click', () => abrirSelectorOrigen(parseInt(btn.dataset.marcarSeguimiento, 10)));
+  });
+}
+
+/* Selector manual de "de cuál atención viene esto", para
+   cuando el médico sabe que es seguimiento pero el código
+   CIE-10 de hoy no coincide exactamente con el de la vez
+   pasada (ej. de "Lumbalgia" a "Hernia discal confirmada"). */
+async function abrirSelectorOrigen(indice) {
+  if (!estado.trabajador) return;
+
+  const hace365 = new Date();
+  hace365.setDate(hace365.getDate() - 365);
+
+  const { data, error } = await supabase
+    .from('atencion_diagnosticos')
+    .select('id, codigo_cie10, cie10(descripcion), atenciones!inner(fecha, trabajador_id)')
+    .eq('atenciones.trabajador_id', estado.trabajador.id)
+    .gte('atenciones.fecha', hace365.toISOString().slice(0, 10))
+    .order('atenciones(fecha)', { ascending: false })
+    .limit(15);
+
+  if (error || !data || data.length === 0) {
+    alert('Este trabajador no tiene atenciones registradas en el último año.');
+    return;
+  }
+
+  const opciones = data.map((r, i) =>
+    `${i + 1}. ${formatearFecha(r.atenciones.fecha)} — ${r.codigo_cie10} · ${r.cie10?.descripcion || ''}`
+  ).join('\n');
+
+  const elegido = prompt(
+    `¿De cuál atención anterior da seguimiento esta consulta?\n\n${opciones}\n\nEscriba el número:`
+  );
+  const n = parseInt(elegido, 10);
+  if (!n || n < 1 || n > data.length) return;
+
+  const previo = data[n - 1];
+  const d = estado.diagnosticos[indice];
+  d.tipoCaso = 'seguimiento';
+  d.origenId = previo.id;
+  d.origenFecha = formatearFecha(previo.atenciones.fecha);
+  pintarDiagnosticos();
 }
 
 /* Búsqueda en el catálogo CIE-10. Va a la base (son miles de
@@ -1017,6 +1087,45 @@ async function crearCie() {
   }
 
   elegirCie({ codigo, descripcion });
+}
+
+/* Si el trabajador ya tuvo el mismo código CIE-10 en una
+   atención anterior reciente (180 días), se pregunta si esta
+   consulta es continuación de esa. El médico decide con un
+   Sí/No; nunca se marca solo. */
+async function sugerirSeguimiento(indice, codigo) {
+  if (!estado.trabajador) return;
+
+  const hace180 = new Date();
+  hace180.setDate(hace180.getDate() - 180);
+
+  const { data, error } = await supabase
+    .from('atencion_diagnosticos')
+    .select('id, codigo_cie10, atencion_id, atenciones!inner(id, fecha, trabajador_id)')
+    .eq('codigo_cie10', codigo)
+    .eq('atenciones.trabajador_id', estado.trabajador.id)
+    .gte('atenciones.fecha', hace180.toISOString().slice(0, 10))
+    .order('atenciones(fecha)', { ascending: false })
+    .limit(1);
+
+  if (error || !data || data.length === 0) return;
+
+  const previo = data[0];
+  const d = estado.diagnosticos[indice];
+  if (!d || d.codigo !== codigo) return; // pudo cambiar mientras se consultaba
+
+  const fecha = formatearFecha(previo.atenciones.fecha);
+  const esSeguimiento = confirm(
+    `${estado.trabajador.nombres} ${estado.trabajador.apellidos} tuvo una atención el ${fecha} `
+    + `por el mismo diagnóstico (${codigo}).\n\n¿Esta consulta es seguimiento de esa atención?`
+  );
+
+  if (esSeguimiento) {
+    d.tipoCaso = 'seguimiento';
+    d.origenId = previo.id;
+    d.origenFecha = fecha;
+    pintarDiagnosticos();
+  }
 }
 
 function alertaCie(texto) {
@@ -1616,7 +1725,11 @@ async function guardarAtencion() {
     p_dias_reposo: parseInt(document.getElementById('at_reposo').value, 10) || 0,
     p_vitales: vitales,
     p_alergias: document.getElementById('at_alergias').value,
-    p_diagnosticos: diagnosticos.map((d) => ({ codigo: d.codigo, observacion: d.observacion })),
+    p_diagnosticos: diagnosticos.map((d) => ({
+      codigo: d.codigo, observacion: d.observacion,
+      tipo_caso: d.tipoCaso || 'nuevo',
+      diagnostico_origen_id: d.tipoCaso === 'seguimiento' ? d.origenId : null
+    })),
     p_medicamentos: prescripciones.map((p) => ({
       medicamento_id: p.item_id,
       cantidad: p.cantidad,
@@ -2097,7 +2210,7 @@ async function alternarHistorial() {
 
   const [dx, rx] = await Promise.all([
     supabase.from('atencion_diagnosticos')
-      .select('atencion_id, codigo_cie10, orden, observacion, cie10(descripcion)')
+      .select('atencion_id, codigo_cie10, orden, observacion, tipo_caso, diagnostico_origen_id, cie10(descripcion)')
       .in('atencion_id', ids).order('orden'),
     supabase.from('atencion_medicamentos')
       .select('atencion_id, cantidad, indicacion, entregado, medicamentos(nombre_generico, concentracion)')
@@ -2196,6 +2309,9 @@ function pintarEventoTimeline(a, porDx, porRx) {
             <span class="cie-chip">${escapar(d.codigo_cie10)}</span>
             <span>${escapar(d.cie10?.descripcion || '')}</span>
             ${d.orden === 1 ? '<span class="etiqueta-principal">Principal</span>' : ''}
+            ${d.tipo_caso === 'seguimiento'
+              ? '<span class="insignia-seguimiento" title="Da continuidad a una atención anterior">Seguimiento</span>'
+              : ''}
           </div>
         `).join('')}
 

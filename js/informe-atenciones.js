@@ -313,28 +313,40 @@ export async function generarInformeAtenciones() {
 
   /* Diagnósticos: número y porcentaje. Se recorta a los 10
      más frecuentes —con más, la tabla ya no cabe en el
-     espacio disponible sin sacrificar el resto del informe. */
+     espacio disponible sin sacrificar el resto del informe.
+     El porcentaje del periodo se calcula SOLO con los casos
+     nuevos: un seguimiento es la misma persona con la misma
+     condición volviendo a control, no un caso adicional. */
   const mapa = new Map();
   morbilidad.forEach((m) => {
     if (!mapa.has(m.codigo_cie10)) {
-      mapa.set(m.codigo_cie10, { codigo: m.codigo_cie10, descripcion: m.descripcion, casos: 0 });
+      mapa.set(m.codigo_cie10, {
+        codigo: m.codigo_cie10, descripcion: m.descripcion,
+        casos: 0, nuevos: 0, seguimientos: 0
+      });
     }
-    mapa.get(m.codigo_cie10).casos += m.casos;
+    const d = mapa.get(m.codigo_cie10);
+    d.casos += m.casos;
+    if (m.tipo_caso === 'seguimiento') d.seguimientos += m.casos;
+    else d.nuevos += m.casos;
   });
-  const totalCasos = [...mapa.values()].reduce((s, d) => s + d.casos, 0);
+  const totalCasos = [...mapa.values()].reduce((s, d) => s + d.nuevos, 0);
   const diagnosticos = [...mapa.values()]
-    .map((d) => ({ ...d, porcentaje: totalCasos > 0 ? (d.casos / totalCasos * 100) : 0 }))
+    .map((d) => ({ ...d, porcentaje: totalCasos > 0 ? (d.nuevos / totalCasos * 100) : 0 }))
     .sort((a, b) => b.casos - a.casos)
     .slice(0, 10);
 
   /* Comparativo mes a mes: solo tiene sentido si el periodo
      abarca más de un mes. Un mensual no se compara consigo
-     mismo. */
+     mismo. Solo cuenta casos nuevos: si contara también los
+     seguimientos, un mes con muchos controles de la misma
+     condición se vería como un aumento de incidencia cuando
+     en realidad no lo es. */
   let comparativo = null;
   if (periodo.tipo !== 'mensual') {
     comparativo = periodo.mesesIncluidos.map((mes) => {
       const casosDelMes = morbilidad
-        .filter((m) => m.mes === mes)
+        .filter((m) => m.mes === mes && m.tipo_caso !== 'seguimiento')
         .reduce((s, m) => s + m.casos, 0);
       const atencionesDelMes = atenciones
         .filter((a) => (new Date(a.fecha + 'T00:00:00').getMonth() + 1) === mes)
@@ -383,9 +395,10 @@ function analisisAutomatico(datos) {
     + `trabajadores de la empresa, con ${diagnosticos.length} diagnóstico`
     + `${diagnosticos.length === 1 ? '' : 's'} principal${diagnosticos.length === 1 ? '' : 'es'} `
     + `identificado${diagnosticos.length === 1 ? '' : 's'}. El diagnóstico más frecuente fue `
-    + `${principal.descripcion} (${principal.codigo}), con ${principal.casos} caso`
-    + `${principal.casos === 1 ? '' : 's'}, equivalente${principal.casos === 1 ? '' : 's'} al `
-    + `${principal.porcentaje.toFixed(1)}% del total registrado.`;
+    + `${principal.descripcion} (${principal.codigo}), con ${principal.nuevos} caso`
+    + `${principal.nuevos === 1 ? '' : 's'} nuevo${principal.nuevos === 1 ? '' : 's'}`
+    + `${principal.seguimientos > 0 ? ` y ${principal.seguimientos} seguimiento${principal.seguimientos === 1 ? '' : 's'}` : ''}, `
+    + `equivalente${principal.nuevos === 1 ? '' : 's'} al ${principal.porcentaje.toFixed(1)}% del total de casos nuevos registrados.`;
 
   if (comparativo && comparativo.length > 1) {
     const primero = comparativo[0].casos;
@@ -465,7 +478,7 @@ function pintarPrevia(datos) {
   pintarTablaDiagnosticos('inat-cuerpo-dx', datos.diagnosticos);
 
   document.getElementById('inat-grafico-dx').innerHTML = graficoBarras(
-    datos.diagnosticos.slice(0, 8).map((d) => ({ etiqueta: d.codigo, valor: d.casos }))
+    datos.diagnosticos.slice(0, 8).map((d) => ({ etiqueta: d.codigo, valor: d.nuevos }))
   );
 
   const $comp = document.getElementById('inat-bloque-comparativo');
@@ -487,7 +500,8 @@ function pintarTablaDiagnosticos(idCuerpo, diagnosticos) {
       <td class="celda-centro celda-tenue">${i + 1}</td>
       <td class="celda-centro"><span class="cie-chip">${escapar(d.codigo)}</span></td>
       <td>${escapar(d.descripcion)}</td>
-      <td class="celda-centro">${d.casos}</td>
+      <td class="celda-centro">${d.nuevos}</td>
+      <td class="celda-centro celda-tenue">${d.seguimientos > 0 ? d.seguimientos : '—'}</td>
       <td class="celda-centro">${d.porcentaje.toFixed(1)}%</td>
     </tr>
   `).join('');
@@ -513,7 +527,8 @@ function construirDocumento(datos, textos, quien, cargo) {
       <td>${i + 1}</td>
       <td>${escapar(d.codigo)}</td>
       <td class="if-izq">${escapar(d.descripcion)}</td>
-      <td>${d.casos}</td>
+      <td>${d.nuevos}</td>
+      <td>${d.seguimientos > 0 ? d.seguimientos : '—'}</td>
       <td>${d.porcentaje.toFixed(1)}%</td>
     </tr>`).join('');
 
@@ -521,17 +536,18 @@ function construirDocumento(datos, textos, quien, cargo) {
     ? '<p class="if-nota">No se registraron diagnósticos en el periodo.</p>'
     : `<table class="if-tabla">
         <colgroup>
-          <col style="width:6%"><col style="width:14%"><col style="width:56%">
-          <col style="width:12%"><col style="width:12%">
+          <col style="width:5%"><col style="width:12%"><col style="width:46%">
+          <col style="width:11%"><col style="width:12%"><col style="width:10%">
         </colgroup>
         <thead>
-          <tr><th>N°</th><th>CIE-10</th><th class="if-izq">Diagnóstico</th><th>Casos</th><th>%</th></tr>
+          <tr><th>N°</th><th>CIE-10</th><th class="if-izq">Diagnóstico</th><th>Nuevos</th><th>Seguim.</th><th>%</th></tr>
         </thead>
         <tbody>${filasDx}</tbody>
-      </table>`;
+      </table>
+      <p class="if-nota">El porcentaje se calcula solo sobre los casos nuevos; las consultas de seguimiento de una misma condición se muestran aparte, sin sumar al total.</p>`;
 
   const graficoDx = graficoBarras(
-    datos.diagnosticos.slice(0, 8).map((d) => ({ etiqueta: d.codigo, valor: d.casos })),
+    datos.diagnosticos.slice(0, 8).map((d) => ({ etiqueta: d.codigo, valor: d.nuevos })),
     { ancho: 460, alto: 150 }
   );
 
