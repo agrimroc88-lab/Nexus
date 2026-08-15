@@ -1174,6 +1174,19 @@ function construirActas(espacioFirma, logo) {
       : { rotulo: 'Recibido por:', nombre: r.destinatario || '',
           detalle: r.destinatario_cargo || '' };
 
+    /* El hueco de firma es fijo por diseño (idéntico en papel
+       y en el .doc descargado, que es lo que se buscaba al no
+       calcularlo al vuelo). Pero un botiquín con muchos
+       insumos repuestos —como Hacienda Las Acacias— alarga la
+       tabla lo suficiente para que esos 5 cm ya no quepan en
+       la hoja, y la firma se va sola a una segunda página. Se
+       cede parte de ese aire a partir de la sexta línea, hasta
+       un mínimo de 2 cm, que sigue siendo espacio de sobra
+       para firmar. */
+    const espacioHoja = lineas.length <= 5
+      ? espacioFirma
+      : Math.max(20, espacioFirma - (lineas.length - 5) * 5);
+
     return `
       <div${i > 0 ? ' class="salto"' : ''}>
         ${membreteWord(bt.empresaNombre, logo)}
@@ -1218,7 +1231,7 @@ function construirActas(espacioFirma, logo) {
         ${bloqueFirmas([
           { rotulo: 'Elaborado por:', nombre: de.nombre, detalle: de.cargo },
           recibe
-        ], espacioFirma)}
+        ], espacioHoja)}
       </div>`;
   }).join('');
 
