@@ -239,6 +239,82 @@
             <div id="ev-tarjetas" class="ev-tarjetas"></div>
           </section>
 
+          <!-- ============ Informe de incidentes y accidentes ============ -->
+          <section class="panel" style="border: 2px solid var(--color-acento, #1F4E79); margin-bottom: 1rem;">
+            <h3 class="est-titulo" style="padding:0.5rem 1rem 0;">
+              Informe de incidentes y accidentes
+            </h3>
+            <p class="ayuda" style="padding:0 1rem;">
+              De un año específico, con distribución por tipo, área, turno y sexo, análisis de
+              causas, y cumplimiento de investigación y notificación al IESS.
+            </p>
+
+            <div class="herramientas" style="padding:0 1rem;">
+              <div class="campo campo-corto">
+                <label class="etiqueta" for="infoev-anio">Año a informar</label>
+                <select class="entrada" id="infoev-anio"></select>
+              </div>
+              <button class="boton-primario" id="infoev-btn-generar" type="button">
+                Generar informe
+              </button>
+            </div>
+            <p class="alerta" id="infoev-alerta" role="alert" hidden></p>
+
+            <details class="panel plegable" style="margin:0.75rem 1rem;">
+              <summary class="plegable-titulo">Resumen, exposición de motivos, conclusiones y recomendaciones</summary>
+
+              <div class="campo">
+                <label class="etiqueta" for="infoev-resumen-texto">Resumen</label>
+                <textarea class="entrada area" id="infoev-resumen-texto" rows="5"></textarea>
+              </div>
+              <div class="campo">
+                <label class="etiqueta" for="infoev-exposicion">Exposición de motivos</label>
+                <textarea class="entrada area" id="infoev-exposicion" rows="5"></textarea>
+              </div>
+              <div class="campo">
+                <label class="etiqueta" for="infoev-conclusiones">Conclusiones</label>
+                <textarea class="entrada area" id="infoev-conclusiones" rows="4"></textarea>
+              </div>
+
+              <div class="campo">
+                <label class="etiqueta" for="infoev-recomendaciones">Recomendaciones</label>
+
+                <div class="inat-biblioteca">
+                  <select class="entrada" id="infoev-recomendacion-elegir">
+                    <option value="">— Elegir de la biblioteca —</option>
+                  </select>
+                  <button class="boton-secundario" id="infoev-btn-usar-recomendacion" type="button">Usar</button>
+                  <button class="boton-secundario" id="infoev-btn-nueva-recomendacion" type="button">+ Nueva</button>
+                </div>
+
+                <div class="inat-plan-form" id="infoev-rec-form" hidden>
+                  <input class="entrada" id="infoev-rec-nombre" type="text" placeholder="Nombre corto (ej. Uso obligatorio de EPP)">
+                  <textarea class="entrada area" id="infoev-rec-texto" rows="3" placeholder="Texto de la recomendación"></textarea>
+                  <div class="inat-plan-form-botones">
+                    <button class="boton-secundario" id="infoev-btn-cancelar-recomendacion" type="button">Cancelar</button>
+                    <button class="boton-primario" id="infoev-btn-guardar-recomendacion" type="button">Guardar y usar</button>
+                  </div>
+                  <span class="ayuda ayuda-error" id="infoev-rec-error"></span>
+                </div>
+
+                <textarea class="entrada area" id="infoev-recomendaciones" rows="8"
+                          placeholder="Una recomendación por línea. Se imprime como lista."></textarea>
+              </div>
+            </details>
+
+            <div class="panel" id="infoev-previa" hidden style="margin:0.75rem 1rem;">
+              <div class="inf-previa-cabecera">
+                <div>
+                  <h4 class="est-titulo">Vista previa</h4>
+                  <span class="ayuda" id="infoev-previa-resumen">—</span>
+                </div>
+                <button class="boton-secundario" id="infoev-btn-descargar" type="button">
+                  Descargar PDF
+                </button>
+              </div>
+            </div>
+          </section>
+
           <!-- Distribución -->
           <section class="distribucion">
             <article class="distrib-caja">
@@ -272,82 +348,6 @@
           </div>
 
           <p class="vacio" id="vacio-eventos" hidden>Sin registros en el período.</p>
-
-        <!-- ============ Informe de incidentes y accidentes (misma pestaña) ============ -->
-        <section class="panel">
-          <h3 class="est-titulo" style="padding:0.5rem 1rem 0;">
-            Informe de incidentes y accidentes
-          </h3>
-          <p class="ayuda" style="padding:0 1rem;">
-            De un año específico, con distribución por tipo, área, turno y sexo, análisis de
-            causas, y cumplimiento de investigación y notificación al IESS.
-          </p>
-
-          <div class="herramientas" style="padding:0 1rem;">
-            <div class="campo campo-corto">
-              <label class="etiqueta" for="infoev-anio">Año a informar</label>
-              <select class="entrada" id="infoev-anio"></select>
-            </div>
-            <button class="boton-primario" id="infoev-btn-generar" type="button">
-              Generar informe
-            </button>
-          </div>
-          <p class="alerta" id="infoev-alerta" role="alert" hidden></p>
-
-          <details class="panel plegable" style="margin:0.75rem 1rem;">
-            <summary class="plegable-titulo">Resumen, exposición de motivos, conclusiones y recomendaciones</summary>
-
-            <div class="campo">
-              <label class="etiqueta" for="infoev-resumen-texto">Resumen</label>
-              <textarea class="entrada area" id="infoev-resumen-texto" rows="5"></textarea>
-            </div>
-            <div class="campo">
-              <label class="etiqueta" for="infoev-exposicion">Exposición de motivos</label>
-              <textarea class="entrada area" id="infoev-exposicion" rows="5"></textarea>
-            </div>
-            <div class="campo">
-              <label class="etiqueta" for="infoev-conclusiones">Conclusiones</label>
-              <textarea class="entrada area" id="infoev-conclusiones" rows="4"></textarea>
-            </div>
-
-            <div class="campo">
-              <label class="etiqueta" for="infoev-recomendaciones">Recomendaciones</label>
-
-              <div class="inat-biblioteca">
-                <select class="entrada" id="infoev-recomendacion-elegir">
-                  <option value="">— Elegir de la biblioteca —</option>
-                </select>
-                <button class="boton-secundario" id="infoev-btn-usar-recomendacion" type="button">Usar</button>
-                <button class="boton-secundario" id="infoev-btn-nueva-recomendacion" type="button">+ Nueva</button>
-              </div>
-
-              <div class="inat-plan-form" id="infoev-rec-form" hidden>
-                <input class="entrada" id="infoev-rec-nombre" type="text" placeholder="Nombre corto (ej. Uso obligatorio de EPP)">
-                <textarea class="entrada area" id="infoev-rec-texto" rows="3" placeholder="Texto de la recomendación"></textarea>
-                <div class="inat-plan-form-botones">
-                  <button class="boton-secundario" id="infoev-btn-cancelar-recomendacion" type="button">Cancelar</button>
-                  <button class="boton-primario" id="infoev-btn-guardar-recomendacion" type="button">Guardar y usar</button>
-                </div>
-                <span class="ayuda ayuda-error" id="infoev-rec-error"></span>
-              </div>
-
-              <textarea class="entrada area" id="infoev-recomendaciones" rows="8"
-                        placeholder="Una recomendación por línea. Se imprime como lista."></textarea>
-            </div>
-          </details>
-
-          <div class="panel" id="infoev-previa" hidden style="margin:0.75rem 1rem;">
-            <div class="inf-previa-cabecera">
-              <div>
-                <h4 class="est-titulo">Vista previa</h4>
-                <span class="ayuda" id="infoev-previa-resumen">—</span>
-              </div>
-              <button class="boton-secundario" id="infoev-btn-descargar" type="button">
-                Descargar PDF
-              </button>
-            </div>
-          </div>
-        </section>
 
         </section>
 
@@ -1309,6 +1309,6 @@
 
   <div class="if-impresion" id="infoev-impresion"></div>
 
-  <script type="module" src="js/anexo1.js?v=13"></script>
+  <script type="module" src="js/anexo1.js?v=14"></script>
 </body>
 </html>
