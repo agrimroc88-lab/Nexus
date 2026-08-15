@@ -2237,12 +2237,20 @@ function cambiarVista(vista) {
     p.classList.toggle('activa', p.dataset.vista === vista);
   });
   ['cumplimiento', 'capacitaciones', 'eventos', 'ocupacionales',
-   'grupos', 'botiquines', 'instalaciones', 'evaluacion', 'informe-eventos'].forEach((v) => {
+   'grupos', 'botiquines', 'instalaciones', 'evaluacion'].forEach((v) => {
     const $v = document.getElementById('vista-' + v);
     if ($v) $v.hidden = v !== vista;
   });
   if (vista === 'capacitaciones') pintarCapacitaciones();
-  if (vista === 'eventos') pintarEventos();
+  if (vista === 'eventos') {
+    pintarEventos();
+    if (!estado.informeEventosIniciado) {
+      estado.informeEventosIniciado = true;
+      const $e = document.getElementById('empresa-activa');
+      const nombreEmpresa = $e ? ($e.options[$e.selectedIndex] || {}).textContent || '' : '';
+      iniciarInformeEventos(estado.empresaId, nombreEmpresa);
+    }
+  }
   if (vista === 'grupos') pintarGrupos();
   if (vista === 'botiquines') pintarBotiquines();
   if (vista === 'instalaciones') pintarInstalaciones();
@@ -2254,12 +2262,6 @@ function cambiarVista(vista) {
     const nombreEmpresa = $e ? ($e.options[$e.selectedIndex] || {}).textContent || '' : '';
     iniciarEvaluacion(estado.empresaId, nombreEmpresa);
     iniciarInformeEvaluacion(estado.empresaId, nombreEmpresa);
-  }
-  if (vista === 'informe-eventos' && !estado.informeEventosIniciado) {
-    estado.informeEventosIniciado = true;
-    const $e = document.getElementById('empresa-activa');
-    const nombreEmpresa = $e ? ($e.options[$e.selectedIndex] || {}).textContent || '' : '';
-    iniciarInformeEventos(estado.empresaId, nombreEmpresa);
   }
 }
 
