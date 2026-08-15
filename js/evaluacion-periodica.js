@@ -24,7 +24,7 @@
    ============================================ */
 
 import { supabase } from './supabase.js?v=11';
-import { escapar, formatearFecha } from './utils.js?v=12';
+import { escapar, formatearFecha, retrasar } from './utils.js?v=12';
 import { alCrear, alEditar } from './autoria.js?v=1';
 
 const VERSION = 'v1';
@@ -57,6 +57,16 @@ export function clasificarImc(peso, talla) {
   const rango = IMC.find((r) => valor < r.hasta);
   return { valor: Math.round(valor * 10) / 10, ...rango };
 }
+
+/* Un solo listener para todo el módulo: cierra cualquier
+   desplegable de CIE-10 abierto al hacer clic fuera de su
+   propia casilla. Se agrega una sola vez —nunca dentro de
+   pintarCaptura()—, para no acumular listeners cada vez que
+   se abre a un trabajador distinto. */
+document.addEventListener('click', (e) => {
+  if (e.target.closest('.ep-cie-envoltura')) return;
+  document.querySelectorAll('[data-cie-resultados]').forEach(($d) => { $d.hidden = true; });
+});
 
 const ev = {
   empresaId: null,
@@ -263,14 +273,18 @@ function pintarCaptura() {
                placeholder="Ej. Cobb 3°, Hb 10.2" autocomplete="off">
       </td>
       <td class="ep-col-cie">
-        <input class="entrada entrada-mini" data-campo="cie" type="text"
-               placeholder="CIE-10" maxlength="8" autocomplete="off">
+        <div class="ep-cie-envoltura">
+          <input class="entrada entrada-mini" data-campo="cie" type="text"
+                 placeholder="Buscar por código o nombre…" autocomplete="off">
+          <div class="ep-cie-resultados" data-cie-resultados="${x.id}" hidden></div>
+        </div>
       </td>`;
 
     const $res = tr.querySelector('[data-campo="resultado"]');
     const $cond = tr.querySelector('[data-campo="condicion"]');
     const $valor = tr.querySelector('[data-campo="valor"]');
     const $cie = tr.querySelector('[data-campo="cie"]');
+    const $cieRes = tr.querySelector('[data-cie-resultados]');
 
     if (r) {
       $res.value = r.resultado;
@@ -278,6 +292,18 @@ function pintarCaptura() {
       $valor.value = r.valor || '';
       $cie.value = r.codigo_cie10 || '';
     }
+
+    /* Búsqueda en vivo, igual que en Atenciones: se busca por
+       código o por nombre de la condición en el catálogo
+       compartido cie10. Al elegir un resultado, se AGREGA al
+       texto ya escrito (separado por coma) en vez de
+       reemplazarlo —así un mismo examen admite más de un
+       diagnóstico, ej. "Anemia leve" + "Leucocitosis" en un
+       mismo hemograma. */
+    $cie.addEventListener('input', () => buscarCieExamen(x.id, $cie, $cieRes, $cond));
+    $cie.addEventListener('focus', () => {
+      if ($cieRes.innerHTML.trim() && $cie.value.trim()) $cieRes.hidden = false;
+    });
 
     /* La condición y el valor solo tienen sentido si el
        resultado es anormal: dejarlos escritos en un examen
@@ -291,7 +317,7 @@ function pintarCaptura() {
       const anormal = $res.value === 'anormal';
       $cond.disabled = !anormal;
       $cie.disabled = !anormal;
-      if (!anormal) { $cond.value = ''; $cie.value = ''; }
+      if (!anormal) { $cond.value = ''; $cie.value = ''; $cieRes.hidden = true; }
     };
     $res.addEventListener('change', ajustar);
     ajustar();
@@ -305,7 +331,114 @@ function pintarCaptura() {
 /* El IMC se propone desde el peso y la talla de la última
    atención, si los hay. Se puede corregir; lo que no se hace
    es pedirlo dos veces. */
-async function pintarImcSugerido() {
+/* ============================================
+   Buscador de CIE-10 inline (mismo catálogo compartido que
+   Atenciones). A diferencia de aquel, aquí SÍ se permite más
+   de un código por examen: al elegir un resultado, se agrega
+   al texto ya escrito, separado por coma, en vez de
+   reemplazarlo —un mismo hemograma puede traer, por ejemplo,
+   anemia leve y leucocitosis a la vez.
+   ============================================ */
+
+const buscarCieExamen = retrasar(async (examenId, $input, $resultados, $cond) => {
+  /* Se busca solo lo que viene después de la última coma: si
+     ya hay "D64.9, " escrito y se sigue tecleando el segundo
+     código, no tiene sentido buscar la cadena completa. */
+  const texto = $input.value.split(',').pop().trim();
+
+  if (texto.length < 2) {
+    $resultados.innerHTML = '';
+    $resultados.hidden = true;
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from('cie10')
+    .select('codigo, descripcion')
+    .eq('activo', true)
+    .or(`codigo.ilike.${texto}%,descripcion.ilike.%${texto}%`)
+    .order('codigo')
+    .limit(8);
+
+  /* La respuesta pudo llegar tarde, cuando ya se escribió otra
+     cosa: se descarta en vez de pintar algo que ya no aplica. */
+  if ($input.value.split(',').pop().trim() !== texto) return;
+
+  if (error || !data || data.length === 0) {
+    $resultados.innerHTML = `
+      <p class="ep-cie-sug-vacia">Sin coincidencias.</p>
+      <button type="button" class="ep-cie-sug-nuevo" data-nuevo-cie="${escapar(texto)}">
+        + Registrar «${escapar(texto)}» como código nuevo
+      </button>`;
+    $resultados.hidden = false;
+    conectarResultadosCie(examenId, $input, $resultados, $cond);
+    return;
+  }
+
+  $resultados.innerHTML = data.map((c) => `
+    <button type="button" class="ep-cie-sug" data-codigo="${escapar(c.codigo)}" data-desc="${escapar(c.descripcion)}">
+      <span class="ep-cie-sug-codigo">${escapar(c.codigo)}</span>
+      <span>${escapar(c.descripcion)}</span>
+    </button>`).join('');
+  $resultados.hidden = false;
+  conectarResultadosCie(examenId, $input, $resultados, $cond);
+}, 250);
+
+function conectarResultadosCie(examenId, $input, $resultados, $cond) {
+  $resultados.querySelectorAll('[data-codigo]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      agregarCodigoCie($input, btn.dataset.codigo);
+      agregarTexto($cond, btn.dataset.desc);
+      $resultados.hidden = true;
+    });
+  });
+
+  const $nuevo = $resultados.querySelector('[data-nuevo-cie]');
+  if ($nuevo) {
+    $nuevo.addEventListener('click', async () => {
+      const texto = $nuevo.dataset.nuevoCie;
+      const pareceCodigo = /^[A-Za-z][0-9]/.test(texto);
+      const codigo = pareceCodigo ? texto.toUpperCase() : prompt('Código CIE-10 (ej. M54.5):', '');
+      const descripcion = pareceCodigo ? prompt('Descripción de este código:', '') : texto;
+      if (!codigo || !descripcion) return;
+      if (!/^[A-Z][0-9]{2}(\.[0-9X]{1,2})?$/i.test(codigo)) {
+        return avisar('Formato de código inválido. Ejemplos válidos: M54, M54.5, Z57.0');
+      }
+
+      const { error } = await supabase.from('cie10')
+        .insert({ codigo: codigo.toUpperCase(), descripcion, capitulo: 'Añadido por el usuario', personalizado: true });
+
+      if (error && error.code !== '23505') {
+        return avisar('No se pudo registrar el código: ' + error.message);
+      }
+      agregarCodigoCie($input, codigo.toUpperCase());
+      agregarTexto($cond, descripcion);
+      $resultados.hidden = true;
+    });
+  }
+}
+
+/* Agrega un código al final de lo ya escrito, sin duplicar. */
+function agregarCodigoCie($input, codigo) {
+  const partes = $input.value.split(',').map((p) => p.trim()).filter(Boolean);
+  partes.pop(); // el fragmento a medio escribir que originó la búsqueda
+  if (!partes.includes(codigo)) partes.push(codigo);
+  $input.value = partes.join(', ') + ', ';
+  $input.focus();
+}
+
+/* Igual que agregarCodigoCie, pero para la descripción en el
+   campo de condición: cada código elegido aporta su propio
+   texto, así "Anemia leve" y "Leucocitosis" quedan juntos sin
+   que la persona tenga que escribirlos aparte. */
+function agregarTexto($campo, texto) {
+  if (!$campo) return;
+  const partes = $campo.value.split(',').map((p) => p.trim()).filter(Boolean);
+  if (!partes.includes(texto)) partes.push(texto);
+  $campo.value = partes.join(', ');
+}
+
+
   const $a = document.getElementById('ep-imc-aviso');
   if (!$a || !ev.trabajador) return;
 
@@ -351,7 +484,8 @@ export async function guardarCaptura() {
     resultado: tr.querySelector('[data-campo="resultado"]').value,
     condicion: tr.querySelector('[data-campo="condicion"]').value.trim() || null,
     valor: tr.querySelector('[data-campo="valor"]').value.trim() || null,
-    codigo_cie10: tr.querySelector('[data-campo="cie"]').value.trim().toUpperCase() || null
+    codigo_cie10: tr.querySelector('[data-campo="cie"]').value
+      .split(',').map((c) => c.trim()).filter(Boolean).join(', ').toUpperCase() || null
   }));
 
   const anormalSinCondicion = filas.find(
