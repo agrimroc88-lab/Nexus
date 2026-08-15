@@ -1950,7 +1950,7 @@ async function abrirDetalle(a) {
       .select('codigo_cie10, orden, observacion, cie10(descripcion)')
       .eq('atencion_id', a.id).order('orden'),
     supabase.from('atencion_medicamentos')
-      .select('cantidad, indicacion, entregado, motivo_no_entrega, medicamentos(nombre_generico, concentracion, forma)')
+      .select('cantidad, indicacion, entregado, motivo_no_entrega, medicamentos(nombre_generico, nombre_comercial, concentracion, forma)')
       .eq('atencion_id', a.id),
     supabase.from('insumos_kardex')
       .select('cantidad, nota, insumos(nombre, unidad)')
@@ -2013,16 +2013,22 @@ async function abrirDetalle(a) {
     `).join('') || '<p class="pista">Sin diagnósticos.</p>'}
 
     <h4 class="detalle-titulo">Medicamentos</h4>
-    ${(rx.data || []).map((m) => `
+    ${(rx.data || []).map((m) => {
+      const med = m.medicamentos || {};
+      const generico = `${med.nombre_generico || ''} ${med.concentracion || ''}`.trim();
+      return `
       <div class="detalle-linea">
         <span class="${m.entregado ? 'insignia insignia-activa' : 'insignia insignia-critica'}">
           ${m.entregado ? 'Entregado' : 'No entregado'}
         </span>
-        <span>${escapar(m.medicamentos?.nombre_generico || '')} ${escapar(m.medicamentos?.concentracion || '')}</span>
+        <span class="detalle-medicamento">
+          ${med.nombre_comercial ? `<strong>${escapar(med.nombre_comercial)}</strong><br>` : ''}
+          ${escapar(generico)}
+        </span>
         <span class="celda-mono">× ${m.cantidad}</span>
         ${m.indicacion ? `<span class="secundario">${escapar(m.indicacion)}</span>` : ''}
       </div>
-    `).join('') || '<p class="pista">Sin prescripción.</p>'}
+    `;}).join('') || '<p class="pista">Sin prescripción.</p>'}
 
     <h4 class="detalle-titulo">Insumos</h4>
     ${(ri.data || []).map((r) => `
