@@ -283,33 +283,37 @@
   body.imprimiendo-oficio .of-hoja,
   body.imprimiendo-oficio .of-hoja * { color: #000 !important; }
 
-  /* Margen de pagina en cero: los dos A5 y la linea de corte
-     tienen que llegar a su sitio exacto, y el margen real lo
-     lleva cada oficio por dentro. */
-  @page { size: A4 landscape; margin: 0; }
+  /* Margen de página pequeño, NO cero: casi ninguna impresora
+     real imprime hasta el borde físico exacto de la hoja —el
+     margen "0" del navegador no evita que el hardware recorte
+     esos últimos milímetros. Con 4 mm de aire, ya no se pierde
+     nada del contenido. Los dos A5 y la línea de corte se
+     ajustan a esa área impresa real (289 x 202 mm), no ya a los
+     297 x 210 mm completos de la hoja. */
+  @page { size: A4 landscape; margin: 4mm; }
 
   /* En fila: los dos A5 verticales, uno junto al otro. */
   .of-a4 {
     display: flex;
     flex-direction: row;
-    width: 297mm;
-    height: 210mm;
+    width: 289mm;
+    height: 202mm;
   }
 
-  /* Cada mitad: 148,5 de ancho por 210 de alto. */
+  /* Cada mitad: la mitad del área impresa real. */
   .of-hoja,
   .of-hueco {
     box-sizing: border-box;
-    width: 148.5mm;
-    height: 210mm;
-    padding: 12.7mm;
+    width: 144.5mm;
+    height: 202mm;
+    padding: 11mm;
     overflow: hidden;
   }
 
   /* Linea de corte vertical, de arriba abajo. */
   .of-corte {
     width: 0;
-    height: 210mm;
+    height: 202mm;
     border-left: 0.4pt dashed #999;
   }
 
