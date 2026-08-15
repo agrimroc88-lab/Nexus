@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="css/trabajadores.css">
   <link rel="stylesheet" href="css/farmacia.css">
   <link rel="stylesheet" href="css/certificados.css?v=19">
-  <link rel="stylesheet" href="css/atenciones.css?v=17">
+  <link rel="stylesheet" href="css/atenciones.css?v=18">
   <link rel="stylesheet" href="css/emergencia.css">
 </head>
 <body class="app">
@@ -890,6 +890,9 @@
 
       <footer class="modal-pie">
         <button class="boton-secundario" data-cierra="modal-detalle" type="button">Cerrar</button>
+        <button class="boton-secundario boton-critico" id="btn-eliminar-atencion" type="button" hidden>
+          Eliminar atención
+        </button>
         <button class="boton-primario" id="btn-reimprimir-cert" type="button" hidden>
           Reimprimir certificado
         </button>
@@ -1059,7 +1062,7 @@
   <!-- Zona de impresión de la ficha de emergencia -->
   <div class="em-impresion" id="em-impresion"></div>
 
-  <script type="module" src="js/atenciones.js?v=31"></script>
+  <script type="module" src="js/atenciones.js?v=32"></script>
   <!-- Zona de impresión del oficio. Fuera de <main>: al
        imprimir se oculta todo lo demás. -->
   <div class="oficio-impresion" id="oficio-impresion"></div>
