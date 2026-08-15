@@ -242,8 +242,11 @@ export function imprimirOficio(d) {
 
   /* Dos copias del MISMO oficio en la misma hoja: una para el
      archivo de la empresa, otra para el trabajador —en vez de
-     dejar la segunda mitad en blanco, como antes. */
-  $z.innerHTML = `<div class="of-a4">${html}<div class="of-corte"></div>${html}</div>`;
+     dejar la segunda mitad en blanco, como antes. La segunda
+     copia va envuelta aparte para poder darle su propio
+     margen izquierdo, sin afectar a la primera. */
+  $z.innerHTML = `<div class="of-a4">${html}<div class="of-corte"></div>`
+               + `<div class="of-copia-derecha">${html}</div></div>`;
 
   const titulo = document.title;
   document.title = `Oficio · ${d.trabajador?.nombre_completo || ''}`;
