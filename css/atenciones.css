@@ -1085,4 +1085,23 @@
   #inat-impresion .if-firmas {
     margin-top: 30mm;
   }
+
+  /* Usadas por el informe de evaluación periódica (formato
+     Altair): leyenda de fuente al pie de cada tabla, y
+     subtítulos de un nivel más chico que .if-seccion. */
+  .if-fuente {
+    font-size: 8pt;
+    font-weight: bold;
+    text-align: right;
+    margin: 0.5mm 0 2.5mm;
+    color: #333;
+  }
+
+  .if-subseccion {
+    margin: 5mm 0 2mm;
+    font-size: 10pt;
+    font-weight: bold;
+    color: #1F4E79;
+    page-break-after: avoid;
+  }
 }
