@@ -328,9 +328,6 @@ function pintarCaptura() {
   pintarImcSugerido();
 }
 
-/* El IMC se propone desde el peso y la talla de la última
-   atención, si los hay. Se puede corregir; lo que no se hace
-   es pedirlo dos veces. */
 /* ============================================
    Buscador de CIE-10 inline (mismo catálogo compartido que
    Atenciones). A diferencia de aquel, aquí SÍ se permite más
@@ -439,6 +436,10 @@ function agregarTexto($campo, texto) {
 }
 
 
+/* El IMC se propone desde el peso y la talla de la última
+   atención, si los hay. Se puede corregir; lo que no se hace
+   es pedirlo dos veces. */
+async function pintarImcSugerido() {
   const $a = document.getElementById('ep-imc-aviso');
   if (!$a || !ev.trabajador) return;
 
