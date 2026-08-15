@@ -87,7 +87,67 @@
   border-radius: var(--radio);
 }
 
-.ep-col-cie { width: 7rem; }
+.ep-col-cie { width: 11rem; position: relative; }
+
+.ep-cie-envoltura { position: relative; }
+
+.ep-cie-resultados {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 20;
+  min-width: 16rem;
+  max-height: 12rem;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--color-borde, #ddd);
+  border-radius: 0.4rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  margin-top: 2px;
+}
+
+.ep-cie-sug {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.ep-cie-sug:hover { background: var(--color-acento-suave, #f0f4f8); }
+
+.ep-cie-sug-codigo {
+  font-weight: 700;
+  color: var(--color-acento, #1F4E79);
+  flex-shrink: 0;
+}
+
+.ep-cie-sug-vacia {
+  padding: 0.5rem 0.6rem;
+  margin: 0;
+  font-size: 0.85rem;
+  color: #777;
+}
+
+.ep-cie-sug-nuevo {
+  display: block;
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  border: none;
+  border-top: 1px solid var(--color-borde, #eee);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--color-acento, #1F4E79);
+}
+
+.ep-cie-sug-nuevo:hover { background: var(--color-acento-suave, #f0f4f8); }
 
 /* Examen que no se hace a toda la poblacion. Importa porque
    cambia el denominador del porcentaje: la audiometria se
