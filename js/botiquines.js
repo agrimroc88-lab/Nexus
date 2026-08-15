@@ -712,7 +712,7 @@ function tablaInsumos(lineas, modo) {
     lineas.map((l, i) => [
       String(i + 1),
       nombreInsumo(l),
-      num(l.dotacion) + ' ' + escaparTexto(l.unidad)
+      num(l.repuesto) + ' ' + escaparTexto(l.unidad)
     ]));
 }
 
@@ -1161,7 +1161,11 @@ function construirActas(espacioFirma, logo) {
     + '¿Desea generarlas de todos modos?')) return null;
 
   const hojas = bt.revisiones.map((r, i) => {
-    const lineas = bt.detalle[r.id] || [];
+    /* El acta es de entrega: solo lo que se repone. Listar la
+       dotación completa del botiquín aquí duplicaría el informe
+       y mostraría como "entregado" lo que ni se tocó. */
+    const lineas = (bt.detalle[r.id] || []).filter(
+      (l) => Number(l.repuesto) > 0);
 
     /* Área 7 la recibe el guardia de turno, que cambia cada
        día: la línea va en blanco para que firme quien esté. */
@@ -1206,7 +1210,10 @@ function construirActas(espacioFirma, logo) {
           ENTREGA DE MEDICAMENTOS E INSUMOS
         </p>
 
-        ${tablaInsumos(lineas, 'acta')}
+        ${lineas.length === 0
+          ? '<p style="font-style:italic;margin:6pt 0;">No hubo insumos que '
+            + 'reponer en este botiquín durante el periodo.</p>'
+          : tablaInsumos(lineas, 'acta')}
 
         ${bloqueFirmas([
           { rotulo: 'Elaborado por:', nombre: de.nombre, detalle: de.cargo },
