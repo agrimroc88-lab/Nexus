@@ -246,10 +246,33 @@ function pintarCaptura() {
       .filter((r) => r.trabajador_id === ev.trabajador.id)
       .map((r) => [r.examen_id, r]));
 
+  const esImc = (nombre) => /masa corporal|imc/i.test(nombre);
+
   ev.examenes.filter((x) => x.activo).forEach((x) => {
     const r = mios.get(x.id);
     const tr = document.createElement('tr');
     tr.dataset.examen = x.id;
+
+    /* El examen de masa corporal no es un simple Normal/Anormal:
+       tiene cinco categorías (Normal, Sobrepeso, Obesidad I/II/
+       III), las mismas que clasificarImc() ya calcula. El
+       selector las ofrece directamente; "anormal" y el texto de
+       la condición se derivan solos al elegir una. */
+    const selectorResultado = esImc(x.nombre)
+      ? `<select class="entrada entrada-mini" data-campo="resultado">
+           <option value="no_realizado">No realizado</option>
+           <option value="anormal|Insuficiencia ponderal">Insuficiencia ponderal</option>
+           <option value="normal|Normal">Normal</option>
+           <option value="anormal|Sobrepeso">Sobrepeso</option>
+           <option value="anormal|Obesidad clase 1">Obesidad I</option>
+           <option value="anormal|Obesidad clase 2">Obesidad II</option>
+           <option value="anormal|Obesidad clase 3">Obesidad III</option>
+         </select>`
+      : `<select class="entrada entrada-mini" data-campo="resultado">
+           <option value="no_realizado">No realizado</option>
+           <option value="normal">Normal</option>
+           <option value="anormal">Anormal</option>
+         </select>`;
 
     tr.innerHTML = `
       <td>
@@ -257,13 +280,7 @@ function pintarCaptura() {
         ${!x.universal
           ? '<span class="ep-marca">solo a quien lo requiere</span>' : ''}
       </td>
-      <td class="celda-centro">
-        <select class="entrada entrada-mini" data-campo="resultado">
-          <option value="no_realizado">No realizado</option>
-          <option value="normal">Normal</option>
-          <option value="anormal">Anormal</option>
-        </select>
-      </td>
+      <td class="celda-centro">${selectorResultado}</td>
       <td>
         <input class="entrada entrada-mini" data-campo="valor" type="text"
                placeholder="Ej. Cobb 3°, Hb 10.2" autocomplete="off">
@@ -277,7 +294,8 @@ function pintarCaptura() {
       </td>`;
 
     /* La condición ya no se escribe a mano: se arma sola con
-       la descripción de cada código CIE-10 elegido. Sigue
+       la descripción de cada código CIE-10 elegido (o, en el
+       caso de masa corporal, con la categoría elegida). Sigue
        existiendo, solo que oculta —el informe la necesita para
        narrar las causas ("anemia 1, leucocitosis 3"). */
     const $condOculta = document.createElement('input');
@@ -292,10 +310,22 @@ function pintarCaptura() {
     const $cieRes = tr.querySelector('[data-cie-resultados]');
 
     if (r) {
-      $res.value = r.resultado;
-      $cond.value = r.condicion || '';
       $valor.value = r.valor || '';
+      $cond.value = r.condicion || '';
       $cie.value = r.codigo_cie10 || '';
+
+      if (esImc(x.nombre)) {
+        /* Reconstruir cuál opción corresponde según lo guardado. */
+        const c = (r.condicion || '').toLowerCase();
+        if (r.resultado !== 'anormal') $res.value = 'normal|Normal';
+        else if (c.includes('clase 3')) $res.value = 'anormal|Obesidad clase 3';
+        else if (c.includes('clase 2')) $res.value = 'anormal|Obesidad clase 2';
+        else if (c.includes('sobrepeso')) $res.value = 'anormal|Sobrepeso';
+        else if (c.includes('insuficiencia')) $res.value = 'anormal|Insuficiencia ponderal';
+        else $res.value = 'anormal|Obesidad clase 1';
+      } else {
+        $res.value = r.resultado;
+      }
     }
 
     /* Búsqueda en vivo, igual que en Atenciones: se busca por
@@ -318,9 +348,11 @@ function pintarCaptura() {
        comparar después contra un Cobb futuro), por eso el valor
        se conserva y solo el CIE-10/condición se vacían. */
     const ajustar = () => {
-      const anormal = $res.value === 'anormal';
+      const [resultadoReal, condicionImc] = $res.value.split('|');
+      const anormal = resultadoReal === 'anormal';
       $cie.disabled = !anormal;
       if (!anormal) { $cond.value = ''; $cie.value = ''; $cieRes.hidden = true; }
+      else if (condicionImc) { $cond.value = condicionImc; }
     };
     $res.addEventListener('change', ajustar);
     ajustar();
@@ -472,10 +504,13 @@ async function pintarImcSugerido() {
   const $res = tr.querySelector('[data-campo="resultado"]');
   if ($res.value !== 'no_realizado') return;
 
-  $res.value = c.normal ? 'normal' : 'anormal';
+  /* c.texto ya viene exactamente como "Normal", "Sobrepeso",
+     "Obesidad clase 1/2/3" o "Insuficiencia ponderal" —las
+     mismas palabras que usan las opciones del selector—, así
+     que arma solo el valor combinado sin repetir la lista. */
+  $res.value = (c.normal ? 'normal' : 'anormal') + '|' + c.texto;
   $res.dispatchEvent(new Event('change'));
   tr.querySelector('[data-campo="valor"]').value = `IMC ${c.valor}`;
-  if (!c.normal) tr.querySelector('[data-campo="condicion"]').value = c.texto;
 }
 
 export async function guardarCaptura() {
@@ -485,7 +520,7 @@ export async function guardarCaptura() {
     evaluacion_id: ev.evaluacion.id,
     trabajador_id: ev.trabajador.id,
     examen_id: tr.dataset.examen,
-    resultado: tr.querySelector('[data-campo="resultado"]').value,
+    resultado: tr.querySelector('[data-campo="resultado"]').value.split('|')[0],
     condicion: tr.querySelector('[data-campo="condicion"]').value.trim() || null,
     valor: tr.querySelector('[data-campo="valor"]').value.trim() || null,
     codigo_cie10: tr.querySelector('[data-campo="cie"]').value
