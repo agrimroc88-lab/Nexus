@@ -27,12 +27,12 @@ import {
   iniciarEvaluacion, crearCampana, elegirCampana, buscarTrabajador,
   guardarCaptura, cerrarCaptura,
   abrirNuevoExamen, cancelarFormExamen, guardarExamen
-} from './evaluacion-periodica.js?v=5';
+} from './evaluacion-periodica.js?v=6';
 import {
   iniciarInformeEvaluacion, generarInformeEpidemiologico, descargarInformeEpidemiologico,
   generarInformeSeguimiento, descargarInformeSeguimiento,
   usarRecomendacion, abrirNuevaRecomendacion, cancelarNuevaRecomendacion, guardarNuevaRecomendacion
-} from './informe-evaluacion-periodica.js?v=5';
+} from './informe-evaluacion-periodica.js?v=6';
 import { montarGrupos, cargarGrupos, pintarGrupos } from './grupos.js?v=12';
 import { montarBotiquines, cargarBotiquines, pintarBotiquines }
   from './botiquines.js?v=12';

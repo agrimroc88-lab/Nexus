@@ -265,10 +265,6 @@ function pintarCaptura() {
         </select>
       </td>
       <td>
-        <input class="entrada entrada-mini" data-campo="condicion" type="text"
-               placeholder="Condición encontrada" autocomplete="off">
-      </td>
-      <td>
         <input class="entrada entrada-mini" data-campo="valor" type="text"
                placeholder="Ej. Cobb 3°, Hb 10.2" autocomplete="off">
       </td>
@@ -280,8 +276,17 @@ function pintarCaptura() {
         </div>
       </td>`;
 
+    /* La condición ya no se escribe a mano: se arma sola con
+       la descripción de cada código CIE-10 elegido. Sigue
+       existiendo, solo que oculta —el informe la necesita para
+       narrar las causas ("anemia 1, leucocitosis 3"). */
+    const $condOculta = document.createElement('input');
+    $condOculta.type = 'hidden';
+    $condOculta.dataset.campo = 'condicion';
+    tr.appendChild($condOculta);
+
     const $res = tr.querySelector('[data-campo="resultado"]');
-    const $cond = tr.querySelector('[data-campo="condicion"]');
+    const $cond = $condOculta;
     const $valor = tr.querySelector('[data-campo="valor"]');
     const $cie = tr.querySelector('[data-campo="cie"]');
     const $cieRes = tr.querySelector('[data-cie-resultados]');
@@ -299,23 +304,21 @@ function pintarCaptura() {
        texto ya escrito (separado por coma) en vez de
        reemplazarlo —así un mismo examen admite más de un
        diagnóstico, ej. "Anemia leve" + "Leucocitosis" en un
-       mismo hemograma. */
+       mismo hemograma. La descripción de cada código elegido
+       llena sola el campo de condición, oculto. */
     $cie.addEventListener('input', () => buscarCieExamen(x.id, $cie, $cieRes, $cond));
     $cie.addEventListener('focus', () => {
       if ($cieRes.innerHTML.trim() && $cie.value.trim()) $cieRes.hidden = false;
     });
 
-    /* La condición y el valor solo tienen sentido si el
-       resultado es anormal: dejarlos escritos en un examen
-       normal produce hallazgos fantasma en el informe. El
-       valor, sin embargo, se deja disponible incluso en
-       normal cuando la campaña lo requiera para seguimiento
-       (ej. un Cobb 0° normal que interesa comparar después
-       contra un Cobb futuro) —por eso solo la condición se
-       vacía al pasar a normal, el valor se conserva. */
+    /* El valor solo tiene sentido si el resultado es anormal
+       —dejarlo escrito en un examen normal produciría hallazgos
+       fantasma en el informe—, salvo que la campaña lo necesite
+       para seguimiento (ej. un Cobb 0° normal que interesa
+       comparar después contra un Cobb futuro), por eso el valor
+       se conserva y solo el CIE-10/condición se vacían. */
     const ajustar = () => {
       const anormal = $res.value === 'anormal';
-      $cond.disabled = !anormal;
       $cie.disabled = !anormal;
       if (!anormal) { $cond.value = ''; $cie.value = ''; $cieRes.hidden = true; }
     };
@@ -493,8 +496,8 @@ export async function guardarCaptura() {
     (f) => f.resultado === 'anormal' && !f.condicion);
   if (anormalSinCondicion) {
     const x = ev.examenes.find((e) => e.id === anormalSinCondicion.examen_id);
-    return avisar(`Indique qué se encontró en ${x?.nombre || 'el examen anormal'}: `
-                + 'sin la condición, el seguimiento no puede listar el caso.');
+    return avisar(`Elija al menos un código CIE-10 en ${x?.nombre || 'el examen anormal'}: `
+                + 'sin eso, el seguimiento no puede listar el caso.');
   }
 
   const $btn = document.getElementById('ep-btn-guardar');
