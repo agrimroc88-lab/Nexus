@@ -82,6 +82,7 @@ async function iniciar() {
   }
 
   estado.perfil = perfil;
+  estado.esAdmin = perfil.rol === 'admin';
   montarNavegacion(perfil, 'atenciones');
 
   prepararAnios();
@@ -1870,6 +1871,44 @@ async function buscarCertificadoDe(a) {
   document.getElementById('btn-reimprimir-cert').hidden = false;
 }
 
+/* Eliminar una atención registrada por error. Solo administrador
+   (el botón ya viene oculto para cualquier otro rol). Pide
+   escribir "ELIMINAR" a propósito —un solo confirm() se puede
+   aceptar sin leer, esto obliga a detenerse un segundo. Si se
+   entregó medicación, el RPC la devuelve al inventario antes
+   de borrar; nunca queda un descuadre de stock sin explicación. */
+async function eliminarAtencion() {
+  const a = estado.detalle;
+  if (!a) return;
+
+  const escrito = prompt(
+    `Vas a eliminar por completo la atención del ${formatearFecha(a.fecha)} de `
+    + `${a.nombre_completo}.\n\n`
+    + 'Si se entregó medicación o insumos, esa cantidad se devuelve sola al '
+    + 'inventario. Esta acción no se puede deshacer.\n\n'
+    + 'Para confirmar, escriba ELIMINAR:'
+  );
+  if (escrito !== 'ELIMINAR') return;
+
+  const $btn = document.getElementById('btn-eliminar-atencion');
+  $btn.disabled = true;
+  $btn.textContent = 'Eliminando…';
+
+  const { data, error } = await supabase.rpc('eliminar_atencion', { p_atencion_id: a.id });
+
+  $btn.disabled = false;
+  $btn.textContent = 'Eliminar atención';
+
+  if (error || !data?.ok) {
+    alert('No se pudo eliminar: ' + (error?.message || data?.motivo || 'error desconocido'));
+    return;
+  }
+
+  document.getElementById('modal-detalle').hidden = true;
+  alert('Atención eliminada. El inventario ya quedó actualizado.');
+  await recargar();
+}
+
 async function reimprimirCertificado() {
   const c = estado.certDetalle;
   const a = estado.detalle;
@@ -1940,6 +1979,7 @@ async function abrirDetalle(a) {
      no hay nada que imprimir. */
   document.getElementById('btn-reimprimir-cert').hidden = true;
   buscarCertificadoDe(a);
+  document.getElementById('btn-eliminar-atencion').hidden = !estado.esAdmin;
   document.getElementById('detalle-titulo').textContent =
     `${formatearFecha(a.fecha)} · ${a.nombre_completo}`;
   $cuerpo.innerHTML = '<p class="pista">Cargando…</p>';
@@ -2590,6 +2630,8 @@ function conectarEventos() {
 
   document.getElementById('btn-reimprimir-cert')
     .addEventListener('click', reimprimirCertificado);
+  document.getElementById('btn-eliminar-atencion')
+    .addEventListener('click', eliminarAtencion);
 
   ['at_reposo', 'at_cert_inicio', 'at_cert_rot_inicio', 'at_cert_rot_dias']
     .forEach((id) => document.getElementById(id)
