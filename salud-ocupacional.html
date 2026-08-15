@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="css/empresas.css">
   <link rel="stylesheet" href="css/trabajadores.css">
   <link rel="stylesheet" href="css/farmacia.css">
-  <link rel="stylesheet" href="css/atenciones.css">
+  <link rel="stylesheet" href="css/atenciones.css?v=1">
   <link rel="stylesheet" href="css/anexo1.css">
   <style>
     /* Gráfico de tendencia mensual · atenciones ocupacionales */
@@ -709,6 +709,7 @@
                     <th>Examen</th>
                     <th class="celda-centro">Resultado</th>
                     <th>Condición encontrada</th>
+                    <th>Valor</th>
                     <th>CIE-10</th>
                   </tr>
                 </thead>
@@ -717,6 +718,60 @@
             </div>
           </div>
         </section>
+
+        <!-- Catálogo de exámenes -->
+        <details class="panel plegable" id="ep-panel-catalogo">
+          <summary class="plegable-titulo">Catálogo de exámenes de esta campaña</summary>
+          <p class="ayuda">
+            Los exámenes marcados "solo a quien lo requiere" no se exigen a toda la nómina.
+            Desactivar un examen no borra los resultados ya capturados con él.
+          </p>
+          <div class="tabla-envoltura">
+            <table class="tabla">
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Grupo</th>
+                  <th class="celda-centro">A toda la nómina</th>
+                  <th class="celda-centro">Orden</th>
+                  <th class="celda-centro">Estado</th>
+                  <th class="celda-centro"></th>
+                </tr>
+              </thead>
+              <tbody id="ep-cuerpo-catalogo"></tbody>
+            </table>
+          </div>
+          <button class="boton-secundario" id="ep-btn-nuevo-examen" type="button">
+            + Nuevo examen
+          </button>
+
+          <div class="rejilla" id="ep-form-examen" hidden>
+            <input type="hidden" id="ep-examen-id">
+            <div class="campo">
+              <label class="etiqueta" for="ep-examen-nombre">Nombre <span class="obligatorio">*</span></label>
+              <input class="entrada" id="ep-examen-nombre" type="text" placeholder="Ej. Radiografía de columna lumbar">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="ep-examen-grupo">Grupo</label>
+              <input class="entrada" id="ep-examen-grupo" type="text" placeholder="Ej. Imagenología">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="ep-examen-orden">Orden</label>
+              <input class="entrada" id="ep-examen-orden" type="number" min="0" value="0">
+            </div>
+            <div class="campo">
+              <label class="etiqueta">
+                <input type="checkbox" id="ep-examen-universal" checked>
+                Se exige a toda la nómina
+              </label>
+            </div>
+            <div class="campo campo-ancho">
+              <button class="boton-secundario" id="ep-btn-cancelar-examen" type="button">Cancelar</button>
+              <button class="boton-primario" id="ep-btn-guardar-examen" type="button">Guardar examen</button>
+            </div>
+            <span class="ayuda ayuda-error" id="ep-examen-error"></span>
+          </div>
+        </details>
 
         <!-- Resumen -->
         <section class="panel">
@@ -737,6 +792,112 @@
             </table>
           </div>
           <p class="vacio" id="ep-vacio" hidden></p>
+        </section>
+
+        <!-- Informe epidemiológico -->
+        <section class="panel">
+          <h3 class="est-titulo" style="padding:0.5rem 1rem 0;">
+            Informe epidemiológico
+          </h3>
+          <p class="ayuda" style="padding:0 1rem;">
+            De un año específico, con aspectos organizacionales y clínicos, más una tendencia
+            multianual si ya hay más de una campaña capturada.
+          </p>
+
+          <div class="herramientas" style="padding:0 1rem;">
+            <div class="campo campo-corto">
+              <label class="etiqueta" for="epi-anio">Año a informar</label>
+              <select class="entrada" id="epi-anio"></select>
+            </div>
+            <button class="boton-primario" id="epi-btn-generar" type="button">
+              Generar informe epidemiológico
+            </button>
+          </div>
+          <p class="alerta" id="epi-alerta" role="alert" hidden></p>
+
+          <!-- Textos institucionales editables -->
+          <details class="panel plegable" style="margin:0.75rem 1rem;">
+            <summary class="plegable-titulo">Resumen, exposición de motivos, conclusiones y recomendaciones</summary>
+
+            <div class="campo">
+              <label class="etiqueta" for="epi-resumen-texto">Resumen</label>
+              <textarea class="entrada area" id="epi-resumen-texto" rows="5"></textarea>
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="epi-exposicion">Exposición de motivos</label>
+              <textarea class="entrada area" id="epi-exposicion" rows="5"></textarea>
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="epi-conclusiones">Conclusiones</label>
+              <textarea class="entrada area" id="epi-conclusiones" rows="4"></textarea>
+            </div>
+
+            <div class="campo">
+              <label class="etiqueta" for="epi-recomendaciones">Recomendaciones</label>
+
+              <div class="inat-biblioteca">
+                <select class="entrada" id="epi-recomendacion-elegir">
+                  <option value="">— Elegir de la biblioteca —</option>
+                </select>
+                <button class="boton-secundario" id="epi-btn-usar-recomendacion" type="button">Usar</button>
+                <button class="boton-secundario" id="epi-btn-nueva-recomendacion" type="button">+ Nueva</button>
+              </div>
+
+              <div class="inat-plan-form" id="epi-rec-form" hidden>
+                <input class="entrada" id="epi-rec-nombre" type="text" placeholder="Nombre corto (ej. Interconsulta nutricional)">
+                <textarea class="entrada area" id="epi-rec-texto" rows="3" placeholder="Texto de la recomendación"></textarea>
+                <div class="inat-plan-form-botones">
+                  <button class="boton-secundario" id="epi-btn-cancelar-recomendacion" type="button">Cancelar</button>
+                  <button class="boton-primario" id="epi-btn-guardar-recomendacion" type="button">Guardar y usar</button>
+                </div>
+                <span class="ayuda ayuda-error" id="epi-rec-error"></span>
+              </div>
+
+              <textarea class="entrada area" id="epi-recomendaciones" rows="8"
+                        placeholder="Una recomendación por línea. Se imprime como lista."></textarea>
+            </div>
+          </details>
+
+          <div class="panel" id="epi-previa" hidden style="margin:0.75rem 1rem;">
+            <div class="inf-previa-cabecera">
+              <div>
+                <h4 class="est-titulo">Vista previa</h4>
+                <span class="ayuda" id="epi-previa-resumen">—</span>
+              </div>
+              <button class="boton-secundario" id="epi-btn-descargar" type="button">
+                Descargar PDF
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Informe de seguimiento -->
+        <section class="panel">
+          <h3 class="est-titulo" style="padding:0.5rem 1rem 0;">
+            Informe de seguimiento (nominal, por trabajador)
+          </h3>
+          <p class="ayuda" style="padding:0 1rem;">
+            Una tabla por examen que tuvo algún resultado anormal alguna vez, con la persona, su
+            cargo y el hallazgo. Si hay más de un año capturado, se ve el historial completo.
+          </p>
+          <div class="herramientas" style="padding:0 1rem;">
+            <button class="boton-primario" id="seg-btn-generar" type="button">
+              Generar informe de seguimiento
+            </button>
+          </div>
+          <p class="alerta" id="seg-alerta" role="alert" hidden></p>
+
+          <div class="panel" id="seg-previa" hidden style="margin:0.75rem 1rem;">
+            <div class="inf-previa-cabecera">
+              <div>
+                <h4 class="est-titulo">Vista previa</h4>
+                <span class="ayuda" id="seg-previa-resumen">—</span>
+              </div>
+              <button class="boton-secundario" id="seg-btn-descargar" type="button">
+                Descargar PDF
+              </button>
+            </div>
+          </div>
         </section>
 
       </section>
@@ -2132,6 +2293,8 @@
   <!-- Zona de impresión de la hoja de recorrido -->
   <div class="ins-impresion" id="ins-impresion"></div>
 
-  <script type="module" src="js/anexo1.js?v=23"></script>
+  <div class="if-impresion" id="epi-impresion"></div>
+
+  <script type="module" src="js/anexo1.js?v=25"></script>
 </body>
 </html>
