@@ -120,13 +120,17 @@ async function cargarEmpresas() {
 }
 
 async function cargarCargos() {
-  /* Cargos del catálogo de la empresa */
-  const { data } = await supabase
-    .from('cargos_catalogo')
-    .select('id, nombre')
-    .eq('empresa_id', estado.empresaId)
-    .eq('activo', true)
-    .order('nombre');
+  /* Cargos del catálogo de la empresa. Corre junto con
+     cargarSucursales() —antes se esperaba una y luego la
+     otra, sin que dependan entre sí. */
+  const [{ data }] = await Promise.all([
+    supabase.from('cargos_catalogo')
+      .select('id, nombre')
+      .eq('empresa_id', estado.empresaId)
+      .eq('activo', true)
+      .order('nombre'),
+    cargarSucursales()
+  ]);
 
   estado.cargos = data || [];
   const $cargo = document.getElementById('cargo_id');
@@ -142,16 +146,21 @@ async function cargarCargos() {
     $ayuda.textContent = estado.cargos.length === 0 ? 'Use el botón + para agregar un cargo' : '';
     $ayuda.className = 'ayuda';
   }
-
-  await cargarSucursales();
 }
 
 async function cargarSucursales() {
-  const { data } = await supabase
-    .from('v_sucursales_reales')
-    .select('id, nombre')
-    .eq('empresa_id', estado.empresaId)
-    .order('nombre');
+  /* Las dos consultas no dependen entre sí —una trae la lista,
+     la otra solo la marca de "exige código"— así que corren
+     en paralelo en vez de una tras otra. */
+  const [{ data }, { data: marcas, error: errMarcas }] = await Promise.all([
+    supabase.from('v_sucursales_reales')
+      .select('id, nombre')
+      .eq('empresa_id', estado.empresaId)
+      .order('nombre'),
+    supabase.from('sucursales')
+      .select('id, exige_codigo')
+      .eq('empresa_id', estado.empresaId)
+  ]);
 
   const $suc = document.getElementById('sucursal_id');
   if (!$suc) return;
@@ -168,11 +177,6 @@ async function cargarSucursales() {
      037 sin ejecutar— el conjunto queda vacío y el código
      sigue siendo obligatorio en todas partes, que es el
      comportamiento anterior y el prudente. */
-  const { data: marcas, error: errMarcas } = await supabase
-    .from('sucursales')
-    .select('id, exige_codigo')
-    .eq('empresa_id', estado.empresaId);
-
   if (errMarcas) {
     console.warn('NEXUS · falta ejecutar 037_sucursal_exige_codigo.sql');
   } else {
@@ -665,23 +669,31 @@ async function abrirModal(trabajador = null) {
   ocultarAlerta();
   limpiarAyudas();
 
-  // Cargar sucursales y cargos SIEMPRE (crear y editar)
-  await cargarCargos();
+  /* Antes el modal se mostraba al final, después de esperar
+     cargos, sucursales y el código sugerido —cuatro consultas
+     seguidas antes de que el usuario viera nada. Ahora se abre
+     de inmediato con el formulario vacío, y esos datos se
+     cargan en paralelo por detrás; los combos se rellenan solos
+     apenas llegan, un instante después. */
+  document.getElementById('btn-guardar').hidden = false;
+  $modal.hidden = false;
+  document.getElementById(trabajador ? 'apellidos' : 'cedula').focus();
 
-  if (!trabajador) {
-    await sugerirCodigo();
-  } else {
-    // Precargar la sucursal, sub-área y cargo actuales del trabajador
+  if (trabajador) {
+    /* Editar sí necesita el orden: precargarVinculacion busca
+       la sucursal y el cargo por su texto entre las opciones
+       que acaba de llenar cargarCargos(); en paralelo podría
+       llegar antes y no encontrar nada que seleccionar. */
+    await cargarCargos();
     await precargarVinculacion(trabajador.id);
+  } else {
+    // Nuevo trabajador: nada de esto depende de lo otro.
+    await Promise.all([cargarCargos(), sugerirCodigo()]);
   }
 
   // Asegurar que el cambio de sucursal muestre/oculte la sub-área
   const $sucSel = document.getElementById('sucursal_id');
   if ($sucSel) $sucSel.onchange = alCambiarSucursal;
-
-  document.getElementById('btn-guardar').hidden = false;
-  $modal.hidden = false;
-  document.getElementById(trabajador ? 'apellidos' : 'cedula').focus();
 }
 
 /* Carga el periodo vigente del trabajador y rellena sucursal/sub-área/cargo */
