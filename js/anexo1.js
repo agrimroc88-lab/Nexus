@@ -25,9 +25,9 @@ import { montarNavegacion } from './nav.js?v=11';
 import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=12';
 import {
   iniciarEvaluacion, crearCampana, elegirCampana, buscarTrabajador,
-  guardarCaptura, cerrarCaptura,
+  guardarCaptura, cerrarCaptura, marcarFichaOcupacional,
   abrirNuevoExamen, cancelarFormExamen, guardarExamen
-} from './evaluacion-periodica.js?v=7';
+} from './evaluacion-periodica.js?v=8';
 import {
   iniciarInformeEvaluacion, generarInformeEpidemiologico, descargarInformeEpidemiologico,
   generarInformeSeguimiento, descargarInformeSeguimiento,
@@ -2277,6 +2277,7 @@ function conectarEvaluacion() {
   en('ep-buscar', 'input', buscarTrabajador);
   en('ep-btn-guardar', 'click', guardarCaptura);
   en('ep-btn-cerrar', 'click', cerrarCaptura);
+  en('ep-btn-ficha', 'click', marcarFichaOcupacional);
   en('ep-btn-nuevo-examen', 'click', abrirNuevoExamen);
   en('ep-btn-cancelar-examen', 'click', cancelarFormExamen);
   en('ep-btn-guardar-examen', 'click', guardarExamen);

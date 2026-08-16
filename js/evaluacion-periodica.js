@@ -30,6 +30,8 @@ import { alCrear, alEditar } from './autoria.js?v=1';
 const VERSION = 'v1';
 console.info('NEXUS · evaluacion-periodica', VERSION);
 
+const HOY = () => new Date().toISOString().slice(0, 10);
+
 /* Cortes de la OMS, los mismos que constan en el documento de
    seguimiento. El IMC lo clasifica el sistema y no la
    persona: hacerlo a mano en cuarenta trabajadores es donde
@@ -93,7 +95,8 @@ export async function iniciarEvaluacion(empresaId, empresaNombre) {
       .or(`empresa_id.is.null,empresa_id.eq.${empresaId}`)
       .order('orden'),
     supabase.from('v_trabajadores')
-      .select('id, codigo, cedula, nombre_completo, cargo, edad')
+      .select('id, codigo, cedula, nombre_completo, cargo, edad, '
+             + 'fecha_ultima_ficha, estado_ficha_ocupacional')
       .eq('empresa_id', empresaId).eq('activo', true).order('codigo')
   ]);
 
@@ -234,7 +237,78 @@ function abrirCaptura(t) {
       .filter(Boolean).join(' · ');
 
   pintarCaptura();
+  pintarFichaOcupacional();
   document.getElementById('ep-captura').hidden = false;
+}
+
+/* ============================================
+   Ficha ocupacional
+
+   Es un indicador aparte del examen: un trabajador puede
+   tener el examen al día y la ficha pendiente, o al revés.
+   Se marca una vez por trabajador cuando alguien confirma que
+   el documento consolidado ya se hizo; no se deriva de nada
+   que ya se capture aquí.
+   ============================================ */
+
+function pintarFichaOcupacional() {
+  const $estado = document.getElementById('ep-ficha-estado');
+  const $btn = document.getElementById('ep-btn-ficha');
+  if (!$estado || !$btn || !ev.trabajador) return;
+
+  const t = ev.trabajador;
+
+  /* Mismas clases y textos que usa la nómina para
+     estado_periodico (insigniaPeriodico en trabajadores.js):
+     una insignia igual en toda la app para el mismo tipo de
+     dato es más fácil de leer que un color nuevo por pantalla. */
+  const mapa = {
+    al_dia:        ['insignia-activa',   'Al día'],
+    por_programar: ['insignia-aviso',    'Por programar'],
+    vencido:       ['insignia-critica',  'Vencido'],
+    pendiente:     ['insignia-inactiva', 'Pendiente']
+  };
+  const [clase, texto] = mapa[t.estado_ficha_ocupacional] || mapa.pendiente;
+
+  $estado.innerHTML = `Ficha ocupacional: <span class="insignia ${clase}">${texto}</span>`
+    + (t.fecha_ultima_ficha
+        ? ` <span class="ayuda">(última: ${formatearFecha(t.fecha_ultima_ficha)})</span>`
+        : '');
+
+  $btn.disabled = false;
+}
+
+export async function marcarFichaOcupacional() {
+  if (!ev.evaluacion || !ev.trabajador) return;
+
+  const $btn = document.getElementById('ep-btn-ficha');
+  $btn.disabled = true;
+
+  const { error } = await supabase.from('ficha_ocupacional_registro').insert(alCrear({
+    trabajador_id: ev.trabajador.id,
+    evaluacion_id: ev.evaluacion.id,
+    fecha_ficha: HOY()
+  }));
+
+  if (error) {
+    $btn.disabled = false;
+    return avisar('No se pudo marcar la ficha: ' + error.message);
+  }
+
+  /* Refleja el cambio de inmediato en el trabajador abierto y
+     en la nómina en memoria, sin recargar toda la página. */
+  const hoy = HOY();
+  ev.trabajador.fecha_ultima_ficha = hoy;
+  ev.trabajador.estado_ficha_ocupacional = 'al_dia';
+
+  const enNomina = ev.nomina.find((x) => x.id === ev.trabajador.id);
+  if (enNomina) {
+    enNomina.fecha_ultima_ficha = hoy;
+    enNomina.estado_ficha_ocupacional = 'al_dia';
+  }
+
+  pintarFichaOcupacional();
+  avisar('Ficha ocupacional marcada como realizada.', true);
 }
 
 function pintarCaptura() {
