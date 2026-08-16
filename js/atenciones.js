@@ -26,7 +26,7 @@ import {
   cargarDatosOficio, llenarDestinatarios, destinatarioPorId,
   mostrarCiePorDefecto, rangoDias, imprimirOficio, destinatariosLista
 } from './oficio-certificado.js?v=6';
-import { alCrear } from './autoria.js?v=1';
+import { alCrear, marcarAntesDeBorrar } from './autoria.js?v=1';
 import {
   iniciarInformeAtenciones, cambiarTipoPeriodo, generarInformeAtenciones,
   descargarInformeAtenciones, guardarInformeAtenciones,
@@ -44,7 +44,9 @@ const estado = {
   trabajador: null,     // trabajador de la atención en curso
   diagnosticos: [],     // [{codigo, descripcion, observacion}]
   detalle: null,        // atención abierta en el modal de detalle
+  detalleDiagnosticos: [],  // diagnósticos de esa atención, para poder emitir certificado después
   certDetalle: null,    // su certificado, si lo tuvo
+  medicamentoElegidoDetalle: null,  // medicamento elegido para agregar a una atención ya concluida
   consumos: [],         // [{tipo:'medicamento'|'insumo', item_id, cantidad, indicacion, buscar, abierto}]
   cieDestino: null,     // índice del diagnóstico que abrió el buscador
   paciente: null,       // trabajador localizado en la pestaña Atenciones
@@ -1865,10 +1867,14 @@ async function buscarCertificadoDe(a) {
     .limit(1)
     .maybeSingle();
 
-  if (!data) return;
+  if (!data) {
+    if (estado.esAdmin) document.getElementById('btn-emitir-cert-post').hidden = false;
+    return;
+  }
 
   estado.certDetalle = data;
   document.getElementById('btn-reimprimir-cert').hidden = false;
+  if (estado.esAdmin) document.getElementById('btn-anular-cert').hidden = false;
 }
 
 /* Eliminar una atención registrada por error. Solo administrador
@@ -1978,6 +1984,8 @@ async function abrirDetalle(a) {
      visible llevaría a pulsarlo y encontrarse un aviso de que
      no hay nada que imprimir. */
   document.getElementById('btn-reimprimir-cert').hidden = true;
+  document.getElementById('btn-emitir-cert-post').hidden = true;
+  document.getElementById('btn-anular-cert').hidden = true;
   buscarCertificadoDe(a);
   document.getElementById('btn-eliminar-atencion').hidden = !estado.esAdmin;
   document.getElementById('detalle-titulo').textContent =
@@ -1990,7 +1998,7 @@ async function abrirDetalle(a) {
       .select('codigo_cie10, orden, observacion, cie10(descripcion)')
       .eq('atencion_id', a.id).order('orden'),
     supabase.from('atencion_medicamentos')
-      .select('cantidad, indicacion, entregado, motivo_no_entrega, medicamentos(nombre_generico, nombre_comercial, concentracion, forma)')
+      .select('id, cantidad, indicacion, entregado, motivo_no_entrega, medicamentos(nombre_generico, nombre_comercial, concentracion, forma)')
       .eq('atencion_id', a.id),
     supabase.from('insumos_kardex')
       .select('cantidad, nota, insumos(nombre, unidad)')
@@ -1999,6 +2007,9 @@ async function abrirDetalle(a) {
       .select('motivo_consulta, presion_sistolica, presion_diastolica, frecuencia_cardiaca, frecuencia_resp, temperatura, saturacion, peso, talla')
       .eq('id', a.id).single()
   ]);
+
+  estado.detalleDiagnosticos = dx.data || [];
+  estado.medicamentoElegidoDetalle = null;
 
   const vitales = at.data || {};
   const hayVitales = ['presion_sistolica', 'frecuencia_cardiaca', 'temperatura',
@@ -2067,8 +2078,33 @@ async function abrirDetalle(a) {
         </span>
         <span class="celda-mono">× ${m.cantidad}</span>
         ${m.indicacion ? `<span class="secundario">${escapar(m.indicacion)}</span>` : ''}
+        ${estado.esAdmin ? `
+          <button type="button" class="boton-secundario boton-critico boton-mini boton-quitar-medicamento"
+                  data-id="${m.id}" data-nombre="${escapar(generico)}">
+            Quitar
+          </button>` : ''}
       </div>
     `;}).join('') || '<p class="pista">Sin prescripción.</p>'}
+
+    ${estado.esAdmin ? `
+      <div class="detalle-agregar-medicamento">
+        <input type="text" id="det-buscar-medicamento" class="entrada"
+               placeholder="Buscar medicamento para agregar…" autocomplete="off">
+        <div id="det-sugerencias-medicamento" class="sugerencias" hidden></div>
+        <div id="det-medicamento-elegido" hidden>
+          <span id="det-medicamento-elegido-nombre"></span>
+          <input type="number" id="det-medicamento-cantidad" class="entrada entrada-mini"
+                 min="1" step="1" value="1" placeholder="Cant.">
+          <input type="text" id="det-medicamento-indicacion" class="entrada"
+                 placeholder="Indicación (opcional)">
+          <button type="button" class="boton-secundario" id="btn-agregar-medicamento-detalle">
+            Agregar
+          </button>
+          <button type="button" class="boton-secundario" id="btn-cancelar-medicamento-detalle">
+            Cancelar
+          </button>
+        </div>
+      </div>` : ''}
 
     <h4 class="detalle-titulo">Insumos</h4>
     ${(ri.data || []).map((r) => `
@@ -2089,6 +2125,194 @@ async function abrirDetalle(a) {
       Registró: ${escapar(textoOGuion(a.atendido_por_nombre))}
     </p>
   `;
+
+  if (estado.esAdmin) conectarBuscadorMedicamentoDetalle();
+}
+
+/* ============================================
+   Editar atención concluida: medicamentos
+   Botón "Quitar" por línea y buscador para agregar uno nuevo.
+   Solo admin —igual que eliminar la atención completa—, porque
+   ambas cosas mueven inventario después de que la consulta ya
+   se dio por cerrada.
+   ============================================ */
+
+function conectarBuscadorMedicamentoDetalle() {
+  const $buscar = document.getElementById('det-buscar-medicamento');
+  const $sug = document.getElementById('det-sugerencias-medicamento');
+  const $elegido = document.getElementById('det-medicamento-elegido');
+  const $nombreElegido = document.getElementById('det-medicamento-elegido-nombre');
+  if (!$buscar) return;
+
+  $buscar.addEventListener('input', () => {
+    const texto = $buscar.value.trim().toLowerCase();
+    if (texto.length < 2) { $sug.hidden = true; return; }
+
+    const hallados = estado.medicamentos.filter((m) => {
+      const campo = `${m.nombre_generico ?? ''} ${m.nombre_comercial ?? ''} ${m.concentracion ?? ''}`.toLowerCase();
+      return campo.includes(texto);
+    }).slice(0, 10);
+
+    if (hallados.length === 0) {
+      $sug.innerHTML = '<p class="sugerencia-vacia">Sin coincidencias</p>';
+      $sug.hidden = false;
+      return;
+    }
+
+    $sug.innerHTML = '';
+    hallados.forEach((m) => {
+      const etiqueta = etiquetaMedicamento(m);
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'sugerencia';
+      b.innerHTML = `<span class="sugerencia-nombre">${escapar(etiqueta)}</span>
+                     <span class="sugerencia-meta">Stock: ${m.stock_disponible ?? 0}</span>`;
+      b.addEventListener('click', () => {
+        estado.medicamentoElegidoDetalle = m;
+        $nombreElegido.textContent = etiqueta;
+        $elegido.hidden = false;
+        $buscar.value = '';
+        $sug.hidden = true;
+      });
+      $sug.appendChild(b);
+    });
+    $sug.hidden = false;
+  });
+
+  document.getElementById('btn-cancelar-medicamento-detalle')?.addEventListener('click', () => {
+    estado.medicamentoElegidoDetalle = null;
+    $elegido.hidden = true;
+    document.getElementById('det-medicamento-cantidad').value = '1';
+    document.getElementById('det-medicamento-indicacion').value = '';
+  });
+
+  document.getElementById('btn-agregar-medicamento-detalle')?.addEventListener('click', agregarMedicamentoDetalle);
+}
+
+async function agregarMedicamentoDetalle() {
+  const m = estado.medicamentoElegidoDetalle;
+  const a = estado.detalle;
+  if (!m || !a) return;
+
+  const cantidad = parseInt(document.getElementById('det-medicamento-cantidad').value, 10);
+  if (!cantidad || cantidad <= 0) return alert('Indique una cantidad válida.');
+
+  const indicacion = document.getElementById('det-medicamento-indicacion').value.trim() || null;
+
+  const $btn = document.getElementById('btn-agregar-medicamento-detalle');
+  $btn.disabled = true;
+  $btn.textContent = 'Agregando…';
+
+  const { data, error } = await supabase.rpc('agregar_medicamento_atencion', {
+    p_atencion_id: a.id,
+    p_medicamento_id: m.id,
+    p_cantidad: cantidad,
+    p_indicacion: indicacion
+  });
+
+  $btn.disabled = false;
+  $btn.textContent = 'Agregar';
+
+  if (error || !data?.ok) {
+    return alert('No se pudo agregar: ' + (error?.message || data?.motivo || 'error desconocido'));
+  }
+
+  if (!data.entregado) {
+    alert(`Se agregó ${data.medicamento}, pero sin existencia suficiente: quedó como no entregado.`);
+  }
+
+  await cargarMedicamentos();
+  await abrirDetalle(a);
+}
+
+async function quitarMedicamentoDetalle(id, nombre) {
+  if (!confirm(`¿Quitar ${nombre} de esta atención?\n\n`
+    + 'Si estaba entregado, la cantidad se devuelve sola al inventario.')) return;
+
+  const { data, error } = await supabase.rpc('quitar_medicamento_atencion', {
+    p_atencion_medicamento_id: id
+  });
+
+  if (error || !data?.ok) {
+    return alert('No se pudo quitar: ' + (error?.message || data?.motivo || 'error desconocido'));
+  }
+
+  await cargarMedicamentos();
+  await abrirDetalle(estado.detalle);
+}
+
+/* ============================================
+   Editar atención concluida: certificado interno
+   ============================================ */
+
+async function emitirCertificadoPost() {
+  const a = estado.detalle;
+  if (!a) return;
+
+  const dx = (estado.detalleDiagnosticos || [])[0];
+  if (!dx) return alert('No se puede emitir: esta atención no tiene diagnóstico.');
+
+  const opciones = destinatariosLista();
+  if (opciones.length === 0) return alert('No hay destinatarios configurados.');
+
+  const menu = opciones.map((d, i) => `${i + 1}. ${d.nombre} — ${d.cargo}`).join('\n');
+  const eleccion = prompt(`¿A quién va dirigido el certificado?\n\n${menu}`, '1');
+  if (eleccion === null) return;
+
+  const elegido = opciones[parseInt(eleccion, 10) - 1];
+  if (!elegido) return;
+
+  const perfil = sesionActual();
+  const firmante = perfil
+    ? [perfil.titulo, perfil.nombres, perfil.apellidos].filter(Boolean).join(' ').trim()
+    : '';
+
+  const { error } = await supabase.from('certificados_medicos').insert(alCrear({
+    empresa_id: estado.empresaId,
+    trabajador_id: a.trabajador_id,
+    origen: 'interno',
+    beneficiario: 'trabajador',
+    fecha_emision: a.fecha,
+    codigo_cie10: dx.codigo_cie10 || null,
+    diagnostico: dx.cie10?.descripcion || dx.observacion || null,
+    reposo_inicio: a.dias_reposo > 0 ? a.fecha : null,
+    reposo_dias: a.dias_reposo || 0,
+    medico_emisor: firmante || null
+  }));
+
+  if (error) return alert('No se pudo emitir el certificado: ' + error.message);
+
+  imprimirOficio({
+    clase: 'justificacion',
+    destinatario: elegido,
+    trabajador: { nombre_completo: a.nombre_completo, cargo: a.cargo, codigo: a.codigo_trabajador },
+    firmante,
+    cargoFirmante: perfil?.cargo || '',
+    fecha: a.fecha,
+    diagnostico: dx.cie10?.descripcion || dx.observacion || '',
+    cie10: dx.codigo_cie10 || '',
+    mostrarCie: mostrarCiePorDefecto(),
+    motivo: '',
+    reposoInicio: a.fecha,
+    reposoDias: a.dias_reposo || 0,
+    rotacion: ''
+  });
+
+  await abrirDetalle(a);
+}
+
+async function anularCertificado() {
+  const c = estado.certDetalle;
+  if (!c) return;
+
+  if (!confirm('¿Anular este certificado interno? Esta acción no se puede deshacer.')) return;
+
+  await marcarAntesDeBorrar(supabase, 'certificados_medicos', c.id);
+  const { error } = await supabase.from('certificados_medicos').delete().eq('id', c.id);
+
+  if (error) return alert('No se pudo anular: ' + error.message);
+
+  await abrirDetalle(estado.detalle);
 }
 
 /* ============================================
@@ -2632,6 +2856,17 @@ function conectarEventos() {
     .addEventListener('click', reimprimirCertificado);
   document.getElementById('btn-eliminar-atencion')
     .addEventListener('click', eliminarAtencion);
+  document.getElementById('btn-emitir-cert-post')
+    .addEventListener('click', emitirCertificadoPost);
+  document.getElementById('btn-anular-cert')
+    .addEventListener('click', anularCertificado);
+
+  /* Delegado porque el botón "Quitar" de cada medicamento se
+     crea de nuevo cada vez que se pinta el detalle. */
+  document.getElementById('detalle-cuerpo').addEventListener('click', (e) => {
+    const btn = e.target.closest('.boton-quitar-medicamento');
+    if (btn) quitarMedicamentoDetalle(btn.dataset.id, btn.dataset.nombre);
+  });
 
   ['at_reposo', 'at_cert_inicio', 'at_cert_rot_inicio', 'at_cert_rot_dias']
     .forEach((id) => document.getElementById(id)
