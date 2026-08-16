@@ -25,12 +25,29 @@
 
 import { supabase } from './supabase.js?v=11';
 import { escapar, formatearFecha, retrasar } from './utils.js?v=12';
-import { alCrear, alEditar } from './autoria.js?v=1';
+import { alCrear, alEditar, autorId } from './autoria.js?v=1';
 
 const VERSION = 'v1';
 console.info('NEXUS · evaluacion-periodica', VERSION);
 
 const HOY = () => new Date().toISOString().slice(0, 10);
+
+/** Autor real de la sesión si no se encontró al médico ocupacional en
+ *  usuarios_app; así un fallo en la búsqueda no deja el registro sin autor. */
+function autorMedicoOcupacional() {
+  return ev.medicoOcupacionalId || autorId();
+}
+
+/** Igual que alCrear/alEditar, pero forzando la autoría al médico
+ *  ocupacional en vez de a quien tiene la sesión abierta. */
+function alCrearMedico(fila) {
+  const id = autorMedicoOcupacional();
+  return { ...fila, creado_por: id, modificado_por: id };
+}
+
+function alEditarMedico(fila) {
+  return { ...fila, modificado_por: autorMedicoOcupacional(), modificado_en: new Date().toISOString() };
+}
 
 /* Cortes de la OMS, los mismos que constan en el documento de
    seguimiento. El IMC lo clasifica el sistema y no la
@@ -77,8 +94,16 @@ const ev = {
   examenes: [],          // catálogo
   resultados: [],        // de la campaña
   trabajador: null,      // el que se está capturando
-  nomina: []
+  nomina: [],
+  medicoOcupacionalId: null   // Dr. Arias: todo lo de esta pestaña se le acredita a él
 };
+
+/* Cédula del médico ocupacional responsable. Sin importar
+   quién tenga la sesión abierta al capturar un examen o marcar
+   la ficha ocupacional, el registro queda a su nombre: es la
+   persona con la responsabilidad médica sobre estos datos,
+   los haya tecleado él o no. */
+const CEDULA_MEDICO_OCUPACIONAL = '0705191229';
 
 /* ============================================
    Carga
@@ -90,14 +115,16 @@ export async function iniciarEvaluacion(empresaId, empresaNombre) {
 
   if (!empresaId) return;
 
-  const [cat, nom] = await Promise.all([
+  const [cat, nom, medico] = await Promise.all([
     supabase.from('examenes_catalogo').select('*')
       .or(`empresa_id.is.null,empresa_id.eq.${empresaId}`)
       .order('orden'),
     supabase.from('v_trabajadores')
       .select('id, codigo, cedula, nombre_completo, cargo, edad, '
              + 'fecha_ultima_ficha, estado_ficha_ocupacional')
-      .eq('empresa_id', empresaId).eq('activo', true).order('codigo')
+      .eq('empresa_id', empresaId).eq('activo', true).order('codigo'),
+    supabase.from('usuarios_app').select('id')
+      .eq('cedula', CEDULA_MEDICO_OCUPACIONAL).maybeSingle()
   ]);
 
   if (cat.error) {
@@ -107,6 +134,13 @@ export async function iniciarEvaluacion(empresaId, empresaNombre) {
 
   ev.examenes = cat.data || [];
   ev.nomina = nom.data || [];
+  ev.medicoOcupacionalId = medico.data?.id || null;
+
+  if (!ev.medicoOcupacionalId) {
+    avisar('No se encontró al médico ocupacional (cédula '
+      + `${CEDULA_MEDICO_OCUPACIONAL}) en usuarios_app; los registros de esta pestaña `
+      + 'se guardarán con el autor de la sesión actual en su lugar.');
+  }
 
   await cargarCampanas();
 }
@@ -284,11 +318,16 @@ export async function marcarFichaOcupacional() {
   const $btn = document.getElementById('ep-btn-ficha');
   $btn.disabled = true;
 
-  const { error } = await supabase.from('ficha_ocupacional_registro').insert(alCrear({
+  /* Sin alCrear(): esta fila nunca se edita, así que
+     modificado_por no aporta nada aquí, y evita depender de
+     que el caché de esquema de Supabase ya se haya enterado
+     de esa columna justo después de crear la tabla. */
+  const { error } = await supabase.from('ficha_ocupacional_registro').insert({
     trabajador_id: ev.trabajador.id,
     evaluacion_id: ev.evaluacion.id,
-    fecha_ficha: HOY()
-  }));
+    fecha_ficha: HOY(),
+    creado_por: autorMedicoOcupacional()
+  });
 
   if (error) {
     $btn.disabled = false;
@@ -626,7 +665,7 @@ export async function guardarCaptura() {
      resultados del mismo examen harían que los porcentajes
      pasaran del cien por ciento. */
   const { error } = await supabase.from('evaluacion_resultados')
-    .upsert(filas.map((f) => alEditar(f)),
+    .upsert(filas.map((f) => alEditarMedico(f)),
       { onConflict: 'evaluacion_id,trabajador_id,examen_id' });
 
   $btn.disabled = false;
