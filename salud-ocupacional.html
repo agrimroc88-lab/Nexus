@@ -669,6 +669,46 @@
           <span class="ayuda" id="ep-avance">—</span>
         </section>
 
+        <details class="panel plegable" id="ep-panel-convocados">
+          <summary>Avance de convocados de la campaña</summary>
+
+          <p class="ayuda" id="ep-conv-resumen">—</p>
+
+          <div class="ep-conv-filtros">
+            <button class="boton-secundario activo" type="button"
+                    data-filtro-convocado="todos">Todos</button>
+            <button class="boton-secundario" type="button"
+                    data-filtro-convocado="completados">Completados</button>
+            <button class="boton-secundario" type="button"
+                    data-filtro-convocado="pendientes">Pendientes</button>
+          </div>
+
+          <table class="tabla">
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Nombre</th>
+                <th>Cargo</th>
+                <th class="celda-centro">Exámenes</th>
+                <th class="celda-centro">Ficha</th>
+                <th class="celda-centro">Estado</th>
+              </tr>
+            </thead>
+            <tbody id="ep-conv-cuerpo"></tbody>
+          </table>
+
+          <div class="campo campo-ancho ep-buscador">
+            <label class="etiqueta" for="ep-conv-buscar">+ Agregar convocado manualmente</label>
+            <input class="entrada" id="ep-conv-buscar" type="text" autocomplete="off"
+                   placeholder="Código, cédula o nombre del trabajador a convocar…">
+            <div class="ep-sugerencias" id="ep-conv-sugerencias" hidden></div>
+            <span class="ayuda">
+              Para trabajadores que no salieron en la orden de trabajo general
+              pero también deben examinarse este año.
+            </span>
+          </div>
+        </details>
+
         <p class="alerta" id="ep-alerta" role="alert" hidden></p>
 
         <!-- Captura por trabajador -->
@@ -690,21 +730,22 @@
                 <h3 class="est-titulo" id="ep-cap-nombre">—</h3>
                 <span class="ayuda" id="ep-cap-datos"></span>
               </div>
-              <div class="ep-cap-acciones">
-                <button class="boton-secundario" id="ep-btn-cerrar" type="button">
-                  Cancelar
-                </button>
-                <button class="boton-primario" id="ep-btn-guardar" type="button">
-                  Guardar resultados
-                </button>
+              <div class="ep-cap-acciones-columna">
+                <div class="ep-cap-acciones">
+                  <button class="boton-secundario" id="ep-btn-cerrar" type="button">
+                    Cancelar
+                  </button>
+                  <button class="boton-primario" id="ep-btn-guardar" type="button">
+                    Guardar resultados
+                  </button>
+                </div>
+                <div class="ep-ficha-fila">
+                  <span class="ep-ficha-estado" id="ep-ficha-estado">—</span>
+                  <button class="boton-secundario" id="ep-btn-ficha" type="button">
+                    Marcar ficha ocupacional realizada
+                  </button>
+                </div>
               </div>
-            </div>
-
-            <div class="ep-ficha-fila">
-              <span class="ep-ficha-estado" id="ep-ficha-estado">—</span>
-              <button class="boton-secundario" id="ep-btn-ficha" type="button">
-                Marcar ficha ocupacional realizada
-              </button>
             </div>
 
             <p class="ep-imc" id="ep-imc-aviso" hidden></p>
