@@ -224,6 +224,14 @@
 .ep-fila-bloqueada input { cursor: not-allowed; }
 
 /* Filtros de la lista de avance de convocados */
+.ep-conv-cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
 .ep-conv-filtros {
   display: flex;
   gap: 0.5rem;
