@@ -75,6 +75,19 @@
 
 .ep-cap-acciones { display: flex; gap: 0.5rem; }
 
+/* Indicador de la ficha ocupacional, aparte del examen: un
+   trabajador puede tener el examen al día y la ficha
+   pendiente, o al revés, así que necesita su propia fila.
+   Reutiliza las clases insignia-* ya usadas en la nómina para
+   estado_periodico, en vez de inventar una paleta nueva. */
+.ep-ficha-fila {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  align-items: center;
+  padding: 0 1rem 0.8rem;
+}
+
 /* El IMC ya medido en consulta. Se muestra para no volver a
    pesar a nadie ni teclear el indice a mano. */
 .ep-imc {
