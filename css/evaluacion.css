@@ -75,6 +75,17 @@
 
 .ep-cap-acciones { display: flex; gap: 0.5rem; }
 
+/* Columna de la derecha de la cabecera: botones de guardar
+   arriba, y debajo la fila de la ficha ocupacional — así el
+   botón de marcarla queda pegado bajo "Guardar resultados",
+   no como una franja aparte de ancho completo. */
+.ep-cap-acciones-columna {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
 /* Indicador de la ficha ocupacional, aparte del examen: un
    trabajador puede tener el examen al día y la ficha
    pendiente, o al revés, así que necesita su propia fila.
@@ -83,9 +94,9 @@
 .ep-ficha-fila {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.7rem;
+  gap: 0.6rem;
   align-items: center;
-  padding: 0 1rem 0.8rem;
+  justify-content: flex-end;
 }
 
 /* El IMC ya medido en consulta. Se muestra para no volver a
@@ -181,3 +192,47 @@
   background: rgba(111, 207, 151, 0.1);
   border-color: rgba(111, 207, 151, 0.35);
 }
+
+/* Trabajador completado: exámenes capturados + ficha marcada.
+   Reemplaza la tabla entera —no tiene caso mostrar casillas
+   que ya no se pueden tocar. */
+.ep-completado {
+  padding: 1.5rem;
+  text-align: center;
+  background: rgba(111, 207, 151, 0.08);
+  border: 1px solid rgba(111, 207, 151, 0.3);
+  border-radius: var(--radio, 8px);
+}
+
+.ep-completado-titulo {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #6fcf97;
+}
+
+.ep-completado-texto {
+  margin: 0 0 1rem;
+  color: var(--color-texto-tenue);
+}
+
+/* Fila con un examen ya capturado: se ve apagada para que
+   quede claro, de un vistazo, que ya no se puede tocar sin
+   ser admin. */
+.ep-fila-bloqueada { opacity: 0.6; }
+.ep-fila-bloqueada select,
+.ep-fila-bloqueada input { cursor: not-allowed; }
+
+/* Filtros de la lista de avance de convocados */
+.ep-conv-filtros {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.5rem 0 1rem;
+}
+
+.ep-conv-filtros .boton-secundario.activo {
+  color: var(--color-fondo, #0d1117);
+  background: var(--color-acento, #1F4E79);
+  border-color: var(--color-acento, #1F4E79);
+}
+
