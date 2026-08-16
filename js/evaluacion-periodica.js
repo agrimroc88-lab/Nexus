@@ -320,6 +320,16 @@ function pintarCaptura() {
       .filter((r) => r.trabajador_id === ev.trabajador.id)
       .map((r) => [r.examen_id, r]));
 
+  /* Si ya tiene al menos un examen capturado en esta campaña,
+     el botón deja de invitar a "guardar" —que suena a primera
+     vez— y confirma que lo que se ve ya quedó registrado. */
+  const $btnGuardar = document.getElementById('ep-btn-guardar');
+  if ($btnGuardar) {
+    $btnGuardar.textContent = mios.size > 0
+      ? 'Resultados actualizados'
+      : 'Guardar resultados';
+  }
+
   const esImc = (nombre) => /masa corporal|imc/i.test(nombre);
 
   ev.examenes.filter((x) => x.activo).forEach((x) => {
