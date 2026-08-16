@@ -85,7 +85,7 @@ async function iniciar() {
 }
 
 function puedeEscribir() {
-  return [ROLES.ADMIN, ROLES.MEDICO, ROLES.TECNICO].includes(estado.perfil.rol);
+  return [ROLES.ADMIN, ROLES.MEDICO, ROLES.TECNICO, ROLES.ENFERMERIA].includes(estado.perfil.rol);
 }
 
 /* ============================================
