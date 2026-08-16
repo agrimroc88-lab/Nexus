@@ -27,6 +27,10 @@ import { supabase } from './supabase.js?v=11';
 import { escapar, formatearFecha, retrasar } from './utils.js?v=12';
 import { alCrear, alEditar, autorId } from './autoria.js?v=1';
 import { ROLES, sesionActual } from './auth.js?v=11';
+import {
+  envolverWord, descargarWord, membreteWord, bandaTitulo, tablaWord,
+  logoEnBase64, escaparTexto
+} from './documento.js?v=11';
 
 /** Solo el admin puede reabrir y editar un examen ya capturado
     o un trabajador ya marcado como completado. */
@@ -1082,6 +1086,79 @@ function filtrarConvocados(filtro) {
     b.classList.toggle('activo', b.dataset.filtroConvocado === filtro);
   });
   pintarListaConvocados();
+}
+
+/** Descarga el listado tal como se está viendo ahora mismo
+    (respeta el filtro activo: Todos/Completados/Pendientes) —
+    para entregar a Talento Humano quién ya está y a quién le
+    falta, sin tener que armarlo a mano en otro programa. */
+export async function imprimirListaConvocados() {
+  if (!ev.evaluacion) return avisar('Elija primero la campaña.');
+
+  const logo = await logoEnBase64('logo.png', 76).catch(() => null);
+
+  const filtroTexto = {
+    todos: 'Todos los convocados',
+    completados: 'Solo completados',
+    pendientes: 'Solo pendientes'
+  }[ev.filtroConvocados] || 'Todos los convocados';
+
+  const filas = ev.convocados
+    .map((c) => ({ ...c, completo: estaCompletado(c) }))
+    .filter((c) => {
+      if (ev.filtroConvocados === 'completados') return c.completo;
+      if (ev.filtroConvocados === 'pendientes') return !c.completo;
+      return true;
+    })
+    .sort((a, b) => a.nombre_completo.localeCompare(b.nombre_completo));
+
+  const totalConvocados = ev.convocados.length;
+  const totalCompletados = ev.convocados.filter(estaCompletado).length;
+
+  const cuerpo = `
+    ${membreteWord(ev.empresaNombre, logo)}
+    ${bandaTitulo('Listado de avance · Evaluación Médica Ocupacional Periódica',
+                  `Campaña ${ev.evaluacion.anio} · ${filtroTexto}`)}
+
+    <p style="text-align:justify;margin:8pt 0;">
+      Listado de trabajadores convocados a la evaluación médica ocupacional
+      periódica ${ev.evaluacion.anio}, con el estado de sus exámenes y de la
+      ficha ocupacional a la fecha de este reporte.
+    </p>
+
+    ${tablaWord(
+      [
+        { titulo: 'CÓD.',      ancho: 8,  centrado: true },
+        { titulo: 'NOMBRE',    ancho: 34 },
+        { titulo: 'CARGO',     ancho: 22 },
+        { titulo: 'EXÁMENES',  ancho: 12, centrado: true },
+        { titulo: 'FICHA',     ancho: 10, centrado: true },
+        { titulo: 'ESTADO',    ancho: 14, centrado: true }
+      ],
+      filas.map((c) => [
+        c.codigo != null ? String(c.codigo) : '—',
+        escaparTexto(c.nombre_completo),
+        escaparTexto(c.cargo || '—'),
+        tieneExamenReal(c.trabajador_id) ? 'Sí' : 'No',
+        c.fecha_ultima_ficha ? 'Sí' : 'No',
+        c.completo ? 'Completado' : 'Pendiente'
+      ]))}
+
+    <p style="margin:10pt 0 0;font-weight:bold;">
+      ${filas.length} trabajador(es) en este listado
+      (${totalCompletados} de ${totalConvocados} completos en toda la campaña).
+    </p>
+
+    <p style="font-size:6.5pt;color:#999999;text-align:right;margin-top:14pt;">
+      Generado el ${new Date().toLocaleString('es-EC')}
+    </p>`;
+
+  const html = envolverWord(
+    cuerpo,
+    `Avance evaluación periódica ${ev.evaluacion.anio}`,
+    { superior: 15, inferior: 15, izquierdo: 20, derecho: 15 });
+
+  descargarWord(html, `Avance evaluacion periodica ${ev.evaluacion.anio} - ${ev.filtroConvocados}`);
 }
 
 /* --- Agregar convocado manualmente --- */
