@@ -26,6 +26,13 @@
 import { supabase } from './supabase.js?v=11';
 import { escapar, formatearFecha, retrasar } from './utils.js?v=12';
 import { alCrear, alEditar, autorId } from './autoria.js?v=1';
+import { ROLES, sesionActual } from './auth.js?v=11';
+
+/** Solo el admin puede reabrir y editar un examen ya capturado
+    o un trabajador ya marcado como completado. */
+function esAdminEP() {
+  return sesionActual()?.rol === ROLES.ADMIN;
+}
 
 const VERSION = 'v1';
 console.info('NEXUS · evaluacion-periodica', VERSION);
@@ -85,6 +92,9 @@ export function clasificarImc(peso, talla) {
 document.addEventListener('click', (e) => {
   if (e.target.closest('.ep-cie-envoltura')) return;
   document.querySelectorAll('[data-cie-resultados]').forEach(($d) => { $d.hidden = true; });
+
+  const btnFiltro = e.target.closest('[data-filtro-convocado]');
+  if (btnFiltro) filtrarConvocados(btnFiltro.dataset.filtroConvocado);
 });
 
 const ev = {
@@ -95,7 +105,10 @@ const ev = {
   resultados: [],        // de la campaña
   trabajador: null,      // el que se está capturando
   nomina: [],
-  medicoOcupacionalId: null   // Dr. Arias: todo lo de esta pestaña se le acredita a él
+  medicoOcupacionalId: null,  // Dr. Arias: todo lo de esta pestaña se le acredita a él
+  reabiertoAdmin: false,  // admin desbloqueó temporalmente a un trabajador ya completado
+  convocados: [],         // convocados de la campaña abierta (evaluacion_convocados)
+  filtroConvocados: 'todos'  // 'todos' | 'completados' | 'pendientes'
 };
 
 /* Cédula del médico ocupacional responsable. Sin importar
@@ -196,13 +209,13 @@ export async function crearCampana() {
 
 export async function elegirCampana() {
   const id = document.getElementById('ep-campana').value;
-  if (!id) { ev.evaluacion = null; pintarTodo(); return; }
+  if (!id) { ev.evaluacion = null; ev.convocados = []; pintarTodo(); return; }
 
   const { data } = await supabase
     .from('evaluaciones_periodicas').select('*').eq('id', id).maybeSingle();
 
   ev.evaluacion = data || null;
-  await cargarResultados();
+  await Promise.all([cargarResultados(), cargarConvocados()]);
   pintarTodo();
 }
 
@@ -214,6 +227,50 @@ async function cargarResultados() {
     .eq('evaluacion_id', ev.evaluacion.id);
 
   ev.resultados = data || [];
+}
+
+/** Los convocados de ESTA campaña —no toda la nómina activa—,
+    con los datos de trabajador que hacen falta para pintar la
+    lista y decidir su estado. nombre_completo/cargo/ficha viven
+    en la vista v_trabajadores, no en la tabla base, así que se
+    consultan aparte y se combinan por trabajador_id. */
+async function cargarConvocados() {
+  if (!ev.evaluacion) { ev.convocados = []; return; }
+
+  const { data: conv, error } = await supabase
+    .from('evaluacion_convocados')
+    .select('id, trabajador_id, agregado_manual')
+    .eq('evaluacion_id', ev.evaluacion.id);
+
+  if (error) {
+    console.warn('NEXUS · falta ejecutar sql_convocados_2026.sql', error.message);
+    ev.convocados = [];
+    return;
+  }
+
+  const ids = (conv || []).map((c) => c.trabajador_id);
+  let porTrabajador = new Map();
+  if (ids.length > 0) {
+    const { data: vt } = await supabase
+      .from('v_trabajadores')
+      .select('id, codigo, cedula, nombre_completo, cargo, fecha_ultima_ficha')
+      .in('id', ids);
+    porTrabajador = new Map((vt || []).map((v) => [v.id, v]));
+  }
+
+  ev.convocados = (conv || []).map((c) => {
+    const t = porTrabajador.get(c.trabajador_id) || {};
+    return {
+      id: c.id,
+      trabajador_id: c.trabajador_id,
+      agregado_manual: c.agregado_manual,
+      codigo: t.codigo ?? null,
+      cedula: t.cedula ?? '',
+      nombre_completo: t.nombre_completo ?? '(trabajador no encontrado)',
+      cargo: t.cargo ?? '',
+      fecha_ultima_ficha: t.fecha_ultima_ficha ?? null
+    };
+  });
 }
 
 /* ============================================
@@ -262,6 +319,7 @@ function abrirCaptura(t) {
   if (!ev.evaluacion) return avisar('Elija primero la campaña.');
 
   ev.trabajador = t;
+  ev.reabiertoAdmin = false;
   document.getElementById('ep-buscar').value = '';
   document.getElementById('ep-sugerencias').hidden = true;
 
@@ -346,7 +404,14 @@ export async function marcarFichaOcupacional() {
     enNomina.estado_ficha_ocupacional = 'al_dia';
   }
 
+  const enConvocados = ev.convocados.find((c) => c.trabajador_id === ev.trabajador.id);
+  if (enConvocados) enConvocados.fecha_ultima_ficha = hoy;
+
   pintarFichaOcupacional();
+  pintarAvance();
+  /* Si con esto el trabajador queda completado, pintarCaptura()
+     reemplaza la tabla por el aviso; si no, no cambia nada. */
+  pintarCaptura();
   avisar('Ficha ocupacional marcada como realizada.', true);
 }
 
@@ -359,12 +424,69 @@ function pintarCaptura() {
       .filter((r) => r.trabajador_id === ev.trabajador.id)
       .map((r) => [r.examen_id, r]));
 
+  /* guardarCaptura() manda una fila por cada examen del
+     catálogo, incluidos los que quedaron en "No realizado" —
+     así el informe no pierde ese examen del todo. Pero para
+     decidir qué está bloqueado y qué cuenta como "completado",
+     una fila en "No realizado" es lo mismo que no tener nada:
+     sigue pendiente, no capturada. */
+  const capturado = (r) => Boolean(r) && r.resultado !== 'no_realizado';
+  const miosCapturados = new Map(
+    [...mios.entries()].filter(([, r]) => capturado(r)));
+
+  const admin = esAdminEP();
+
+  /* Completado: ya tiene algún resultado real (no solo filas en
+     "No realizado") Y la ficha marcada. Para quien no es admin,
+     esto bloquea todo el trabajador —ni siquiera puede tocar
+     las casillas que quedaron vacías, porque vacías significa
+     "no le tocaba", no "está pendiente". El admin ve el mismo
+     aviso pero con un botón para reabrir. */
+  const completado = miosCapturados.size > 0 && Boolean(ev.trabajador.fecha_ultima_ficha);
+  const $btnGuardar = document.getElementById('ep-btn-guardar');
+
+  if (completado && !admin) {
+    $c.innerHTML = `
+      <div class="ep-completado">
+        <p class="ep-completado-titulo">✓ Paciente completado</p>
+        <p class="ep-completado-texto">
+          Este trabajador ya tiene sus exámenes registrados y la ficha
+          ocupacional marcada. Solo un administrador puede reabrirlo
+          para corregir algo.
+        </p>
+      </div>`;
+    if ($btnGuardar) $btnGuardar.hidden = true;
+    pintarImcSugerido();
+    return;
+  }
+
+  if (completado && admin && !ev.reabiertoAdmin) {
+    $c.innerHTML = `
+      <div class="ep-completado">
+        <p class="ep-completado-titulo">✓ Paciente completado</p>
+        <p class="ep-completado-texto">
+          Ya tiene sus exámenes registrados y la ficha ocupacional marcada.
+        </p>
+        <button type="button" class="boton-secundario" id="ep-btn-reabrir">
+          Reabrir para editar
+        </button>
+      </div>`;
+    if ($btnGuardar) $btnGuardar.hidden = true;
+    document.getElementById('ep-btn-reabrir').addEventListener('click', () => {
+      ev.reabiertoAdmin = true;
+      pintarCaptura();
+    });
+    pintarImcSugerido();
+    return;
+  }
+
+  if ($btnGuardar) $btnGuardar.hidden = false;
+
   /* Si ya tiene al menos un examen capturado en esta campaña,
      el botón deja de invitar a "guardar" —que suena a primera
      vez— y confirma que lo que se ve ya quedó registrado. */
-  const $btnGuardar = document.getElementById('ep-btn-guardar');
   if ($btnGuardar) {
-    $btnGuardar.textContent = mios.size > 0
+    $btnGuardar.textContent = miosCapturados.size > 0
       ? 'Resultados actualizados'
       : 'Guardar resultados';
   }
@@ -375,6 +497,13 @@ function pintarCaptura() {
     const r = mios.get(x.id);
     const tr = document.createElement('tr');
     tr.dataset.examen = x.id;
+
+    /* Un examen ya capturado no lo puede tocar de nuevo quien
+       no es admin —ni por accidente ni para "corregir" algo
+       que en realidad debería pasar por el admin—. Si el admin
+       reabrió al trabajador, esto no aplica: puede editar todo. */
+    const bloqueada = capturado(r) && !admin;
+    if (bloqueada) tr.classList.add('ep-fila-bloqueada');
 
     /* El examen de masa corporal no es un simple Normal/Anormal:
        tiene cinco categorías (Normal, Sobrepeso, Obesidad I/II/
@@ -479,6 +608,12 @@ function pintarCaptura() {
     };
     $res.addEventListener('change', ajustar);
     ajustar();
+
+    if (bloqueada) {
+      $res.disabled = true;
+      $valor.disabled = true;
+      $cie.disabled = true;
+    }
 
     $c.appendChild(tr);
   });
@@ -639,16 +774,25 @@ async function pintarImcSugerido() {
 export async function guardarCaptura() {
   if (!ev.evaluacion || !ev.trabajador) return;
 
-  const filas = [...document.querySelectorAll('#ep-cap-cuerpo tr')].map((tr) => ({
-    evaluacion_id: ev.evaluacion.id,
-    trabajador_id: ev.trabajador.id,
-    examen_id: tr.dataset.examen,
-    resultado: tr.querySelector('[data-campo="resultado"]').value.split('|')[0],
-    condicion: tr.querySelector('[data-campo="condicion"]').value.trim() || null,
-    valor: tr.querySelector('[data-campo="valor"]').value.trim() || null,
-    codigo_cie10: tr.querySelector('[data-campo="cie"]').value
-      .split(',').map((c) => c.trim()).filter(Boolean).join(', ').toUpperCase() || null
-  }));
+  const admin = esAdminEP();
+
+  /* Las filas bloqueadas (examen ya capturado, usuario no
+     admin) no se reenvían: además de que los campos están
+     disabled en pantalla, si alguien las reactivara desde las
+     herramientas de desarrollador, esto evita que se vuelvan a
+     guardar con modificado_por de quien no debía tocarlas. */
+  const filas = [...document.querySelectorAll('#ep-cap-cuerpo tr')]
+    .filter((tr) => admin || !tr.classList.contains('ep-fila-bloqueada'))
+    .map((tr) => ({
+      evaluacion_id: ev.evaluacion.id,
+      trabajador_id: ev.trabajador.id,
+      examen_id: tr.dataset.examen,
+      resultado: tr.querySelector('[data-campo="resultado"]').value.split('|')[0],
+      condicion: tr.querySelector('[data-campo="condicion"]').value.trim() || null,
+      valor: tr.querySelector('[data-campo="valor"]').value.trim() || null,
+      codigo_cie10: tr.querySelector('[data-campo="cie"]').value
+        .split(',').map((c) => c.trim()).filter(Boolean).join(', ').toUpperCase() || null
+    }));
 
   const anormalSinCondicion = filas.find(
     (f) => f.resultado === 'anormal' && !f.condicion);
@@ -848,18 +992,150 @@ function pintarResumen() {
   });
 }
 
+/** ¿Tiene ese trabajador algún examen realmente capturado en
+    la campaña abierta? ("No realizado" no cuenta: sigue
+    pendiente, no es un resultado real). */
+function tieneExamenReal(trabajadorId) {
+  return ev.resultados.some(
+    (r) => r.trabajador_id === trabajadorId && r.resultado !== 'no_realizado');
+}
+
+function estaCompletado(c) {
+  return tieneExamenReal(c.trabajador_id) && Boolean(c.fecha_ultima_ficha);
+}
+
 function pintarAvance() {
   const $a = document.getElementById('ep-avance');
   if (!$a) return;
 
   if (!ev.evaluacion) { $a.textContent = '—'; return; }
 
-  const capturados = new Set(ev.resultados.map((r) => r.trabajador_id)).size;
-  const total = ev.nomina.length;
+  const total = ev.convocados.length;
+  const completados = ev.convocados.filter(estaCompletado).length;
 
-  $a.innerHTML = `<b>${capturados}</b> de ${total} trabajadores capturados`
-    + (capturados < total
-        ? ` · faltan <b>${total - capturados}</b>` : ' · completo');
+  $a.innerHTML = total === 0
+    ? '<b>0</b> convocados —revise que se haya corrido sql_convocados_2026.sql—'
+    : `<b>${completados}</b> de ${total} convocados completos`
+      + (completados < total
+          ? ` · faltan <b>${total - completados}</b>` : ' · campaña completa');
+
+  pintarListaConvocados();
+}
+
+/* ============================================
+   Lista de avance de convocados
+
+   Vive dentro de la misma pestaña, no aparte: es la respuesta
+   a "¿a quién todavía le falta?" sin tener que abrir uno por
+   uno. El universo es evaluacion_convocados —la lista propia
+   de la campaña—, no toda la nómina activa del sistema.
+   ============================================ */
+
+function pintarListaConvocados() {
+  const $tbody = document.getElementById('ep-conv-cuerpo');
+  if (!$tbody) return;
+
+  const filas = ev.convocados
+    .map((c) => ({ ...c, completo: estaCompletado(c) }))
+    .filter((c) => {
+      if (ev.filtroConvocados === 'completados') return c.completo;
+      if (ev.filtroConvocados === 'pendientes') return !c.completo;
+      return true;
+    })
+    .sort((a, b) => a.nombre_completo.localeCompare(b.nombre_completo));
+
+  $tbody.innerHTML = filas.map((c) => `
+    <tr>
+      <td class="celda-centro">${c.codigo ?? '—'}</td>
+      <td>${escapar(c.nombre_completo)}${c.agregado_manual
+        ? ' <span class="ep-marca">agregado a mano</span>' : ''}</td>
+      <td>${escapar(c.cargo || '—')}</td>
+      <td class="celda-centro">
+        <span class="insignia ${tieneExamenReal(c.trabajador_id) ? 'insignia-activa' : 'insignia-inactiva'}">
+          ${tieneExamenReal(c.trabajador_id) ? 'Sí' : 'No'}
+        </span>
+      </td>
+      <td class="celda-centro">
+        <span class="insignia ${c.fecha_ultima_ficha ? 'insignia-activa' : 'insignia-inactiva'}">
+          ${c.fecha_ultima_ficha ? 'Sí' : 'No'}
+        </span>
+      </td>
+      <td class="celda-centro">
+        <span class="insignia ${c.completo ? 'insignia-activa' : 'insignia-aviso'}">
+          ${c.completo ? 'Completado' : 'Pendiente'}
+        </span>
+      </td>
+    </tr>
+  `).join('') || '<tr><td colspan="6" class="pista">Nadie con este filtro.</td></tr>';
+
+  const total = ev.convocados.length;
+  const completados = ev.convocados.filter(estaCompletado).length;
+  const $resumen = document.getElementById('ep-conv-resumen');
+  if ($resumen) {
+    $resumen.textContent = `${completados} completados · ${total - completados} pendientes · ${total} convocados en total`;
+  }
+}
+
+function filtrarConvocados(filtro) {
+  ev.filtroConvocados = filtro;
+  document.querySelectorAll('[data-filtro-convocado]').forEach((b) => {
+    b.classList.toggle('activo', b.dataset.filtroConvocado === filtro);
+  });
+  pintarListaConvocados();
+}
+
+/* --- Agregar convocado manualmente --- */
+
+export function buscarParaAgregarConvocado() {
+  const $buscar = document.getElementById('ep-conv-buscar');
+  const $res = document.getElementById('ep-conv-sugerencias');
+  const texto = $buscar.value.trim().toLowerCase();
+  if (texto.length < 2) { $res.hidden = true; return; }
+
+  const yaConvocados = new Set(ev.convocados.map((c) => c.trabajador_id));
+  const hallados = ev.nomina.filter((t) => {
+    if (yaConvocados.has(t.id)) return false;
+    const campo = `${t.nombre_completo} ${t.cedula} ${t.codigo ?? ''}`.toLowerCase();
+    return campo.includes(texto);
+  }).slice(0, 10);
+
+  if (hallados.length === 0) {
+    $res.innerHTML = '<p class="ep-sug-vacia">Sin coincidencias (o ya está convocado)</p>';
+    $res.hidden = false;
+    return;
+  }
+
+  $res.innerHTML = '';
+  hallados.forEach((t) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'ep-sugerencia';
+    b.innerHTML = `<span class="codigo">${t.codigo ?? 's/c'}</span>
+                   <span>${escapar(t.nombre_completo)}</span>
+                   <span class="ep-marca">${escapar(t.cedula)}</span>`;
+    b.addEventListener('click', () => agregarConvocadoManual(t));
+    $res.appendChild(b);
+  });
+  $res.hidden = false;
+}
+
+async function agregarConvocadoManual(t) {
+  if (!ev.evaluacion) return;
+
+  const { error } = await supabase.from('evaluacion_convocados').insert({
+    evaluacion_id: ev.evaluacion.id,
+    trabajador_id: t.id,
+    agregado_manual: true,
+    creado_por: autorId()
+  });
+
+  if (error) return avisar('No se pudo agregar: ' + error.message);
+
+  document.getElementById('ep-conv-buscar').value = '';
+  document.getElementById('ep-conv-sugerencias').hidden = true;
+  await cargarConvocados();
+  pintarAvance();
+  avisar(`${t.nombre_completo} agregado a los convocados.`, true);
 }
 
 /* ============================================ */
