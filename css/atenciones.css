@@ -577,6 +577,49 @@
 
 .detalle-linea .secundario { margin-left: auto; }
 
+/* Botón pequeño de "Quitar" dentro de una línea de detalle.
+   .boton-mini vive en otras hojas de estilo que esta página no
+   carga, así que se declara aquí para no depender de eso. */
+.boton-mini {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.78rem;
+}
+
+/* Agregar un medicamento a una atención ya concluida. Necesita
+   position:relative para que el listado de sugerencias se
+   ancle debajo del campo de búsqueda, igual que el buscador de
+   paciente. */
+.detalle-agregar-medicamento {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0.75rem 0 1.25rem;
+  padding: 0.75rem;
+  background: var(--color-fondo);
+  border: 1px dashed var(--color-borde);
+  border-radius: var(--radio);
+}
+
+.detalle-agregar-medicamento .entrada { flex: 1; min-width: 160px; }
+.detalle-agregar-medicamento .entrada-mini { flex: none; width: 70px; }
+
+#det-medicamento-elegido {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  width: 100%;
+}
+
+#det-medicamento-elegido-nombre {
+  font-weight: 600;
+  font-size: 0.85rem;
+  width: 100%;
+}
+
+
 .vitales-tira {
   display: flex;
   flex-wrap: wrap;
