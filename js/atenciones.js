@@ -1851,31 +1851,12 @@ async function guardarAtencionExterna() {
    El certificado se localiza por trabajador y fecha, porque
    la atención y el certificado no guardan un vínculo directo.
    Es suficiente: no se emiten dos justificativos internos al
-   mismo trabajador el mismo día.
+   mismo trabajador el mismo día. La búsqueda misma vive ahora
+   dentro de abrirDetalle(), en el mismo Promise.all: así se
+   conoce el resultado ANTES de construir el HTML del detalle,
+   y la sección de certificado puede decidir qué mostrar.
    ============================================ */
 
-async function buscarCertificadoDe(a) {
-  estado.certDetalle = null;
-
-  const { data } = await supabase
-    .from('certificados_medicos')
-    .select('*')
-    .eq('trabajador_id', a.trabajador_id)
-    .eq('fecha_emision', a.fecha)
-    .eq('origen', 'interno')
-    .order('creado_en', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (!data) {
-    if (estado.esAdmin) document.getElementById('btn-emitir-cert-post').hidden = false;
-    return;
-  }
-
-  estado.certDetalle = data;
-  document.getElementById('btn-reimprimir-cert').hidden = false;
-  if (estado.esAdmin) document.getElementById('btn-anular-cert').hidden = false;
-}
 
 /* Eliminar una atención registrada por error. Solo administrador
    (el botón ya viene oculto para cualquier otro rol). Pide
@@ -1984,16 +1965,14 @@ async function abrirDetalle(a) {
      visible llevaría a pulsarlo y encontrarse un aviso de que
      no hay nada que imprimir. */
   document.getElementById('btn-reimprimir-cert').hidden = true;
-  document.getElementById('btn-emitir-cert-post').hidden = true;
   document.getElementById('btn-anular-cert').hidden = true;
-  buscarCertificadoDe(a);
   document.getElementById('btn-eliminar-atencion').hidden = !estado.esAdmin;
   document.getElementById('detalle-titulo').textContent =
     `${formatearFecha(a.fecha)} · ${a.nombre_completo}`;
   $cuerpo.innerHTML = '<p class="pista">Cargando…</p>';
   document.getElementById('modal-detalle').hidden = false;
 
-  const [dx, rx, ri, at] = await Promise.all([
+  const [dx, rx, ri, at, cert] = await Promise.all([
     supabase.from('atencion_diagnosticos')
       .select('codigo_cie10, orden, observacion, cie10(descripcion)')
       .eq('atencion_id', a.id).order('orden'),
@@ -2005,14 +1984,29 @@ async function abrirDetalle(a) {
       .eq('atencion_id', a.id),
     supabase.from('atenciones')
       .select('motivo_consulta, presion_sistolica, presion_diastolica, frecuencia_cardiaca, frecuencia_resp, temperatura, saturacion, peso, talla')
-      .eq('id', a.id).single()
+      .eq('id', a.id).single(),
+    supabase.from('certificados_medicos')
+      .select('*')
+      .eq('trabajador_id', a.trabajador_id)
+      .eq('fecha_emision', a.fecha)
+      .eq('origen', 'interno')
+      .order('creado_en', { ascending: false })
+      .limit(1)
+      .maybeSingle()
   ]);
 
   estado.detalleDiagnosticos = dx.data || [];
   estado.medicamentoElegidoDetalle = null;
+  estado.certDetalle = cert.data || null;
+
+  if (estado.certDetalle) {
+    document.getElementById('btn-reimprimir-cert').hidden = false;
+    if (estado.esAdmin) document.getElementById('btn-anular-cert').hidden = false;
+  }
 
   const vitales = at.data || {};
   const hayVitales = ['presion_sistolica', 'frecuencia_cardiaca', 'temperatura',
+
                       'saturacion', 'peso'].some((k) => vitales[k] != null);
 
   $cuerpo.innerHTML = `
@@ -2106,6 +2100,65 @@ async function abrirDetalle(a) {
         </div>
       </div>` : ''}
 
+    <h4 class="detalle-titulo">Certificado interno</h4>
+    ${estado.certDetalle ? `
+      <div class="detalle-linea">
+        <span class="insignia insignia-activa">Emitido</span>
+        <span class="detalle-medicamento">${escapar(estado.certDetalle.diagnostico || '')}</span>
+        ${estado.certDetalle.reposo_dias > 0
+          ? `<span class="secundario">${resumenReposo(estado.certDetalle.reposo_inicio, estado.certDetalle.reposo_dias)}</span>`
+          : ''}
+      </div>`
+    : (estado.esAdmin ? `
+      <div class="detalle-emitir-certificado">
+        <div class="rejilla">
+          <div class="campo">
+            <label class="etiqueta" for="det-cert-dest">Dirigido a</label>
+            <select class="entrada" id="det-cert-dest"></select>
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="det-cert-inicio">Inicio del reposo</label>
+            <input class="entrada" id="det-cert-inicio" type="date" value="${HOY()}">
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="det-cert-dias">Días de reposo</label>
+            <input class="entrada" id="det-cert-dias" type="number" min="0" value="${a.dias_reposo || 0}">
+          </div>
+        </div>
+        <p class="cert-fechas" id="det-cert-fechas-reposo" hidden></p>
+
+        <label class="alternador">
+          <input type="checkbox" id="det-cert-rotacion">
+          <span>Amerita rotación de área</span>
+        </label>
+
+        <div class="rejilla" id="det-cert-rotacion-bloque" hidden>
+          <div class="campo">
+            <label class="etiqueta" for="det-cert-rot-inicio">Inicio de la rotación</label>
+            <input class="entrada" id="det-cert-rot-inicio" type="date">
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="det-cert-rot-dias">Días de rotación</label>
+            <input class="entrada" id="det-cert-rot-dias" type="number" min="0" value="0">
+          </div>
+          <div class="campo campo-ancho">
+            <label class="etiqueta" for="det-cert-rot-detalle">Detalle de la rotación</label>
+            <input class="entrada" id="det-cert-rot-detalle" type="text">
+          </div>
+        </div>
+        <p class="cert-fechas" id="det-cert-fechas-rotacion" hidden></p>
+
+        <div class="campo">
+          <label class="etiqueta" for="det-cert-motivo">Motivo de la inasistencia</label>
+          <textarea class="entrada area" id="det-cert-motivo" rows="2"></textarea>
+        </div>
+
+        <button type="button" class="boton-secundario" id="btn-emitir-cert-post">
+          Emitir certificado interno
+        </button>
+      </div>`
+    : '<p class="pista">Esta atención no tiene certificado interno.</p>')}
+
     <h4 class="detalle-titulo">Insumos</h4>
     ${(ri.data || []).map((r) => `
       <div class="detalle-linea">
@@ -2126,7 +2179,10 @@ async function abrirDetalle(a) {
     </p>
   `;
 
-  if (estado.esAdmin) conectarBuscadorMedicamentoDetalle();
+  if (estado.esAdmin) {
+    conectarBuscadorMedicamentoDetalle();
+    if (!estado.certDetalle) conectarCertificadoPost();
+  }
 }
 
 /* ============================================
@@ -2243,7 +2299,53 @@ async function quitarMedicamentoDetalle(id, nombre) {
 
 /* ============================================
    Editar atención concluida: certificado interno
-   ============================================ */
+   Formulario completo (destinatario, inicio, días, rotación
+   de área), igual de expresivo que el de la atención en curso
+   —no un prompt() de una sola línea— porque emitirlo días
+   después implica elegir un inicio de reposo que ya no es
+   necesariamente el de la atención original. */
+
+function conectarCertificadoPost() {
+  const $dias = document.getElementById('det-cert-dias');
+  const $inicio = document.getElementById('det-cert-inicio');
+  if (!$dias) return;
+
+  llenarDestinatarios('det-cert-dest');
+
+  const $rot = document.getElementById('det-cert-rotacion');
+  const $rotBloque = document.getElementById('det-cert-rotacion-bloque');
+  const $rotInicio = document.getElementById('det-cert-rot-inicio');
+
+  const pintarFechas = () => {
+    const poner = (idSalida, texto) => {
+      const $s = document.getElementById(idSalida);
+      if (!$s) return;
+      $s.innerHTML = texto;
+      $s.hidden = !texto;
+    };
+
+    poner('det-cert-fechas-reposo', resumenReposo(
+      $inicio.value, parseInt($dias.value, 10) || 0, 'Reposo'));
+
+    poner('det-cert-fechas-rotacion', resumenReposo(
+      $rotInicio.value,
+      $rot.checked ? (parseInt(document.getElementById('det-cert-rot-dias').value, 10) || 0) : 0,
+      'Rotación'));
+  };
+
+  $rot.addEventListener('change', () => {
+    $rotBloque.hidden = !$rot.checked;
+    if ($rot.checked && !$rotInicio.value) $rotInicio.value = $inicio.value;
+    pintarFechas();
+  });
+
+  ['det-cert-inicio', 'det-cert-dias', 'det-cert-rot-inicio', 'det-cert-rot-dias']
+    .forEach((id) => document.getElementById(id).addEventListener('input', pintarFechas));
+
+  pintarFechas();
+
+  document.getElementById('btn-emitir-cert-post').addEventListener('click', emitirCertificadoPost);
+}
 
 async function emitirCertificadoPost() {
   const a = estado.detalle;
@@ -2252,20 +2354,30 @@ async function emitirCertificadoPost() {
   const dx = (estado.detalleDiagnosticos || [])[0];
   if (!dx) return alert('No se puede emitir: esta atención no tiene diagnóstico.');
 
-  const opciones = destinatariosLista();
-  if (opciones.length === 0) return alert('No hay destinatarios configurados.');
+  const destId = document.getElementById('det-cert-dest').value;
+  const elegido = destinatarioPorId(destId);
+  if (!elegido) return alert('Elija a quién va dirigido el certificado.');
 
-  const menu = opciones.map((d, i) => `${i + 1}. ${d.nombre} — ${d.cargo}`).join('\n');
-  const eleccion = prompt(`¿A quién va dirigido el certificado?\n\n${menu}`, '1');
-  if (eleccion === null) return;
+  const inicio = document.getElementById('det-cert-inicio').value;
+  const dias = parseInt(document.getElementById('det-cert-dias').value, 10) || 0;
+  if (!inicio) return alert('Indique la fecha de inicio del reposo.');
+  if (dias <= 0) return alert('Indique el número de días de reposo.');
 
-  const elegido = opciones[parseInt(eleccion, 10) - 1];
-  if (!elegido) return;
+  const rota = document.getElementById('det-cert-rotacion').checked;
+  const rotInicio = document.getElementById('det-cert-rot-inicio').value || null;
+  const rotDias = rota
+    ? (parseInt(document.getElementById('det-cert-rot-dias').value, 10) || 0) : 0;
+  const rotDetalle = document.getElementById('det-cert-rot-detalle').value.trim() || null;
+  const motivo = document.getElementById('det-cert-motivo').value.trim() || null;
 
   const perfil = sesionActual();
   const firmante = perfil
     ? [perfil.titulo, perfil.nombres, perfil.apellidos].filter(Boolean).join(' ').trim()
     : '';
+
+  const $btn = document.getElementById('btn-emitir-cert-post');
+  $btn.disabled = true;
+  $btn.textContent = 'Emitiendo…';
 
   const { error } = await supabase.from('certificados_medicos').insert(alCrear({
     empresa_id: estado.empresaId,
@@ -2275,12 +2387,24 @@ async function emitirCertificadoPost() {
     fecha_emision: a.fecha,
     codigo_cie10: dx.codigo_cie10 || null,
     diagnostico: dx.cie10?.descripcion || dx.observacion || null,
-    reposo_inicio: a.dias_reposo > 0 ? a.fecha : null,
-    reposo_dias: a.dias_reposo || 0,
-    medico_emisor: firmante || null
+    reposo_inicio: inicio,
+    reposo_dias: dias,
+    amerita_reubicacion: rota,
+    rotacion_inicio: rota && rotDias > 0 ? (rotInicio || inicio) : null,
+    rotacion_dias: rotDias,
+    rotacion_detalle: rotDetalle,
+    medico_emisor: firmante || null,
+    observacion: motivo
   }));
 
+  $btn.disabled = false;
+  $btn.textContent = 'Emitir certificado interno';
+
   if (error) return alert('No se pudo emitir el certificado: ' + error.message);
+
+  const rotacion = rota
+    ? (rangoDias(rotInicio || inicio, rotDias) || rotDetalle || '')
+    : '';
 
   imprimirOficio({
     clase: 'justificacion',
@@ -2292,10 +2416,10 @@ async function emitirCertificadoPost() {
     diagnostico: dx.cie10?.descripcion || dx.observacion || '',
     cie10: dx.codigo_cie10 || '',
     mostrarCie: mostrarCiePorDefecto(),
-    motivo: '',
-    reposoInicio: a.fecha,
-    reposoDias: a.dias_reposo || 0,
-    rotacion: ''
+    motivo: motivo || '',
+    reposoInicio: inicio,
+    reposoDias: dias,
+    rotacion
   });
 
   await abrirDetalle(a);
@@ -2856,8 +2980,6 @@ function conectarEventos() {
     .addEventListener('click', reimprimirCertificado);
   document.getElementById('btn-eliminar-atencion')
     .addEventListener('click', eliminarAtencion);
-  document.getElementById('btn-emitir-cert-post')
-    .addEventListener('click', emitirCertificadoPost);
   document.getElementById('btn-anular-cert')
     .addEventListener('click', anularCertificado);
 
