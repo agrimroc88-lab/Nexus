@@ -236,9 +236,15 @@ export async function guardarNuevaRecomendacion() {
    Cálculo — Informe epidemiológico (de un año)
    ============================================ */
 
-export function generarInformeEpidemiologico() {
+export async function generarInformeEpidemiologico() {
   const anio = parseInt(document.getElementById('epi-anio').value, 10);
   if (!anio) return avisar('No hay campañas capturadas todavía.', false, 'epi-alerta');
+
+  /* El histórico solo se recargaba al ENTRAR a esta pestaña. Si
+     se captura un resultado y se genera el informe sin salir y
+     volver a entrar, se estaba usando una copia vieja en
+     memoria que no incluía lo recién guardado. */
+  await cargarHistorico();
 
   const filasAnio = inf.historico.filter((r) => r.anio === anio);
   if (filasAnio.length === 0) return avisar('No hay resultados capturados para ese año.', false, 'epi-alerta');
@@ -367,7 +373,8 @@ function pintarPreviaEpidemiologico() {
    Cálculo — Informe de seguimiento (nominal, multi-año)
    ============================================ */
 
-export function generarInformeSeguimiento() {
+export async function generarInformeSeguimiento() {
+  await cargarHistorico();
   if (inf.historico.length === 0) return avisar('No hay resultados capturados todavía.', false, 'seg-alerta');
 
   /* Agrupar por trabajador + examen: cada combinación reúne
