@@ -692,9 +692,19 @@ function conectarResultadosCie(examenId, $input, $resultados, $cond) {
     $nuevo.addEventListener('click', async () => {
       const texto = $nuevo.dataset.nuevoCie;
       const pareceCodigo = /^[A-Za-z][0-9]/.test(texto);
-      const codigo = pareceCodigo ? texto.toUpperCase() : prompt('Código CIE-10 (ej. M54.5):', '');
-      const descripcion = pareceCodigo ? prompt('Descripción de este código:', '') : texto;
-      if (!codigo || !descripcion) return;
+
+      /* Antes: si lo escrito no parecía un código (ej. "tromb"),
+         se usaba tal cual como descripción, sin dejar corregirlo
+         ni completarlo. Ahora siempre se piden los dos campos
+         por separado, con lo escrito precargado en el que
+         corresponda, pero editable —así "tromb" se puede
+         convertir en "Trombocitopenia" antes de guardar. */
+      const codigo = prompt('Código CIE-10 (ej. M54.5):', pareceCodigo ? texto.toUpperCase() : '');
+      if (!codigo) return;
+
+      const descripcion = prompt('Nombre / descripción del diagnóstico:', pareceCodigo ? '' : texto);
+      if (!descripcion) return;
+
       if (!/^[A-Z][0-9]{2}(\.[0-9X]{1,2})?$/i.test(codigo)) {
         return avisar('Formato de código inválido. Ejemplos válidos: M54, M54.5, Z57.0');
       }
