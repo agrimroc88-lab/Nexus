@@ -2753,7 +2753,10 @@ async function abrirSubsecuente() {
 
   const { data: previas, error } = await supabase
     .from('atenciones')
-    .select('id, fecha, atencion_diagnosticos(id, codigo_cie10, orden, observacion, cie10(descripcion))')
+    .select(`id, fecha, atencion_diagnosticos(
+      id, codigo_cie10, orden, observacion, tipo_caso, diagnostico_origen_id,
+      cie10(descripcion)
+    )`)
     .eq('trabajador_id', t.id)
     .order('fecha', { ascending: false })
     .limit(10);
@@ -2768,22 +2771,68 @@ async function abrirSubsecuente() {
     return;
   }
 
-  const opciones = previas.map((a, i) => {
+  /* Etiqueta PRIMERA / SUBSECUENTE N: se resuelve siguiendo la
+     cadena real de diagnostico_origen_id, no por fecha —dos
+     atenciones seguidas pueden ser por motivos distintos y no
+     tener nada que ver entre sí. Solo cuenta como una misma
+     "cadena" lo que el sistema ya enlazó como seguimiento. */
+  const todosPorId = new Map();
+  previas.forEach((a) => {
+    (a.atencion_diagnosticos || []).forEach((d) => todosPorId.set(d.id, d));
+  });
+
+  function resolverRaiz(d, visto = new Set()) {
+    if (!d || visto.has(d.id)) return d?.id ?? null;
+    visto.add(d.id);
+    if (d.tipo_caso !== 'seguimiento' || !d.diagnostico_origen_id) return d.id;
+    const origen = todosPorId.get(d.diagnostico_origen_id);
+    // Si el origen no vino en estas últimas 10 atenciones, la
+    // cadena sigue más atrás de lo que se consultó: se corta
+    // aquí y esta queda como si fuera la raíz visible.
+    return origen ? resolverRaiz(origen, visto) : d.id;
+  }
+
+  /* Un mismo caso puede aparecer varias veces en las últimas 10
+     atenciones (día 1, día 2, día 3...). En vez de mostrar las
+     tres y obligar a calcular cuál es la más reciente, se
+     muestra el caso UNA sola vez —con los datos de su última
+     visita— y el enlace se hace siempre con esa última,
+     siguiendo la conversación de recién: nunca hace falta
+     pensarlo, el sistema ya elige bien. */
+  const gruposPorAtencion = new Map(); // raízId -> [{ atencion, principal }]
+  previas.forEach((a) => {
     const dxs = [...(a.atencion_diagnosticos || [])].sort((x, y) => x.orden - y.orden);
     const principal = dxs[0];
-    const desc = principal
-      ? `${principal.codigo_cie10} · ${principal.cie10?.descripcion || ''}`
-      : 'Sin diagnóstico registrado';
-    return `${i + 1}. ${formatearFecha(a.fecha)} — ${desc}`;
+    if (!principal) return;
+    const raiz = resolverRaiz(principal);
+    if (!gruposPorAtencion.has(raiz)) gruposPorAtencion.set(raiz, []);
+    gruposPorAtencion.get(raiz).push({ atencion: a, principal });
+  });
+
+  const casos = [...gruposPorAtencion.values()].map((items) => {
+    items.sort((a, b) => a.atencion.fecha.localeCompare(b.atencion.fecha)); // vieja → nueva
+    const ultima = items[items.length - 1];
+    return {
+      atencion: ultima.atencion,
+      principal: ultima.principal,
+      visitas: items.length,
+      etiqueta: items.length === 1 ? 'PRIMERA' : `SUBSECUENTE ${items.length - 1}`
+    };
+  }).sort((a, b) => b.atencion.fecha.localeCompare(a.atencion.fecha)); // caso más reciente primero
+
+  const opciones = casos.map((c, i) => {
+    const desc = `${c.principal.codigo_cie10} · ${c.principal.cie10?.descripcion || ''}`;
+    const conteo = c.visitas > 1 ? ` — ${c.visitas} consultas de este caso` : '';
+    return `${i + 1}. ${formatearFecha(c.atencion.fecha)} — ${desc} [${c.etiqueta}]${conteo}`;
   }).join('\n');
 
   const elegido = prompt(
-    `¿De cuál atención da seguimiento esta consulta?\n\n${opciones}\n\nEscriba el número:`
+    `¿De cuál caso da seguimiento esta consulta?\n\n${opciones}\n\nEscriba el número:`
   );
   const n = parseInt(elegido, 10);
-  if (!n || n < 1 || n > previas.length) return;
+  if (!n || n < 1 || n > casos.length) return;
 
-  const origen = previas[n - 1];
+  const origen = casos[n - 1].atencion;
   const fechaOrigen = formatearFecha(origen.fecha);
 
   const [medRes, insRes] = await Promise.all([
