@@ -17,14 +17,15 @@ import { supabase } from './supabase.js?v=11';
 import { protegerPagina, puedeVerPsicologia } from './auth.js?v=11';
 import { montarNavegacion } from './nav.js?v=11';
 import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=11';
-import { alCrear, marcarAntesDeBorrar } from './autoria.js?v=1';
+import { alCrear } from './autoria.js?v=1';
 
 /* --- Estado --- */
 const estado = {
   perfil: null,
   empresaId: null,
   fichas: [],          // fichas de la empresa (v_fichas_psicologicas)
-  manual: [],          // registro manual de atenciones (bitacora_manual_salud)
+  manual: [],          // registro manual de atenciones (atenciones_manual_salud)
+  manualActual: null,  // { mes, datosMes } del modal abierto
   paciente: null,      // trabajador localizado en la pestaña Fichas
   altaPendiente: null, // { codigo } cuando se va a registrar un trabajador nuevo
   histAbierto: false,
@@ -122,19 +123,19 @@ async function cargarFichas() {
   estado.fichas = error ? [] : (data || []);
 }
 
-/** Registro manual de atenciones: cuando no se alcanzó a hacer
-    la ficha completa, esto guarda solo el conteo (fecha, tipo,
-    sexo, cantidad) para que igual sume en "Atenciones". */
+/** Registro manual: mismo patrón que ya usa "Atenciones
+    ocupacionales" en Salud Ocupacional — una fila por
+    mes + tipo, con hombres/mujeres, editable por mes.
+    Se suma a lo que ya cuenten las fichas reales. */
 async function cargarManual() {
   const { data, error } = await supabase
-    .from('bitacora_manual_salud')
+    .from('atenciones_manual_salud')
     .select('*')
     .eq('empresa_id', estado.empresaId)
-    .eq('modulo', 'psicologia')
-    .order('fecha', { ascending: false });
+    .eq('modulo', 'psicologia');
 
   if (error) {
-    console.warn('NEXUS · falta ejecutar sql_bitacora_manual_salud.sql', error.message);
+    console.warn('NEXUS · falta ejecutar sql_atenciones_manual_salud_v2.sql', error.message);
     estado.manual = [];
     return;
   }
@@ -192,8 +193,7 @@ function pintarTendenciaAtenciones(fichasDelAnio, manualDelAnio) {
   });
 
   (manualDelAnio || []).forEach((r) => {
-    const m = new Date(r.fecha + 'T00:00').getMonth();
-    if (porTipo[r.tipo]) porTipo[r.tipo][m] += r.cantidad;
+    if (porTipo[r.tipo]) porTipo[r.tipo][r.mes - 1] += (r.hombres || 0) + (r.mujeres || 0);
   });
 
   const series = ids.map((id) => ({
@@ -279,141 +279,176 @@ function pintarAtenciones() {
   const delAnio = estado.fichas.filter(
     (f) => new Date(f.fecha + 'T00:00').getFullYear() === anio
   );
-  const manualDelAnio = estado.manual.filter(
-    (m) => new Date(m.fecha + 'T00:00').getFullYear() === anio
-  );
+  const manualDelAnio = estado.manual.filter((m) => m.anio === anio);
 
-  document.getElementById('vacio-atenciones').hidden = delAnio.length > 0 || manualDelAnio.length > 0;
   $cuerpo.innerHTML = '';
   $pie.innerHTML = '';
 
   pintarTendenciaAtenciones(delAnio, manualDelAnio);
-  pintarManual();
 
-  if (delAnio.length === 0 && manualDelAnio.length === 0) return;
+  const IDS = ['ingreso', 'periodica', 'asistencial', 'seguimiento'];
 
-  // Acumular por mes
+  /* Combinar: cada ficha real cuenta 1 por mes+tipo+sexo; el
+     registro manual ya trae hombres/mujeres agregados por
+     mes+tipo, y se suma encima. */
   const filas = {};
   for (let m = 1; m <= 12; m++) {
-    filas[m] = { ingreso: 0, periodica: 0, asistencial: 0, seguimiento: 0, M: 0, F: 0, total: 0 };
+    filas[m] = {};
+    IDS.forEach((id) => { filas[m][id] = { h: 0, m: 0 }; });
   }
 
   delAnio.forEach((f) => {
     const m = new Date(f.fecha + 'T00:00').getMonth() + 1;
-    if (filas[m][f.tipo] !== undefined) filas[m][f.tipo]++;
-    if (f.sexo === 'M') filas[m].M++;
-    if (f.sexo === 'F') filas[m].F++;
-    filas[m].total++;
+    if (!filas[m][f.tipo]) return;
+    if (f.sexo === 'M') filas[m][f.tipo].h++;
+    if (f.sexo === 'F') filas[m][f.tipo].m++;
   });
 
-  /* El registro manual es un conteo (cantidad), no una persona
-     por fila, así que suma cantidad en vez de sumar 1. */
   manualDelAnio.forEach((r) => {
-    const m = new Date(r.fecha + 'T00:00').getMonth() + 1;
-    if (filas[m][r.tipo] !== undefined) filas[m][r.tipo] += r.cantidad;
-    if (r.sexo === 'M') filas[m].M += r.cantidad;
-    if (r.sexo === 'F') filas[m].F += r.cantidad;
-    filas[m].total += r.cantidad;
+    if (!filas[r.mes] || !filas[r.mes][r.tipo]) return;
+    filas[r.mes][r.tipo].h += r.hombres || 0;
+    filas[r.mes][r.tipo].m += r.mujeres || 0;
   });
 
-  const tot = { ingreso: 0, periodica: 0, asistencial: 0, seguimiento: 0, M: 0, F: 0, total: 0 };
   const frag = document.createDocumentFragment();
+  const tot = { ingreso: 0, periodica: 0, asistencial: 0, seguimiento: 0, total: 0 };
 
   for (let m = 1; m <= 12; m++) {
-    const r = filas[m];
-    if (r.total === 0) continue;
+    const datosMes = filas[m];
+    let celdas = `<td class="celda-mes">${MESES[m]}</td>`;
+    let totalMes = 0;
 
-    Object.keys(tot).forEach((k) => { tot[k] += r[k]; });
+    IDS.forEach((id) => {
+      const h = datosMes[id].h;
+      const mVal = datosMes[id].m;
+      const sub = h + mVal;
+      totalMes += sub;
+      tot[id] += sub;
+      celdas += `
+        <td class="celda-centro ${h ? '' : 'celda-cero'}">${h}</td>
+        <td class="celda-centro ${mVal ? '' : 'celda-cero'}">${mVal}</td>
+        <td class="celda-centro celda-subtotal">${sub || '—'}</td>
+      `;
+    });
+
+    tot.total += totalMes;
+    celdas += `<td class="celda-centro celda-total">${totalMes || '—'}</td>`;
 
     const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${MESES[m]}</td>
-      <td class="celda-centro">${r.ingreso || ''}</td>
-      <td class="celda-centro">${r.periodica || ''}</td>
-      <td class="celda-centro">${r.asistencial || ''}</td>
-      <td class="celda-centro">${r.seguimiento || ''}</td>
-      <td class="celda-centro">${r.M || ''}</td>
-      <td class="celda-centro">${r.F || ''}</td>
-      <td class="celda-centro"><strong>${r.total}</strong></td>`;
+    tr.className = 'fila-mes fila-editable';
+    tr.innerHTML = celdas;
+    tr.addEventListener('click', () => abrirManual(m, datosMes));
     frag.appendChild(tr);
   }
   $cuerpo.appendChild(frag);
 
-  $pie.innerHTML = `
-    <tr class="fila-total">
-      <td><strong>Total ${anio}</strong></td>
-      <td class="celda-centro"><strong>${tot.ingreso}</strong></td>
-      <td class="celda-centro"><strong>${tot.periodica}</strong></td>
-      <td class="celda-centro"><strong>${tot.asistencial}</strong></td>
-      <td class="celda-centro"><strong>${tot.seguimiento}</strong></td>
-      <td class="celda-centro"><strong>${tot.M}</strong></td>
-      <td class="celda-centro"><strong>${tot.F}</strong></td>
-      <td class="celda-centro"><strong>${tot.total}</strong></td>
-    </tr>`;
+  let pie = '<tr class="fila-totales"><td class="celda-mes">Total</td>';
+  IDS.forEach((id) => {
+    // El desglose H/M del total no se lleva aparte; solo el subtotal por tipo.
+    pie += `<td class="celda-centro" colspan="2"></td>
+            <td class="celda-centro celda-subtotal">${tot[id]}</td>`;
+  });
+  pie += `<td class="celda-centro celda-total">${tot.total}</td></tr>`;
+  $pie.innerHTML = pie;
+
+  document.getElementById('vacio-atenciones').hidden = true;
+  pintarKpiAtenciones(tot);
+}
+
+function pintarKpiAtenciones(tot) {
+  document.getElementById('at-kpi-ingreso').textContent = tot.ingreso;
+  document.getElementById('at-kpi-periodica').textContent = tot.periodica;
+  document.getElementById('at-kpi-asistencial').textContent = tot.asistencial;
+  document.getElementById('at-kpi-seguimiento').textContent = tot.seguimiento;
+  document.getElementById('at-kpi-total').textContent = tot.total;
 }
 
 /* ============================================
    Registro manual de atenciones
 
-   Para cuando no se alcanzó a hacer la ficha completa: solo
-   deja constancia de fecha + tipo + sexo + cantidad, y eso
-   mismo se suma a la tabla y al gráfico de arriba, como si
-   fueran fichas reales.
+   Mismo patrón que "Atenciones ocupacionales": clic en el mes,
+   se abre un modal con hombres/mujeres por tipo, y se guarda.
+   Lo que ya cuentan las fichas reales no se toca aquí — esto
+   solo ajusta o completa lo que falte ese mes.
    ============================================ */
 
-function pintarManual() {
-  const $cuerpo = document.getElementById('cuerpo-manual');
-  if (!$cuerpo) return;
+const IDS_TIPO = ['ingreso', 'periodica', 'asistencial', 'seguimiento'];
+
+function abrirManual(mes, datosMes) {
+  estado.manualActual = { mes, datosMes };
+
+  document.getElementById('man-titulo').textContent = MESES[mes];
+  document.getElementById('man-marca').textContent = document.getElementById('at-anio').value;
+
+  const existentes = new Map(
+    estado.manual
+      .filter((r) => r.anio === parseInt(document.getElementById('at-anio').value, 10) && r.mes === mes)
+      .map((r) => [r.tipo, r]));
+
+  const $campos = document.getElementById('man-campos');
+  $campos.innerHTML = IDS_TIPO.map((id) => {
+    const r = existentes.get(id);
+    return `
+      <div class="man-grupo">
+        <span class="man-tipo">${TIPOS[id]}</span>
+        <div class="man-entradas">
+          <div class="campo campo-mini">
+            <label class="etiqueta" for="man_${id}_h">Hombres</label>
+            <input class="entrada" id="man_${id}_h" type="number" min="0"
+                   value="${r?.hombres ?? 0}">
+          </div>
+          <div class="campo campo-mini">
+            <label class="etiqueta" for="man_${id}_m">Mujeres</label>
+            <input class="entrada" id="man_${id}_m" type="number" min="0"
+                   value="${r?.mujeres ?? 0}">
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  const primero = existentes.get(IDS_TIPO[0]);
+  document.getElementById('man_observacion').value = primero?.observacion ?? '';
+
+  document.getElementById('alerta-manual').hidden = true;
+  document.getElementById('modal-manual').hidden = false;
+}
+
+async function guardarManual() {
+  const { mes } = estado.manualActual || {};
+  if (!mes) return;
 
   const anio = parseInt(document.getElementById('at-anio').value, 10);
-  const delAnio = estado.manual
-    .filter((m) => new Date(m.fecha + 'T00:00').getFullYear() === anio)
-    .sort((a, b) => b.fecha.localeCompare(a.fecha));
+  const observacion = document.getElementById('man_observacion').value.trim() || null;
 
-  document.getElementById('vacio-manual').hidden = delAnio.length > 0;
-  $cuerpo.innerHTML = delAnio.map((r) => `
-    <tr>
-      <td>${formatearFecha(r.fecha)}</td>
-      <td>${escapar(TIPOS[r.tipo] || r.tipo)}</td>
-      <td class="celda-centro">${r.sexo === 'M' ? 'Hombres' : 'Mujeres'}</td>
-      <td class="celda-centro">${r.cantidad}</td>
-      <td class="celda-derecha">
-        <button class="boton-icono" data-eliminar-manual="${r.id}">Eliminar</button>
-      </td>
-    </tr>
-  `).join('');
-}
+  const $btn = document.getElementById('btn-guardar-manual');
+  $btn.disabled = true;
 
-async function agregarManual() {
-  const fecha = document.getElementById('man-fecha').value;
-  const tipo = document.getElementById('man-tipo').value;
-  const hombres = parseInt(document.getElementById('man-hombres').value, 10) || 0;
-  const mujeres = parseInt(document.getElementById('man-mujeres').value, 10) || 0;
+  const filas = IDS_TIPO.map((id) => alCrear({
+    modulo: 'psicologia',
+    empresa_id: estado.empresaId,
+    anio,
+    mes,
+    tipo: id,
+    hombres: parseInt(document.getElementById(`man_${id}_h`).value, 10) || 0,
+    mujeres: parseInt(document.getElementById(`man_${id}_m`).value, 10) || 0,
+    observacion
+  }));
 
-  if (!fecha) return alert('Indique la fecha.');
-  if (hombres <= 0 && mujeres <= 0) return alert('Indique al menos una cantidad, en hombres o en mujeres.');
+  const { error } = await supabase
+    .from('atenciones_manual_salud')
+    .upsert(filas, { onConflict: 'modulo,empresa_id,anio,mes,tipo' });
 
-  const filas = [];
-  if (hombres > 0) filas.push({ modulo: 'psicologia', empresa_id: estado.empresaId, fecha, tipo, sexo: 'M', cantidad: hombres });
-  if (mujeres > 0) filas.push({ modulo: 'psicologia', empresa_id: estado.empresaId, fecha, tipo, sexo: 'F', cantidad: mujeres });
+  $btn.disabled = false;
 
-  const { error } = await supabase.from('bitacora_manual_salud').insert(filas.map((f) => alCrear(f)));
-  if (error) return alert('No se pudo guardar: ' + error.message);
+  if (error) {
+    const $a = document.getElementById('alerta-manual');
+    $a.textContent = 'No se pudo guardar: ' + error.message;
+    $a.hidden = false;
+    return;
+  }
 
-  document.getElementById('man-hombres').value = '';
-  document.getElementById('man-mujeres').value = '';
-
-  await cargarManual();
-  pintarAtenciones();
-}
-
-async function eliminarManual(id) {
-  if (!confirm('¿Eliminar este registro manual?')) return;
-
-  await marcarAntesDeBorrar(supabase, 'bitacora_manual_salud', id);
-  const { error } = await supabase.from('bitacora_manual_salud').delete().eq('id', id);
-  if (error) return alert('No se pudo eliminar: ' + error.message);
-
+  document.getElementById('modal-manual').hidden = true;
   await cargarManual();
   pintarAtenciones();
 }
@@ -1065,11 +1100,7 @@ function conectarEventos() {
 
   /* --- Atenciones --- */
   document.getElementById('at-anio').addEventListener('change', pintarAtenciones);
-  document.getElementById('btn-agregar-manual').addEventListener('click', agregarManual);
-  document.getElementById('cuerpo-manual').addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-eliminar-manual]');
-    if (btn) eliminarManual(btn.dataset.eliminarManual);
-  });
+  document.getElementById('btn-guardar-manual').addEventListener('click', guardarManual);
 
   /* Escape cierra el modal superior */
   document.addEventListener('keydown', (e) => {
