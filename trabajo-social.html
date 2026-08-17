@@ -135,6 +135,7 @@
       <div class="pestanas" id="pestanas" hidden>
         <button class="pestana activa" data-vista="ficha" type="button">Ficha</button>
         <button class="pestana" data-vista="registros" type="button">Registros</button>
+        <button class="pestana" data-vista="atenciones" type="button">Atenciones</button>
       </div>
 
       <!-- ============ Vista: Ficha ============ -->
@@ -199,6 +200,89 @@
             </table>
           </div>
           <p class="vacio" id="vacio-registros" hidden>Sin fichas registradas.</p>
+        </div>
+      </section>
+
+      <!-- ============ Vista: Atenciones (registro manual) ============ -->
+      <section class="vista" id="vista-atenciones" hidden>
+
+        <div class="herramientas">
+          <select class="entrada filtro" id="at-anio"></select>
+        </div>
+
+        <div class="panel">
+          <div class="tabla-envoltura">
+            <table class="tabla">
+              <thead>
+                <tr>
+                  <th>Mes</th>
+                  <th class="celda-centro">Ingreso</th>
+                  <th class="celda-centro">Periódica</th>
+                  <th class="celda-centro">Asistencial</th>
+                  <th class="celda-centro">Seguimiento</th>
+                  <th class="celda-centro">Hombres</th>
+                  <th class="celda-centro">Mujeres</th>
+                  <th class="celda-centro">Total</th>
+                </tr>
+              </thead>
+              <tbody id="cuerpo-atenciones"></tbody>
+              <tfoot id="pie-atenciones"></tfoot>
+            </table>
+          </div>
+          <p class="vacio" id="vacio-atenciones" hidden>Sin registros en el año seleccionado.</p>
+        </div>
+
+        <!-- Registro manual: como las fichas de trabajo social no
+             se clasifican por tipo, este conteo es la única fuente
+             de esta tabla —tal como pediste que quedara. -->
+        <div class="panel">
+          <h3 class="grafico-titulo">Registro manual de atenciones</h3>
+          <p class="ayuda">
+            Para dejar constancia de una atención dada (aunque no se haya
+            hecho la ficha social completa de ese caso) — suma directo
+            en la tabla de arriba.
+          </p>
+
+          <div class="rejilla">
+            <div class="campo">
+              <label class="etiqueta" for="man-fecha">Fecha</label>
+              <input class="entrada" id="man-fecha" type="date">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="man-tipo">Tipo de atención</label>
+              <select class="entrada" id="man-tipo">
+                <option value="ingreso">Ingreso</option>
+                <option value="periodica">Periódica</option>
+                <option value="asistencial" selected>Asistencial</option>
+                <option value="seguimiento">Seguimiento</option>
+              </select>
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="man-hombres">Hombres</label>
+              <input class="entrada" id="man-hombres" type="number" min="0" step="1" placeholder="0">
+            </div>
+            <div class="campo">
+              <label class="etiqueta" for="man-mujeres">Mujeres</label>
+              <input class="entrada" id="man-mujeres" type="number" min="0" step="1" placeholder="0">
+            </div>
+          </div>
+          <button class="boton-secundario" id="btn-agregar-manual" type="button">+ Agregar</button>
+
+          <div class="tabla-envoltura" style="margin-top:1rem;">
+            <table class="tabla">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Tipo</th>
+                  <th class="celda-centro">Sexo</th>
+                  <th class="celda-centro">Cantidad</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="cuerpo-manual"></tbody>
+            </table>
+          </div>
+          <p class="vacio" id="vacio-manual" hidden>Sin registros manuales en el año seleccionado.</p>
         </div>
       </section>
 
@@ -414,6 +498,6 @@
   <!-- Zona de impresión (fuera de todo) -->
   <div id="zona-impresion" class="zona-impresion" aria-hidden="true"></div>
 
-  <script type="module" src="js/trabajo-social.js?v=11"></script>
+  <script type="module" src="js/trabajo-social.js?v=12"></script>
 </body>
 </html>

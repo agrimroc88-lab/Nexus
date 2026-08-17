@@ -272,6 +272,58 @@
             </div>
             <p class="vacio" id="vacio-atenciones" hidden>Sin fichas registradas en el año seleccionado.</p>
           </div>
+
+          <!-- Registro manual: para cuando no se alcanzó a hacer
+               la ficha completa. Suma directo a la tabla de arriba. -->
+          <div class="panel">
+            <h3 class="grafico-titulo">Registro manual de atenciones</h3>
+            <p class="ayuda">
+              Para cuando atendiste a alguien pero no alcanzaste a hacer la ficha
+              completa — esto deja constancia de la atención y suma en la tabla
+              de arriba igual que si fuera una ficha.
+            </p>
+
+            <div class="rejilla">
+              <div class="campo">
+                <label class="etiqueta" for="man-fecha">Fecha</label>
+                <input class="entrada" id="man-fecha" type="date">
+              </div>
+              <div class="campo">
+                <label class="etiqueta" for="man-tipo">Tipo de atención</label>
+                <select class="entrada" id="man-tipo">
+                  <option value="ingreso">Ingreso</option>
+                  <option value="periodica">Periódica</option>
+                  <option value="asistencial" selected>Asistencial</option>
+                  <option value="seguimiento">Seguimiento</option>
+                </select>
+              </div>
+              <div class="campo">
+                <label class="etiqueta" for="man-hombres">Hombres</label>
+                <input class="entrada" id="man-hombres" type="number" min="0" step="1" placeholder="0">
+              </div>
+              <div class="campo">
+                <label class="etiqueta" for="man-mujeres">Mujeres</label>
+                <input class="entrada" id="man-mujeres" type="number" min="0" step="1" placeholder="0">
+              </div>
+            </div>
+            <button class="boton-secundario" id="btn-agregar-manual" type="button">+ Agregar</button>
+
+            <div class="tabla-envoltura" style="margin-top:1rem;">
+              <table class="tabla">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Tipo</th>
+                    <th class="celda-centro">Sexo</th>
+                    <th class="celda-centro">Cantidad</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="cuerpo-manual"></tbody>
+              </table>
+            </div>
+            <p class="vacio" id="vacio-manual" hidden>Sin registros manuales en el año seleccionado.</p>
+          </div>
         </section>
 
       </div>
@@ -627,6 +679,6 @@
   <!-- Área de impresión: se llena al imprimir y solo es visible en @media print -->
   <div id="zona-impresion" class="zona-impresion" aria-hidden="true"></div>
 
-  <script type="module" src="js/psicologia.js?v=11"></script>
+  <script type="module" src="js/psicologia.js?v=12"></script>
 </body>
 </html>
