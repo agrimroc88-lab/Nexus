@@ -2758,7 +2758,12 @@ async function abrirSubsecuente() {
     .order('fecha', { ascending: false })
     .limit(10);
 
-  if (error || !previas || previas.length === 0) {
+  if (error) {
+    console.error('NEXUS · abrirSubsecuente', error);
+    alert('No se pudo consultar el historial: ' + error.message);
+    return;
+  }
+  if (!previas || previas.length === 0) {
     alert('Este trabajador no tiene atenciones anteriores registradas.');
     return;
   }
