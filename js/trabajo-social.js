@@ -9,13 +9,25 @@ import { supabase } from './supabase.js?v=11';
 import { protegerPagina } from './auth.js?v=11';
 import { montarNavegacion } from './nav.js?v=11';
 import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=11';
+import { alCrear, marcarAntesDeBorrar } from './autoria.js?v=1';
 
 const ROLES_TS = ['admin', 'trabajo_social', 'psico_social'];
+
+const TIPOS = {
+  ingreso: 'Ingreso',
+  periodica: 'Periódica',
+  asistencial: 'Asistencial',
+  seguimiento: 'Seguimiento'
+};
+
+const MESES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+               'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
 const estado = {
   perfil: null,
   empresaId: null,
   fichas: [],
+  manual: [],  // registro manual de atenciones (bitacora_manual_salud)
   paciente: null,
   verId: null,
   vista: 'ficha'
@@ -38,6 +50,7 @@ async function iniciar() {
   }
   estado.perfil = perfil;
 
+  prepararAnios();
   await cargarEmpresas();
   conectarEventos();
 
@@ -65,6 +78,36 @@ async function cargarFichas() {
     .eq('empresa_id', estado.empresaId)
     .order('creado_en', { ascending: false });
   estado.fichas = error ? [] : (data || []);
+}
+
+/** Registro manual de atenciones: como las fichas de trabajo
+    social no se clasifican por tipo, esta es la única fuente
+    de la tabla de la pestaña "Atenciones". */
+async function cargarManual() {
+  const { data, error } = await supabase
+    .from('bitacora_manual_salud')
+    .select('*')
+    .eq('empresa_id', estado.empresaId)
+    .eq('modulo', 'trabajo_social')
+    .order('fecha', { ascending: false });
+
+  if (error) {
+    console.warn('NEXUS · falta ejecutar sql_bitacora_manual_salud.sql', error.message);
+    estado.manual = [];
+    return;
+  }
+  estado.manual = data || [];
+}
+
+function prepararAnios() {
+  const actual = new Date().getFullYear();
+  const $sel = document.getElementById('at-anio');
+  if (!$sel) return;
+  for (let a = actual; a >= actual - 4; a--) {
+    const o = document.createElement('option');
+    o.value = a; o.textContent = a;
+    $sel.appendChild(o);
+  }
 }
 
 /* ============================================
@@ -107,6 +150,13 @@ function conectarEventos() {
   document.getElementById('btn-add-familiar').addEventListener('click', () => agregarFilaFamiliar());
   document.getElementById('btn-imprimir-social').addEventListener('click', () => imprimirDocumento('social'));
   document.getElementById('btn-imprimir-registro').addEventListener('click', () => imprimirDocumento('registro'));
+
+  document.getElementById('at-anio').addEventListener('change', pintarAtenciones);
+  document.getElementById('btn-agregar-manual').addEventListener('click', agregarManual);
+  document.getElementById('cuerpo-manual').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-eliminar-manual]');
+    if (btn) eliminarManual(btn.dataset.eliminarManual);
+  });
 }
 
 async function alCambiarEmpresa() {
@@ -115,7 +165,7 @@ async function alCambiarEmpresa() {
   document.getElementById('pestanas').hidden = !hay;
   document.getElementById('vista-ficha').hidden = !hay;
   if (!hay) return;
-  await cargarFichas();
+  await Promise.all([cargarFichas(), cargarManual()]);
   cambiarVista('ficha');
 }
 
@@ -124,7 +174,9 @@ function cambiarVista(v) {
   document.querySelectorAll('.pestana').forEach((p) => p.classList.toggle('activa', p.dataset.vista === v));
   document.getElementById('vista-ficha').hidden = v !== 'ficha';
   document.getElementById('vista-registros').hidden = v !== 'registros';
+  document.getElementById('vista-atenciones').hidden = v !== 'atenciones';
   if (v === 'registros') pintarRegistros();
+  if (v === 'atenciones') pintarAtenciones();
 }
 
 /* ============================================
@@ -385,6 +437,138 @@ function limpiarFormulario() {
   });
   document.getElementById('cuerpo-familiares').innerHTML = '';
   document.getElementById('alerta-ficha').hidden = true;
+}
+
+/* ============================================
+   Atenciones (registro manual)
+
+   Las fichas de trabajo social no se clasifican por tipo, así
+   que esta tabla se alimenta únicamente del registro manual —
+   es la forma de dejar constancia de "atendí a alguien" sin
+   necesidad de armar la ficha socioeconómica completa cada vez.
+   ============================================ */
+
+function pintarAtenciones() {
+  const anio = parseInt(document.getElementById('at-anio').value, 10);
+  const $cuerpo = document.getElementById('cuerpo-atenciones');
+  const $pie = document.getElementById('pie-atenciones');
+
+  const delAnio = estado.manual.filter(
+    (m) => new Date(m.fecha + 'T00:00').getFullYear() === anio
+  );
+
+  document.getElementById('vacio-atenciones').hidden = delAnio.length > 0;
+  $cuerpo.innerHTML = '';
+  $pie.innerHTML = '';
+
+  pintarManual();
+
+  if (delAnio.length === 0) return;
+
+  const filas = {};
+  for (let m = 1; m <= 12; m++) {
+    filas[m] = { ingreso: 0, periodica: 0, asistencial: 0, seguimiento: 0, M: 0, F: 0, total: 0 };
+  }
+
+  delAnio.forEach((r) => {
+    const m = new Date(r.fecha + 'T00:00').getMonth() + 1;
+    if (filas[m][r.tipo] !== undefined) filas[m][r.tipo] += r.cantidad;
+    if (r.sexo === 'M') filas[m].M += r.cantidad;
+    if (r.sexo === 'F') filas[m].F += r.cantidad;
+    filas[m].total += r.cantidad;
+  });
+
+  const tot = { ingreso: 0, periodica: 0, asistencial: 0, seguimiento: 0, M: 0, F: 0, total: 0 };
+  const frag = document.createDocumentFragment();
+
+  for (let m = 1; m <= 12; m++) {
+    const r = filas[m];
+    if (r.total === 0) continue;
+
+    Object.keys(tot).forEach((k) => { tot[k] += r[k]; });
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${MESES[m]}</td>
+      <td class="celda-centro">${r.ingreso || ''}</td>
+      <td class="celda-centro">${r.periodica || ''}</td>
+      <td class="celda-centro">${r.asistencial || ''}</td>
+      <td class="celda-centro">${r.seguimiento || ''}</td>
+      <td class="celda-centro">${r.M || ''}</td>
+      <td class="celda-centro">${r.F || ''}</td>
+      <td class="celda-centro"><strong>${r.total}</strong></td>`;
+    frag.appendChild(tr);
+  }
+  $cuerpo.appendChild(frag);
+
+  $pie.innerHTML = `
+    <tr class="fila-total">
+      <td><strong>Total ${anio}</strong></td>
+      <td class="celda-centro"><strong>${tot.ingreso}</strong></td>
+      <td class="celda-centro"><strong>${tot.periodica}</strong></td>
+      <td class="celda-centro"><strong>${tot.asistencial}</strong></td>
+      <td class="celda-centro"><strong>${tot.seguimiento}</strong></td>
+      <td class="celda-centro"><strong>${tot.M}</strong></td>
+      <td class="celda-centro"><strong>${tot.F}</strong></td>
+      <td class="celda-centro"><strong>${tot.total}</strong></td>
+    </tr>`;
+}
+
+function pintarManual() {
+  const $cuerpo = document.getElementById('cuerpo-manual');
+  if (!$cuerpo) return;
+
+  const anio = parseInt(document.getElementById('at-anio').value, 10);
+  const delAnio = estado.manual
+    .filter((m) => new Date(m.fecha + 'T00:00').getFullYear() === anio)
+    .sort((a, b) => b.fecha.localeCompare(a.fecha));
+
+  document.getElementById('vacio-manual').hidden = delAnio.length > 0;
+  $cuerpo.innerHTML = delAnio.map((r) => `
+    <tr>
+      <td>${formatearFecha(r.fecha)}</td>
+      <td>${escapar(TIPOS[r.tipo] || r.tipo)}</td>
+      <td class="celda-centro">${r.sexo === 'M' ? 'Hombres' : 'Mujeres'}</td>
+      <td class="celda-centro">${r.cantidad}</td>
+      <td class="celda-derecha">
+        <button class="boton-icono" data-eliminar-manual="${r.id}">Eliminar</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function agregarManual() {
+  const fecha = document.getElementById('man-fecha').value;
+  const tipo = document.getElementById('man-tipo').value;
+  const hombres = parseInt(document.getElementById('man-hombres').value, 10) || 0;
+  const mujeres = parseInt(document.getElementById('man-mujeres').value, 10) || 0;
+
+  if (!fecha) return alert('Indique la fecha.');
+  if (hombres <= 0 && mujeres <= 0) return alert('Indique al menos una cantidad, en hombres o en mujeres.');
+
+  const filas = [];
+  if (hombres > 0) filas.push({ modulo: 'trabajo_social', empresa_id: estado.empresaId, fecha, tipo, sexo: 'M', cantidad: hombres });
+  if (mujeres > 0) filas.push({ modulo: 'trabajo_social', empresa_id: estado.empresaId, fecha, tipo, sexo: 'F', cantidad: mujeres });
+
+  const { error } = await supabase.from('bitacora_manual_salud').insert(filas.map((f) => alCrear(f)));
+  if (error) return alert('No se pudo guardar: ' + error.message);
+
+  document.getElementById('man-hombres').value = '';
+  document.getElementById('man-mujeres').value = '';
+
+  await cargarManual();
+  pintarAtenciones();
+}
+
+async function eliminarManual(id) {
+  if (!confirm('¿Eliminar este registro manual?')) return;
+
+  await marcarAntesDeBorrar(supabase, 'bitacora_manual_salud', id);
+  const { error } = await supabase.from('bitacora_manual_salud').delete().eq('id', id);
+  if (error) return alert('No se pudo eliminar: ' + error.message);
+
+  await cargarManual();
+  pintarAtenciones();
 }
 
 /* ============================================

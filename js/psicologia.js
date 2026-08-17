@@ -17,12 +17,14 @@ import { supabase } from './supabase.js?v=11';
 import { protegerPagina, puedeVerPsicologia } from './auth.js?v=11';
 import { montarNavegacion } from './nav.js?v=11';
 import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=11';
+import { alCrear, marcarAntesDeBorrar } from './autoria.js?v=1';
 
 /* --- Estado --- */
 const estado = {
   perfil: null,
   empresaId: null,
   fichas: [],          // fichas de la empresa (v_fichas_psicologicas)
+  manual: [],          // registro manual de atenciones (bitacora_manual_salud)
   paciente: null,      // trabajador localizado en la pestaña Fichas
   altaPendiente: null, // { codigo } cuando se va a registrar un trabajador nuevo
   histAbierto: false,
@@ -120,6 +122,25 @@ async function cargarFichas() {
   estado.fichas = error ? [] : (data || []);
 }
 
+/** Registro manual de atenciones: cuando no se alcanzó a hacer
+    la ficha completa, esto guarda solo el conteo (fecha, tipo,
+    sexo, cantidad) para que igual sume en "Atenciones". */
+async function cargarManual() {
+  const { data, error } = await supabase
+    .from('bitacora_manual_salud')
+    .select('*')
+    .eq('empresa_id', estado.empresaId)
+    .eq('modulo', 'psicologia')
+    .order('fecha', { ascending: false });
+
+  if (error) {
+    console.warn('NEXUS · falta ejecutar sql_bitacora_manual_salud.sql', error.message);
+    estado.manual = [];
+    return;
+  }
+  estado.manual = data || [];
+}
+
 /* ============================================
    Resumen
    ============================================ */
@@ -156,7 +177,7 @@ const COLORES_TIPO = {
   seguimiento: '#7d3c98'
 };
 
-function pintarTendenciaAtenciones(fichasDelAnio) {
+function pintarTendenciaAtenciones(fichasDelAnio, manualDelAnio) {
   const $g = document.getElementById('at-grafico');
   const $l = document.getElementById('at-leyenda');
   if (!$g) return;
@@ -168,6 +189,11 @@ function pintarTendenciaAtenciones(fichasDelAnio) {
   (fichasDelAnio || []).forEach((f) => {
     const m = new Date(f.fecha + 'T00:00').getMonth();
     if (porTipo[f.tipo]) porTipo[f.tipo][m]++;
+  });
+
+  (manualDelAnio || []).forEach((r) => {
+    const m = new Date(r.fecha + 'T00:00').getMonth();
+    if (porTipo[r.tipo]) porTipo[r.tipo][m] += r.cantidad;
   });
 
   const series = ids.map((id) => ({
@@ -253,14 +279,18 @@ function pintarAtenciones() {
   const delAnio = estado.fichas.filter(
     (f) => new Date(f.fecha + 'T00:00').getFullYear() === anio
   );
+  const manualDelAnio = estado.manual.filter(
+    (m) => new Date(m.fecha + 'T00:00').getFullYear() === anio
+  );
 
-  document.getElementById('vacio-atenciones').hidden = delAnio.length > 0;
+  document.getElementById('vacio-atenciones').hidden = delAnio.length > 0 || manualDelAnio.length > 0;
   $cuerpo.innerHTML = '';
   $pie.innerHTML = '';
 
-  pintarTendenciaAtenciones(delAnio);
+  pintarTendenciaAtenciones(delAnio, manualDelAnio);
+  pintarManual();
 
-  if (delAnio.length === 0) return;
+  if (delAnio.length === 0 && manualDelAnio.length === 0) return;
 
   // Acumular por mes
   const filas = {};
@@ -274,6 +304,16 @@ function pintarAtenciones() {
     if (f.sexo === 'M') filas[m].M++;
     if (f.sexo === 'F') filas[m].F++;
     filas[m].total++;
+  });
+
+  /* El registro manual es un conteo (cantidad), no una persona
+     por fila, así que suma cantidad en vez de sumar 1. */
+  manualDelAnio.forEach((r) => {
+    const m = new Date(r.fecha + 'T00:00').getMonth() + 1;
+    if (filas[m][r.tipo] !== undefined) filas[m][r.tipo] += r.cantidad;
+    if (r.sexo === 'M') filas[m].M += r.cantidad;
+    if (r.sexo === 'F') filas[m].F += r.cantidad;
+    filas[m].total += r.cantidad;
   });
 
   const tot = { ingreso: 0, periodica: 0, asistencial: 0, seguimiento: 0, M: 0, F: 0, total: 0 };
@@ -310,6 +350,72 @@ function pintarAtenciones() {
       <td class="celda-centro"><strong>${tot.F}</strong></td>
       <td class="celda-centro"><strong>${tot.total}</strong></td>
     </tr>`;
+}
+
+/* ============================================
+   Registro manual de atenciones
+
+   Para cuando no se alcanzó a hacer la ficha completa: solo
+   deja constancia de fecha + tipo + sexo + cantidad, y eso
+   mismo se suma a la tabla y al gráfico de arriba, como si
+   fueran fichas reales.
+   ============================================ */
+
+function pintarManual() {
+  const $cuerpo = document.getElementById('cuerpo-manual');
+  if (!$cuerpo) return;
+
+  const anio = parseInt(document.getElementById('at-anio').value, 10);
+  const delAnio = estado.manual
+    .filter((m) => new Date(m.fecha + 'T00:00').getFullYear() === anio)
+    .sort((a, b) => b.fecha.localeCompare(a.fecha));
+
+  document.getElementById('vacio-manual').hidden = delAnio.length > 0;
+  $cuerpo.innerHTML = delAnio.map((r) => `
+    <tr>
+      <td>${formatearFecha(r.fecha)}</td>
+      <td>${escapar(TIPOS[r.tipo] || r.tipo)}</td>
+      <td class="celda-centro">${r.sexo === 'M' ? 'Hombres' : 'Mujeres'}</td>
+      <td class="celda-centro">${r.cantidad}</td>
+      <td class="celda-derecha">
+        <button class="boton-icono" data-eliminar-manual="${r.id}">Eliminar</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function agregarManual() {
+  const fecha = document.getElementById('man-fecha').value;
+  const tipo = document.getElementById('man-tipo').value;
+  const hombres = parseInt(document.getElementById('man-hombres').value, 10) || 0;
+  const mujeres = parseInt(document.getElementById('man-mujeres').value, 10) || 0;
+
+  if (!fecha) return alert('Indique la fecha.');
+  if (hombres <= 0 && mujeres <= 0) return alert('Indique al menos una cantidad, en hombres o en mujeres.');
+
+  const filas = [];
+  if (hombres > 0) filas.push({ modulo: 'psicologia', empresa_id: estado.empresaId, fecha, tipo, sexo: 'M', cantidad: hombres });
+  if (mujeres > 0) filas.push({ modulo: 'psicologia', empresa_id: estado.empresaId, fecha, tipo, sexo: 'F', cantidad: mujeres });
+
+  const { error } = await supabase.from('bitacora_manual_salud').insert(filas.map((f) => alCrear(f)));
+  if (error) return alert('No se pudo guardar: ' + error.message);
+
+  document.getElementById('man-hombres').value = '';
+  document.getElementById('man-mujeres').value = '';
+
+  await cargarManual();
+  pintarAtenciones();
+}
+
+async function eliminarManual(id) {
+  if (!confirm('¿Eliminar este registro manual?')) return;
+
+  await marcarAntesDeBorrar(supabase, 'bitacora_manual_salud', id);
+  const { error } = await supabase.from('bitacora_manual_salud').delete().eq('id', id);
+  if (error) return alert('No se pudo eliminar: ' + error.message);
+
+  await cargarManual();
+  pintarAtenciones();
 }
 
 /* ============================================
@@ -900,7 +1006,7 @@ async function seleccionarEmpresa() {
 }
 
 async function recargar() {
-  await cargarFichas();
+  await Promise.all([cargarFichas(), cargarManual()]);
   pintarResumen();
 
   if (estado.vista === 'atenciones') pintarAtenciones();
@@ -959,6 +1065,11 @@ function conectarEventos() {
 
   /* --- Atenciones --- */
   document.getElementById('at-anio').addEventListener('change', pintarAtenciones);
+  document.getElementById('btn-agregar-manual').addEventListener('click', agregarManual);
+  document.getElementById('cuerpo-manual').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-eliminar-manual]');
+    if (btn) eliminarManual(btn.dataset.eliminarManual);
+  });
 
   /* Escape cierra el modal superior */
   document.addEventListener('keydown', (e) => {
