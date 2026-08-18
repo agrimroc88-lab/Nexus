@@ -76,6 +76,18 @@
       .doc-firma-linea { border-top: 1px solid #000; margin-bottom: 0.25rem; }
       .doc-firma p { margin: 0; font-size: 11pt; }
 
+      /* Dos firmas lado a lado (trabajador social + trabajador),
+         en vez de la única .doc-firma centrada. */
+      .doc-firmas-fila { display: flex; justify-content: space-around; gap: 1.5rem; margin-top: 6rem; }
+      .doc-firmas-fila .doc-firma { width: 45%; margin: 0; }
+
+      /* Tablas con muchas columnas angostas (H/M, Sí/No, casillas
+         de parentesco) — letra más chica para que quepan. */
+      .doc-tabla-chica td { font-size: 9pt; padding: 2px 3px; text-align: center; }
+      .doc-tabla-chica td.doc-lbl { text-align: center; width: auto; font-size: 8pt; }
+      .doc-tabla-chica td:first-child { text-align: left; width: 140px; }
+      .doc-centro { text-align: center; }
+
       /* Foto carnet (registro personal): va dentro del encabezado, alineada a la derecha */
       .doc-foto { width: 2.8cm; height: 3.5cm; border: 1px solid #333; flex: 0 0 auto;
         display: flex; align-items: center; justify-content: center; text-align: center;
@@ -533,6 +545,6 @@
   <!-- Zona de impresión (fuera de todo) -->
   <div id="zona-impresion" class="zona-impresion" aria-hidden="true"></div>
 
-  <script type="module" src="js/trabajo-social.js?v=16"></script>
+  <script type="module" src="js/trabajo-social.js?v=17"></script>
 </body>
 </html>
