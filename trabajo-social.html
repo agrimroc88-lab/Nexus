@@ -370,25 +370,46 @@
             <div class="campo"><label class="etiqueta" for="ts_convencional">Teléfono convencional</label><input class="entrada" id="ts_convencional" type="text"></div>
           </div>
 
-          <h3 class="seccion-titulo">Familiar con discapacidad</h3>
-          <div class="rejilla">
-            <div class="campo"><label class="etiqueta" for="ts_disc_familiar">Familiar con discapacidad</label><input class="entrada" id="ts_disc_familiar" type="text"></div>
-            <div class="campo"><label class="etiqueta" for="ts_disc_tipo">Tipo de discapacidad</label><input class="entrada" id="ts_disc_tipo" type="text"></div>
-            <div class="campo"><label class="etiqueta" for="ts_disc_porcentaje">Porcentaje</label><input class="entrada" id="ts_disc_porcentaje" type="text"></div>
-            <div class="campo"><label class="etiqueta" for="ts_disc_codigo">Código</label><input class="entrada" id="ts_disc_codigo" type="text"></div>
-            <div class="campo"><label class="etiqueta" for="ts_disc_telefono">Teléfono</label><input class="entrada" id="ts_disc_telefono" type="text"></div>
-            <div class="campo"><label class="etiqueta" for="ts_disc_convencional">Convencional</label><input class="entrada" id="ts_disc_convencional" type="text"></div>
-            <div class="campo"><label class="etiqueta" for="ts_disc_sangre">Tipo sanguíneo</label><input class="entrada" id="ts_disc_sangre" type="text"></div>
+          <h3 class="seccion-titulo">Datos de familiares con discapacidad</h3>
+          <table class="familiar-tabla" id="tabla-discapacidades">
+            <thead>
+              <tr>
+                <th style="width:22%">Familiar con discapacidad</th>
+                <th>Código</th>
+                <th>Tipo de discapacidad</th>
+                <th>Porcentaje</th>
+                <th>Teléfono</th>
+                <th>Convencional</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="cuerpo-discapacidades"></tbody>
+          </table>
+          <button class="boton-secundario boton-compacto" id="btn-add-discapacidad" type="button">+ Agregar familiar con discapacidad</button>
+
+          <div class="campo" style="margin-top:0.5rem;">
+            <label class="etiqueta" for="ts_disc_sangre">Tipo sanguíneo (del trabajador)</label>
+            <input class="entrada" id="ts_disc_sangre" type="text">
           </div>
 
-          <h3 class="seccion-titulo">Ubicación de domicilio</h3>
+          <h3 class="seccion-titulo">Mapa de Ubicación de Domicilio</h3>
           <div class="rejilla">
-            <div class="campo"><label class="etiqueta" for="ts_resp_nombre">Persona responsable</label><input class="entrada" id="ts_resp_nombre" type="text"></div>
-            <div class="campo"><label class="etiqueta" for="ts_resp_parentesco">Parentesco</label><input class="entrada" id="ts_resp_parentesco" type="text"></div>
-            <div class="campo"><label class="etiqueta" for="ts_resp_telefono">Teléfono</label><input class="entrada" id="ts_resp_telefono" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_mapa_nombre">Nombre del Familiar</label><input class="entrada" id="ts_mapa_nombre" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_mapa_parentesco">Parentesco</label><input class="entrada" id="ts_mapa_parentesco" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_mapa_telefono2">Teléfono 2</label><input class="entrada" id="ts_mapa_telefono2" type="text"></div>
           </div>
-          <div class="campo campo-ancho"><label class="etiqueta" for="ts_dom_descripcion">Descripción de domicilio / vivienda</label><textarea class="entrada area" id="ts_dom_descripcion" rows="2"></textarea></div>
-          <div class="campo campo-ancho"><label class="etiqueta" for="ts_dom_referencias">Sitios de referencia del domicilio</label><textarea class="entrada area" id="ts_dom_referencias" rows="2"></textarea></div>
+          <div class="campo campo-ancho"><label class="etiqueta" for="ts_mapa_lugar">Lugar de Domicilio / Vivienda</label><input class="entrada" id="ts_mapa_lugar" type="text"></div>
+          <div class="campo campo-ancho"><label class="etiqueta" for="ts_mapa_descripcion">Descripción de Domicilio / Vivienda</label><textarea class="entrada area" id="ts_mapa_descripcion" rows="2"></textarea></div>
+          <div class="campo campo-ancho"><label class="etiqueta" for="ts_mapa_sitios">Sitios de Referencia de Domicilio / Vivienda</label><textarea class="entrada area" id="ts_mapa_sitios" rows="2"></textarea></div>
+
+          <div class="rejilla" style="margin-top:0.75rem;">
+            <div class="campo"><label class="etiqueta" for="ts_resp_nombre">Persona Responsable</label><input class="entrada" id="ts_resp_nombre" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_resp_parentesco">Parentesco</label><input class="entrada" id="ts_resp_parentesco" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_resp_telefono">Teléfono 1</label><input class="entrada" id="ts_resp_telefono" type="text"></div>
+          </div>
+          <div class="campo campo-ancho"><label class="etiqueta" for="ts_resp_lugar">Lugar de Domicilio / Vivienda</label><input class="entrada" id="ts_resp_lugar" type="text"></div>
+          <div class="campo campo-ancho"><label class="etiqueta" for="ts_dom_descripcion">Descripción de Domicilio / Vivienda</label><textarea class="entrada area" id="ts_dom_descripcion" rows="2"></textarea></div>
+          <div class="campo campo-ancho"><label class="etiqueta" for="ts_dom_referencias">Sitios de Referencia de Domicilio / Vivienda</label><textarea class="entrada area" id="ts_dom_referencias" rows="2"></textarea></div>
 
           <h3 class="seccion-titulo">Datos familiares</h3>
           <table class="familiar-tabla" id="tabla-familiares">
@@ -545,6 +566,6 @@
   <!-- Zona de impresión (fuera de todo) -->
   <div id="zona-impresion" class="zona-impresion" aria-hidden="true"></div>
 
-  <script type="module" src="js/trabajo-social.js?v=17"></script>
+  <script type="module" src="js/trabajo-social.js?v=18"></script>
 </body>
 </html>
