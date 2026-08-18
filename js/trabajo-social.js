@@ -31,6 +31,7 @@ const estado = {
   manualActual: null,  // { mes, datosMes } del modal abierto
   paciente: null,
   verId: null,
+  editandoId: null,  // id de la ficha que se está editando (null = ficha nueva)
   vista: 'ficha'
 };
 
@@ -151,6 +152,8 @@ function conectarEventos() {
   document.getElementById('btn-add-familiar').addEventListener('click', () => agregarFilaFamiliar());
   document.getElementById('btn-imprimir-social').addEventListener('click', () => imprimirDocumento('social'));
   document.getElementById('btn-imprimir-registro').addEventListener('click', () => imprimirDocumento('registro'));
+  document.getElementById('btn-editar-ficha').addEventListener('click', editarFicha);
+  document.getElementById('btn-eliminar-ficha').addEventListener('click', eliminarFicha);
 
   document.getElementById('at-anio').addEventListener('change', pintarAtenciones);
   document.getElementById('btn-guardar-manual').addEventListener('click', guardarManual);
@@ -261,6 +264,7 @@ function pintarHistorial() {
 
 function abrirFichaNueva() {
   if (!estado.paciente) return;
+  estado.editandoId = null;
   limpiarFormulario();
   document.getElementById('ts_codigo').value = estado.paciente.codigo;
   document.getElementById('ts_fecha').value = HOY();
@@ -335,6 +339,93 @@ function valor(id) {
   return v === '' ? null : v;
 }
 
+/* Mismo orden de campos que usa guardarFicha() —se reutiliza
+   para precargar el formulario al editar una ficha existente. */
+const MAPA_CAMPOS_FICHA_TS = [
+  ['ts_nacionalidad', 'nacionalidad'], ['ts_lugar_nac', 'lugar_nacimiento'],
+  ['ts_estado_civil', 'estado_civil'], ['ts_experiencia', 'experiencia'],
+  ['ts_correo', 'correo'], ['ts_domicilio', 'domicilio'],
+  ['ts_instruccion', 'nivel_instruccion'], ['ts_titulo', 'titulo_obtenido'],
+  ['ts_etnico', 'grupo_etnico'], ['ts_religion', 'religion'],
+  ['ts_estatura', 'estatura'], ['ts_provincia', 'provincia'],
+  ['ts_canton', 'canton'], ['ts_parroquia', 'parroquia'],
+  ['ts_convencional', 'telefono_convencional'],
+  ['ts_disc_codigo', 'disc_codigo'], ['ts_disc_tipo', 'disc_tipo'],
+  ['ts_disc_porcentaje', 'disc_porcentaje'], ['ts_disc_familiar', 'disc_familiar'],
+  ['ts_disc_telefono', 'disc_telefono'], ['ts_disc_convencional', 'disc_convencional'],
+  ['ts_disc_sangre', 'disc_tipo_sanguineo'],
+  ['ts_resp_nombre', 'resp_nombre'], ['ts_resp_parentesco', 'resp_parentesco'],
+  ['ts_resp_telefono', 'resp_telefono'],
+  ['ts_dom_descripcion', 'domicilio_descripcion'], ['ts_dom_referencias', 'domicilio_referencias'],
+  ['ts_viv_tenencia', 'vivienda_tenencia'], ['ts_viv_construccion', 'vivienda_construccion'],
+  ['ts_viv_obs', 'vivienda_observaciones'],
+  ['ts_ingreso', 'ingreso_mensual'], ['ts_otros_ingresos', 'otros_ingresos'],
+  ['ts_movilizacion', 'movilizacion'], ['ts_observacion', 'observacion'],
+  ['ts_fam1_nombre', 'rp_familiar1_nombre'], ['ts_fam1_conv', 'rp_familiar1_convencional'],
+  ['ts_fam1_cel', 'rp_familiar1_celular'],
+  ['ts_fam2_nombre', 'rp_familiar2_nombre'], ['ts_fam2_conv', 'rp_familiar2_convencional'],
+  ['ts_fam2_cel', 'rp_familiar2_celular'],
+  ['ts_contacto_nombre', 'rp_contacto_nombre'], ['ts_contacto_correo', 'rp_contacto_correo'],
+  ['ts_contacto_cel', 'rp_contacto_celular'],
+  ['ts_cargas', 'rp_cargas_familiares'], ['ts_num_cargas', 'rp_num_cargas'],
+  ['ts_parentesco_cargas', 'rp_parentesco_cargas'], ['ts_sueldo', 'rp_sueldo'],
+  ['ts_exp_empresa', 'rp_exp_empresa'], ['ts_exp_cargo', 'rp_exp_cargo']
+];
+
+/** Reabrir una ficha ya guardada para corregirla. */
+async function editarFicha() {
+  const f = estado.fichas.find((x) => x.id === estado.verId);
+  if (!f) return;
+
+  estado.editandoId = f.id;
+  limpiarFormulario();
+
+  document.getElementById('titulo-modal').textContent = 'Editar ficha · ' + f.nombre_completo;
+  document.getElementById('ts_codigo').value = f.codigo_trabajador ?? '';
+  document.getElementById('ts_fecha').value = f.fecha ?? '';
+  document.getElementById('ts_fecha_salida').value = f.rp_fecha_salida ?? '';
+
+  MAPA_CAMPOS_FICHA_TS.forEach(([id, col]) => {
+    const el = document.getElementById(id);
+    if (el && f[col] != null) el.value = f[col];
+  });
+
+  document.getElementById('ts_viv_luz').checked = !!f.vivienda_luz;
+  document.getElementById('ts_viv_agua').checked = !!f.vivienda_agua;
+  document.getElementById('ts_viv_alcantarillado').checked = !!f.vivienda_alcantarillado;
+
+  document.getElementById('cuerpo-familiares').innerHTML = '';
+  (Array.isArray(f.familiares) ? f.familiares : []).forEach((fam) => agregarFilaFamiliar(fam));
+
+  const { data: t } = await supabase
+    .from('v_trabajadores').select('*')
+    .eq('empresa_id', estado.empresaId).eq('id', f.trabajador_id).maybeSingle();
+
+  if (t) {
+    estado.paciente = t;
+    mostrarFichaTrabajador(t);
+  }
+
+  document.getElementById('modal-ver').hidden = true;
+  document.getElementById('modal-ficha').hidden = false;
+}
+
+/** Para una ficha mal guardada o puesta de ejemplo. */
+async function eliminarFicha() {
+  const f = estado.fichas.find((x) => x.id === estado.verId);
+  if (!f) return;
+
+  if (!confirm(`¿Eliminar la ficha de ${f.nombre_completo} del ${formatearFecha(f.fecha)}?\n\n`
+    + 'Esta acción no se puede deshacer.')) return;
+
+  const { error } = await supabase.from('fichas_sociales').delete().eq('id', f.id);
+  if (error) return alert('No se pudo eliminar: ' + error.message);
+
+  document.getElementById('modal-ver').hidden = true;
+  await cargarFichas();
+  cambiarVista('registros');
+}
+
 async function guardarFicha() {
   const $alerta = document.getElementById('alerta-ficha');
   if (!estado.paciente) { $alerta.textContent = 'Primero busque un trabajador.'; $alerta.hidden = false; return; }
@@ -400,13 +491,17 @@ async function guardarFicha() {
     registrado_por: nombreTS()
   };
 
-  const { data: creada, error } = await supabase
-    .from('fichas_sociales').insert(fila).select('id').single();
+  const editando = estado.editandoId;
+  const { data: creada, error } = editando
+    ? await supabase.from('fichas_sociales').update(fila).eq('id', editando).select('id').single()
+    : await supabase.from('fichas_sociales').insert(fila).select('id').single();
+
   if (error) {
     $alerta.textContent = 'No fue posible guardar: ' + error.message;
     $alerta.hidden = false;
     return null;
   }
+  estado.editandoId = null;
   document.getElementById('modal-ficha').hidden = true;
   await cargarFichas();
   cambiarVista('registros');

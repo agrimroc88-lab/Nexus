@@ -30,7 +30,8 @@ const estado = {
   altaPendiente: null, // { codigo } cuando se va a registrar un trabajador nuevo
   histAbierto: false,
   vista: 'fichas',
-  verId: null          // ficha mostrada en el modal de detalle
+  verId: null,          // ficha mostrada en el modal de detalle
+  editandoId: null      // id de la ficha que se está editando (null = ficha nueva)
 };
 
 const HOY = () => new Date().toISOString().slice(0, 10);
@@ -666,6 +667,7 @@ function pintarHistorial() {
 
 function abrirFichaNueva() {
   if (!estado.paciente) return;
+  estado.editandoId = null;
   limpiarFormulario();
 
   document.getElementById('ficha-modal-titulo').textContent = 'Nueva ficha psicológica';
@@ -735,6 +737,75 @@ function ocultarFichaTrabajador() {
   document.getElementById('bloque-clinico').hidden = true;
 }
 
+/* Mismo orden de campos que usa guardarFicha() —se reutiliza
+   para precargar el formulario al editar una ficha existente. */
+const MAPA_CAMPOS_FICHA = [
+  ['fp_fecha', 'fecha'], ['fp_tipo', 'tipo'], ['fp_modalidad', 'modalidad'],
+  ['fp_remision', 'motivo_remision'], ['fp_nacionalidad', 'nacionalidad'],
+  ['fp_lugar_nac', 'lugar_nacimiento'], ['fp_correo', 'correo'],
+  ['fp_domicilio', 'domicilio'], ['fp_hijos', 'num_hijos'],
+  ['fp_instruccion', 'nivel_instruccion'], ['fp_titulo', 'titulo_obtenido'],
+  ['fp_etnico', 'grupo_etnico'], ['fp_religion', 'religion'],
+  ['fp_app', 'app'], ['fp_apf', 'apf'], ['fp_aqt', 'aqt'], ['fp_apq', 'apq'],
+  ['fp_discapacidad', 'tipo_discapacidad'], ['fp_porcentaje', 'porcentaje_discapacidad'],
+  ['fp_alcohol', 'habito_alcohol'], ['fp_cigarrillo', 'habito_cigarrillo'],
+  ['fp_drogas', 'habito_drogas'], ['fp_juegos', 'habito_juegos'],
+  ['fp_motivo', 'motivo_consulta'], ['fp_entrevista', 'entrevista'],
+  ['fp_orientacion', 'em_orientacion'], ['fp_pensamiento', 'em_pensamiento'],
+  ['fp_lenguaje', 'em_lenguaje'], ['fp_sensopercepciones', 'em_sensopercepciones'],
+  ['fp_memoria', 'em_memoria'], ['fp_emociones', 'em_emociones'],
+  ['fp_sueno', 'em_sueno'], ['fp_apetito', 'em_apetito'],
+  ['fp_deseo_sexual', 'em_deseo_sexual'], ['fp_tests', 'test_aplicados'],
+  ['fp_observaciones', 'observaciones'], ['fp_impresion', 'impresion_dx'],
+  ['fp_recomendaciones', 'recomendaciones'], ['fp_proxima', 'proxima_cita'],
+  ['fp_estado', 'estado']
+];
+
+/** Reabrir una ficha ya guardada para corregirla —por ejemplo,
+    una que se guardó de prueba o con un dato mal escrito—. */
+async function editarFicha() {
+  const f = estado.fichas.find((x) => x.id === estado.verId);
+  if (!f) return;
+
+  estado.editandoId = f.id;
+  limpiarFormulario();
+
+  document.getElementById('ficha-modal-titulo').textContent = 'Editar ficha psicológica';
+  document.getElementById('fp_codigo').value = f.codigo_trabajador ?? '';
+
+  MAPA_CAMPOS_FICHA.forEach(([id, col]) => {
+    const el = document.getElementById(id);
+    if (el && f[col] != null) el.value = f[col];
+  });
+
+  const { data: t } = await supabase
+    .from('v_trabajadores').select('*')
+    .eq('empresa_id', estado.empresaId).eq('id', f.trabajador_id).maybeSingle();
+
+  if (t) {
+    estado.paciente = t;
+    mostrarFichaTrabajador(t);
+  }
+
+  document.getElementById('modal-ver').hidden = true;
+  document.getElementById('modal-ficha').hidden = false;
+}
+
+/** Para una ficha mal guardada o puesta de ejemplo. */
+async function eliminarFicha() {
+  const f = estado.fichas.find((x) => x.id === estado.verId);
+  if (!f) return;
+
+  if (!confirm(`¿Eliminar la ficha de ${f.nombre_completo} del ${formatearFecha(f.fecha)}?\n\n`
+    + 'Esta acción no se puede deshacer.')) return;
+
+  const { error } = await supabase.from('fichas_psicologicas').delete().eq('id', f.id);
+  if (error) return alert('No se pudo eliminar: ' + error.message);
+
+  document.getElementById('modal-ver').hidden = true;
+  await recargar();
+}
+
 async function guardarFicha() {
   const $alerta = document.getElementById('alerta-ficha');
   const codigo = parseInt(document.getElementById('fp_codigo').value, 10);
@@ -797,8 +868,10 @@ async function guardarFicha() {
     registrado_por: nombrePsicologo()
   };
 
-  const { data: creada, error } = await supabase
-    .from('fichas_psicologicas').insert(fila).select('id').single();
+  const editando = estado.editandoId;
+  const { data: creada, error } = editando
+    ? await supabase.from('fichas_psicologicas').update(fila).eq('id', editando).select('id').single()
+    : await supabase.from('fichas_psicologicas').insert(fila).select('id').single();
 
   if (error) {
     $alerta.textContent = 'No fue posible guardar: ' + error.message;
@@ -806,6 +879,7 @@ async function guardarFicha() {
     return null;
   }
 
+  estado.editandoId = null;
   document.getElementById('modal-ficha').hidden = true;
   await recargar();
   return creada ? creada.id : null;
@@ -1097,6 +1171,8 @@ function conectarEventos() {
 
   /* --- Ver / imprimir --- */
   document.getElementById('btn-imprimir').addEventListener('click', imprimirFicha);
+  document.getElementById('btn-editar-ficha').addEventListener('click', editarFicha);
+  document.getElementById('btn-eliminar-ficha').addEventListener('click', eliminarFicha);
 
   /* --- Atenciones --- */
   document.getElementById('at-anio').addEventListener('change', pintarAtenciones);
