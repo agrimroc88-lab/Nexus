@@ -152,13 +152,13 @@ function conectarEventos() {
   document.getElementById('btn-add-familiar').addEventListener('click', () => agregarFilaFamiliar());
   document.getElementById('btn-imprimir-social').addEventListener('click', () => imprimirDocumento('social'));
   document.getElementById('btn-imprimir-registro').addEventListener('click', () => imprimirDocumento('registro'));
-  document.getElementById('btn-editar-ficha').addEventListener('click', editarFicha);
-  document.getElementById('btn-eliminar-ficha').addEventListener('click', eliminarFicha);
+  document.getElementById('btn-editar-ficha')?.addEventListener('click', editarFicha);
+  document.getElementById('btn-eliminar-ficha')?.addEventListener('click', eliminarFicha);
   document.getElementById('ts_parentesco_opciones')
-    .addEventListener('change', sincronizarParentescoCargas);
+    ?.addEventListener('change', sincronizarParentescoCargas);
 
-  document.getElementById('at-anio').addEventListener('change', pintarAtenciones);
-  document.getElementById('btn-guardar-manual').addEventListener('click', guardarManual);
+  document.getElementById('at-anio')?.addEventListener('change', pintarAtenciones);
+  document.getElementById('btn-guardar-manual')?.addEventListener('click', guardarManual);
 }
 
 async function alCambiarEmpresa() {
