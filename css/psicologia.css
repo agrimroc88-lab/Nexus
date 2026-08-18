@@ -205,6 +205,27 @@
   border-radius: 5px;
 }
 
+/* Casillas de marcar: cargas familiares (Sí/No) y parentesco
+   (esposa/hijo/hija/papá/mamá/abuelo/abuela) — reemplazan lo
+   que antes era un select o un texto libre. */
+.opciones-marca {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  margin-top: 0.4rem;
+}
+
+.opcion-marca {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.opcion-marca input { margin: 0; }
+
 /* ============================================
    Gráfico de tendencia mensual (copiado de dashboard.css,
    que esta página no carga)
