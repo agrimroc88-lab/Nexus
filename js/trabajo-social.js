@@ -881,14 +881,22 @@ function imprimirDocumento(cual) {
 const V = (x) => escapar(x != null && x !== '' ? String(x) : '');
 const SN = (b) => b ? 'Sí' : 'No';
 
+/** 'X' si el valor coincide con lo esperado (para las casillas
+    de las tablas impresas: Propia/Arriendo, H/M, Sí/No…). */
+const MARCA = (valor, esperado) =>
+  (valor != null && String(valor).trim().toLowerCase() === esperado.toLowerCase()) ? 'X' : '';
+
 function htmlFichaSocial(f) {
   const fams = Array.isArray(f.familiares) ? f.familiares : [];
   const filasFam = fams.length ? fams.map((x) => `
     <tr>
-      <td>${V(x.nombre)}</td><td>${V(x.parentesco)}</td><td>${V(x.sexo)}</td>
-      <td>${V(x.edad)}</td><td>${V(x.estudia)}</td><td>${V(x.nivel)}</td>
-      <td>${V(x.grado)}</td><td>${V(x.trabaja)}</td>
-    </tr>`).join('') : '<tr><td colspan="8">Sin datos familiares</td></tr>';
+      <td>${V(x.nombre)}</td><td>${V(x.parentesco)}</td>
+      <td class="doc-centro">${MARCA(x.sexo, 'H')}</td><td class="doc-centro">${MARCA(x.sexo, 'M')}</td>
+      <td class="doc-centro">${V(x.edad)}</td>
+      <td class="doc-centro">${MARCA(x.estudia, 'Sí')}</td><td class="doc-centro">${MARCA(x.estudia, 'No')}</td>
+      <td>${V(x.nivel)}</td><td>${V(x.grado)}</td>
+      <td class="doc-centro">${MARCA(x.trabaja, 'Sí')}</td><td class="doc-centro">${MARCA(x.trabaja, 'No')}</td>
+    </tr>`).join('') : '<tr><td colspan="11">Sin datos familiares</td></tr>';
 
   return `
   <div class="doc-hoja doc-social">
@@ -905,55 +913,83 @@ function htmlFichaSocial(f) {
     <table class="doc-tabla">
       <tr><td class="doc-lbl">Apellidos y Nombres</td><td colspan="3">${V(f.nombre_completo)}</td><td class="doc-lbl">Cédula</td><td>${V(f.cedula)}</td></tr>
       <tr><td class="doc-lbl">Nacionalidad</td><td>${V(f.nacionalidad)}</td><td class="doc-lbl">Lugar de Nacimiento</td><td>${V(f.lugar_nacimiento)}</td><td class="doc-lbl">Estado Civil</td><td>${V(f.estado_civil)}</td></tr>
-      <tr><td class="doc-lbl">Correo</td><td colspan="3">${V(f.correo)}</td><td class="doc-lbl">Edad</td><td>${f.edad != null ? f.edad : ''}</td></tr>
-      <tr><td class="doc-lbl">Sexo</td><td>${V(f.sexo)}</td><td class="doc-lbl">Experiencia</td><td>${V(f.experiencia)}</td><td class="doc-lbl">Puesto</td><td>${V(f.cargo)}</td></tr>
-      <tr><td class="doc-lbl">Domicilio Actual</td><td colspan="5">${V(f.domicilio)}</td></tr>
-      <tr><td class="doc-lbl">Nivel de Instrucción</td><td>${V(f.nivel_instruccion)}</td><td class="doc-lbl">Título Obtenido</td><td>${V(f.titulo_obtenido)}</td><td class="doc-lbl">Grupo Étnico</td><td>${V(f.grupo_etnico)}</td></tr>
-      <tr><td class="doc-lbl">Religión</td><td colspan="5">${V(f.religion)}</td></tr>
+      <tr><td class="doc-lbl">Experiencia</td><td>${V(f.experiencia)}</td><td class="doc-lbl">Fecha de Ingreso</td><td>${f.fecha_ingreso ? formatearFecha(f.fecha_ingreso) : ''}</td><td class="doc-lbl">Edad</td><td>${f.edad != null ? f.edad : ''}</td></tr>
+      <tr><td class="doc-lbl">Correo Electrónico</td><td colspan="3">${V(f.correo)}</td><td class="doc-lbl">Sexo</td><td class="doc-centro">${V(f.sexo)}</td></tr>
+      <tr><td class="doc-lbl">Domicilio Actual en</td><td colspan="5">${V(f.domicilio)}</td></tr>
+      <tr><td class="doc-lbl">Nivel de Instrucción</td><td>${V(f.nivel_instruccion)}</td><td class="doc-lbl">Título o Grado Superior Obtenido</td><td>${V(f.titulo_obtenido)}</td><td class="doc-lbl">Puesto de Trabajo</td><td>${V(f.cargo)}</td></tr>
+      <tr><td class="doc-lbl">Grupo Étnico</td><td>${V(f.grupo_etnico)}</td><td class="doc-lbl">Religión</td><td colspan="3">${V(f.religion)}</td></tr>
     </table>
 
     <div class="doc-seccion-h">Datos de Familiares con Discapacidad</div>
     <table class="doc-tabla">
-      <tr><td class="doc-lbl">Familiar</td><td>${V(f.disc_familiar)}</td><td class="doc-lbl">Tipo</td><td>${V(f.disc_tipo)}</td><td class="doc-lbl">Porcentaje</td><td>${V(f.disc_porcentaje)}</td></tr>
-      <tr><td class="doc-lbl">Código</td><td>${V(f.disc_codigo)}</td><td class="doc-lbl">Teléfono</td><td>${V(f.disc_telefono)}</td><td class="doc-lbl">Convencional</td><td>${V(f.disc_convencional)}</td></tr>
-      <tr><td class="doc-lbl">Tipo Sanguíneo</td><td colspan="5">${V(f.disc_tipo_sanguineo)}</td></tr>
+      <tr><td class="doc-lbl">Familiar</td><td>${V(f.disc_familiar)}</td><td class="doc-lbl">Código</td><td>${V(f.disc_codigo)}</td><td class="doc-lbl">Tipo de Discapacidad</td><td>${V(f.disc_tipo)}</td><td class="doc-lbl">Porcentaje</td><td>${V(f.disc_porcentaje)}</td></tr>
+      <tr><td class="doc-lbl">Teléfono</td><td>${V(f.disc_telefono)}</td><td class="doc-lbl">Convencional</td><td>${V(f.disc_convencional)}</td><td class="doc-lbl">Tipo Sanguíneo</td><td colspan="3">${V(f.disc_tipo_sanguineo)}</td></tr>
     </table>
 
-    <div class="doc-seccion-h">Ubicación de Domicilio</div>
+    <div class="doc-seccion-h">Mapa de Ubicación de Domicilio · Persona Responsable</div>
     <table class="doc-tabla">
       <tr><td class="doc-lbl">Persona Responsable</td><td>${V(f.resp_nombre)}</td><td class="doc-lbl">Parentesco</td><td>${V(f.resp_parentesco)}</td><td class="doc-lbl">Teléfono</td><td>${V(f.resp_telefono)}</td></tr>
     </table>
-    <div class="doc-campo-largo"><strong>Descripción del Domicilio / Vivienda:</strong><p>${V(f.domicilio_descripcion)}</p></div>
-    <div class="doc-campo-largo"><strong>Sitios de Referencia:</strong><p>${V(f.domicilio_referencias)}</p></div>
+    <div class="doc-campo-largo"><strong>Lugar / Descripción del Domicilio o Vivienda:</strong><p>${V(f.domicilio_descripcion)}</p></div>
+    <div class="doc-campo-largo"><strong>Sitios de Referencia del Domicilio:</strong><p>${V(f.domicilio_referencias)}</p></div>
 
     <div class="doc-seccion-h">Datos Familiares</div>
-    <table class="doc-tabla">
+    <table class="doc-tabla doc-tabla-chica">
       <tr>
-        <td class="doc-lbl">Apellidos y Nombres</td><td class="doc-lbl">Parentesco</td><td class="doc-lbl">Sexo</td>
-        <td class="doc-lbl">Edad</td><td class="doc-lbl">Estudia</td><td class="doc-lbl">Nivel</td>
-        <td class="doc-lbl">Grado</td><td class="doc-lbl">Trabaja</td>
+        <td class="doc-lbl" rowspan="2">Apellidos y Nombres</td><td class="doc-lbl" rowspan="2">Parentesco</td>
+        <td class="doc-lbl" colspan="2">Sexo</td><td class="doc-lbl" rowspan="2">Edad</td>
+        <td class="doc-lbl" colspan="2">Estudia</td><td class="doc-lbl" rowspan="2">Nivel</td>
+        <td class="doc-lbl" rowspan="2">Grado</td><td class="doc-lbl" colspan="2">Trabaja</td>
+      </tr>
+      <tr>
+        <td class="doc-lbl doc-centro">H</td><td class="doc-lbl doc-centro">M</td>
+        <td class="doc-lbl doc-centro">Sí</td><td class="doc-lbl doc-centro">No</td>
+        <td class="doc-lbl doc-centro">Sí</td><td class="doc-lbl doc-centro">No</td>
       </tr>
       ${filasFam}
     </table>
 
     <div class="doc-seccion-h">Datos de la Vivienda</div>
-    <table class="doc-tabla">
-      <tr><td class="doc-lbl">Tenencia</td><td>${V(f.vivienda_tenencia)}</td><td class="doc-lbl">Construcción</td><td>${V(f.vivienda_construccion)}</td></tr>
-      <tr><td class="doc-lbl">Servicios Básicos</td><td colspan="3">Luz: ${SN(f.vivienda_luz)} · Agua: ${SN(f.vivienda_agua)} · Alcantarillado: ${SN(f.vivienda_alcantarillado)}</td></tr>
+    <table class="doc-tabla doc-tabla-chica">
+      <tr>
+        <td class="doc-lbl" colspan="2">Vivienda</td><td class="doc-lbl" colspan="2">Construcción</td>
+        <td class="doc-lbl" colspan="3">Servicios Básicos</td>
+      </tr>
+      <tr>
+        <td class="doc-lbl doc-centro">Propia</td><td class="doc-lbl doc-centro">Arriendo</td>
+        <td class="doc-lbl doc-centro">Mixta</td><td class="doc-lbl doc-centro">Cemento</td>
+        <td class="doc-lbl doc-centro">Luz</td><td class="doc-lbl doc-centro">Agua</td><td class="doc-lbl doc-centro">Alcantarillado</td>
+      </tr>
+      <tr>
+        <td class="doc-centro">${MARCA(f.vivienda_tenencia, 'Propia')}</td>
+        <td class="doc-centro">${MARCA(f.vivienda_tenencia, 'Arriendo')}</td>
+        <td class="doc-centro">${MARCA(f.vivienda_construccion, 'Mixta')}</td>
+        <td class="doc-centro">${MARCA(f.vivienda_construccion, 'Cemento')}</td>
+        <td class="doc-centro">${f.vivienda_luz ? 'X' : ''}</td>
+        <td class="doc-centro">${f.vivienda_agua ? 'X' : ''}</td>
+        <td class="doc-centro">${f.vivienda_alcantarillado ? 'X' : ''}</td>
+      </tr>
     </table>
     <div class="doc-campo-largo"><strong>Observaciones de Vivienda:</strong><p>${V(f.vivienda_observaciones)}</p></div>
 
     <div class="doc-seccion-h">Situación Económica</div>
     <table class="doc-tabla">
       <tr><td class="doc-lbl">Ingreso Mensual Familiar</td><td>${V(f.ingreso_mensual)}</td><td class="doc-lbl">Otros Ingresos</td><td>${V(f.otros_ingresos)}</td></tr>
-      <tr><td class="doc-lbl">Movilización al Trabajo</td><td colspan="3">${V(f.movilizacion)}</td></tr>
+      <tr><td class="doc-lbl">Cómo se moviliza a su lugar de trabajo</td><td colspan="3">${V(f.movilizacion)}</td></tr>
     </table>
     <div class="doc-campo-largo"><strong>Observación:</strong><p>${V(f.observacion)}</p></div>
 
-    <div class="doc-firma">
-      <div class="doc-firma-linea"></div>
-      <p>${V(f.registrado_por || 'Trabajador/a Social')}</p>
-      <p style="font-size:9pt">Departamento de Trabajo Social</p>
+    <div class="doc-firmas-fila">
+      <div class="doc-firma">
+        <div class="doc-firma-linea"></div>
+        <p>${V(f.registrado_por || 'Trabajador/a Social')}</p>
+        <p style="font-size:9pt">Departamento de Trabajo Social</p>
+      </div>
+      <div class="doc-firma">
+        <div class="doc-firma-linea"></div>
+        <p>${V(f.nombre_completo)}</p>
+        <p style="font-size:9pt">Trabajador · C.I. ${V(f.cedula)}</p>
+      </div>
     </div>
   </div>`;
 }
@@ -993,8 +1029,29 @@ function htmlRegistroPersonal(f) {
     </table>
 
     <div class="doc-seccion-h">Cargas Familiares</div>
-    <table class="doc-tabla">
-      <tr><td class="doc-lbl">¿Tiene cargas?</td><td>${V(f.rp_cargas_familiares)}</td><td class="doc-lbl">N°</td><td>${V(f.rp_num_cargas)}</td><td class="doc-lbl">Parentesco</td><td>${V(f.rp_parentesco_cargas)}</td></tr>
+    <table class="doc-tabla doc-tabla-chica">
+      <tr>
+        <td class="doc-lbl">¿Tiene cargas familiares?</td>
+        <td class="doc-centro doc-lbl">Sí</td><td class="doc-centro doc-lbl">No</td>
+        <td class="doc-lbl">N°</td>
+        <td class="doc-lbl doc-centro">Esposa</td><td class="doc-lbl doc-centro">Hijo</td>
+        <td class="doc-lbl doc-centro">Hija</td><td class="doc-lbl doc-centro">Papá</td>
+        <td class="doc-lbl doc-centro">Mamá</td><td class="doc-lbl doc-centro">Abuelo</td>
+        <td class="doc-lbl doc-centro">Abuela</td>
+      </tr>
+      <tr>
+        <td></td>
+        <td class="doc-centro">${MARCA(f.rp_cargas_familiares, 'Sí')}</td>
+        <td class="doc-centro">${MARCA(f.rp_cargas_familiares, 'No')}</td>
+        <td class="doc-centro">${V(f.rp_num_cargas)}</td>
+        <td class="doc-centro">${(f.rp_parentesco_cargas || '').includes('Esposa') ? 'X' : ''}</td>
+        <td class="doc-centro">${(f.rp_parentesco_cargas || '').includes('Hijo') ? 'X' : ''}</td>
+        <td class="doc-centro">${(f.rp_parentesco_cargas || '').includes('Hija') ? 'X' : ''}</td>
+        <td class="doc-centro">${(f.rp_parentesco_cargas || '').includes('Papá') ? 'X' : ''}</td>
+        <td class="doc-centro">${(f.rp_parentesco_cargas || '').includes('Mamá') ? 'X' : ''}</td>
+        <td class="doc-centro">${(f.rp_parentesco_cargas || '').includes('Abuelo') ? 'X' : ''}</td>
+        <td class="doc-centro">${(f.rp_parentesco_cargas || '').includes('Abuela') ? 'X' : ''}</td>
+      </tr>
     </table>
 
     <div class="doc-seccion-h">Datos Laborales</div>
