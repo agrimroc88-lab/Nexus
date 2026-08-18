@@ -49,10 +49,11 @@
       .zona-impresion { display: block !important; }
       /* El margen va como relleno de la hoja: con @page en cero
          el navegador deja de estampar su encabezado y su pie.
-         Lo declara documentos.css. */
-      .hoja { padding: 12mm 10mm 12mm 24mm !important; box-sizing: border-box; }
+         Lo declara documentos.css. El margen real lo pone
+         .doc-hoja más abajo (padding), no esta regla. */
 
-      .doc-hoja { display: block !important; width: 100%; font-family: Arial, Helvetica, sans-serif; color: #000; font-size: 11pt; }
+      .doc-hoja { display: block !important; width: 210mm; box-sizing: border-box;
+        padding: 12mm 10mm 12mm 24mm; font-family: Arial, Helvetica, sans-serif; color: #000; font-size: 11pt; }
       .doc-encabezado { display: flex; align-items: center; gap: 0.8rem; padding-bottom: 0.35rem; margin-bottom: 0.4rem; border-bottom: 2px solid #333; }
       .doc-logo { height: 68px; width: auto; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .doc-titulo-empresa { display: flex; flex-direction: column; line-height: 1.15; }
