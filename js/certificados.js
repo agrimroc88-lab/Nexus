@@ -356,7 +356,7 @@ async function abrirCertificado(c) {
 }
 
 function limpiarForm() {
-  ['ce_cie', 'ce_diagnostico', 'ce_rot_detalle', 'ce_medico', 'ce_url', 'ce_observacion']
+  ['ce_codigo', 'ce_cie', 'ce_diagnostico', 'ce_rot_detalle', 'ce_medico', 'ce_url', 'ce_observacion']
     .forEach((id) => { document.getElementById(id).value = ''; });
   const $bn = document.getElementById('ce_buscar_nombre');
   if ($bn) $bn.value = '';
@@ -850,7 +850,7 @@ function cuerpoVer(c) {
       ${linea('Cédula', c.cedula)}
       ${linea('Cargo', textoOGuion(c.cargo))}
       ${linea('Origen', ORIGENES[c.origen] || c.origen)}
-      ${linea('Fecha de emisión', formatearFecha(c.fecha_emision))}
+      ${linea('Fecha de registro', formatearFecha(c.fecha_emision))}
       ${linea('Médico / entidad', textoOGuion(c.medico_emisor))}
     </div>
     ${c.diagnostico ? `<div class="ver-campo"><span class="ver-etiqueta">Diagnóstico</span><p class="ver-texto">${escapar(c.codigo_cie10 ? c.codigo_cie10 + ' · ' : '')}${escapar(c.diagnostico)}</p></div>` : ''}
