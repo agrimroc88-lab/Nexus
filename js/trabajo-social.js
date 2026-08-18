@@ -153,7 +153,10 @@ function conectarEventos() {
   document.getElementById('btn-imprimir-social').addEventListener('click', () => imprimirDocumento('social'));
   document.getElementById('btn-imprimir-registro').addEventListener('click', () => imprimirDocumento('registro'));
   document.getElementById('btn-editar-ficha')?.addEventListener('click', editarFicha);
-  document.getElementById('btn-eliminar-ficha')?.addEventListener('click', eliminarFicha);
+  document.getElementById('btn-eliminar-ficha')?.addEventListener('click', async () => {
+    await eliminarFicha(estado.verId);
+    document.getElementById('modal-ver').hidden = true;
+  });
   document.getElementById('ts_parentesco_opciones')
     ?.addEventListener('change', sincronizarParentescoCargas);
 
@@ -434,22 +437,6 @@ async function editarFicha() {
 
   document.getElementById('modal-ver').hidden = true;
   document.getElementById('modal-ficha').hidden = false;
-}
-
-/** Para una ficha mal guardada o puesta de ejemplo. */
-async function eliminarFicha() {
-  const f = estado.fichas.find((x) => x.id === estado.verId);
-  if (!f) return;
-
-  if (!confirm(`¿Eliminar la ficha de ${f.nombre_completo} del ${formatearFecha(f.fecha)}?\n\n`
-    + 'Esta acción no se puede deshacer.')) return;
-
-  const { error } = await supabase.from('fichas_sociales').delete().eq('id', f.id);
-  if (error) return alert('No se pudo eliminar: ' + error.message);
-
-  document.getElementById('modal-ver').hidden = true;
-  await cargarFichas();
-  cambiarVista('registros');
 }
 
 async function guardarFicha() {
