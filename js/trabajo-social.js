@@ -154,6 +154,8 @@ function conectarEventos() {
   document.getElementById('btn-imprimir-registro').addEventListener('click', () => imprimirDocumento('registro'));
   document.getElementById('btn-editar-ficha').addEventListener('click', editarFicha);
   document.getElementById('btn-eliminar-ficha').addEventListener('click', eliminarFicha);
+  document.getElementById('ts_parentesco_opciones')
+    .addEventListener('change', sincronizarParentescoCargas);
 
   document.getElementById('at-anio').addEventListener('change', pintarAtenciones);
   document.getElementById('btn-guardar-manual').addEventListener('click', guardarManual);
@@ -339,6 +341,21 @@ function valor(id) {
   return v === '' ? null : v;
 }
 
+/** Lee el radio marcado de un grupo (ej. "ts_cargas": Sí/No). */
+function valorRadio(nombre) {
+  const el = document.querySelector(`input[name="${nombre}"]:checked`);
+  return el ? el.value : null;
+}
+
+/** Las casillas de parentesco de cargas familiares se guardan
+    como texto separado por comas —mismo campo de siempre
+    (rp_parentesco_cargas)—, solo que ahora se arma solo. */
+function sincronizarParentescoCargas() {
+  const marcados = [...document.querySelectorAll('#ts_parentesco_opciones input:checked')]
+    .map((c) => c.value);
+  document.getElementById('ts_parentesco_cargas').value = marcados.join(', ');
+}
+
 /* Mismo orden de campos que usa guardarFicha() —se reutiliza
    para precargar el formulario al editar una ficha existente. */
 const MAPA_CAMPOS_FICHA_TS = [
@@ -367,7 +384,7 @@ const MAPA_CAMPOS_FICHA_TS = [
   ['ts_fam2_cel', 'rp_familiar2_celular'],
   ['ts_contacto_nombre', 'rp_contacto_nombre'], ['ts_contacto_correo', 'rp_contacto_correo'],
   ['ts_contacto_cel', 'rp_contacto_celular'],
-  ['ts_cargas', 'rp_cargas_familiares'], ['ts_num_cargas', 'rp_num_cargas'],
+  ['ts_num_cargas', 'rp_num_cargas'],
   ['ts_parentesco_cargas', 'rp_parentesco_cargas'], ['ts_sueldo', 'rp_sueldo'],
   ['ts_exp_empresa', 'rp_exp_empresa'], ['ts_exp_cargo', 'rp_exp_cargo']
 ];
@@ -393,6 +410,15 @@ async function editarFicha() {
   document.getElementById('ts_viv_luz').checked = !!f.vivienda_luz;
   document.getElementById('ts_viv_agua').checked = !!f.vivienda_agua;
   document.getElementById('ts_viv_alcantarillado').checked = !!f.vivienda_alcantarillado;
+
+  const radioCargas = document.querySelector(`input[name="ts_cargas"][value="${f.rp_cargas_familiares}"]`);
+  if (radioCargas) radioCargas.checked = true;
+
+  const parentescosGuardados = (f.rp_parentesco_cargas || '').split(',').map((s) => s.trim());
+  document.querySelectorAll('#ts_parentesco_opciones input').forEach((c) => {
+    c.checked = parentescosGuardados.includes(c.value);
+  });
+  sincronizarParentescoCargas();
 
   document.getElementById('cuerpo-familiares').innerHTML = '';
   (Array.isArray(f.familiares) ? f.familiares : []).forEach((fam) => agregarFilaFamiliar(fam));
@@ -481,7 +507,7 @@ async function guardarFicha() {
     rp_contacto_nombre: valor('ts_contacto_nombre'),
     rp_contacto_correo: valor('ts_contacto_correo'),
     rp_contacto_celular: valor('ts_contacto_cel'),
-    rp_cargas_familiares: valor('ts_cargas'),
+    rp_cargas_familiares: valorRadio('ts_cargas'),
     rp_num_cargas: valor('ts_num_cargas'),
     rp_parentesco_cargas: valor('ts_parentesco_cargas'),
     rp_sueldo: valor('ts_sueldo'),
@@ -525,7 +551,7 @@ function nombreTS() {
 
 function limpiarFormulario() {
   document.querySelectorAll('#ts-bloque input, #ts-bloque textarea, #ts-bloque select').forEach((el) => {
-    if (el.type === 'checkbox') el.checked = false; else el.value = '';
+    if (el.type === 'checkbox' || el.type === 'radio') el.checked = false; else el.value = '';
   });
   document.getElementById('cuerpo-familiares').innerHTML = '';
   document.getElementById('alerta-ficha').hidden = true;
