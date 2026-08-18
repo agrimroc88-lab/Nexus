@@ -150,6 +150,7 @@ function conectarEventos() {
     imprimirDocumento('registro');
   });
   document.getElementById('btn-add-familiar').addEventListener('click', () => agregarFilaFamiliar());
+  document.getElementById('btn-add-discapacidad')?.addEventListener('click', () => agregarFilaDiscapacidad());
   document.getElementById('btn-imprimir-social').addEventListener('click', () => imprimirDocumento('social'));
   document.getElementById('btn-imprimir-registro').addEventListener('click', () => imprimirDocumento('registro'));
   document.getElementById('btn-editar-ficha')?.addEventListener('click', editarFicha);
@@ -333,6 +334,41 @@ function leerFamiliares() {
   return filas;
 }
 
+/** Igual que los familiares en general, pero para el bloque de
+    "familiares con discapacidad" —se puede agregar más de uno,
+    en vez del campo único de antes. */
+function agregarFilaDiscapacidad(d) {
+  d = d || {};
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input type="text" class="disc-familiar" value="${d.familiar ? escapar(d.familiar) : ''}"></td>
+    <td><input type="text" class="disc-codigo" value="${d.codigo ? escapar(d.codigo) : ''}" style="width:70px"></td>
+    <td><input type="text" class="disc-tipo" value="${d.tipo ? escapar(d.tipo) : ''}"></td>
+    <td><input type="text" class="disc-porcentaje" value="${d.porcentaje ? escapar(d.porcentaje) : ''}" style="width:60px"></td>
+    <td><input type="text" class="disc-telefono" value="${d.telefono ? escapar(d.telefono) : ''}"></td>
+    <td><input type="text" class="disc-convencional" value="${d.convencional ? escapar(d.convencional) : ''}"></td>
+    <td><button type="button" class="boton-icono-critico disc-quitar">×</button></td>`;
+  tr.querySelector('.disc-quitar').addEventListener('click', () => tr.remove());
+  document.getElementById('cuerpo-discapacidades').appendChild(tr);
+}
+
+function leerDiscapacidades() {
+  const filas = [];
+  document.querySelectorAll('#cuerpo-discapacidades tr').forEach((tr) => {
+    const familiar = tr.querySelector('.disc-familiar').value.trim();
+    if (!familiar) return;
+    filas.push({
+      familiar,
+      codigo: tr.querySelector('.disc-codigo').value.trim(),
+      tipo: tr.querySelector('.disc-tipo').value.trim(),
+      porcentaje: tr.querySelector('.disc-porcentaje').value.trim(),
+      telefono: tr.querySelector('.disc-telefono').value.trim(),
+      convencional: tr.querySelector('.disc-convencional').value.trim()
+    });
+  });
+  return filas;
+}
+
 /* ============================================
    Guardar
    ============================================ */
@@ -370,12 +406,12 @@ const MAPA_CAMPOS_FICHA_TS = [
   ['ts_estatura', 'estatura'], ['ts_provincia', 'provincia'],
   ['ts_canton', 'canton'], ['ts_parroquia', 'parroquia'],
   ['ts_convencional', 'telefono_convencional'],
-  ['ts_disc_codigo', 'disc_codigo'], ['ts_disc_tipo', 'disc_tipo'],
-  ['ts_disc_porcentaje', 'disc_porcentaje'], ['ts_disc_familiar', 'disc_familiar'],
-  ['ts_disc_telefono', 'disc_telefono'], ['ts_disc_convencional', 'disc_convencional'],
   ['ts_disc_sangre', 'disc_tipo_sanguineo'],
   ['ts_resp_nombre', 'resp_nombre'], ['ts_resp_parentesco', 'resp_parentesco'],
-  ['ts_resp_telefono', 'resp_telefono'],
+  ['ts_resp_telefono', 'resp_telefono'], ['ts_resp_lugar', 'resp_lugar'],
+  ['ts_mapa_nombre', 'mapa_nombre'], ['ts_mapa_parentesco', 'mapa_parentesco'],
+  ['ts_mapa_telefono2', 'mapa_telefono2'], ['ts_mapa_lugar', 'mapa_lugar'],
+  ['ts_mapa_descripcion', 'mapa_descripcion'], ['ts_mapa_sitios', 'mapa_sitios'],
   ['ts_dom_descripcion', 'domicilio_descripcion'], ['ts_dom_referencias', 'domicilio_referencias'],
   ['ts_viv_tenencia', 'vivienda_tenencia'], ['ts_viv_construccion', 'vivienda_construccion'],
   ['ts_viv_obs', 'vivienda_observaciones'],
@@ -423,6 +459,9 @@ async function editarFicha() {
   });
   sincronizarParentescoCargas();
 
+  document.getElementById('cuerpo-discapacidades').innerHTML = '';
+  (Array.isArray(f.discapacidades) ? f.discapacidades : []).forEach((d) => agregarFilaDiscapacidad(d));
+
   document.getElementById('cuerpo-familiares').innerHTML = '';
   (Array.isArray(f.familiares) ? f.familiares : []).forEach((fam) => agregarFilaFamiliar(fam));
 
@@ -462,16 +501,18 @@ async function guardarFicha() {
     canton: valor('ts_canton'),
     parroquia: valor('ts_parroquia'),
     telefono_convencional: valor('ts_convencional'),
-    disc_codigo: valor('ts_disc_codigo'),
-    disc_tipo: valor('ts_disc_tipo'),
-    disc_porcentaje: valor('ts_disc_porcentaje'),
-    disc_familiar: valor('ts_disc_familiar'),
-    disc_telefono: valor('ts_disc_telefono'),
-    disc_convencional: valor('ts_disc_convencional'),
+    discapacidades: leerDiscapacidades(),
     disc_tipo_sanguineo: valor('ts_disc_sangre'),
     resp_nombre: valor('ts_resp_nombre'),
     resp_parentesco: valor('ts_resp_parentesco'),
     resp_telefono: valor('ts_resp_telefono'),
+    resp_lugar: valor('ts_resp_lugar'),
+    mapa_nombre: valor('ts_mapa_nombre'),
+    mapa_parentesco: valor('ts_mapa_parentesco'),
+    mapa_telefono2: valor('ts_mapa_telefono2'),
+    mapa_lugar: valor('ts_mapa_lugar'),
+    mapa_descripcion: valor('ts_mapa_descripcion'),
+    mapa_sitios: valor('ts_mapa_sitios'),
     domicilio_descripcion: valor('ts_dom_descripcion'),
     domicilio_referencias: valor('ts_dom_referencias'),
     familiares: leerFamiliares(),
@@ -541,6 +582,7 @@ function limpiarFormulario() {
     if (el.type === 'checkbox' || el.type === 'radio') el.checked = false; else el.value = '';
   });
   document.getElementById('cuerpo-familiares').innerHTML = '';
+  document.getElementById('cuerpo-discapacidades').innerHTML = '';
   document.getElementById('alerta-ficha').hidden = true;
 }
 
@@ -898,6 +940,13 @@ function htmlFichaSocial(f) {
       <td class="doc-centro">${MARCA(x.trabaja, 'Sí')}</td><td class="doc-centro">${MARCA(x.trabaja, 'No')}</td>
     </tr>`).join('') : '<tr><td colspan="11">Sin datos familiares</td></tr>';
 
+  const discs = Array.isArray(f.discapacidades) ? f.discapacidades : [];
+  const filasDisc = discs.length ? discs.map((d) => `
+    <tr>
+      <td>${V(d.familiar)}</td><td class="doc-centro">${V(d.codigo)}</td><td>${V(d.tipo)}</td>
+      <td class="doc-centro">${V(d.porcentaje)}</td><td>${V(d.telefono)}</td><td>${V(d.convencional)}</td>
+    </tr>`).join('') : '<tr><td colspan="6">Sin familiares con discapacidad registrados</td></tr>';
+
   return `
   <div class="doc-hoja doc-social">
     <div class="doc-encabezado">
@@ -911,35 +960,50 @@ function htmlFichaSocial(f) {
 
     <div class="doc-seccion-h">Datos de Identificación del Trabajador</div>
     <table class="doc-tabla">
-      <tr><td class="doc-lbl">Apellidos y Nombres</td><td colspan="3">${V(f.nombre_completo)}</td><td class="doc-lbl">Cédula</td><td>${V(f.cedula)}</td></tr>
-      <tr><td class="doc-lbl">Nacionalidad</td><td>${V(f.nacionalidad)}</td><td class="doc-lbl">Lugar de Nacimiento</td><td>${V(f.lugar_nacimiento)}</td><td class="doc-lbl">Estado Civil</td><td>${V(f.estado_civil)}</td></tr>
-      <tr><td class="doc-lbl">Experiencia</td><td>${V(f.experiencia)}</td><td class="doc-lbl">Fecha de Ingreso</td><td>${f.fecha_ingreso ? formatearFecha(f.fecha_ingreso) : ''}</td><td class="doc-lbl">Edad</td><td>${f.edad != null ? f.edad : ''}</td></tr>
-      <tr><td class="doc-lbl">Correo Electrónico</td><td colspan="3">${V(f.correo)}</td><td class="doc-lbl">Sexo</td><td class="doc-centro">${V(f.sexo)}</td></tr>
+      <tr><td class="doc-lbl">Apellidos y Nombres</td><td colspan="3">${V(f.nombre_completo)}</td><td class="doc-lbl">Cédula de Ident N°</td><td>${V(f.cedula)}</td></tr>
+      <tr><td class="doc-lbl">Lugar de Nacimiento</td><td>${V(f.lugar_nacimiento)}</td><td class="doc-lbl">F/Nacimiento</td><td>${f.fecha_nacimiento ? formatearFecha(f.fecha_nacimiento) : ''}</td><td class="doc-lbl">Estado Civil</td><td>${V(f.estado_civil)}</td></tr>
+      <tr><td class="doc-lbl">Experiencia</td><td>${V(f.experiencia)}</td><td class="doc-lbl" colspan="2">Fecha de Ingreso</td><td colspan="2">${f.fecha_ingreso ? formatearFecha(f.fecha_ingreso) : ''}</td></tr>
+      <tr><td class="doc-lbl">Correo Electrónico</td><td colspan="3">${V(f.correo)}</td><td class="doc-lbl">Edad</td><td>${f.edad != null ? f.edad : ''}</td></tr>
+      <tr><td class="doc-lbl">Nacionalidad</td><td>${V(f.nacionalidad)}</td><td class="doc-lbl">Sexo</td><td class="doc-centro">${MARCA(f.sexo, 'M')} M &nbsp; ${MARCA(f.sexo, 'F')} F</td><td class="doc-lbl">Puesto de Trabajo</td><td>${V(f.cargo)}</td></tr>
       <tr><td class="doc-lbl">Domicilio Actual en</td><td colspan="5">${V(f.domicilio)}</td></tr>
-      <tr><td class="doc-lbl">Nivel de Instrucción</td><td>${V(f.nivel_instruccion)}</td><td class="doc-lbl">Título o Grado Superior Obtenido</td><td>${V(f.titulo_obtenido)}</td><td class="doc-lbl">Puesto de Trabajo</td><td>${V(f.cargo)}</td></tr>
-      <tr><td class="doc-lbl">Grupo Étnico</td><td>${V(f.grupo_etnico)}</td><td class="doc-lbl">Religión</td><td colspan="3">${V(f.religion)}</td></tr>
+      <tr><td class="doc-lbl">Nivel de Instrucción</td><td>${V(f.nivel_instruccion)}</td><td class="doc-lbl">Título o Grado Superior Obtenido</td><td colspan="3">${V(f.titulo_obtenido)}</td></tr>
+      <tr><td class="doc-lbl">Grupo Étnico</td><td colspan="5">${V(f.grupo_etnico)}</td></tr>
+      <tr><td class="doc-lbl">Religión</td><td colspan="5">${V(f.religion)}</td></tr>
     </table>
 
     <div class="doc-seccion-h">Datos de Familiares con Discapacidad</div>
-    <table class="doc-tabla">
-      <tr><td class="doc-lbl">Familiar</td><td>${V(f.disc_familiar)}</td><td class="doc-lbl">Código</td><td>${V(f.disc_codigo)}</td><td class="doc-lbl">Tipo de Discapacidad</td><td>${V(f.disc_tipo)}</td><td class="doc-lbl">Porcentaje</td><td>${V(f.disc_porcentaje)}</td></tr>
-      <tr><td class="doc-lbl">Teléfono</td><td>${V(f.disc_telefono)}</td><td class="doc-lbl">Convencional</td><td>${V(f.disc_convencional)}</td><td class="doc-lbl">Tipo Sanguíneo</td><td colspan="3">${V(f.disc_tipo_sanguineo)}</td></tr>
+    <table class="doc-tabla doc-tabla-chica">
+      <tr>
+        <td class="doc-lbl">Familiar con Discapacidad</td><td class="doc-lbl">Código</td>
+        <td class="doc-lbl">Tipo de Discapacidad</td><td class="doc-lbl">Porcentaje</td>
+        <td class="doc-lbl">Teléfono</td><td class="doc-lbl">Convencional</td>
+      </tr>
+      ${filasDisc}
     </table>
+    <div class="doc-campo-largo" style="margin-top:0.15rem;"><strong>Tipo Sanguíneo (del trabajador):</strong> ${V(f.disc_tipo_sanguineo)}</div>
 
-    <div class="doc-seccion-h">Mapa de Ubicación de Domicilio · Persona Responsable</div>
+    <div class="doc-seccion-h">Mapa de Ubicación de Domicilio</div>
     <table class="doc-tabla">
-      <tr><td class="doc-lbl">Persona Responsable</td><td>${V(f.resp_nombre)}</td><td class="doc-lbl">Parentesco</td><td>${V(f.resp_parentesco)}</td><td class="doc-lbl">Teléfono</td><td>${V(f.resp_telefono)}</td></tr>
+      <tr><td class="doc-lbl">Nombre del Familiar</td><td>${V(f.mapa_nombre)}</td><td class="doc-lbl">Parentesco</td><td>${V(f.mapa_parentesco)}</td><td class="doc-lbl">Teléfono 2</td><td>${V(f.mapa_telefono2)}</td></tr>
     </table>
-    <div class="doc-campo-largo"><strong>Lugar / Descripción del Domicilio o Vivienda:</strong><p>${V(f.domicilio_descripcion)}</p></div>
-    <div class="doc-campo-largo"><strong>Sitios de Referencia del Domicilio:</strong><p>${V(f.domicilio_referencias)}</p></div>
+    <div class="doc-campo-largo"><strong>Lugar de Domicilio / Vivienda:</strong><p>${V(f.mapa_lugar)}</p></div>
+    <div class="doc-campo-largo"><strong>Descripción de Domicilio / Vivienda:</strong><p>${V(f.mapa_descripcion)}</p></div>
+    <div class="doc-campo-largo"><strong>Sitios de Referencia de Domicilio / Vivienda:</strong><p>${V(f.mapa_sitios)}</p></div>
+
+    <table class="doc-tabla" style="margin-top:0.3rem;">
+      <tr><td class="doc-lbl">Persona Responsable</td><td>${V(f.resp_nombre)}</td><td class="doc-lbl">Parentesco</td><td>${V(f.resp_parentesco)}</td><td class="doc-lbl">Teléfono 1</td><td>${V(f.resp_telefono)}</td></tr>
+    </table>
+    <div class="doc-campo-largo"><strong>Lugar de Domicilio / Vivienda:</strong><p>${V(f.resp_lugar)}</p></div>
+    <div class="doc-campo-largo"><strong>Descripción de Domicilio / Vivienda:</strong><p>${V(f.domicilio_descripcion)}</p></div>
+    <div class="doc-campo-largo"><strong>Sitios de Referencia de Domicilio / Vivienda:</strong><p>${V(f.domicilio_referencias)}</p></div>
 
     <div class="doc-seccion-h">Datos Familiares</div>
     <table class="doc-tabla doc-tabla-chica">
       <tr>
         <td class="doc-lbl" rowspan="2">Apellidos y Nombres</td><td class="doc-lbl" rowspan="2">Parentesco</td>
         <td class="doc-lbl" colspan="2">Sexo</td><td class="doc-lbl" rowspan="2">Edad</td>
-        <td class="doc-lbl" colspan="2">Estudia</td><td class="doc-lbl" rowspan="2">Nivel</td>
-        <td class="doc-lbl" rowspan="2">Grado</td><td class="doc-lbl" colspan="2">Trabaja</td>
+        <td class="doc-lbl" colspan="2">Estudian</td><td class="doc-lbl" rowspan="2">Nivel</td>
+        <td class="doc-lbl" rowspan="2">Grado</td><td class="doc-lbl" colspan="2">Trabajan</td>
       </tr>
       <tr>
         <td class="doc-lbl doc-centro">H</td><td class="doc-lbl doc-centro">M</td>
@@ -953,12 +1017,13 @@ function htmlFichaSocial(f) {
     <table class="doc-tabla doc-tabla-chica">
       <tr>
         <td class="doc-lbl" colspan="2">Vivienda</td><td class="doc-lbl" colspan="2">Construcción</td>
-        <td class="doc-lbl" colspan="3">Servicios Básicos</td>
+        <td class="doc-lbl" colspan="3">Servicios Básicos</td><td class="doc-lbl">Observaciones</td>
       </tr>
       <tr>
         <td class="doc-lbl doc-centro">Propia</td><td class="doc-lbl doc-centro">Arriendo</td>
         <td class="doc-lbl doc-centro">Mixta</td><td class="doc-lbl doc-centro">Cemento</td>
         <td class="doc-lbl doc-centro">Luz</td><td class="doc-lbl doc-centro">Agua</td><td class="doc-lbl doc-centro">Alcantarillado</td>
+        <td class="doc-lbl"></td>
       </tr>
       <tr>
         <td class="doc-centro">${MARCA(f.vivienda_tenencia, 'Propia')}</td>
@@ -968,27 +1033,28 @@ function htmlFichaSocial(f) {
         <td class="doc-centro">${f.vivienda_luz ? 'X' : ''}</td>
         <td class="doc-centro">${f.vivienda_agua ? 'X' : ''}</td>
         <td class="doc-centro">${f.vivienda_alcantarillado ? 'X' : ''}</td>
+        <td>${V(f.vivienda_observaciones)}</td>
       </tr>
     </table>
-    <div class="doc-campo-largo"><strong>Observaciones de Vivienda:</strong><p>${V(f.vivienda_observaciones)}</p></div>
 
     <div class="doc-seccion-h">Situación Económica</div>
     <table class="doc-tabla">
-      <tr><td class="doc-lbl">Ingreso Mensual Familiar</td><td>${V(f.ingreso_mensual)}</td><td class="doc-lbl">Otros Ingresos</td><td>${V(f.otros_ingresos)}</td></tr>
-      <tr><td class="doc-lbl">Cómo se moviliza a su lugar de trabajo</td><td colspan="3">${V(f.movilizacion)}</td></tr>
+      <tr><td class="doc-lbl">Ingreso Mensuales Familiar</td><td colspan="3">${V(f.ingreso_mensual)}</td></tr>
+      <tr><td class="doc-lbl">Otros Ingresos</td><td colspan="3">${V(f.otros_ingresos)}</td></tr>
+      <tr><td class="doc-lbl">Cómo se Moviliza para Llegar a su Lugar de Trabajo</td><td colspan="3">${V(f.movilizacion)}</td></tr>
     </table>
     <div class="doc-campo-largo"><strong>Observación:</strong><p>${V(f.observacion)}</p></div>
 
     <div class="doc-firmas-fila">
       <div class="doc-firma">
         <div class="doc-firma-linea"></div>
-        <p>${V(f.registrado_por || 'Trabajador/a Social')}</p>
-        <p style="font-size:9pt">Departamento de Trabajo Social</p>
+        <p>${V(f.nombre_completo)}</p>
+        <p style="font-size:9pt">${V(f.cargo) || 'Trabajador'}</p>
       </div>
       <div class="doc-firma">
         <div class="doc-firma-linea"></div>
-        <p>${V(f.nombre_completo)}</p>
-        <p style="font-size:9pt">Trabajador · C.I. ${V(f.cedula)}</p>
+        <p>${V(f.registrado_por || 'Trabajador/a Social')}</p>
+        <p style="font-size:9pt">Trabajador Social</p>
       </div>
     </div>
   </div>`;
@@ -1021,11 +1087,18 @@ function htmlRegistroPersonal(f) {
       <tr><td class="doc-lbl">Convencional</td><td>${V(f.telefono_convencional)}</td><td class="doc-lbl">Celular</td><td colspan="3">${V(f.telefono)}</td></tr>
     </table>
 
-    <div class="doc-seccion-h">Familiares más Cercanos</div>
+    <div class="doc-seccion-h">Celular Familiares más Cercanos</div>
     <table class="doc-tabla">
-      <tr><td class="doc-lbl">Familiar 1</td><td>${V(f.rp_familiar1_nombre)}</td><td class="doc-lbl">Convencional</td><td>${V(f.rp_familiar1_convencional)}</td><td class="doc-lbl">Celular</td><td>${V(f.rp_familiar1_celular)}</td></tr>
-      <tr><td class="doc-lbl">Familiar 2</td><td>${V(f.rp_familiar2_nombre)}</td><td class="doc-lbl">Convencional</td><td>${V(f.rp_familiar2_convencional)}</td><td class="doc-lbl">Celular</td><td>${V(f.rp_familiar2_celular)}</td></tr>
-      <tr><td class="doc-lbl">Contacto</td><td>${V(f.rp_contacto_nombre)}</td><td class="doc-lbl">Correo</td><td>${V(f.rp_contacto_correo)}</td><td class="doc-lbl">Celular</td><td>${V(f.rp_contacto_celular)}</td></tr>
+      <tr><td class="doc-lbl">Nombre</td><td colspan="3">${V(f.rp_contacto_nombre)}</td><td class="doc-lbl">Celular</td><td>${V(f.rp_contacto_celular)}</td></tr>
+      <tr><td class="doc-lbl">Correo Electrónico</td><td colspan="5">${V(f.rp_contacto_correo)}</td></tr>
+    </table>
+
+    <div class="doc-seccion-h">Persona o Familiar más Cercano · Contacto en Caso de Emergencia</div>
+    <table class="doc-tabla">
+      <tr><td class="doc-lbl">Familiar</td><td colspan="3">${V(f.rp_familiar1_nombre)}</td><td class="doc-lbl">Celular</td><td>${V(f.rp_familiar1_celular)}</td></tr>
+      <tr><td class="doc-lbl">Teléfono Convencional</td><td colspan="5">${V(f.rp_familiar1_convencional)}</td></tr>
+      <tr><td class="doc-lbl">Familiar</td><td colspan="3">${V(f.rp_familiar2_nombre)}</td><td class="doc-lbl">Celular</td><td>${V(f.rp_familiar2_celular)}</td></tr>
+      <tr><td class="doc-lbl">Teléfono Convencional</td><td colspan="5">${V(f.rp_familiar2_convencional)}</td></tr>
     </table>
 
     <div class="doc-seccion-h">Cargas Familiares</div>
