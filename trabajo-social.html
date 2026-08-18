@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="css/empresas.css">
   <link rel="stylesheet" href="css/trabajadores.css">
   <link rel="stylesheet" href="css/atenciones.css">
-  <link rel="stylesheet" href="css/psicologia.css?v=3">
+  <link rel="stylesheet" href="css/psicologia.css?v=4">
   <style>
     .seccion-titulo {
       font-size: 0.95rem;
@@ -440,12 +440,31 @@
           </div>
 
           <h3 class="seccion-titulo">Cargas familiares y datos laborales</h3>
-          <div class="rejilla">
-            <div class="campo"><label class="etiqueta" for="ts_cargas">¿Tiene cargas familiares?</label>
-              <select class="entrada" id="ts_cargas"><option value="">—</option><option>Sí</option><option>No</option></select>
+          <div class="campo campo-ancho">
+            <span class="etiqueta">¿Tiene cargas familiares?</span>
+            <div class="opciones-marca">
+              <label class="opcion-marca"><input type="radio" name="ts_cargas" value="Sí"> Sí</label>
+              <label class="opcion-marca"><input type="radio" name="ts_cargas" value="No"> No</label>
+              <span class="campo-mini">
+                <label class="etiqueta" for="ts_num_cargas">N°</label>
+                <input class="entrada" id="ts_num_cargas" type="text">
+              </span>
             </div>
-            <div class="campo"><label class="etiqueta" for="ts_num_cargas">N° de cargas</label><input class="entrada" id="ts_num_cargas" type="text"></div>
-            <div class="campo"><label class="etiqueta" for="ts_parentesco_cargas">Parentesco de cargas</label><input class="entrada" id="ts_parentesco_cargas" type="text" placeholder="Esposa, hijo, hija…"></div>
+          </div>
+          <div class="campo campo-ancho">
+            <span class="etiqueta">Parentesco de las cargas familiares</span>
+            <div class="opciones-marca" id="ts_parentesco_opciones">
+              <label class="opcion-marca"><input type="checkbox" value="Esposa"> Esposa</label>
+              <label class="opcion-marca"><input type="checkbox" value="Hijo"> Hijo</label>
+              <label class="opcion-marca"><input type="checkbox" value="Hija"> Hija</label>
+              <label class="opcion-marca"><input type="checkbox" value="Papá"> Papá</label>
+              <label class="opcion-marca"><input type="checkbox" value="Mamá"> Mamá</label>
+              <label class="opcion-marca"><input type="checkbox" value="Abuelo"> Abuelo</label>
+              <label class="opcion-marca"><input type="checkbox" value="Abuela"> Abuela</label>
+            </div>
+            <input class="entrada" id="ts_parentesco_cargas" type="hidden">
+          </div>
+          <div class="rejilla">
             <div class="campo"><label class="etiqueta" for="ts_sueldo">Sueldo</label><input class="entrada" id="ts_sueldo" type="text"></div>
             <div class="campo"><label class="etiqueta" for="ts_fecha_salida">Fecha de salida</label><input class="entrada" id="ts_fecha_salida" type="date"></div>
           </div>
@@ -514,6 +533,6 @@
   <!-- Zona de impresión (fuera de todo) -->
   <div id="zona-impresion" class="zona-impresion" aria-hidden="true"></div>
 
-  <script type="module" src="js/trabajo-social.js?v=15"></script>
+  <script type="module" src="js/trabajo-social.js?v=16"></script>
 </body>
 </html>
