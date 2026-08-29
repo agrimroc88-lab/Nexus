@@ -49,7 +49,18 @@ const TEXTOS = {
   conclusion:
     'El conjunto de datos aportados por el presente estudio permite identificar las áreas, ' +
     'turnos y causas de mayor incidencia, orientando la priorización de las medidas correctivas ' +
-    'y preventivas necesarias para reducir la siniestralidad de la empresa.'
+    'y preventivas necesarias para reducir la siniestralidad de la empresa.',
+
+  recomendaciones:
+    'Investigar todo incidente y accidente dentro de las 24 horas siguientes a su ocurrencia, ' +
+    'documentando causas inmediatas y básicas.\n' +
+    'Reforzar la inducción y el reentrenamiento en seguridad en las áreas con mayor frecuencia ' +
+    'de eventos.\n' +
+    'Verificar el uso correcto del equipo de protección personal en las tareas de mayor riesgo ' +
+    'identificadas.\n' +
+    'Dar seguimiento documentado al cumplimiento de las medidas correctivas derivadas de cada ' +
+    'investigación.\n' +
+    'Divulgar las lecciones aprendidas de cada evento al personal del área involucrada.'
 };
 
 /* ============================================
@@ -93,6 +104,7 @@ function pintarTextosPorDefecto() {
   poner('infoev-resumen-texto', TEXTOS.resumen);
   poner('infoev-exposicion', TEXTOS.exposicion);
   poner('infoev-conclusiones', TEXTOS.conclusion);
+  poner('infoev-recomendaciones', TEXTOS.recomendaciones);
 }
 
 /* ============================================
