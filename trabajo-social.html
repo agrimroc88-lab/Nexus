@@ -96,12 +96,73 @@
         -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
       /* ===== Colores por documento ===== */
-      /* Ficha Social: azul */
-      .doc-social .doc-encabezado { border-bottom-color: #2b6ca3; }
-      .doc-social .doc-titulo-empresa strong,
-      .doc-social .doc-titulo-empresa h1 { color: #2b6ca3; }
-      .doc-social .doc-seccion-h { background: #4a90c2; }
-      .doc-social .doc-lbl { background: #dbeaf5; }
+      /* Ficha Social: reproduce el Excel original tal cual está,
+         celda por celda (colores de relleno, bordes y alineación
+         verificados directamente en el archivo, no a ojo). */
+      .doc-social .doc-encabezado { border-bottom: none; flex-direction: column; align-items: center; text-align: center; }
+      .doc-social .doc-titulo-empresa { align-items: center; }
+      .doc-social .doc-titulo-empresa strong { font-size: 15pt; color: #000; }
+      .doc-social .doc-titulo-empresa span { font-size: 11pt; }
+      /* El Excel no mete "FICHA SOCIAL" en la banda azul: es texto
+         negro aparte, entre dos bandas vacías. Por eso h1 se pinta
+         igual que el resto del texto, no en color. */
+      .doc-social .doc-titulo-empresa h1 { font-size: 12pt; color: #000; text-align: center; margin: 0.3rem 0 0; }
+
+      /* Banda azul decorativa: SIN texto dentro, tal como en el
+         Excel (fila en blanco con relleno #99ccff). */
+      .doc-social-banda { background: #99ccff; height: 5mm; margin: 1mm 0;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+      /* Títulos de sección: en el Excel son texto negro centrado
+         sobre fondo blanco, NO una banda de color con texto
+         blanco dentro (eso es lo que corrige este bloque). */
+      .doc-social .doc-seccion-h { background: none; color: #000; text-align: center; font-size: 12pt; padding: 0; margin: 0.15rem 0; }
+
+      /* Única excepción real dentro del propio Excel: "SITUACIÓN
+         ECONÓMICA" sí lleva el texto metido en la banda azul, sin
+         negrita. */
+      .doc-social .doc-seccion-h.doc-social-con-texto { background: #99ccff; color: #000; font-weight: normal; padding: 2px 0;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+      /* Caja de "Datos de Familiares con Discapacidad": gris con
+         borde, no azul — es la otra excepción real del Excel. */
+      .doc-social-grid td.doc-social-caja-gris { background: #c0c0c0; border: 1px solid #000; text-align: center;
+        font-weight: bold; font-size: 12pt; padding: 2px 4px;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+      /* Cuadrícula de 30 columnas para la sección de
+         identificación: cada <td> equivale a una columna real del
+         Excel (A a AD), respetando sus anchos relativos, para que
+         los bloques en paralelo (Grupo Étnico/Religión a la
+         izquierda y la caja de discapacidad a la derecha) queden
+         en la misma posición que en el original. */
+      .doc-social-grid { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 1mm; }
+      .doc-social-grid td { font-size: 7pt; padding: 0 2px; overflow: hidden; white-space: normal; word-break: break-word; vertical-align: bottom; border: none; line-height: 1.15; }
+      .doc-social-grid td.et { font-weight: bold; background: #fff; }
+      .doc-social-grid td.va { background: #c0c0c0; border-bottom: 1px solid #000; min-height: 3mm;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .doc-social-grid td.et-centro, .doc-social-grid td.va-centro { text-align: center; }
+
+      /* Firma: en el Excel es UNA sola línea, y debajo solo va el
+         cargo/rol de cada firmante —nunca un nombre impreso—,
+         porque la firma real se hace a mano sobre esa línea. */
+      .doc-social-firma-linea { border-top: 1px solid #000; margin-top: 7rem; }
+      .doc-social-firma-roles { display: flex; justify-content: space-around; font-size: 11pt; margin-top: 2px; }
+
+      /* Cajas de valor fuera de la grilla de identificación (Mapa
+         de domicilio, Persona Responsable, Situación Económica):
+         mismo criterio verificado en el Excel —gris, solo borde
+         inferior—. No toca doc-tabla-chica (Datos Familiares y
+         Datos de la Vivienda), que en el original son tablas
+         blancas con bordes normales, no cajas grises. */
+      .doc-social .doc-tabla:not(.doc-tabla-chica) td:not(.doc-lbl) {
+        background: #c0c0c0; border: none; border-bottom: 1px solid #000;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact;
+      }
+      .doc-social .doc-campo-largo {
+        border: none; border-bottom: 1px solid #000; background: #c0c0c0;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact;
+      }
 
       /* Registro de Personal: gris/verde sobrio */
       .doc-registro .doc-encabezado { border-bottom-color: #1b5e20; align-items: flex-start; }
