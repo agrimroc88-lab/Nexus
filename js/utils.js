@@ -18,8 +18,18 @@ export function validarCedula(cedula) {
   const provincia = parseInt(cedula.substring(0, 2), 10);
   if (provincia < 1 || (provincia > 24 && provincia !== 30)) return false;
 
+  /* El tercer dígito de una cédula de persona natural ecuatoriana
+     va normalmente de 0 a 5. Pero el Registro Civil también emite
+     cédulas con tercer dígito 6 a extranjeros residentes o
+     naturalizados (p. ej. un ciudadano peruano con cédula
+     ecuatoriana). El algoritmo módulo 10 sigue siendo el mismo;
+     solo se amplía el rango aceptado del tercer dígito.
+
+     No afecta la validación de RUC: validarRuc() ya filtra el
+     rango 0-5 antes de delegar aquí, así que este cambio no
+     relaja nada en la validación de RUC de sociedades o entidades. */
   const tercerDigito = parseInt(cedula[2], 10);
-  if (tercerDigito > 5) return false;
+  if (tercerDigito > 6) return false;
 
   const coeficientes = [2, 1, 2, 1, 2, 1, 2, 1, 2];
   let suma = 0;
