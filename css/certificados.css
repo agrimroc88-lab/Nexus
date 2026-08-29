@@ -356,12 +356,18 @@
     flex-shrink: 0;
   }
 
-  /* La segunda copia (la de la derecha) lleva 3 cm extra de
-     aire a su izquierda, además del espacio de la línea de
-     corte —a pedido, para que quede mejor acomodada en esa
-     mitad de la hoja. */
+  /* La segunda copia (la de la derecha) llevaba 3 cm extra de
+     aire a su izquierda —a pedido, en su momento—, pero sumado
+     al resto (125 + 125 + el corte) da 290mm, casi el ancho
+     completo de la hoja (297mm). Con el margen del diálogo de
+     impresión ya no forzado en 8mm fijo, ese ancho no cabe y el
+     navegador no puede centrar las dos copias de verdad —la
+     derecha queda pegada al borde y toda la holgura se le
+     amontona a la izquierda—. Se reduce a 10mm: sigue dejando
+     espacio de sobra para cortar con tijera, pero ahora el total
+     cabe cómodo incluso con "Predeterminados" en el diálogo. */
   .of-copia-derecha {
-    margin-left: 30mm;
+    margin-left: 10mm;
   }
 
   /* --- Contenido ---
