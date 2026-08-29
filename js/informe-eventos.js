@@ -237,18 +237,13 @@ export function generarInformeEventos() {
   const listaPartes = [...porParte.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8)
     .map(([etiqueta, n]) => ({ etiqueta, n, pct: pct(n, porParte.size > 0 ? [...porParte.values()].reduce((s, v) => s + v, 0) : 0) }));
 
-  /* Gestión: investigados y reportados, con el detalle de
-     cuáles están pendientes —no solo el conteo. */
   const investigados = eventosAnio.filter((e) => e.investigado).length;
-  const reportables = eventosAnio.filter((e) => e.tipo !== 'incidente'); // solo accidentes se reportan al IESS
-  const reportados = reportables.filter((e) => e.reportado_iess).length;
   const pendientesInvestigar = eventosAnio.filter((e) => !e.investigado);
-  const pendientesReportar = reportables.filter((e) => !e.reportado_iess);
 
   inf.datos = {
     anio, totalEventos, totales, porTipo, porTurno, porSexo, listaAreas,
-    listaAgentes, listaPartes, investigados, reportables, reportados,
-    pendientesInvestigar, pendientesReportar
+    listaAgentes, listaPartes, investigados, pendientesInvestigar,
+    eventos: eventosAnio
   };
 
   pintarPreviaEventos();
@@ -382,52 +377,63 @@ export async function descargarInformeEventos() {
     </table>
     ${fuente(d.anio)}`;
 
+  const ETIQUETA_TIPO_INFORME = {
+    incidente: 'Incidente', accidente: 'Accidente sin baja', accidente_baja: 'Accidente con baja'
+  };
+
+  const bloqueDetalle = `
+    <h2 class="if-seccion">2. Detalle de eventos registrados</h2>
+    <table class="if-tabla">
+      <thead><tr><th>Fecha</th><th class="if-izq">Tipo</th><th class="if-izq">Área</th><th class="if-izq">Trabajador</th><th class="if-izq">Descripción</th></tr></thead>
+      <tbody>${d.eventos.map((e) => `<tr><td>${formatearFecha(e.fecha)}</td><td class="if-izq">${escapar(ETIQUETA_TIPO_INFORME[e.tipo] || e.tipo || '—')}</td><td class="if-izq">${escapar(e.area || '—')}</td><td class="if-izq">${escapar([e.codigo_trabajador, e.trabajador].filter(Boolean).join(' · ') || '—')}</td><td class="if-izq">${escapar((e.descripcion || '').slice(0, 90))}</td></tr>`).join('')}</tbody>
+    </table>
+    ${fuente(d.anio)}`;
+
   const bloqueTipo = `
-    <h2 class="if-seccion">2. Distribución por tipo de evento</h2>
+    <h2 class="if-seccion">3. Distribución por tipo de evento</h2>
     ${tablaSimple(d.porTipo, 'Tipo de evento')}
     ${fuente(d.anio)}
     <p>${prosaDistribucion(d.porTipo, sujeto)}</p>
     ${graficoBarras(d.porTipo.map((t) => ({ etiqueta: t.etiqueta, valor: t.n })), { ancho: 400, alto: 150 })}`;
 
   const bloqueArea = `
-    <h2 class="if-seccion">3. Distribución por área</h2>
+    <h2 class="if-seccion">4. Distribución por área</h2>
     ${tablaSimple(d.listaAreas, 'Área')}
     ${fuente(d.anio)}
     <p>${prosaDistribucion(d.listaAreas, sujeto)}</p>
     ${graficoBarras(d.listaAreas.slice(0, 8).map((a) => ({ etiqueta: a.etiqueta, valor: a.n })), { ancho: 460, alto: 160 })}`;
 
   const bloqueTurno = `
-    <h2 class="if-seccion">4. Distribución por turno</h2>
+    <h2 class="if-seccion">5. Distribución por turno</h2>
     ${tablaSimple(d.porTurno, 'Turno')}
     ${fuente(d.anio)}
     <p>${prosaDistribucion(d.porTurno, sujeto)}</p>`;
 
   const bloqueSexo = `
-    <h2 class="if-seccion">5. Distribución por sexo</h2>
+    <h2 class="if-seccion">6. Distribución por sexo</h2>
     ${tablaSimple(d.porSexo, 'Sexo')}
     ${fuente(d.anio)}
     <p>${prosaDistribucion(d.porSexo, sujeto)}</p>`;
 
   const bloqueCausas = `
-    <h2 class="if-seccion">6. Análisis de causas</h2>
-    <h3 class="if-subseccion">6.1 Agente material más frecuente</h3>
+    <h2 class="if-seccion">7. Análisis de causas</h2>
+    <h3 class="if-subseccion">7.1 Agente material más frecuente</h3>
     ${d.listaAgentes.length > 0 ? tablaSimple(d.listaAgentes, 'Agente material') : '<p class="if-nota">Sin agente material registrado en el periodo.</p>'}
     ${d.listaAgentes.length > 0 ? fuente(d.anio) : ''}
-    <h3 class="if-subseccion">6.2 Parte del cuerpo más afectada</h3>
+    <h3 class="if-subseccion">7.2 Parte del cuerpo más afectada</h3>
     ${d.listaPartes.length > 0 ? tablaSimple(d.listaPartes, 'Parte del cuerpo') : '<p class="if-nota">Sin parte del cuerpo registrada en el periodo.</p>'}
     ${d.listaPartes.length > 0 ? fuente(d.anio) : ''}`;
 
   const bloqueGestion = `
-    <h2 class="if-seccion">7. Cumplimiento de gestión</h2>
+    <h2 class="if-seccion">8. Cumplimiento de gestión</h2>
     <table class="if-tabla">
       <thead><tr><th class="if-izq">Aspecto</th><th>Cumplido</th><th>Pendiente</th><th>%</th></tr></thead>
       <tbody>
         <tr><td class="if-izq">Investigación del evento</td><td>${d.investigados}</td><td>${d.totalEventos - d.investigados}</td><td>${pct(d.investigados, d.totalEventos)}%</td></tr>
-        <tr><td class="if-izq">Notificación al IESS (solo accidentes)</td><td>${d.reportados}</td><td>${d.reportables.length - d.reportados}</td><td>${pct(d.reportados, d.reportables.length)}%</td></tr>
       </tbody>
     </table>
     ${fuente(d.anio)}
-    <p>Del total de eventos del periodo, el ${pct(d.investigados, d.totalEventos)}% (${d.investigados}) cuenta con investigación documentada, quedando ${d.totalEventos - d.investigados} evento(s) pendiente(s). De los accidentes reportables, el ${pct(d.reportados, d.reportables.length)}% (${d.reportados}) fue notificado al Seguro General de Riesgos del Trabajo, quedando ${d.reportables.length - d.reportados} caso(s) pendiente(s) de reporte.</p>
+    <p>Del total de eventos del periodo, el ${pct(d.investigados, d.totalEventos)}% (${d.investigados}) cuenta con investigación documentada, quedando ${d.totalEventos - d.investigados} evento(s) pendiente(s).</p>
     ${d.pendientesInvestigar.length > 0 ? `
     <h3 class="if-subseccion">Eventos pendientes de investigar</h3>
     <table class="if-tabla">
@@ -447,6 +453,7 @@ export async function descargarInformeEventos() {
       <p>${escapar(exposicion)}</p>
 
       ${bloqueGeneral}
+      ${bloqueDetalle}
       ${bloqueTipo}
       ${bloqueArea}
       ${bloqueTurno}
@@ -454,10 +461,10 @@ export async function descargarInformeEventos() {
       ${bloqueCausas}
       ${bloqueGestion}
 
-      <h2 class="if-seccion">8. Conclusiones</h2>
+      <h2 class="if-seccion">9. Conclusiones</h2>
       <p>${escapar(conclusiones)}</p>
 
-      <h2 class="if-seccion">9. Recomendaciones</h2>
+      <h2 class="if-seccion">10. Recomendaciones</h2>
       <ul class="if-lista">${recomendaciones.split(/\n+/).map((x) => x.trim()).filter(Boolean).map((x) => `<li>${escapar(x)}</li>`).join('')}</ul>
 
       <div class="if-firmas">
