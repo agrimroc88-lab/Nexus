@@ -309,7 +309,20 @@
      para caber cómodo incluso en el papel más angosto de los
      dos —si el papel resulta ser A4, sencillamente sobra un
      poco más de aire al centro; nunca se recorta. */
-  @page { size: A4 landscape; margin: 8mm; }
+  /* Margen bajo control del diálogo de impresión (a pedido
+     explícito, aceptando el riesgo que esto implica):
+
+     Antes este margen estaba fijo en 8mm a propósito, para
+     garantizar que las dos copias entraran completas sin
+     importar si la impresora trata la hoja como A4 o como Carta/
+     Letter apaisada (más angosta) —ver el porqué del ancho fijo
+     de .of-hoja más abajo, esa parte no se tocó—. Al dejar el
+     margen en manos del diálogo, si alguien elige un margen
+     mayor al que había (por ejemplo, "Predeterminados" en vez de
+     "Ninguno"), en papel Carta podría volver a recortarse la
+     copia izquierda. Si eso pasa, la salida inmediata es elegir
+     "Márgenes: Ninguno" en el diálogo de impresión. */
+  @page { size: A4 landscape; margin: auto; }
 
   /* En fila, centradas: los dos A5 verticales con la línea de
      corte al medio. Sin ancho total forzado en el contenedor. */
@@ -327,7 +340,7 @@
     box-sizing: border-box;
     width: 125mm;
     height: 190mm;
-    padding: 9mm;
+    padding: 4mm;
     overflow: hidden;
     flex-shrink: 0;
   }
