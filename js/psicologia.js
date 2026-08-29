@@ -1404,6 +1404,7 @@ async function recargar() {
   pintarResumen();
 
   if (estado.vista === 'atenciones') pintarAtenciones();
+  if (estado.vista === 'registros') pintarRegistros();
 
   // Si hay un trabajador en pantalla, refrescar su ficha y su historial
   if (estado.paciente) {
