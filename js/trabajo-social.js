@@ -940,89 +940,180 @@ function htmlFichaSocial(f) {
       <td class="doc-centro">${MARCA(x.trabaja, 'Sí')}</td><td class="doc-centro">${MARCA(x.trabaja, 'No')}</td>
     </tr>`).join('') : '<tr><td colspan="11">Sin datos familiares</td></tr>';
 
+  /* El Excel solo tiene espacio fijo para UN familiar con
+     discapacidad (es un formulario en papel). El sistema sí
+     permite registrar varios [agregarFilaDiscapacidad()]: el
+     primero ocupa la fila exacta del Excel, y si hay más se
+     agregan debajo para no perder información que sí se
+     capturó. El tipo sanguíneo es un campo propio del
+     trabajador (f.disc_tipo_sanguineo), no de cada discapacidad. */
   const discs = Array.isArray(f.discapacidades) ? f.discapacidades : [];
-  const filasDisc = discs.length ? discs.map((d) => `
-    <tr>
-      <td>${V(d.familiar)}</td><td class="doc-centro">${V(d.codigo)}</td><td>${V(d.tipo)}</td>
-      <td class="doc-centro">${V(d.porcentaje)}</td><td>${V(d.telefono)}</td><td>${V(d.convencional)}</td>
-    </tr>`).join('') : '<tr><td colspan="6">Sin familiares con discapacidad registrados</td></tr>';
+  const disc = discs[0] || {};
+  const discsExtra = discs.slice(1);
+  const filasDiscExtra = discsExtra.length ? `
+    <table class="doc-tabla doc-tabla-chica" style="margin-top:0.1rem;">
+      <tr><td class="doc-lbl">Familiar con Discapacidad</td><td class="doc-lbl">Código</td><td class="doc-lbl">Tipo de Discapacidad</td><td class="doc-lbl">Porcentaje</td><td class="doc-lbl">Teléfono</td><td class="doc-lbl">Convencional</td></tr>
+      ${discsExtra.map((d) => `<tr><td>${V(d.familiar)}</td><td class="doc-centro">${V(d.codigo)}</td><td>${V(d.tipo)}</td><td class="doc-centro">${V(d.porcentaje)}</td><td>${V(d.telefono)}</td><td>${V(d.convencional)}</td></tr>`).join('')}
+    </table>` : '';
+
+  /* Cuadrícula de 30 columnas (A a AD del Excel real), con los
+     mismos anchos relativos: A/AB/AD son columnas angostas
+     (2.7 / 3.7 / 2.7), el resto comparten el ancho por defecto
+     (11.42). Reproducirla como <colgroup> es lo que permite que
+     el bloque de la izquierda (Grupo Étnico, Religión, Familiar
+     con Discapacidad) y el bloque de la derecha (la caja de
+     discapacidad) queden exactamente en paralelo, como en el
+     original, en vez de uno debajo del otro. */
+  const anchoAngosto = 0.85, anchoNormal = 3.6, anchoAB = 1.17;
+  const anchos = [anchoAngosto, ...Array(26).fill(anchoNormal), anchoAB, anchoNormal, anchoAngosto];
+  const colgroup = `<colgroup>${anchos.map((w) => `<col style="width:${w}%">`).join('')}</colgroup>`;
 
   return `
   <div class="doc-hoja doc-social">
     <div class="doc-encabezado">
-      <img src="logo.png" class="doc-logo" alt="">
       <div class="doc-titulo-empresa">
-        <strong>AGRIMROC S.A.</strong>
+        <strong>AGRIMROC S.A</strong>
         <span>Departamento de Trabajo Social</span>
-        <h1>FICHA SOCIAL</h1>
       </div>
     </div>
 
+    <div class="doc-social-banda"></div>
+    <div class="doc-seccion-h"><h1 style="display:inline;font-size:12pt;">FICHA SOCIAL</h1></div>
     <div class="doc-seccion-h">Datos de Identificación del Trabajador</div>
-    <table class="doc-tabla">
-      <tr><td class="doc-lbl">Apellidos y Nombres</td><td colspan="3">${V(f.nombre_completo)}</td><td class="doc-lbl">Cédula de Ident N°</td><td>${V(f.cedula)}</td></tr>
-      <tr><td class="doc-lbl">Lugar de Nacimiento</td><td>${V(f.lugar_nacimiento)}</td><td class="doc-lbl">F/Nacimiento</td><td>${f.fecha_nacimiento ? formatearFecha(f.fecha_nacimiento) : ''}</td><td class="doc-lbl">Estado Civil</td><td>${V(f.estado_civil)}</td></tr>
-      <tr><td class="doc-lbl">Experiencia</td><td>${V(f.experiencia)}</td><td class="doc-lbl" colspan="2">Fecha de Ingreso</td><td colspan="2">${f.fecha_ingreso ? formatearFecha(f.fecha_ingreso) : ''}</td></tr>
-      <tr><td class="doc-lbl">Correo Electrónico</td><td colspan="3">${V(f.correo)}</td><td class="doc-lbl">Edad</td><td>${f.edad != null ? f.edad : ''}</td></tr>
-      <tr><td class="doc-lbl">Nacionalidad</td><td>${V(f.nacionalidad)}</td><td class="doc-lbl">Sexo</td><td class="doc-centro">${MARCA(f.sexo, 'M')} M &nbsp; ${MARCA(f.sexo, 'F')} F</td><td class="doc-lbl">Puesto de Trabajo</td><td>${V(f.cargo)}</td></tr>
-      <tr><td class="doc-lbl">Domicilio Actual en</td><td colspan="5">${V(f.domicilio)}</td></tr>
-      <tr><td class="doc-lbl">Nivel de Instrucción</td><td>${V(f.nivel_instruccion)}</td><td class="doc-lbl">Título o Grado Superior Obtenido</td><td colspan="3">${V(f.titulo_obtenido)}</td></tr>
-      <tr><td class="doc-lbl">Grupo Étnico</td><td colspan="5">${V(f.grupo_etnico)}</td></tr>
-      <tr><td class="doc-lbl">Religión</td><td colspan="5">${V(f.religion)}</td></tr>
-    </table>
+    <div class="doc-social-banda"></div>
 
-    <div class="doc-seccion-h">Datos de Familiares con Discapacidad</div>
-    <table class="doc-tabla doc-tabla-chica">
+    <table class="doc-social-grid">
+      ${colgroup}
       <tr>
-        <td class="doc-lbl">Familiar con Discapacidad</td><td class="doc-lbl">Código</td>
-        <td class="doc-lbl">Tipo de Discapacidad</td><td class="doc-lbl">Porcentaje</td>
-        <td class="doc-lbl">Teléfono</td><td class="doc-lbl">Convencional</td>
+        <td class="et" colspan="6">APELLIDOS Y NOMBRES</td><td colspan="11"></td>
+        <td class="et et-centro" colspan="6">Nacionalidad:</td><td colspan="1"></td>
+        <td class="et et-centro" colspan="6">Cedula de Ident N/.</td>
       </tr>
-      ${filasDisc}
+      <tr>
+        <td class="va" colspan="16">${V(f.nombre_completo)}</td><td colspan="1"></td>
+        <td class="va va-centro" colspan="6">${V(f.nacionalidad)}</td><td colspan="1"></td>
+        <td class="va va-centro" colspan="6">${V(f.cedula)}</td>
+      </tr>
+      <tr>
+        <td class="et" colspan="6">Lugar de Nacimiento:</td><td colspan="1"></td>
+        <td class="et et-centro" colspan="4">F/Nacimiento:</td><td colspan="1"></td>
+        <td class="et et-centro" colspan="4">Estado Civil:</td><td colspan="1"></td>
+        <td class="et et-centro" colspan="6">EXPERIENCIA</td><td colspan="1"></td>
+        <td class="et et-centro" colspan="6">FECHA DE INGRESO</td>
+      </tr>
+      <tr>
+        <td class="va" colspan="6">${V(f.lugar_nacimiento)}</td><td colspan="1"></td>
+        <td class="va va-centro" colspan="4">${f.fecha_nacimiento ? formatearFecha(f.fecha_nacimiento) : ''}</td><td colspan="1"></td>
+        <td class="va va-centro" colspan="4">${V(f.estado_civil)}</td><td colspan="1"></td>
+        <td class="va va-centro" colspan="6">${V(f.experiencia)}</td><td colspan="1"></td>
+        <td class="va va-centro" colspan="6">${f.fecha_ingreso ? formatearFecha(f.fecha_ingreso) : ''}</td>
+      </tr>
+      <tr>
+        <td class="et" colspan="6">Correo Electronico</td><td colspan="16"></td>
+        <td class="et et-centro" colspan="3">Edad:</td><td colspan="1"></td>
+        <td class="et et-centro" colspan="4">Sexo:</td>
+      </tr>
+      <tr>
+        <td class="va" colspan="21">${V(f.correo)}</td><td colspan="1"></td>
+        <td class="va va-centro" colspan="3">${f.edad != null ? f.edad : ''}</td><td colspan="1"></td>
+        <td class="et et-centro" colspan="1">M</td><td class="va" colspan="1"></td>
+        <td class="et et-centro" colspan="1">F</td><td class="va" colspan="1"></td>
+      </tr>
+      <tr>
+        <td class="et" colspan="16">Domicilio Actual en:</td><td colspan="14"></td>
+      </tr>
+      <tr>
+        <td class="va" colspan="30">${V(f.domicilio)}</td>
+      </tr>
+      <tr>
+        <td class="et" colspan="8">Nivel de Instrucción:</td><td colspan="1"></td>
+        <td class="et et-centro" colspan="12">Titulo o Grado Superior Obtenido:</td><td colspan="1"></td>
+        <td class="et et-centro" colspan="8">Puesto de Trabajo:</td>
+      </tr>
+      <tr>
+        <td class="va" colspan="8">${V(f.nivel_instruccion)}</td><td colspan="1"></td>
+        <td class="va va-centro" colspan="12">${V(f.titulo_obtenido)}</td><td colspan="1"></td>
+        <td class="va va-centro" colspan="8">${V(f.cargo)}</td>
+      </tr>
+      <tr>
+        <td class="et" colspan="8">Grupo Etnico:</td><td colspan="22"></td>
+      </tr>
+      <tr>
+        <td class="va" colspan="8">${V(f.grupo_etnico)}</td><td colspan="1"></td>
+        <td class="doc-social-caja-gris" colspan="21">DATOS DE FAMILIARES CON DISCAPACIDAD</td>
+      </tr>
+      <tr>
+        <td class="et" colspan="8">Religion:</td><td colspan="1"></td>
+        <td class="et et-centro" colspan="4">CODIGO</td><td colspan="1"></td>
+        <td class="et et-centro" colspan="11">Tipo de Discapacidad:</td><td colspan="1"></td>
+        <td class="et et-centro" colspan="4">Porcentaje:</td>
+      </tr>
+      <tr>
+        <td class="va" colspan="8">${V(f.religion)}</td><td colspan="1"></td>
+        <td class="va va-centro" colspan="4">${V(disc.codigo)}</td><td colspan="1"></td>
+        <td class="va va-centro" colspan="11">${V(disc.tipo)}</td><td colspan="1"></td>
+        <td class="va va-centro" colspan="4">${V(disc.porcentaje)}</td>
+      </tr>
+      <tr>
+        <td class="et" colspan="4">FAMILIAR CON DISCAPACIDAD</td><td colspan="5"></td>
+        <td class="et" colspan="4">Telefono:</td><td colspan="5"></td>
+        <td class="et" colspan="4">Convencional</td><td colspan="4"></td>
+        <td class="et et-centro" colspan="4">Tipo Sanguineo</td>
+      </tr>
+      <tr>
+        <td class="va" colspan="6">${V(disc.familiar)}</td><td colspan="3"></td>
+        <td class="va" colspan="6">${V(disc.telefono)}</td><td colspan="3"></td>
+        <td class="va" colspan="6">${V(disc.convencional)}</td><td colspan="2"></td>
+        <td class="va va-centro" colspan="4">${V(f.disc_tipo_sanguineo)}</td>
+      </tr>
     </table>
-    <div class="doc-campo-largo" style="margin-top:0.15rem;"><strong>Tipo Sanguíneo (del trabajador):</strong> ${V(f.disc_tipo_sanguineo)}</div>
+    ${filasDiscExtra}
 
+    <div class="doc-social-banda"></div>
     <div class="doc-seccion-h">Mapa de Ubicación de Domicilio</div>
     <table class="doc-tabla">
-      <tr><td class="doc-lbl">Nombre del Familiar</td><td>${V(f.mapa_nombre)}</td><td class="doc-lbl">Parentesco</td><td>${V(f.mapa_parentesco)}</td><td class="doc-lbl">Teléfono 2</td><td>${V(f.mapa_telefono2)}</td></tr>
+      <tr><td class="doc-lbl">Nombre del Familiar</td><td>${V(f.mapa_nombre)}</td><td class="doc-lbl">Patentezco</td><td>${V(f.mapa_parentesco)}</td><td class="doc-lbl">Telefono 2</td><td>${V(f.mapa_telefono2)}</td></tr>
     </table>
     <div class="doc-campo-largo"><strong>Lugar de Domicilio / Vivienda:</strong><p>${V(f.mapa_lugar)}</p></div>
-    <div class="doc-campo-largo"><strong>Descripción de Domicilio / Vivienda:</strong><p>${V(f.mapa_descripcion)}</p></div>
-    <div class="doc-campo-largo"><strong>Sitios de Referencia de Domicilio / Vivienda:</strong><p>${V(f.mapa_sitios)}</p></div>
+    <div class="doc-campo-largo"><strong>Descripcion de Domicilio / Vivienda:</strong><p>${V(f.mapa_descripcion)}</p></div>
+    <div class="doc-campo-largo"><strong>Sitios de Refenrencia de Domicilio / Vivienda:</strong><p>${V(f.mapa_sitios)}</p></div>
 
+    <div class="doc-social-banda"></div>
     <table class="doc-tabla" style="margin-top:0.3rem;">
-      <tr><td class="doc-lbl">Persona Responsable</td><td>${V(f.resp_nombre)}</td><td class="doc-lbl">Parentesco</td><td>${V(f.resp_parentesco)}</td><td class="doc-lbl">Teléfono 1</td><td>${V(f.resp_telefono)}</td></tr>
+      <tr><td class="doc-lbl">Persona Responsable</td><td>${V(f.resp_nombre)}</td><td class="doc-lbl">Parentezco:</td><td>${V(f.resp_parentesco)}</td><td class="doc-lbl">Telefono 1:</td><td>${V(f.resp_telefono)}</td></tr>
     </table>
     <div class="doc-campo-largo"><strong>Lugar de Domicilio / Vivienda:</strong><p>${V(f.resp_lugar)}</p></div>
-    <div class="doc-campo-largo"><strong>Descripción de Domicilio / Vivienda:</strong><p>${V(f.domicilio_descripcion)}</p></div>
-    <div class="doc-campo-largo"><strong>Sitios de Referencia de Domicilio / Vivienda:</strong><p>${V(f.domicilio_referencias)}</p></div>
+    <div class="doc-campo-largo"><strong>Descripcion de Domicilio / Vivienda:</strong><p>${V(f.domicilio_descripcion)}</p></div>
+    <div class="doc-campo-largo"><strong>Sitios de Refenrencia de Domicilio / Vivienda:</strong><p>${V(f.domicilio_referencias)}</p></div>
 
-    <div class="doc-seccion-h">Datos Familiares</div>
+    <div class="doc-seccion-h">DATOS FAMILIARES</div>
+    <div class="doc-social-banda"></div>
     <table class="doc-tabla doc-tabla-chica">
       <tr>
-        <td class="doc-lbl" rowspan="2">Apellidos y Nombres</td><td class="doc-lbl" rowspan="2">Parentesco</td>
+        <td class="doc-lbl" rowspan="2">APELLIDOS Y NOMBRES</td><td class="doc-lbl" rowspan="2">Parentezco</td>
         <td class="doc-lbl" colspan="2">Sexo</td><td class="doc-lbl" rowspan="2">Edad</td>
         <td class="doc-lbl" colspan="2">Estudian</td><td class="doc-lbl" rowspan="2">Nivel</td>
         <td class="doc-lbl" rowspan="2">Grado</td><td class="doc-lbl" colspan="2">Trabajan</td>
       </tr>
       <tr>
         <td class="doc-lbl doc-centro">H</td><td class="doc-lbl doc-centro">M</td>
-        <td class="doc-lbl doc-centro">Sí</td><td class="doc-lbl doc-centro">No</td>
-        <td class="doc-lbl doc-centro">Sí</td><td class="doc-lbl doc-centro">No</td>
+        <td class="doc-lbl doc-centro">Si</td><td class="doc-lbl doc-centro">No</td>
+        <td class="doc-lbl doc-centro">Si</td><td class="doc-lbl doc-centro">No</td>
       </tr>
       ${filasFam}
     </table>
 
-    <div class="doc-seccion-h">Datos de la Vivienda</div>
+    <div class="doc-seccion-h">DATOS DE LA VIVIENDA</div>
+    <div class="doc-social-banda"></div>
     <table class="doc-tabla doc-tabla-chica">
       <tr>
-        <td class="doc-lbl" colspan="2">Vivienda</td><td class="doc-lbl" colspan="2">Construcción</td>
-        <td class="doc-lbl" colspan="3">Servicios Básicos</td><td class="doc-lbl">Observaciones</td>
+        <td class="doc-lbl" colspan="2">Vivienda</td><td class="doc-lbl" colspan="2">Construccion</td>
+        <td class="doc-lbl" colspan="3">Servicios Basicos</td><td class="doc-lbl">Observaciones</td>
       </tr>
       <tr>
-        <td class="doc-lbl doc-centro">Propia</td><td class="doc-lbl doc-centro">Arriendo</td>
-        <td class="doc-lbl doc-centro">Mixta</td><td class="doc-lbl doc-centro">Cemento</td>
-        <td class="doc-lbl doc-centro">Luz</td><td class="doc-lbl doc-centro">Agua</td><td class="doc-lbl doc-centro">Alcantarillado</td>
+        <td class="doc-lbl doc-centro">PROPIA</td><td class="doc-lbl doc-centro">ARRIENDO</td>
+        <td class="doc-lbl doc-centro">MIXTA</td><td class="doc-lbl doc-centro">CEMENTO</td>
+        <td class="doc-lbl doc-centro">LUZ</td><td class="doc-lbl doc-centro">AGUA</td><td class="doc-lbl doc-centro">ALCANTARILLADO</td>
         <td class="doc-lbl"></td>
       </tr>
       <tr>
@@ -1037,36 +1128,28 @@ function htmlFichaSocial(f) {
       </tr>
     </table>
 
-    <div class="doc-seccion-h">Situación Económica</div>
+    <div class="doc-seccion-h doc-social-con-texto">SITUACIÓN ECONÓMICA</div>
     <table class="doc-tabla">
-      <tr><td class="doc-lbl">Ingreso Mensuales Familiar</td><td colspan="3">${V(f.ingreso_mensual)}</td></tr>
-      <tr><td class="doc-lbl">Otros Ingresos</td><td colspan="3">${V(f.otros_ingresos)}</td></tr>
-      <tr><td class="doc-lbl">Cómo se Moviliza para Llegar a su Lugar de Trabajo</td><td colspan="3">${V(f.movilizacion)}</td></tr>
+      <tr><td class="doc-lbl">INGRESO MENSUALES FAMILIAR</td><td colspan="3">${V(f.ingreso_mensual)}</td></tr>
+      <tr><td class="doc-lbl">OTROS INGRESOS :</td><td colspan="3">${V(f.otros_ingresos)}</td></tr>
+      <tr><td class="doc-lbl">COMO SE MOVILIZA PARA LLEGAR A SU LUGAR DE TRABAJO:</td><td colspan="3">${V(f.movilizacion)}</td></tr>
     </table>
-    <div class="doc-campo-largo"><strong>Observación:</strong><p>${V(f.observacion)}</p></div>
+    <div class="doc-campo-largo"><strong>OBSERVACION:</strong><p>${V(f.observacion)}</p></div>
 
-    <div class="doc-firmas-fila">
-      <div class="doc-firma">
-        <div class="doc-firma-linea"></div>
-        <p>${V(f.nombre_completo)}</p>
-        <p style="font-size:9pt">${V(f.cargo) || 'Trabajador'}</p>
-      </div>
-      <div class="doc-firma">
-        <div class="doc-firma-linea"></div>
-        <p>${V(f.registrado_por || 'Trabajador/a Social')}</p>
-        <p style="font-size:9pt">Trabajador Social</p>
-      </div>
+    <div class="doc-social-firma-linea"></div>
+    <div class="doc-social-firma-roles">
+      <span>${V(f.cargo) || 'Trabajador'}</span>
+      <span>TRABAJADOR SOCIAL</span>
     </div>
   </div>`;
 }
-
 function htmlRegistroPersonal(f) {
   return `
   <div class="doc-hoja doc-registro">
     <div class="doc-encabezado">
       <img src="logo.png" class="doc-logo" alt="">
       <div class="doc-titulo-empresa">
-        <strong>AGRIMROC S.A.</strong>
+        <strong>AGRIMROC S.A</strong>
         <h1>REGISTRO DE PERSONAL</h1>
       </div>
       <div class="doc-foto">FOTO<br>tamaño<br>carnet</div>
@@ -1129,7 +1212,7 @@ function htmlRegistroPersonal(f) {
 
     <div class="doc-seccion-h">Datos Laborales</div>
     <table class="doc-tabla">
-      <tr><td class="doc-lbl">Fecha de Ingreso</td><td>${f.fecha_ingreso ? formatearFecha(f.fecha_ingreso) : ''}</td><td class="doc-lbl">Cargo</td><td>${V(f.cargo)}</td></tr>
+      <tr><td class="doc-lbl">FECHA DE INGRESO</td><td>${f.fecha_ingreso ? formatearFecha(f.fecha_ingreso) : ''}</td><td class="doc-lbl">Cargo</td><td>${V(f.cargo)}</td></tr>
       <tr><td class="doc-lbl">Sueldo</td><td>${V(f.rp_sueldo)}</td><td class="doc-lbl">Fecha de Salida</td><td>${f.rp_fecha_salida ? formatearFecha(f.rp_fecha_salida) : ''}</td></tr>
     </table>
 
