@@ -983,42 +983,49 @@ function imprimirFicha() {
       <div class="fp-encabezado">
         <img src="logo.png" class="fp-logo" alt="">
         <div class="fp-titulo-empresa">
-          <strong>AGRIMROC S.A.</strong>
+          <strong>AGRIMROC S.A</strong>
           <span>Departamento de Salud Mental y Apoyo Psicosocial</span>
           <h1>FICHA PSICOLÓGICA</h1>
         </div>
       </div>
 
-      <div class="fp-seccion-h">Datos de Identificación del Trabajador</div>
+      <div class="fp-seccion-h">Datos de Identificacion del Trabajador</div>
       <table class="fp-tabla">
         <tr>
-          <td class="fp-lbl">Apellidos y Nombres</td><td colspan="3">${v(f.nombre_completo)}</td>
-          <td class="fp-lbl">Cédula</td><td>${v(f.cedula)}</td>
+          <td class="fp-lbl">APELLIDOS Y NOMBRES</td><td colspan="3">${v(f.nombre_completo)}</td>
+          <td class="fp-lbl">Cedula de Ident N/.</td><td>${v(f.cedula)}</td>
         </tr>
         <tr>
-          <td class="fp-lbl">Nacionalidad</td><td>${v(f.nacionalidad)}</td>
           <td class="fp-lbl">Lugar de Nacimiento</td><td>${v(f.lugar_nacimiento)}</td>
+          <td class="fp-lbl">F/Nacimiento</td><td>${f.fecha_nacimiento ? formatearFecha(f.fecha_nacimiento) : ''}</td>
           <td class="fp-lbl">N° de Celular</td><td>${v(f.telefono)}</td>
         </tr>
         <tr>
-          <td class="fp-lbl">Correo Electrónico</td><td colspan="3">${v(f.correo)}</td>
+          <td class="fp-lbl">Nacionalidad</td><td>${v(f.nacionalidad)}</td>
+          <td class="fp-lbl" colspan="2"></td>
+          <td class="fp-lbl">FECHA DE INGRESO</td><td>${f.fecha_ingreso ? formatearFecha(f.fecha_ingreso) : ''}</td>
+        </tr>
+        <tr>
+          <td class="fp-lbl">Correo Electronico</td><td colspan="3">${v(f.correo)}</td>
           <td class="fp-lbl">Edad</td><td>${f.edad != null ? f.edad : ''}</td>
         </tr>
         <tr>
-          <td class="fp-lbl">Sexo</td><td>${sexo}</td>
+          <td class="fp-lbl">Sexo</td>
+          <td>M <span class="fp-check">${sexo === 'M' ? 'X' : ''}</span> &nbsp; F <span class="fp-check">${sexo === 'F' ? 'X' : ''}</span></td>
           <td class="fp-lbl">N° de hijos</td><td>${f.num_hijos != null ? f.num_hijos : ''}</td>
           <td class="fp-lbl">Puesto de Trabajo</td><td>${v(f.cargo)}</td>
         </tr>
         <tr>
-          <td class="fp-lbl">Domicilio Actual</td><td colspan="5">${v(f.domicilio)}</td>
+          <td class="fp-lbl">Domicilio Actual en</td><td colspan="3">${v(f.domicilio)}</td>
+          <td class="fp-lbl">Código</td><td>${v(f.codigo)}</td>
         </tr>
         <tr>
           <td class="fp-lbl">Nivel de Instrucción</td><td>${v(f.nivel_instruccion)}</td>
-          <td class="fp-lbl">Título Obtenido</td><td>${v(f.titulo_obtenido)}</td>
-          <td class="fp-lbl">Grupo Étnico</td><td>${v(f.grupo_etnico)}</td>
+          <td class="fp-lbl">Titulo o Grado Superior Obtenido</td><td>${v(f.titulo_obtenido)}</td>
+          <td class="fp-lbl">Grupo Etnico</td><td>${v(f.grupo_etnico)}</td>
         </tr>
         <tr>
-          <td class="fp-lbl">Religión</td><td colspan="5">${v(f.religion)}</td>
+          <td class="fp-lbl">Religion</td><td colspan="5">${v(f.religion)}</td>
         </tr>
       </table>
 
@@ -1026,32 +1033,30 @@ function imprimirFicha() {
       <table class="fp-tabla">
         <tr>
           <td class="fp-lbl">APP</td><td>${v(f.app)}</td>
-          <td class="fp-lbl">APF</td><td>${v(f.apf)}</td>
-        </tr>
-        <tr>
-          <td class="fp-lbl">AQT</td><td>${v(f.aqt)}</td>
-          <td class="fp-lbl">APQ</td><td>${v(f.apq)}</td>
-        </tr>
-        <tr>
           <td class="fp-lbl">Tipo de Discapacidad</td><td>${v(f.tipo_discapacidad)}</td>
           <td class="fp-lbl">Porcentaje</td><td>${v(f.porcentaje_discapacidad)}</td>
+        </tr>
+        <tr>
+          <td class="fp-lbl">APF</td><td>${v(f.apf)}</td>
+          <td class="fp-lbl">AQT</td><td>${v(f.aqt)}</td>
+          <td class="fp-lbl">APQ</td><td>${v(f.apq)}</td>
         </tr>
       </table>
 
       <div class="fp-seccion-h">Hábitos</div>
       <table class="fp-tabla">
-        <tr><td class="fp-lbl">Alcohol</td><td>${v(f.habito_alcohol)}</td></tr>
-        <tr><td class="fp-lbl">Cigarrillo</td><td>${v(f.habito_cigarrillo)}</td></tr>
-        <tr><td class="fp-lbl">Drogas</td><td>${v(f.habito_drogas)}</td></tr>
-        <tr><td class="fp-lbl">Juegos de Azar, etc.</td><td>${v(f.habito_juegos)}</td></tr>
+        <tr><td class="fp-lbl">ALCOHOL</td><td>${v(f.habito_alcohol)}</td></tr>
+        <tr><td class="fp-lbl">CIGARRILLO</td><td>${v(f.habito_cigarrillo)}</td></tr>
+        <tr><td class="fp-lbl">DROGAS</td><td>${v(f.habito_drogas)}</td></tr>
+        <tr><td class="fp-lbl">JUEGOS DE AZAR ETC</td><td>${v(f.habito_juegos)}</td></tr>
       </table>
 
       <div class="fp-campo-largo"><strong>Motivo de consulta:</strong><p>${v(f.motivo_consulta)}</p></div>
-      <div class="fp-campo-largo"><strong>Entrevista Psicológica:</strong><p>${v(f.entrevista)}</p></div>
+      <div class="fp-campo-largo"><strong>Entrevista Psicologica:</strong><p>${v(f.entrevista)}</p></div>
 
       <div class="fp-seccion-h">Evaluación Mental</div>
       <table class="fp-tabla">
-        <tr><td class="fp-lbl">Orientación</td><td>${v(f.em_orientacion)}</td></tr>
+        <tr><td class="fp-lbl">Orientacion</td><td>${v(f.em_orientacion)}</td></tr>
         <tr><td class="fp-lbl">Pensamiento</td><td>${v(f.em_pensamiento)}</td></tr>
         <tr><td class="fp-lbl">Lenguaje</td><td>${v(f.em_lenguaje)}</td></tr>
         <tr><td class="fp-lbl">Sensopercepciones</td><td>${v(f.em_sensopercepciones)}</td></tr>
@@ -1062,9 +1067,20 @@ function imprimirFicha() {
         <tr><td class="fp-lbl">Deseo Sexual</td><td>${v(f.em_deseo_sexual)}</td></tr>
       </table>
 
-      <div class="fp-campo-largo"><strong>Test Aplicados:</strong><p>${v(f.test_aplicados)}</p></div>
-      <div class="fp-campo-largo"><strong>Observaciones:</strong><p>${v(f.observaciones)}</p></div>
-      <div class="fp-campo-largo"><strong>Diagnóstico Presuntivo:</strong><p>${v(f.impresion_dx)}</p></div>
+      <!-- En el Excel, "Test Aplicados" y "Diagnóstico Presuntivo"
+           van en la columna izquierda, con "Observaciones" en una
+           columna paralela a la derecha —no apilados uno tras
+           otro como estaba antes. -->
+      <div class="fp-seccion-h">Test Aplicados</div>
+      <table class="fp-tabla" style="table-layout:auto;">
+        <tr>
+          <td style="width:65%;"><p style="white-space:pre-wrap;margin:0 0 0.4rem;">${v(f.test_aplicados)}</p>
+            <strong>Diagnostico Presuntivo:</strong><p style="white-space:pre-wrap;margin:0;">${v(f.impresion_dx)}</p>
+          </td>
+          <td><strong style="display:block;text-align:center;">Observaciones</strong><p style="white-space:pre-wrap;margin:0;">${v(f.observaciones)}</p></td>
+        </tr>
+      </table>
+
       <div class="fp-campo-largo"><strong>Recomendaciones:</strong><p>${v(f.recomendaciones)}</p></div>
 
       <div class="fp-firma">
