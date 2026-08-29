@@ -164,12 +164,22 @@
       }
 
       /* Registro de Personal: gris/verde sobrio */
-      .doc-registro .doc-encabezado { border-bottom-color: #1b5e20; align-items: flex-start; }
+      /* Registro de Personal: el Excel real no usa NINGÚN color
+         —ni bandas, ni fondos—, solo texto negro y líneas de
+         borde. Antes esto llevaba verde institucional; se quita
+         para que calce con el original. */
+      .doc-registro .doc-encabezado { border-bottom-color: #000; align-items: flex-start; }
       .doc-registro .doc-encabezado .doc-titulo-empresa { flex: 1; }
       .doc-registro .doc-titulo-empresa strong,
-      .doc-registro .doc-titulo-empresa h1 { color: #1b5e20; }
-      .doc-registro .doc-seccion-h { background: #1b5e20; }
-      .doc-registro .doc-lbl { background: #e6f0e6; }
+      .doc-registro .doc-titulo-empresa h1 { color: #000; }
+      .doc-registro .doc-seccion-h { background: none; color: #000; text-align: left; padding: 0; }
+      .doc-registro .doc-lbl { background: #fff; }
+
+      /* Mismo ajuste de márgenes que en la Ficha Social: se
+         revierte @page:0 solo para este archivo y se reduce el
+         relleno fijo, para que el margen real quede en manos del
+         diálogo de impresión (ver nota completa más abajo). */
+      .doc-registro.doc-hoja { padding: 5mm !important; }
 
       /* Márgenes regulables desde el diálogo de impresión.
 
