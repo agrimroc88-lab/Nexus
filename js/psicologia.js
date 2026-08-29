@@ -890,7 +890,7 @@ async function guardarEImprimir() {
   const id = await guardarFicha();
   if (!id) return;
   estado.verId = id;
-  imprimirFicha();
+  await imprimirFicha();
 }
 
 function valor(id) {
@@ -970,9 +970,25 @@ function nombrePsicologo() {
   return p.registro_msp ? `${nombre} · Reg. ${p.registro_msp}` : nombre;
 }
 
-function imprimirFicha() {
-  const f = estado.fichas.find((x) => x.id === estado.verId);
-  if (!f) return;
+async function imprimirFicha() {
+  const ficha = estado.fichas.find((x) => x.id === estado.verId);
+  if (!ficha) return;
+
+  /* v_fichas_psicologicas no trae fecha de nacimiento, fecha de
+     ingreso ni código del trabajador —viven en la ficha del
+     trabajador, no en la ficha psicológica—. Se completan aquí
+     con una consulta aparte por trabajador_id, mismo patrón que
+     ya usa editarFicha(), en vez de dejarlos en blanco. */
+  const { data: t } = await supabase
+    .from('v_trabajadores').select('fecha_nacimiento, fecha_ingreso, codigo')
+    .eq('empresa_id', estado.empresaId).eq('id', ficha.trabajador_id).maybeSingle();
+
+  const f = {
+    ...ficha,
+    fecha_nacimiento: ficha.fecha_nacimiento ?? t?.fecha_nacimiento,
+    fecha_ingreso: ficha.fecha_ingreso ?? t?.fecha_ingreso,
+    codigo: ficha.codigo ?? t?.codigo
+  };
 
   const v = (x) => escapar(x != null && x !== '' ? String(x) : '');
   const sexo = f.sexo === 'M' ? 'M' : (f.sexo === 'F' ? 'F' : '');
