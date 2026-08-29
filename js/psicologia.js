@@ -1193,26 +1193,36 @@ async function imprimirFicha() {
           <td class="fp-banner" colspan="19">Antecedentes de alguna enfermedad</td>
         </tr>
         <tr>
-          <td class="fp-et" colspan="8">Religion:</td><td colspan="1"></td>
-          <td class="fp-et fp-et-centro" colspan="2">APP:</td><td colspan="1"></td>
-          <td class="fp-et fp-et-centro" colspan="11">Tipo de Discapacidad:</td><td colspan="1"></td>
+          <td class="fp-et" colspan="9">Religion:</td><td colspan="1"></td>
+          <td class="fp-et fp-et-centro" colspan="13">Tipo de Discapacidad:</td><td colspan="1"></td>
           <td class="fp-et fp-et-centro" colspan="4">Porcentaje:</td>
         </tr>
         <tr>
-          <td class="fp-va" colspan="8">${v(f.religion)}</td><td colspan="1"></td>
-          <td class="fp-va fp-va-centro" colspan="2">${v(f.app)}</td><td colspan="1"></td>
-          <td class="fp-va fp-va-centro" colspan="11">${v(f.tipo_discapacidad)}</td><td colspan="1"></td>
+          <td class="fp-va" colspan="9">${v(f.religion)}</td><td colspan="1"></td>
+          <td class="fp-va fp-va-centro" colspan="13">${v(f.tipo_discapacidad)}</td><td colspan="1"></td>
           <td class="fp-va fp-va-centro" colspan="4">${v(f.porcentaje_discapacidad)}</td>
         </tr>
+        <!-- APP/APF/AQT/APQ: en el Excel comparten fila con
+             Religión/Tipo de Discapacidad y les toca apenas 2
+             columnas de 28 —casi nada para escribir texto libre—.
+             Se bajan a dos filas propias, dos campos por fila,
+             cada uno con la mitad del ancho, para que se pueda
+             escribir con comodidad. -->
         <tr>
-          <td class="fp-et" colspan="4">APF:</td><td colspan="5"></td>
-          <td class="fp-et" colspan="2">AQT:</td><td colspan="5"></td>
-          <td class="fp-et" colspan="4">APQ:</td><td colspan="8"></td>
+          <td class="fp-et" colspan="13">APP:</td><td colspan="2"></td>
+          <td class="fp-et" colspan="13">APF:</td>
         </tr>
         <tr>
-          <td class="fp-va" colspan="9">${v(f.apf)}</td><td colspan="1"></td>
-          <td class="fp-va" colspan="7">${v(f.aqt)}</td><td colspan="1"></td>
-          <td class="fp-va" colspan="10">${v(f.apq)}</td>
+          <td class="fp-va" colspan="13">${v(f.app)}</td><td colspan="2"></td>
+          <td class="fp-va" colspan="13">${v(f.apf)}</td>
+        </tr>
+        <tr>
+          <td class="fp-et" colspan="13">AQT:</td><td colspan="2"></td>
+          <td class="fp-et" colspan="13">APQ:</td>
+        </tr>
+        <tr>
+          <td class="fp-va" colspan="13">${v(f.aqt)}</td><td colspan="2"></td>
+          <td class="fp-va" colspan="13">${v(f.apq)}</td>
         </tr>
       </table>
 
