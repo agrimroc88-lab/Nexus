@@ -126,7 +126,7 @@
 
       /* Caja de "Datos de Familiares con Discapacidad": gris con
          borde, no azul — es la otra excepción real del Excel. */
-      .doc-social-grid td.doc-social-caja-gris { background: #c0c0c0; border: 1px solid #000; text-align: center;
+      .doc-social-grid td.doc-social-caja-gris { background: #fff; border: 1px solid #000; text-align: center;
         font-weight: bold; font-size: 12pt; padding: 2px 4px;
         -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
@@ -139,7 +139,7 @@
       .doc-social-grid { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 1mm; }
       .doc-social-grid td { font-size: 7pt; padding: 0 2px; overflow: hidden; white-space: normal; word-break: break-word; vertical-align: bottom; border: none; line-height: 1.15; }
       .doc-social-grid td.et { font-weight: bold; background: #fff; }
-      .doc-social-grid td.va { background: #c0c0c0; border-bottom: 1px solid #000; min-height: 3mm;
+      .doc-social-grid td.va { background: #fff; border-bottom: 1px solid #000; min-height: 3mm;
         -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .doc-social-grid td.et-centro, .doc-social-grid td.va-centro { text-align: center; }
 
@@ -151,17 +151,16 @@
 
       /* Cajas de valor fuera de la grilla de identificación (Mapa
          de domicilio, Persona Responsable, Situación Económica):
-         mismo criterio verificado en el Excel —gris, solo borde
-         inferior—. No toca doc-tabla-chica (Datos Familiares y
-         Datos de la Vivienda), que en el original son tablas
-         blancas con bordes normales, no cajas grises. */
+         antes llevaban fondo gris (igual que el Excel), ahora
+         blancas por pedido explícito —solo queda el borde
+         inferior marcando la casilla. No toca doc-tabla-chica
+         (Datos Familiares y Datos de la Vivienda), que ya eran
+         tablas blancas con bordes normales en el original. */
       .doc-social .doc-tabla:not(.doc-tabla-chica) td:not(.doc-lbl) {
-        background: #c0c0c0; border: none; border-bottom: 1px solid #000;
-        -webkit-print-color-adjust: exact; print-color-adjust: exact;
+        background: #fff; border: none; border-bottom: 1px solid #000;
       }
       .doc-social .doc-campo-largo {
-        border: none; border-bottom: 1px solid #000; background: #c0c0c0;
-        -webkit-print-color-adjust: exact; print-color-adjust: exact;
+        border: none; border-bottom: 1px solid #000; background: #fff;
       }
 
       /* Registro de Personal: gris/verde sobrio */
@@ -171,6 +170,31 @@
       .doc-registro .doc-titulo-empresa h1 { color: #1b5e20; }
       .doc-registro .doc-seccion-h { background: #1b5e20; }
       .doc-registro .doc-lbl { background: #e6f0e6; }
+
+      /* Márgenes regulables desde el diálogo de impresión.
+
+         documentos.css fuerza @page{margin:0} + un relleno fijo
+         en .doc-hoja (20mm/15mm/20mm/30mm) para TODO el sistema,
+         a propósito: es el único modo de que el navegador deje
+         de estampar su encabezado y pie (fecha, URL, título) al
+         imprimir. El efecto secundario es que ese margen queda
+         fijo por CSS y el desplegable "Márgenes" del diálogo de
+         impresión no tiene ningún efecto, por más que se cambie.
+
+         Aquí se revierte SOLO para este archivo (no se toca
+         documentos.css, que usan certificados, oficios e
+         informes): "auto" en @page deja que el propio diálogo de
+         impresión mande sobre el margen real, y el relleno de la
+         hoja se reduce a algo mínimo para no sumar un margen
+         fijo por encima del que ya elija el usuario.
+
+         El precio de esto: al dejar de forzar margen cero, es
+         probable que reaparezca el encabezado/pie propio del
+         navegador. Si no se quiere ver, se desactiva con la
+         casilla "Encabezados y pies de página" del mismo diálogo
+         de impresión (junto a "Gráficos de fondo"). */
+      @page { margin: auto; }
+      .doc-social.doc-hoja { padding: 5mm !important; }
     }
   </style>
 </head>
