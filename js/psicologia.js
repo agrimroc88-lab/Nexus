@@ -977,6 +977,17 @@ function imprimirFicha() {
   const v = (x) => escapar(x != null && x !== '' ? String(x) : '');
   const sexo = f.sexo === 'M' ? 'M' : (f.sexo === 'F' ? 'F' : '');
 
+  /* Cuadrícula de 28 columnas (A a AB del Excel real), con los
+     mismos anchos relativos: A y AB son angostas (2.66), Z es
+     algo más ancha (3.66), el resto comparte el ancho por
+     defecto (11.43). Reproducirla así es lo que permite que
+     Grupo Étnico (izquierda) y "Antecedentes de alguna
+     enfermedad" (derecha) queden exactamente en paralelo, como
+     en el original. */
+  const anchoAngosto = 0.94, anchoNormal = 4.03, anchoZ = 1.29;
+  const anchosPsico = [anchoAngosto, ...Array(24).fill(anchoNormal), anchoZ, anchoNormal, anchoAngosto];
+  const colgroupPsico = `<colgroup>${anchosPsico.map((w) => `<col style="width:${w}%">`).join('')}</colgroup>`;
+
   const $zona = document.getElementById('zona-impresion');
   $zona.innerHTML = `
     <div class="fp-hoja">
@@ -990,56 +1001,89 @@ function imprimirFicha() {
       </div>
 
       <div class="fp-seccion-h">Datos de Identificacion del Trabajador</div>
-      <table class="fp-tabla">
+      <table class="fp-grid">
+        ${colgroupPsico}
         <tr>
-          <td class="fp-lbl">APELLIDOS Y NOMBRES</td><td colspan="3">${v(f.nombre_completo)}</td>
-          <td class="fp-lbl">Cedula de Ident N/.</td><td>${v(f.cedula)}</td>
+          <td class="fp-et" colspan="6">APELLIDOS Y NOMBRES</td><td colspan="9"></td>
+          <td class="fp-et fp-et-centro" colspan="6">Nacionalidad:</td><td colspan="1"></td>
+          <td class="fp-et fp-et-centro" colspan="6">Cedula de Ident N/.</td>
         </tr>
         <tr>
-          <td class="fp-lbl">Lugar de Nacimiento</td><td>${v(f.lugar_nacimiento)}</td>
-          <td class="fp-lbl">F/Nacimiento</td><td>${f.fecha_nacimiento ? formatearFecha(f.fecha_nacimiento) : ''}</td>
-          <td class="fp-lbl">N° de Celular</td><td>${v(f.telefono)}</td>
+          <td class="fp-va" colspan="14">${v(f.nombre_completo)}</td><td colspan="1"></td>
+          <td class="fp-va fp-va-centro" colspan="6">${v(f.nacionalidad)}</td><td colspan="1"></td>
+          <td class="fp-va fp-va-centro" colspan="6">${v(f.cedula)}</td>
         </tr>
         <tr>
-          <td class="fp-lbl">Nacionalidad</td><td>${v(f.nacionalidad)}</td>
-          <td class="fp-lbl" colspan="2"></td>
-          <td class="fp-lbl">FECHA DE INGRESO</td><td>${f.fecha_ingreso ? formatearFecha(f.fecha_ingreso) : ''}</td>
+          <td class="fp-et" colspan="6">Lugar de Nacimiento:</td><td colspan="1"></td>
+          <td class="fp-et fp-et-centro" colspan="7">F/Nacimiento:</td><td colspan="1"></td>
+          <td class="fp-et fp-et-centro" colspan="6">N° de Celular</td><td colspan="1"></td>
+          <td class="fp-et fp-et-centro" colspan="6">FECHA DE INGRESO</td>
         </tr>
         <tr>
-          <td class="fp-lbl">Correo Electronico</td><td colspan="3">${v(f.correo)}</td>
-          <td class="fp-lbl">Edad</td><td>${f.edad != null ? f.edad : ''}</td>
+          <td class="fp-va" colspan="6">${v(f.lugar_nacimiento)}</td><td colspan="1"></td>
+          <td class="fp-va fp-va-centro" colspan="7">${f.fecha_nacimiento ? formatearFecha(f.fecha_nacimiento) : ''}</td><td colspan="1"></td>
+          <td class="fp-va fp-va-centro" colspan="6">${v(f.telefono)}</td><td colspan="1"></td>
+          <td class="fp-va fp-va-centro" colspan="6">${f.fecha_ingreso ? formatearFecha(f.fecha_ingreso) : ''}</td>
         </tr>
         <tr>
-          <td class="fp-lbl">Sexo</td>
-          <td>M <span class="fp-check">${sexo === 'M' ? 'X' : ''}</span> &nbsp; F <span class="fp-check">${sexo === 'F' ? 'X' : ''}</span></td>
-          <td class="fp-lbl">N° de hijos</td><td>${f.num_hijos != null ? f.num_hijos : ''}</td>
-          <td class="fp-lbl">Puesto de Trabajo</td><td>${v(f.cargo)}</td>
+          <td class="fp-et" colspan="6">Correo Electronico</td><td colspan="14"></td>
+          <td class="fp-et fp-et-centro" colspan="3">Edad:</td><td colspan="1"></td>
+          <td class="fp-et fp-et-centro" colspan="4">Sexo:</td>
         </tr>
         <tr>
-          <td class="fp-lbl">Domicilio Actual en</td><td colspan="3">${v(f.domicilio)}</td>
-          <td class="fp-lbl">Código</td><td>${v(f.codigo)}</td>
+          <td class="fp-va" colspan="19">${v(f.correo)}</td><td colspan="1"></td>
+          <td class="fp-va fp-va-centro" colspan="3">${f.edad != null ? f.edad : ''}</td><td colspan="1"></td>
+          <td class="fp-et fp-et-centro" colspan="1">M</td><td class="fp-va" colspan="1"></td>
+          <td class="fp-et fp-et-centro" colspan="1">F</td><td class="fp-va" colspan="1"></td>
         </tr>
         <tr>
-          <td class="fp-lbl">Nivel de Instrucción</td><td>${v(f.nivel_instruccion)}</td>
-          <td class="fp-lbl">Titulo o Grado Superior Obtenido</td><td>${v(f.titulo_obtenido)}</td>
-          <td class="fp-lbl">Grupo Etnico</td><td>${v(f.grupo_etnico)}</td>
+          <td class="fp-et" colspan="9">Domicilio&nbsp; Actual&nbsp; en:</td>
+          <td class="fp-et" colspan="5">N° de hijos</td><td colspan="1"></td>
+          <td class="fp-et fp-et-derecha" colspan="13">Código</td>
         </tr>
         <tr>
-          <td class="fp-lbl">Religion</td><td colspan="5">${v(f.religion)}</td>
-        </tr>
-      </table>
-
-      <div class="fp-seccion-h">Antecedentes de alguna enfermedad</div>
-      <table class="fp-tabla">
-        <tr>
-          <td class="fp-lbl">APP</td><td>${v(f.app)}</td>
-          <td class="fp-lbl">Tipo de Discapacidad</td><td>${v(f.tipo_discapacidad)}</td>
-          <td class="fp-lbl">Porcentaje</td><td>${v(f.porcentaje_discapacidad)}</td>
+          <td class="fp-va" colspan="9">${v(f.domicilio)}</td>
+          <td class="fp-va fp-va-centro" colspan="5">${f.num_hijos != null ? f.num_hijos : ''}</td><td colspan="1"></td>
+          <td class="fp-va fp-va-centro" colspan="13">${v(f.codigo)}</td>
         </tr>
         <tr>
-          <td class="fp-lbl">APF</td><td>${v(f.apf)}</td>
-          <td class="fp-lbl">AQT</td><td>${v(f.aqt)}</td>
-          <td class="fp-lbl">APQ</td><td>${v(f.apq)}</td>
+          <td class="fp-et" colspan="8">Nivel de Instrucción:</td><td colspan="1"></td>
+          <td class="fp-et fp-et-centro" colspan="10">Titulo o Grado Superior Obtenido:</td><td colspan="1"></td>
+          <td class="fp-et fp-et-centro" colspan="8">Puesto de Trabajo:</td>
+        </tr>
+        <tr>
+          <td class="fp-va" colspan="8">${v(f.nivel_instruccion)}</td><td colspan="1"></td>
+          <td class="fp-va fp-va-centro" colspan="10">${v(f.titulo_obtenido)}</td><td colspan="1"></td>
+          <td class="fp-va fp-va-centro" colspan="8">${v(f.cargo)}</td>
+        </tr>
+        <tr>
+          <td class="fp-et" colspan="8">Grupo Etnico:</td><td colspan="20"></td>
+        </tr>
+        <tr>
+          <td class="fp-va" colspan="8">${v(f.grupo_etnico)}</td><td colspan="1"></td>
+          <td class="fp-banner" colspan="19">Antecedentes de alguna enfermedad</td>
+        </tr>
+        <tr>
+          <td class="fp-et" colspan="8">Religion:</td><td colspan="1"></td>
+          <td class="fp-et fp-et-centro" colspan="2">APP:</td><td colspan="1"></td>
+          <td class="fp-et fp-et-centro" colspan="11">Tipo de Discapacidad:</td><td colspan="1"></td>
+          <td class="fp-et fp-et-centro" colspan="4">Porcentaje:</td>
+        </tr>
+        <tr>
+          <td class="fp-va" colspan="8">${v(f.religion)}</td><td colspan="1"></td>
+          <td class="fp-va fp-va-centro" colspan="2">${v(f.app)}</td><td colspan="1"></td>
+          <td class="fp-va fp-va-centro" colspan="11">${v(f.tipo_discapacidad)}</td><td colspan="1"></td>
+          <td class="fp-va fp-va-centro" colspan="4">${v(f.porcentaje_discapacidad)}</td>
+        </tr>
+        <tr>
+          <td class="fp-et" colspan="4">APF:</td><td colspan="5"></td>
+          <td class="fp-et" colspan="2">AQT:</td><td colspan="5"></td>
+          <td class="fp-et" colspan="4">APQ:</td><td colspan="8"></td>
+        </tr>
+        <tr>
+          <td class="fp-va" colspan="9">${v(f.apf)}</td><td colspan="1"></td>
+          <td class="fp-va" colspan="7">${v(f.aqt)}</td><td colspan="1"></td>
+          <td class="fp-va" colspan="10">${v(f.apq)}</td>
         </tr>
       </table>
 
