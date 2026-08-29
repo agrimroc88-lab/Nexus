@@ -82,6 +82,7 @@
         word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal; }
       .fp-lbl { background: #e6f0e6; font-weight: bold; white-space: normal; width: 130px;
         -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .fp-tabla td:not(.fp-lbl) { text-align: center; vertical-align: middle; }
       .fp-campo-largo { border: 1px solid #333; padding: 3px 6px; margin: 0.2rem 0;
         word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; }
       .fp-campo-largo strong { display: block; margin-bottom: 1px; }
@@ -98,11 +99,11 @@
          paralelo), solo se ordenan en columnas reales en vez de
          una tabla simple de 6 columnas. */
       .fp-grid { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 0.15rem; }
-      .fp-grid td { font-size: 7pt; padding: 0 2px; border: none; vertical-align: bottom;
-        white-space: normal; word-break: break-word; line-height: 1.15; }
-      .fp-et { font-weight: bold; background: #e6f0e6; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .fp-grid td { font-size: 7pt; padding: 0 2px; border: none; vertical-align: middle;
+        text-align: center; white-space: normal; word-break: break-word; line-height: 1.15; }
+      .fp-et { font-weight: bold; background: #e6f0e6; text-align: left; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .fp-va { background: #fff; border-bottom: 1px solid #333; min-height: 3mm; }
-      .fp-et-centro, .fp-va-centro { text-align: center; }
+      .fp-et-centro { text-align: center; }
       .fp-et-derecha { text-align: right; }
       .fp-banner { background: #1b5e20; color: #fff; font-weight: bold; text-align: center; font-size: 10pt;
         -webkit-print-color-adjust: exact; print-color-adjust: exact; }
