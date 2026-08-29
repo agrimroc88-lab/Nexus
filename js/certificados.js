@@ -349,7 +349,7 @@ async function abrirCertificado(c) {
   document.getElementById('ce_observacion').value = c.observacion ?? '';
 
   document.getElementById('modal-cert').hidden = false;
-  await buscarTrabajadorCert();
+  await cargarFichaPorId(c.trabajador_id);
   ajustarReubica();
   calcularReposoFin();
   calcularRotFin();
@@ -385,15 +385,39 @@ function limpiarForm() {
     .forEach((i) => { i.disabled = !escribible; });
 }
 
+/* Pinta la ficha y confirma al trabajador en estado, venga la
+   fila de donde venga (por código, por nombre o por id al
+   editar). Antes esto vivía repetido dentro de cada búsqueda. */
+function pintarFichaTrabajador(data) {
+  const $ayuda = document.getElementById('ce-ayuda-trabajador');
+
+  const estadoTexto = data.activo ? 'Trabajador identificado' : `${data.nombre_completo} · inactivo`;
+  $ayuda.textContent = data.codigo == null
+    ? `${estadoTexto} · sin código asignado` : estadoTexto;
+  $ayuda.className = 'ayuda ' + (data.activo ? 'ayuda-ok' : 'ayuda-aviso');
+  estado.trabajador = data;
+
+  document.getElementById('ce_codigo').value = data.codigo ?? '';
+  document.getElementById('ce-f-nombre').textContent = data.nombre_completo;
+  document.getElementById('ce-f-cedula').textContent = data.cedula;
+  document.getElementById('ce-f-cargo').textContent = textoOGuion(data.cargo);
+  document.getElementById('ce-f-area').textContent = textoOGuion(data.area);
+  document.getElementById('ce-ficha').hidden = false;
+  document.getElementById('ce-bloque').hidden = false;
+}
+
 /* Buscar trabajador por NOMBRE al crear certificado.
-   Al elegir, llena el código y carga la ficha completa. */
+   Al elegir, confirma directamente al trabajador con todos sus
+   datos —hay trabajadores sin código asignado, y para ellos este
+   es el ÚNICO camino: el buscador por código nunca los va a
+   encontrar porque no tienen número que teclear. */
 const buscarNombreCert = retrasar(async () => {
   const texto = document.getElementById('ce_buscar_nombre').value.trim();
   const $sug = document.getElementById('ce_nombre_sug');
   if (texto.length < 2) { $sug.hidden = true; return; }
 
   const { data } = await supabase
-    .from('v_trabajadores').select('codigo, nombre_completo, cedula, cargo')
+    .from('v_trabajadores').select('*')
     .eq('empresa_id', estado.empresaId)
     .or(`nombres.ilike.%${texto}%,apellidos.ilike.%${texto}%,cedula.ilike.%${texto}%`)
     .limit(8);
@@ -403,13 +427,12 @@ const buscarNombreCert = retrasar(async () => {
   data.forEach((t) => {
     const b = document.createElement('button');
     b.className = 'sugerencia'; b.type = 'button';
-    b.innerHTML = `<span class="cie-chip">${t.codigo}</span>
+    b.innerHTML = `<span class="cie-chip">${t.codigo ?? 'S/C'}</span>
                    <span class="sugerencia-nombre">${escapar(t.nombre_completo)} · ${escapar(t.cedula || '')}</span>`;
     b.addEventListener('click', () => {
-      document.getElementById('ce_codigo').value = t.codigo;
       document.getElementById('ce_buscar_nombre').value = t.nombre_completo;
       $sug.hidden = true;
-      buscarTrabajadorCert();  // carga la ficha completa por código
+      pintarFichaTrabajador(t);  // confirma de una vez; ya se trajo todo con select('*')
     });
     $sug.appendChild(b);
   });
@@ -431,17 +454,23 @@ const buscarTrabajadorCert = retrasar(async () => {
     ocultarFicha();
     return;
   }
-  $ayuda.textContent = data.activo ? 'Trabajador identificado' : `${data.nombre_completo} · inactivo`;
-  $ayuda.className = 'ayuda ' + (data.activo ? 'ayuda-ok' : 'ayuda-aviso');
-  estado.trabajador = data;
-
-  document.getElementById('ce-f-nombre').textContent = data.nombre_completo;
-  document.getElementById('ce-f-cedula').textContent = data.cedula;
-  document.getElementById('ce-f-cargo').textContent = textoOGuion(data.cargo);
-  document.getElementById('ce-f-area').textContent = textoOGuion(data.area);
-  document.getElementById('ce-ficha').hidden = false;
-  document.getElementById('ce-bloque').hidden = false;
+  pintarFichaTrabajador(data);
 }, 350);
+
+/* Cargar ficha por ID al editar un certificado existente. No se
+   pasa por el código: si el certificado se registró para un
+   trabajador sin código, buscarTrabajadorCert() jamás lo iba a
+   encontrar (código vacío → "No existe un trabajador con ese
+   código") y la edición quedaba bloqueada. El id del trabajador
+   ya viene guardado en el certificado (trabajador_id) y es la
+   llave real, exista o no un código. */
+async function cargarFichaPorId(trabajadorId) {
+  if (!trabajadorId) return;
+  const { data } = await supabase
+    .from('v_trabajadores').select('*')
+    .eq('id', trabajadorId).maybeSingle();
+  if (data) pintarFichaTrabajador(data);
+}
 
 function ocultarFicha() {
   estado.trabajador = null;
@@ -644,7 +673,19 @@ async function guardarCertificado() {
   const $alerta = document.getElementById('alerta-cert');
   const codigo = parseInt(document.getElementById('ce_codigo').value, 10);
 
-  if (!estado.trabajador || estado.trabajador.codigo !== codigo) {
+  /* El trabajador queda confirmado por la ficha ya cargada
+     (estado.trabajador), no por lo que diga el campo de código.
+     Hay trabajadores sin código asignado —para ellos el campo
+     código queda vacío a propósito y la única forma de
+     identificarlos es el buscador por nombre. Cuando el
+     trabajador SÍ tiene código, se sigue exigiendo que lo
+     escrito coincida: evita guardar sobre una ficha vieja si
+     alguien teclea otro número sin volver a buscar. */
+  const sinCodigoAsignado = estado.trabajador && estado.trabajador.codigo == null;
+  const identificacionValida = estado.trabajador
+    && (sinCodigoAsignado || estado.trabajador.codigo === codigo);
+
+  if (!identificacionValida) {
     $alerta.textContent = 'Busque y confirme un trabajador válido.';
     $alerta.hidden = false; return;
   }
