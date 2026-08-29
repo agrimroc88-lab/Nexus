@@ -766,6 +766,9 @@ const MAPA_CAMPOS_FICHA = [
 async function editarFicha() {
   const f = estado.fichas.find((x) => x.id === estado.verId);
   if (!f) return;
+  if (!puedeEditarFicha(f)) {
+    return alert('Este caso está cerrado. Solo un administrador puede reabrirlo.');
+  }
 
   estado.editandoId = f.id;
   limpiarFormulario();
@@ -795,6 +798,9 @@ async function editarFicha() {
 async function eliminarFicha() {
   const f = estado.fichas.find((x) => x.id === estado.verId);
   if (!f) return;
+  if (!puedeEliminarFicha()) {
+    return alert('Solo un administrador puede eliminar una ficha psicológica.');
+  }
 
   if (!confirm(`¿Eliminar la ficha de ${f.nombre_completo} del ${formatearFecha(f.fecha)}?\n\n`
     + 'Esta acción no se puede deshacer.')) return;
@@ -921,6 +927,51 @@ function limpiarFormulario() {
    Ver ficha + impresión
    ============================================ */
 
+/* Pestaña "Registros": listado plano de todas las fichas de la
+   empresa (no hace falta buscar trabajador por trabajador), con
+   las mismas reglas de admin+cerrado que el modal "Ver ficha". */
+function pintarRegistros() {
+  const $cuerpo = document.getElementById('cuerpo-registros');
+  const $vacio = document.getElementById('vacio-registros');
+  $cuerpo.innerHTML = '';
+  if (estado.fichas.length === 0) { $vacio.hidden = false; return; }
+  $vacio.hidden = true;
+
+  estado.fichas.forEach((f) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      `<td>${formatearFecha(f.fecha)}</td>` +
+      `<td>${escapar(f.nombre_completo)}</td>` +
+      `<td class="celda-mono">${escapar(f.cedula || '')}</td>` +
+      `<td>${escapar(TIPOS[f.tipo] || f.tipo || '—')}</td>` +
+      `<td>${escapar(f.estado || '—')}</td>` +
+      `<td class="celda-derecha"></td>`;
+
+    const acc = tr.querySelector('td:last-child');
+
+    const ver = document.createElement('button');
+    ver.className = 'boton-icono'; ver.textContent = 'Ver / imprimir';
+    ver.addEventListener('click', () => verFicha(f.id));
+    acc.appendChild(ver);
+
+    if (puedeEditarFicha(f)) {
+      const ed = document.createElement('button');
+      ed.className = 'boton-icono'; ed.textContent = 'Editar';
+      ed.addEventListener('click', () => { estado.verId = f.id; editarFicha(); });
+      acc.appendChild(ed);
+    }
+
+    if (puedeEliminarFicha()) {
+      const el = document.createElement('button');
+      el.className = 'boton-icono'; el.textContent = 'Eliminar';
+      el.addEventListener('click', () => { estado.verId = f.id; eliminarFicha(); });
+      acc.appendChild(el);
+    }
+
+    $cuerpo.appendChild(tr);
+  });
+}
+
 function verFicha(id) {
   const f = estado.fichas.find((x) => x.id === id);
   if (!f) return;
@@ -930,6 +981,8 @@ function verFicha(id) {
     `Ficha psicológica · ${formatearFecha(f.fecha)}`;
 
   document.getElementById('ver-cuerpo').innerHTML = cuerpoFicha(f);
+  document.getElementById('btn-editar-ficha').hidden = !puedeEditarFicha(f);
+  document.getElementById('btn-eliminar-ficha').hidden = !puedeEliminarFicha();
   document.getElementById('modal-ver').hidden = false;
 }
 
@@ -1016,6 +1069,18 @@ function nombrePsicologo() {
   const nombre = [p.nombres, p.apellidos].filter(Boolean).join(' ').trim();
   if (!nombre) return 'Psicólogo/a Clínico';
   return p.registro_msp ? `${nombre} · Reg. ${p.registro_msp}` : nombre;
+}
+
+/* Una vez que el caso queda "cerrado", solo el administrador
+   puede reabrirlo (editar) o eliminarlo — cualquier psicólogo
+   puede seguir haciendo ambas cosas mientras el caso siga
+   abierto o derivado. Eliminar, en cualquier estado, siempre es
+   cosa del administrador (igual que ya rige en Trabajo Social). */
+function puedeEditarFicha(f) {
+  return f.estado !== 'cerrado' || estado.perfil.rol === 'admin';
+}
+function puedeEliminarFicha() {
+  return estado.perfil.rol === 'admin';
 }
 
 async function imprimirFicha() {
@@ -1299,10 +1364,11 @@ function cambiarVista(vista) {
   document.querySelectorAll('.pestana').forEach((p) => {
     p.classList.toggle('activa', p.dataset.vista === vista);
   });
-  ['fichas', 'atenciones'].forEach((v) => {
+  ['fichas', 'registros', 'atenciones'].forEach((v) => {
     document.getElementById('vista-' + v).hidden = v !== vista;
   });
   if (vista === 'atenciones') pintarAtenciones();
+  if (vista === 'registros') pintarRegistros();
   if (vista === 'fichas') document.getElementById('busca_codigo').focus();
 }
 
