@@ -308,3 +308,26 @@
   display: inline-block;
 }
 
+/* Panel del Certificado de Aptitud Ocupacional Psicológica,
+   dentro del modal "Ver ficha". */
+.cap-panel {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-borde, #e2e6ec);
+}
+.cap-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.cap-campos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+.cap-campos .campo-crece { grid-column: 1 / -1; }
+
