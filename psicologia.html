@@ -185,6 +185,7 @@
 
         <nav class="pestanas">
           <button class="pestana activa" data-vista="fichas" type="button">Fichas</button>
+          <button class="pestana" data-vista="registros" type="button">Registros</button>
           <button class="pestana" data-vista="atenciones" type="button">Atenciones</button>
         </nav>
 
@@ -264,6 +265,28 @@
           <p class="aviso-inicial" id="aviso-fichas">
             Busque un trabajador por su código para ver o crear su ficha psicológica.
           </p>
+        </section>
+
+        <!-- ============ Vista: Registros (todas las fichas) ============ -->
+        <section class="vista" id="vista-registros" hidden>
+          <div class="panel">
+            <div class="tabla-envoltura">
+              <table class="tabla">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Trabajador</th>
+                    <th>Cédula</th>
+                    <th>Tipo</th>
+                    <th>Estado</th>
+                    <th class="celda-derecha">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="cuerpo-registros"></tbody>
+              </table>
+            </div>
+            <p class="vacio" id="vacio-registros" hidden>Sin fichas registradas.</p>
+          </div>
         </section>
 
         <!-- ============ Vista: Atenciones (conteo) ============ -->
@@ -726,6 +749,6 @@
   <!-- Área de impresión: se llena al imprimir y solo es visible en @media print -->
   <div id="zona-impresion" class="zona-impresion" aria-hidden="true"></div>
 
-  <script type="module" src="js/psicologia.js?v=18"></script>
+  <script type="module" src="js/psicologia.js?v=19"></script>
 </body>
 </html>
