@@ -12,7 +12,7 @@ import { escapar, textoOGuion, retrasar, formatearFecha, finDeReposo }
 import { sesionActual } from './auth.js';
 import {
   cargarDatosOficio, llenarDestinatarios, destinatarioPorId,
-  mostrarCiePorDefecto, imprimirOficio
+  mostrarCiePorDefecto, imprimirOficio, rangoDias
 } from './oficio-certificado.js?v=6';
 import { alCrear } from './autoria.js?v=1';
 
@@ -768,12 +768,27 @@ async function emitirOficio() {
 
   const clase = document.getElementById('of_clase').value;
   const perfil = sesionActual();
-  const firmante = c.medico_emisor
-    || (perfil ? [perfil.titulo, perfil.nombres, perfil.apellidos]
-          .filter(Boolean).join(' ').trim() : '');
 
+  /* El oficio lo firma quien lo está emitiendo ahora mismo —el
+     usuario con la sesión abierta—, nunca el médico externo que
+     firmó el certificado original (medico_emisor). Ese dato es
+     informativo del certificado, no de este oficio: el IESS, el
+     MSP o un particular no pueden figurar emitiendo una orden de
+     rotación de esta empresa. */
+  const firmante = perfil
+    ? [perfil.titulo, perfil.nombres, perfil.apellidos].filter(Boolean).join(' ').trim()
+    : (c.medico_emisor || '');
+
+  /* La rotación se nombra igual que el reposo: con sus fechas y
+     cantidad de días («14 y 15 de julio de 2026 (DOS DÍAS)»), no
+     solo con el detalle libre. Antes solo se imprimía
+     rotacion_detalle, así que si no se escribía una nota aparte
+     el oficio decía "AL MOMENTO NO AMERITA" aunque sí hubiera
+     días de rotación cargados. */
   const rotacion = c.amerita_reubicacion
-    ? (c.rotacion_detalle || '') : '';
+    ? [rangoDias(c.rotacion_inicio, c.rotacion_dias), c.rotacion_detalle]
+        .filter(Boolean).join(' · ')
+    : '';
 
   const ok = imprimirOficio({
     clase,
