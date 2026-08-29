@@ -35,8 +35,14 @@ const HOJA = {
 const ESPACIO_DESEADO = 50;   // 5 cm de blanco antes de la firma
 const ESPACIO_MINIMO  = 12;   // por debajo de esto no vale la pena apretar
 
-/* Bloques de firma de los distintos documentos */
-const SELECTOR_FIRMAS = '.gp-firmas, .oc-firmas, .em-firmas, [data-firmas]';
+/* Bloques de firma de los distintos documentos.
+
+   if-firmas se agregó aquí porque quedó fuera por descuido:
+   los informes (eventos, atenciones, evaluación periódica,
+   farmacia) usan esa clase y nunca recibían este ajuste
+   automático de 5 cm —se quedaban con el margen fijo de 16mm
+   del CSS, que es poco espacio para firmar encima de la línea. */
+const SELECTOR_FIRMAS = '.gp-firmas, .oc-firmas, .em-firmas, .if-firmas, [data-firmas]';
 
 /**
  * Cuántos píxeles mide un milímetro en este navegador.

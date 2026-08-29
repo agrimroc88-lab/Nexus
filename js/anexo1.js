@@ -1456,6 +1456,7 @@ function pintarTablaEventos() {
     ? `<th class="celda-centro">Fecha</th>
        <th class="celda-centro">Tipo</th>
        <th>Área</th>
+       <th>Trabajador</th>
        <th class="celda-centro">Turno</th>
        <th class="celda-centro">Sexo</th>
        <th>Descripción</th>
@@ -1465,6 +1466,7 @@ function pintarTablaEventos() {
     : `<th class="celda-centro">Fecha</th>
        <th class="celda-centro">Estado</th>
        <th>Área</th>
+       <th>Trabajador</th>
        <th class="celda-centro">Turno</th>
        <th class="celda-centro">Sexo</th>
        <th>Diagnóstico</th>
@@ -1507,11 +1509,13 @@ function filaEvento(e) {
     <td class="celda-centro celda-mono">${formatearFecha(e.fecha)}</td>
     <td class="celda-centro"><span class="insignia ${clase}">${texto}</span></td>
     <td>${escapar(textoOGuion(e.area))}</td>
+    <td class="celda-trabajador">
+      ${e.codigo_trabajador != null ? `<span class="celda-mono">${escapar(String(e.codigo_trabajador))}</span> ` : ''}${escapar(textoOGuion(e.trabajador))}
+    </td>
     <td class="celda-centro celda-tenue">${turnoTexto(e.turno)}</td>
     <td class="celda-centro">${e.sexo === 'M' ? 'H' : 'M'}</td>
     <td class="celda-detalle">
       ${detalle}
-      ${e.trabajador ? `<span class="secundario">${escapar(e.trabajador)}</span>` : ''}
     </td>
     <td class="celda-centro">
       ${e.dias_baja > 0 ? `<span class="reposo">${e.dias_baja}</span>` : '—'}
@@ -1520,8 +1524,9 @@ function filaEvento(e) {
     <td class="celda-derecha"></td>
   `;
 
-  /* Gestión */
-  const $g = fila.querySelector('td:nth-child(8)');
+  /* Gestión / Reporte: era la 8.ª celda; con la columna
+     Trabajador nueva de por medio, pasó a ser la 9.ª. */
+  const $g = fila.querySelector('td:nth-child(9)');
   if (e.gestion === 'sin_investigar') {
     $g.innerHTML = '<span class="chip-falta" title="POB-08 exige el informe de investigación">Sin investigar</span>';
   } else if (e.gestion === 'sin_reportar') {

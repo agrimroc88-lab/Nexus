@@ -431,14 +431,8 @@ export async function descargarInformeEventos() {
     ${d.pendientesInvestigar.length > 0 ? `
     <h3 class="if-subseccion">Eventos pendientes de investigar</h3>
     <table class="if-tabla">
-      <thead><tr><th>Fecha</th><th class="if-izq">Área</th><th class="if-izq">Descripción</th></tr></thead>
-      <tbody>${d.pendientesInvestigar.map((e) => `<tr><td>${formatearFecha(e.fecha)}</td><td class="if-izq">${escapar(e.area || '—')}</td><td class="if-izq">${escapar((e.descripcion || '').slice(0, 90))}</td></tr>`).join('')}</tbody>
-    </table>` : ''}
-    ${d.pendientesReportar.length > 0 ? `
-    <h3 class="if-subseccion">Accidentes pendientes de reportar al IESS</h3>
-    <table class="if-tabla">
-      <thead><tr><th>Fecha</th><th class="if-izq">Área</th><th class="if-izq">Descripción</th></tr></thead>
-      <tbody>${d.pendientesReportar.map((e) => `<tr><td>${formatearFecha(e.fecha)}</td><td class="if-izq">${escapar(e.area || '—')}</td><td class="if-izq">${escapar((e.descripcion || '').slice(0, 90))}</td></tr>`).join('')}</tbody>
+      <thead><tr><th>Fecha</th><th class="if-izq">Área</th><th class="if-izq">Trabajador</th><th class="if-izq">Descripción</th></tr></thead>
+      <tbody>${d.pendientesInvestigar.map((e) => `<tr><td>${formatearFecha(e.fecha)}</td><td class="if-izq">${escapar(e.area || '—')}</td><td class="if-izq">${escapar([e.codigo_trabajador, e.trabajador].filter(Boolean).join(' · ') || '—')}</td><td class="if-izq">${escapar((e.descripcion || '').slice(0, 90))}</td></tr>`).join('')}</tbody>
     </table>` : ''}`;
 
   const html = `
