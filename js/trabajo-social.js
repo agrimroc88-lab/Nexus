@@ -1149,57 +1149,61 @@ function htmlRegistroPersonal(f) {
     <div class="doc-encabezado">
       <img src="logo.png" class="doc-logo" alt="">
       <div class="doc-titulo-empresa">
-        <strong>AGRIMROC S.A</strong>
+        <strong>AGRIMROC. S.A</strong>
         <h1>REGISTRO DE PERSONAL</h1>
       </div>
       <div class="doc-foto">FOTO<br>tamaño<br>carnet</div>
     </div>
 
-    <div class="doc-seccion-h">Datos Personales</div>
+    <div class="doc-seccion-h">DATOS PERSONALES</div>
     <table class="doc-tabla">
       <tr><td class="doc-lbl">Apellidos y Nombres</td><td colspan="5">${V(f.nombre_completo)}</td></tr>
-      <tr><td class="doc-lbl">C.I.</td><td>${V(f.cedula)}</td><td class="doc-lbl">Sexo</td><td>${V(f.sexo)}</td><td class="doc-lbl">Estatura</td><td>${V(f.estatura)}</td></tr>
-      <tr><td class="doc-lbl">Grupo Sanguíneo</td><td>${V(f.disc_tipo_sanguineo || f.tipo_sangre)}</td><td class="doc-lbl">Estado Civil</td><td>${V(f.estado_civil)}</td><td class="doc-lbl">Edad</td><td>${f.edad != null ? f.edad : ''}</td></tr>
+      <tr><td class="doc-lbl">C.I</td><td>${V(f.cedula)}</td><td class="doc-lbl">Sexo</td><td>${V(f.sexo)}</td><td class="doc-lbl">Estatura</td><td>${V(f.estatura)}</td></tr>
+      <tr><td class="doc-lbl">Grupo Sanguineo</td><td>${V(f.disc_tipo_sanguineo || f.tipo_sangre)}</td><td class="doc-lbl">Estado Civil</td><td>${V(f.estado_civil)}</td><td class="doc-lbl">Edad</td><td>${f.edad != null ? f.edad : ''}</td></tr>
       <tr><td class="doc-lbl">Lugar y Fecha de Nacimiento</td><td colspan="3">${V(f.lugar_nacimiento)} ${f.fecha_nacimiento ? '· ' + formatearFecha(f.fecha_nacimiento) : ''}</td><td class="doc-lbl">Nacionalidad</td><td>${V(f.nacionalidad)}</td></tr>
     </table>
 
-    <div class="doc-seccion-h">Dirección de Residencia</div>
-    <table class="doc-tabla">
-      <tr><td class="doc-lbl">Provincia</td><td>${V(f.provincia)}</td><td class="doc-lbl">Cantón</td><td>${V(f.canton)}</td><td class="doc-lbl">Parroquia</td><td>${V(f.parroquia)}</td></tr>
-      <tr><td class="doc-lbl">Domicilio</td><td colspan="5">${V(f.domicilio)}</td></tr>
-      <tr><td class="doc-lbl">Convencional</td><td>${V(f.telefono_convencional)}</td><td class="doc-lbl">Celular</td><td colspan="3">${V(f.telefono)}</td></tr>
+    <table class="doc-tabla" style="margin-top:0.3rem;">
+      <tr><td class="doc-lbl" style="font-weight:normal;">Direccion de residencia</td><td colspan="5">${V(f.domicilio)}</td></tr>
+      <tr><td class="doc-lbl">Pronvincia</td><td>${V(f.provincia)}</td><td class="doc-lbl">Canton</td><td>${V(f.canton)}</td><td class="doc-lbl">Parroquia</td><td>${V(f.parroquia)}</td></tr>
+      <tr><td class="doc-lbl">Telefono convencional</td><td colspan="2">${V(f.telefono_convencional)}</td><td class="doc-lbl">Celular</td><td colspan="2">${V(f.telefono)}</td></tr>
     </table>
 
-    <div class="doc-seccion-h">Celular Familiares más Cercanos</div>
+    <div class="doc-seccion-h">Celular Familiares mas cercanos:</div>
     <table class="doc-tabla">
       <tr><td class="doc-lbl">Nombre</td><td colspan="3">${V(f.rp_contacto_nombre)}</td><td class="doc-lbl">Celular</td><td>${V(f.rp_contacto_celular)}</td></tr>
-      <tr><td class="doc-lbl">Correo Electrónico</td><td colspan="5">${V(f.rp_contacto_correo)}</td></tr>
+      <tr><td class="doc-lbl">Correo Electronico</td><td colspan="5">${V(f.rp_contacto_correo)}</td></tr>
     </table>
 
-    <div class="doc-seccion-h">Persona o Familiar más Cercano · Contacto en Caso de Emergencia</div>
+    <div class="doc-seccion-h">Persona o Familiar mas cercano con los que nos podamos comunicar en&nbsp; caso de emergencia:</div>
     <table class="doc-tabla">
       <tr><td class="doc-lbl">Familiar</td><td colspan="3">${V(f.rp_familiar1_nombre)}</td><td class="doc-lbl">Celular</td><td>${V(f.rp_familiar1_celular)}</td></tr>
-      <tr><td class="doc-lbl">Teléfono Convencional</td><td colspan="5">${V(f.rp_familiar1_convencional)}</td></tr>
+      <tr><td class="doc-lbl">Telefono convencional</td><td colspan="5">${V(f.rp_familiar1_convencional)}</td></tr>
       <tr><td class="doc-lbl">Familiar</td><td colspan="3">${V(f.rp_familiar2_nombre)}</td><td class="doc-lbl">Celular</td><td>${V(f.rp_familiar2_celular)}</td></tr>
-      <tr><td class="doc-lbl">Teléfono Convencional</td><td colspan="5">${V(f.rp_familiar2_convencional)}</td></tr>
+      <tr><td class="doc-lbl">Telefono convencional</td><td colspan="5">${V(f.rp_familiar2_convencional)}</td></tr>
     </table>
 
-    <div class="doc-seccion-h">Cargas Familiares</div>
+    <div class="doc-seccion-h">Cargas Familiares:</div>
     <table class="doc-tabla doc-tabla-chica">
       <tr>
-        <td class="doc-lbl">¿Tiene cargas familiares?</td>
-        <td class="doc-centro doc-lbl">Sí</td><td class="doc-centro doc-lbl">No</td>
-        <td class="doc-lbl">N°</td>
+        <td class="doc-lbl doc-centro">Si</td><td class="doc-lbl doc-centro">No</td>
+        <td class="doc-lbl doc-centro">Nº</td>
+      </tr>
+      <tr>
+        <td class="doc-centro">${MARCA(f.rp_cargas_familiares, 'Sí')}</td>
+        <td class="doc-centro">${MARCA(f.rp_cargas_familiares, 'No')}</td>
+        <td class="doc-centro">${V(f.rp_num_cargas)}</td>
+      </tr>
+    </table>
+    <table class="doc-tabla doc-tabla-chica">
+      <tr><td class="doc-lbl" style="font-weight:normal;text-align:left;" colspan="7">Parentezco:</td></tr>
+      <tr>
         <td class="doc-lbl doc-centro">Esposa</td><td class="doc-lbl doc-centro">Hijo</td>
         <td class="doc-lbl doc-centro">Hija</td><td class="doc-lbl doc-centro">Papá</td>
         <td class="doc-lbl doc-centro">Mamá</td><td class="doc-lbl doc-centro">Abuelo</td>
         <td class="doc-lbl doc-centro">Abuela</td>
       </tr>
       <tr>
-        <td></td>
-        <td class="doc-centro">${MARCA(f.rp_cargas_familiares, 'Sí')}</td>
-        <td class="doc-centro">${MARCA(f.rp_cargas_familiares, 'No')}</td>
-        <td class="doc-centro">${V(f.rp_num_cargas)}</td>
         <td class="doc-centro">${(f.rp_parentesco_cargas || '').includes('Esposa') ? 'X' : ''}</td>
         <td class="doc-centro">${(f.rp_parentesco_cargas || '').includes('Hijo') ? 'X' : ''}</td>
         <td class="doc-centro">${(f.rp_parentesco_cargas || '').includes('Hija') ? 'X' : ''}</td>
@@ -1212,19 +1216,25 @@ function htmlRegistroPersonal(f) {
 
     <div class="doc-seccion-h">Datos Laborales</div>
     <table class="doc-tabla">
-      <tr><td class="doc-lbl">FECHA DE INGRESO</td><td>${f.fecha_ingreso ? formatearFecha(f.fecha_ingreso) : ''}</td><td class="doc-lbl">Cargo</td><td>${V(f.cargo)}</td></tr>
+      <tr><td class="doc-lbl">Fecha de Ingreso</td><td>${f.fecha_ingreso ? formatearFecha(f.fecha_ingreso) : ''}</td><td class="doc-lbl">Cargo</td><td>${V(f.cargo)}</td></tr>
       <tr><td class="doc-lbl">Sueldo</td><td>${V(f.rp_sueldo)}</td><td class="doc-lbl">Fecha de Salida</td><td>${f.rp_fecha_salida ? formatearFecha(f.rp_fecha_salida) : ''}</td></tr>
     </table>
 
-    <div class="doc-seccion-h">Experiencia Laboral (Última)</div>
+    <div class="doc-seccion-h">Experiencia Laboral (Ultima)</div>
     <table class="doc-tabla">
-      <tr><td class="doc-lbl">Empresa</td><td>${V(f.rp_exp_empresa)}</td><td class="doc-lbl">Cargo Ocupado</td><td>${V(f.rp_exp_cargo)}</td></tr>
+      <tr><td class="doc-lbl">Nombre de la Empresa</td><td>${V(f.rp_exp_empresa)}</td><td class="doc-lbl">Cargo Ocupado</td><td>${V(f.rp_exp_cargo)}</td></tr>
     </table>
 
+    <!-- El Excel no imprime el nombre del trabajador en la firma:
+         solo la línea y, debajo, "COLABORADOR" y "CI" como dos
+         renglones separados —igual que se corrigió en la Ficha
+         Social—. Se agrega el número real junto a "CI" porque el
+         sistema ya lo tiene, en vez de dejarlo en blanco para
+         completar a mano. -->
     <div class="doc-firma">
       <div class="doc-firma-linea"></div>
-      <p>${V(f.nombre_completo)}</p>
-      <p style="font-size:9pt">Colaborador · C.I. ${V(f.cedula)}</p>
+      <p style="font-weight:bold;">COLABORADOR</p>
+      <p style="font-weight:bold;">CI ${V(f.cedula)}</p>
     </div>
   </div>`;
 }
