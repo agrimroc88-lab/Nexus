@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="css/empresas.css">
   <link rel="stylesheet" href="css/trabajadores.css">
   <link rel="stylesheet" href="css/atenciones.css">
-  <link rel="stylesheet" href="css/psicologia.css?v=4">
+  <link rel="stylesheet" href="css/psicologia.css?v=5">
   <style>
     .seccion-titulo {
       font-size: 0.95rem;
@@ -92,6 +92,19 @@
       .fp-firma-linea { border-top: 1px solid #000; margin-bottom: 0.25rem; }
       .fp-firma p { margin: 0; font-size: 11pt; }
       .fp-check { display: inline-block; width: 14px; height: 12px; border: 1px solid #333; vertical-align: middle; }
+
+      /* Certificado de Aptitud Ocupacional Psicológica: mismo
+         verde institucional que usan certificados/oficios/
+         informes (var(--doc-verde) de documentos.css), no un
+         color nuevo. */
+      .cert-hoja .fp-encabezado { border-bottom-color: var(--doc-verde, #1b5e20); align-items: flex-start; }
+      .cert-hoja .fp-titulo-empresa strong { color: var(--doc-verde, #1b5e20); font-size: 12pt; }
+      .cert-hoja .fp-titulo-empresa span { font-size: 9.5pt; color: var(--doc-texto-suave, #444); }
+      .cert-fecha { text-align: right; margin: 1.2rem 0 0.5rem; font-size: 11pt; }
+      .cert-titulo { text-align: center; color: var(--doc-verde, #1b5e20); font-size: 15pt;
+        margin: 1rem 0 1.5rem; line-height: 1.3; }
+      .cert-parrafo { text-align: justify; font-size: 11pt; line-height: 1.6; margin: 0 0 1rem; }
+      .cert-hoja .fp-firma { margin-top: 5rem; }
 
       /* Cuadrícula de 28 columnas de la sección de identificación:
          mismos colores que ya existían (fp-lbl verde clarito para
@@ -712,6 +725,6 @@
   <!-- Área de impresión: se llena al imprimir y solo es visible en @media print -->
   <div id="zona-impresion" class="zona-impresion" aria-hidden="true"></div>
 
-  <script type="module" src="js/psicologia.js?v=16"></script>
+  <script type="module" src="js/psicologia.js?v=17"></script>
 </body>
 </html>
