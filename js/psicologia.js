@@ -930,9 +930,6 @@ function verFicha(id) {
     `Ficha psicológica · ${formatearFecha(f.fecha)}`;
 
   document.getElementById('ver-cuerpo').innerHTML = cuerpoFicha(f);
-  document.getElementById('cap_incluir').addEventListener('change', (e) => {
-    document.getElementById('cap_campos').hidden = !e.target.checked;
-  });
   document.getElementById('modal-ver').hidden = false;
 }
 
@@ -968,14 +965,11 @@ function cuerpoFicha(f) {
     <!-- Certificado de Aptitud Ocupacional Psicológica: la
          aptitud, la vigencia y la conclusión son una decisión
          clínica de cada emisión —no del registro de la ficha—,
-         por eso se piden aquí mismo al momento de imprimir, en
-         vez de guardarse permanentemente en la ficha. -->
+         por eso se piden aquí mismo, listas para cuando se le
+         dé clic a "Imprimir Certificado de Aptitud". -->
     <div class="cap-panel">
-      <label class="cap-check">
-        <input type="checkbox" id="cap_incluir">
-        Imprimir también el Certificado de Aptitud Ocupacional Psicológica
-      </label>
-      <div class="cap-campos" id="cap_campos" hidden>
+      <p class="cap-titulo">Datos para el Certificado de Aptitud Ocupacional Psicológica</p>
+      <div class="cap-campos">
         <div class="campo">
           <label class="etiqueta" for="cap_aptitud">Aptitud</label>
           <select class="entrada" id="cap_aptitud">
@@ -1202,16 +1196,25 @@ async function imprimirFicha() {
         <p>${v(f.registrado_por || nombrePsicologo())}</p>
         <p style="font-size:8.5pt; margin-top:2px;">Psicólogo/a Clínico</p>
       </div>
-    </div>
-    ${document.getElementById('cap_incluir')?.checked ? htmlCertificadoAptitud(f) : ''}`;
+    </div>`;
   window.print();
 }
 
-/* Certificado de Aptitud Ocupacional Psicológica: documento
-   aparte que se imprime a continuación de la ficha (salto de
-   página) cuando el psicólogo marca la casilla. La aptitud, la
-   vigencia y la conclusión se piden en el momento porque son una
-   decisión clínica de cada emisión, no un dato de la ficha. */
+/* Certificado de Aptitud Ocupacional Psicológica: botón e
+   impresión propios, igual que "Imprimir Ficha Social" e
+   "Imprimir Registro de Personal" en Trabajo Social. La aptitud,
+   la vigencia y la conclusión se piden en el panel de la ficha
+   porque son una decisión clínica de cada emisión, no un dato
+   guardado permanentemente en la ficha. */
+function imprimirCertificado() {
+  const f = estado.fichas.find((x) => x.id === estado.verId);
+  if (!f) return;
+
+  const $zona = document.getElementById('zona-impresion');
+  $zona.innerHTML = htmlCertificadoAptitud(f);
+  window.print();
+}
+
 const MESES_ES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
   'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 const DIAS_ES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
@@ -1238,7 +1241,7 @@ function htmlCertificadoAptitud(f) {
   const tratamiento = f.sexo === 'F' ? 'la señora' : f.sexo === 'M' ? 'el señor' : 'el/la trabajador(a)';
 
   return `
-  <div class="fp-hoja cert-hoja" style="page-break-before: always;">
+  <div class="fp-hoja cert-hoja">
     <div class="fp-encabezado">
       <img src="logo.png" class="fp-logo" alt="">
       <div class="fp-titulo-empresa">
@@ -1376,7 +1379,8 @@ function conectarEventos() {
   document.getElementById('btn-guardar-alta').addEventListener('click', guardarAlta);
 
   /* --- Ver / imprimir --- */
-  document.getElementById('btn-imprimir').addEventListener('click', imprimirFicha);
+  document.getElementById('btn-imprimir-ficha').addEventListener('click', imprimirFicha);
+  document.getElementById('btn-imprimir-certificado').addEventListener('click', imprimirCertificado);
   document.getElementById('btn-editar-ficha').addEventListener('click', editarFicha);
   document.getElementById('btn-eliminar-ficha').addEventListener('click', eliminarFicha);
 
