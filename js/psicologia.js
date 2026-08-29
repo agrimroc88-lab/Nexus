@@ -1043,7 +1043,7 @@ function imprimirFicha() {
         </tr>
         <tr>
           <td class="fp-va" colspan="9">${v(f.domicilio)}</td>
-          <td class="fp-va fp-va-centro" colspan="5">${f.num_hijos != null ? f.num_hijos : ''}</td><td colspan="1"></td>
+          <td class="fp-va fp-va-centro" colspan="5">${f.num_hijos != null ? f.num_hijos : '0'}</td><td colspan="1"></td>
           <td class="fp-va fp-va-centro" colspan="13">${v(f.codigo)}</td>
         </tr>
         <tr>
@@ -1118,10 +1118,10 @@ function imprimirFicha() {
       <div class="fp-seccion-h">Test Aplicados</div>
       <table class="fp-tabla" style="table-layout:auto;">
         <tr>
-          <td style="width:65%;"><p style="white-space:pre-wrap;margin:0 0 0.4rem;">${v(f.test_aplicados)}</p>
+          <td style="width:65%; text-align:left; vertical-align:top;"><p style="white-space:pre-wrap;margin:0 0 0.4rem;">${v(f.test_aplicados)}</p>
             <strong>Diagnostico Presuntivo:</strong><p style="white-space:pre-wrap;margin:0;">${v(f.impresion_dx)}</p>
           </td>
-          <td><strong style="display:block;text-align:center;">Observaciones</strong><p style="white-space:pre-wrap;margin:0;">${v(f.observaciones)}</p></td>
+          <td style="text-align:left; vertical-align:top;"><strong style="display:block;text-align:center;">Observaciones</strong><p style="white-space:pre-wrap;margin:0;">${v(f.observaciones)}</p></td>
         </tr>
       </table>
 
