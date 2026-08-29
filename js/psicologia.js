@@ -980,13 +980,13 @@ async function imprimirFicha() {
      con una consulta aparte por trabajador_id, mismo patrón que
      ya usa editarFicha(), en vez de dejarlos en blanco. */
   const { data: t } = await supabase
-    .from('v_trabajadores').select('fecha_nacimiento, fecha_ingreso, codigo')
+    .from('v_trabajadores').select('fecha_nacimiento, primer_ingreso, codigo')
     .eq('empresa_id', estado.empresaId).eq('id', ficha.trabajador_id).maybeSingle();
 
   const f = {
     ...ficha,
     fecha_nacimiento: ficha.fecha_nacimiento ?? t?.fecha_nacimiento,
-    fecha_ingreso: ficha.fecha_ingreso ?? t?.fecha_ingreso,
+    fecha_ingreso: ficha.fecha_ingreso ?? t?.primer_ingreso,
     codigo: ficha.codigo ?? t?.codigo
   };
 
