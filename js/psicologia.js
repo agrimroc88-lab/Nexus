@@ -930,6 +930,9 @@ function verFicha(id) {
     `Ficha psicológica · ${formatearFecha(f.fecha)}`;
 
   document.getElementById('ver-cuerpo').innerHTML = cuerpoFicha(f);
+  document.getElementById('cap_incluir').addEventListener('change', (e) => {
+    document.getElementById('cap_campos').hidden = !e.target.checked;
+  });
   document.getElementById('modal-ver').hidden = false;
 }
 
@@ -960,8 +963,59 @@ function cuerpoFicha(f) {
       <div><span class="ver-etiqueta">Estado</span> ${escapar(f.estado)}</div>
       ${f.proxima_cita ? `<div><span class="ver-etiqueta">Próxima cita</span> ${formatearFecha(f.proxima_cita)}</div>` : ''}
       ${f.registrado_por ? `<div><span class="ver-etiqueta">Registró</span> ${escapar(f.registrado_por)}</div>` : ''}
+    </div>
+
+    <!-- Certificado de Aptitud Ocupacional Psicológica: la
+         aptitud, la vigencia y la conclusión son una decisión
+         clínica de cada emisión —no del registro de la ficha—,
+         por eso se piden aquí mismo al momento de imprimir, en
+         vez de guardarse permanentemente en la ficha. -->
+    <div class="cap-panel">
+      <label class="cap-check">
+        <input type="checkbox" id="cap_incluir">
+        Imprimir también el Certificado de Aptitud Ocupacional Psicológica
+      </label>
+      <div class="cap-campos" id="cap_campos" hidden>
+        <div class="campo">
+          <label class="etiqueta" for="cap_aptitud">Aptitud</label>
+          <select class="entrada" id="cap_aptitud">
+            <option value="ES APTO">Es apto</option>
+            <option value="NO ES APTO">No es apto</option>
+            <option value="ES APTO CON RESTRICCIONES">Es apto con restricciones</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label class="etiqueta" for="cap_cargo">Cargo evaluado</label>
+          <input class="entrada" id="cap_cargo" type="text" value="${escapar(textoOGuion(f.cargo))}">
+        </div>
+        <div class="campo">
+          <label class="etiqueta" for="cap_vigencia">Vigencia</label>
+          <input class="entrada" id="cap_vigencia" type="text" value="1 año" placeholder="Ej: 1 año">
+        </div>
+        <div class="campo">
+          <label class="etiqueta" for="cap_solicitud">A solicitud de</label>
+          <select class="entrada" id="cap_solicitud">
+            <option value="personal">Solicitud personal</option>
+            <option value="institucional">Solicitud institucional</option>
+            <option value="empresarial">Solicitud empresarial</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label class="etiqueta" for="cap_ciudad">Ciudad</label>
+          <input class="entrada" id="cap_ciudad" type="text" value="Machala">
+        </div>
+        <div class="campo campo-crece">
+          <label class="etiqueta" for="cap_conclusion">Conclusión de la entrevista</label>
+          <textarea class="entrada" id="cap_conclusion" rows="3">${escapar(TEXTO_CONCLUSION_CERTIFICADO)}</textarea>
+        </div>
+      </div>
     </div>`;
 }
+
+const TEXTO_CONCLUSION_CERTIFICADO =
+  'Como resultado de la entrevista clínica, se concluye que el evaluado no presenta indicadores de ' +
+  'alteraciones psicopatológicas. Las funciones mentales superiores (orientación, afectividad, área ' +
+  'emocional e intelectual) se encuentran dentro de los rangos esperados para su edad y contexto.';
 
 function nombrePsicologo() {
   const p = estado.perfil || {};
@@ -1148,8 +1202,84 @@ async function imprimirFicha() {
         <p>${v(f.registrado_por || nombrePsicologo())}</p>
         <p style="font-size:8.5pt; margin-top:2px;">Psicólogo/a Clínico</p>
       </div>
-    </div>`;
+    </div>
+    ${document.getElementById('cap_incluir')?.checked ? htmlCertificadoAptitud(f) : ''}`;
   window.print();
+}
+
+/* Certificado de Aptitud Ocupacional Psicológica: documento
+   aparte que se imprime a continuación de la ficha (salto de
+   página) cuando el psicólogo marca la casilla. La aptitud, la
+   vigencia y la conclusión se piden en el momento porque son una
+   decisión clínica de cada emisión, no un dato de la ficha. */
+const MESES_ES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+const DIAS_ES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+
+function fechaLargaEs(fecha) {
+  const d = fecha ? new Date(`${fecha}T00:00`) : new Date();
+  return `${DIAS_ES[d.getDay()]}, ${d.getDate()} de ${MESES_ES[d.getMonth()]} de ${d.getFullYear()}`;
+}
+
+function htmlCertificadoAptitud(f) {
+  const v = (x) => escapar(x != null && x !== '' ? String(x) : '');
+  const p = estado.perfil || {};
+  const firmante = [p.nombres, p.apellidos].filter(Boolean).join(' ').trim() || 'Psicólogo/a Clínico';
+  const registro = p.registro_msp || '';
+
+  const ciudad = v(document.getElementById('cap_ciudad').value || 'Machala');
+  const aptitud = document.getElementById('cap_aptitud').value;
+  const cargoEvaluado = v(document.getElementById('cap_cargo').value);
+  const vigencia = v(document.getElementById('cap_vigencia').value || '1 año');
+  const solicitud = document.getElementById('cap_solicitud').value === 'institucional' ? 'solicitud institucional'
+    : document.getElementById('cap_solicitud').value === 'empresarial' ? 'solicitud empresarial'
+    : 'solicitud personal';
+  const conclusion = v(document.getElementById('cap_conclusion').value);
+  const tratamiento = f.sexo === 'F' ? 'la señora' : f.sexo === 'M' ? 'el señor' : 'el/la trabajador(a)';
+
+  return `
+  <div class="fp-hoja cert-hoja" style="page-break-before: always;">
+    <div class="fp-encabezado">
+      <img src="logo.png" class="fp-logo" alt="">
+      <div class="fp-titulo-empresa">
+        <strong>SERVICIO MÉDICO DE EMPRESA AGRIMROC S.A</strong>
+        <span>San Antonio – Camilo Ponce Enríquez · Azuay</span>
+        <span>Departamento de Salud Mental</span>
+      </div>
+    </div>
+
+    <p class="cert-fecha">${ciudad}, ${fechaLargaEs(f.fecha)}</p>
+
+    <h1 class="cert-titulo">Certificado de Aptitud<br>Ocupacional Psicológica</h1>
+
+    <p class="cert-parrafo">
+      Quien suscribe, <strong>${escapar(firmante)}</strong>, Psicólogo/a Clínico de AGRIMROC S.A., certifica que
+      ${tratamiento} <strong>${v(f.nombre_completo)}</strong>, portador(a) de la cédula de identidad
+      N° <strong>${v(f.cedula)}</strong>, código <strong>${v(f.codigo_trabajador ?? f.codigo)}</strong>,
+      fue evaluado(a) en las instalaciones de la empresa el día <strong>${fechaLargaEs(f.fecha)}</strong>,
+      a ${solicitud}.
+    </p>
+
+    <p class="cert-parrafo">${conclusion}</p>
+
+    <p class="cert-parrafo">
+      Con base en los hallazgos obtenidos, se determina que el/la evaluado(a) <strong>${aptitud}</strong>
+      para desempeñarse como <strong>${cargoEvaluado}</strong>, con una vigencia de
+      <strong>${vigencia}</strong> a partir de la presente fecha.
+    </p>
+
+    <p class="cert-parrafo">
+      Este certificado se expide en honor a la verdad, conforme a los principios éticos de la práctica
+      profesional y dentro del alcance de mis competencias.
+    </p>
+
+    <div class="fp-firma">
+      <div class="fp-firma-linea"></div>
+      <p><strong>${escapar(firmante)}</strong></p>
+      <p style="font-size:9pt; margin-top:2px;">Psicólogo/a Clínico</p>
+      ${registro ? `<p style="font-size:9pt;">N° de Registro: ${escapar(registro)}</p>` : ''}
+    </div>
+  </div>`;
 }
 
 function bloqueImpr(etq, val) {
