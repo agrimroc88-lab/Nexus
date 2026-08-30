@@ -76,3 +76,54 @@
   font-weight: 600;
   color: var(--color-acento-oscuro, #00450d);
 }
+
+/* ============================================
+   Colores de marca en el informe impreso
+   Los estilos ".if-*" son compartidos por todo el sistema y
+   traen un azul genérico de plantilla. Aquí se repintan SOLO
+   dentro de la zona de impresión del test A-T-D con el verde
+   y dorado del logo de Minera Agrimroc — sin tocar los demás
+   informes del sistema (evaluación, farmacia, atenciones),
+   que siguen con su estilo de siempre.
+   ============================================ */
+@media print {
+  #atd-impresion .if-portada-banda { background: #1b5e20; }
+  #atd-impresion .if-portada-banda-baja { background: #EB9500; }
+
+  #atd-impresion .if-portada-regla,
+  #atd-impresion .if-membrete,
+  #atd-impresion .if-firma-linea { border-color: #1b5e20; }
+
+  #atd-impresion .if-portada-titulo,
+  #atd-impresion .if-seccion,
+  #atd-impresion .if-firma-rotulo { color: #00450d; }
+
+  #atd-impresion .if-portada-datos th,
+  #atd-impresion .if-tabla thead th {
+    color: #00450d;
+    background: #e6f0e6;
+    border-color: #b7d2b7;
+  }
+
+  #atd-impresion .if-portada-datos td,
+  #atd-impresion .if-tabla td,
+  #atd-impresion .if-tabla th { border-color: #b7d2b7; }
+}
+
+#atd-impresion .if-portada-banda { background: #1b5e20; }
+#atd-impresion .if-portada-banda-baja { background: #EB9500; }
+#atd-impresion .if-portada-regla,
+#atd-impresion .if-membrete,
+#atd-impresion .if-firma-linea { border-color: #1b5e20; }
+#atd-impresion .if-portada-titulo,
+#atd-impresion .if-seccion,
+#atd-impresion .if-firma-rotulo { color: #00450d; }
+#atd-impresion .if-portada-datos th,
+#atd-impresion .if-tabla thead th {
+  color: #00450d;
+  background: #e6f0e6;
+  border-color: #b7d2b7;
+}
+#atd-impresion .if-portada-datos td,
+#atd-impresion .if-tabla td,
+#atd-impresion .if-tabla th { border-color: #b7d2b7; }
