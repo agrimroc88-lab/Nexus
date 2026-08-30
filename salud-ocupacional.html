@@ -54,7 +54,7 @@
   <link rel="stylesheet" href="css/botiquines.css?v=12">
   <link rel="stylesheet" href="css/instalaciones.css?v=9">
   <link rel="stylesheet" href="css/evaluacion.css?v=2">
-  <link rel="stylesheet" href="css/test-atd.css?v=1">
+  <link rel="stylesheet" href="css/test-atd.css?v=2">
 </head>
 <body class="app" data-ambito="salud" data-modulo="salud_ocup">
 
@@ -962,8 +962,9 @@
         <p class="ayuda" style="padding:0 0.25rem;">
           Cuestionario de diagnóstico inicial para determinar el uso o consumo problemático de
           alcohol, tabaco y otras drogas. Las respuestas se registran de forma
-          <strong>anónima</strong>: no se guarda cédula ni nombre. Solo si la persona pide
-          tratamiento se abre, aparte, un caso identificado para poder darle seguimiento.
+          <strong>identificada con código o cédula</strong>: sirve para llevar control de quién
+          ya lo realizó y para poder ubicar directamente a quien pide tratamiento. El acceso
+          está restringido a médicos y enfermería.
         </p>
 
         <nav class="pestanas pestanas-secundarias">
@@ -981,7 +982,7 @@
               <select class="entrada" id="atd-anio"></select>
             </div>
             <button class="boton-primario" id="atd-btn-nuevo" type="button">
-              + Registrar respuesta anónima
+              + Registrar respuesta
             </button>
             <span class="ayuda" id="atd-avance">—</span>
           </section>
@@ -990,9 +991,19 @@
 
           <!-- Formulario de captura -->
           <section class="panel" id="atd-form" hidden>
-            <h3 class="est-titulo" style="padding:0.5rem 1rem 0;">Nueva respuesta anónima</h3>
+            <h3 class="est-titulo" style="padding:0.5rem 1rem 0;">Nueva respuesta</h3>
 
             <div class="rejilla">
+              <div class="campo">
+                <label class="etiqueta" for="atd-f-area">1. Cargo o puesto del trabajador</label>
+                <input class="entrada" id="atd-f-area" type="text" placeholder="Ej. Operario de bodega">
+                <span class="ayuda">Para identificar qué áreas concentran más problemas de consumo.</span>
+              </div>
+              <div class="campo">
+                <label class="etiqueta" for="atd-f-cedula">2. Código o cédula/pasaporte</label>
+                <input class="entrada" id="atd-f-cedula" type="text" placeholder="Ej. 0102030405 o código interno">
+                <span class="ayuda">Para llevar control de quién ya realizó el test este año.</span>
+              </div>
               <div class="campo">
                 <label class="etiqueta" for="atd-f-genero">6. Género</label>
                 <select class="entrada" id="atd-f-genero">
@@ -1199,31 +1210,20 @@
               </div>
             </div>
 
-            <!-- Datos de contacto: SOLO si pide tratamiento. Se guardan
-                 en una tabla aparte, identificada; nunca junto a las
-                 respuestas anónimas de arriba. -->
+            <!-- Datos de contacto: solo si pide tratamiento. -->
             <div class="panel atd-deriv-datos" id="atd-deriv-datos" hidden>
               <p class="ayuda" style="padding:0.5rem 1rem 0;">
-                Esta persona pidió tratamiento. Estos datos se guardan en un caso identificado
-                aparte, para poder contactarla y darle seguimiento — no se mezclan con el
-                resto del test, que sigue siendo anónimo.
+                Esta persona pidió tratamiento. Se identifica con el código/cédula ya indicado
+                arriba; deje aquí solo el contacto para poder ubicarla y darle seguimiento.
               </p>
               <div class="rejilla" style="padding:0 1rem 1rem;">
                 <div class="campo">
-                  <label class="etiqueta" for="atd-f-deriv-nombre">Nombre completo <span class="obligatorio">*</span></label>
-                  <input class="entrada" id="atd-f-deriv-nombre" type="text">
-                </div>
-                <div class="campo">
-                  <label class="etiqueta" for="atd-f-deriv-cedula">Cédula (opcional)</label>
-                  <input class="entrada" id="atd-f-deriv-cedula" type="text">
-                </div>
-                <div class="campo">
-                  <label class="etiqueta" for="atd-f-deriv-telefono">Teléfono</label>
-                  <input class="entrada" id="atd-f-deriv-telefono" type="text">
+                  <label class="etiqueta" for="atd-f-telefono">Teléfono</label>
+                  <input class="entrada" id="atd-f-telefono" type="text">
                 </div>
                 <div class="campo campo-ancho">
-                  <label class="etiqueta" for="atd-f-deriv-direccion">Dirección</label>
-                  <input class="entrada" id="atd-f-deriv-direccion" type="text">
+                  <label class="etiqueta" for="atd-f-direccion">Dirección</label>
+                  <input class="entrada" id="atd-f-direccion" type="text">
                 </div>
               </div>
             </div>
@@ -1232,7 +1232,7 @@
 
             <div class="herramientas" style="padding:0.75rem 1rem;">
               <button class="boton-secundario" id="atd-btn-cancelar" type="button">Cancelar</button>
-              <button class="boton-primario" id="atd-btn-guardar" type="button">Guardar registro anónimo</button>
+              <button class="boton-primario" id="atd-btn-guardar" type="button">Guardar registro</button>
             </div>
           </section>
 
@@ -1240,14 +1240,14 @@
           <section class="panel">
             <h3 class="est-titulo" style="padding:0.5rem 1rem 0;">Registros de la campaña</h3>
             <p class="ayuda" style="padding:0 1rem;">
-              Solo un correlativo interno, sin nombre ni cédula, para poder corregir un registro
-              mal digitado.
+              Para verificar quién ya realizó el test este año y corregir un registro mal digitado.
             </p>
             <div class="tabla-envoltura">
               <table class="tabla">
                 <thead>
                   <tr>
-                    <th>N.°</th>
+                    <th>Código / cédula</th>
+                    <th>Cargo / área</th>
                     <th>Género</th>
                     <th>Droga principal</th>
                     <th>Frecuencia</th>
@@ -1297,8 +1297,8 @@
               <table class="tabla">
                 <thead>
                   <tr>
-                    <th>Nombre</th>
-                    <th>Cédula</th>
+                    <th>Código / cédula</th>
+                    <th>Cargo / área</th>
                     <th>Teléfono</th>
                     <th>Dirección</th>
                     <th class="celda-centro">Año</th>
@@ -2781,6 +2781,6 @@
 
   <div class="if-impresion" id="atd-impresion"></div>
 
-  <script type="module" src="js/anexo1.js?v=29"></script>
+  <script type="module" src="js/anexo1.js?v=30"></script>
 </body>
 </html>
