@@ -54,6 +54,7 @@
   <link rel="stylesheet" href="css/botiquines.css?v=12">
   <link rel="stylesheet" href="css/instalaciones.css?v=9">
   <link rel="stylesheet" href="css/evaluacion.css?v=2">
+  <link rel="stylesheet" href="css/test-atd.css?v=1">
 </head>
 <body class="app" data-ambito="salud" data-modulo="salud_ocup">
 
@@ -94,6 +95,7 @@
           <button class="pestana" data-vista="instalaciones" type="button">Instalaciones</button>
           <button class="pestana" data-vista="ocupacionales" type="button">Atenciones ocupacionales</button>
           <button class="pestana" data-vista="evaluacion" type="button">Evaluación periódica</button>
+          <button class="pestana" data-vista="atd" type="button">Test A-T-D</button>
         </nav>
 
         <!-- ============ Vista: Cumplimiento ============ -->
@@ -950,6 +952,436 @@
               </button>
             </div>
           </div>
+        </section>
+
+      </section>
+
+      <!-- ============ Vista: Test A-T-D ============ -->
+      <section class="vista" id="vista-atd" hidden>
+
+        <p class="ayuda" style="padding:0 0.25rem;">
+          Cuestionario de diagnóstico inicial para determinar el uso o consumo problemático de
+          alcohol, tabaco y otras drogas. Las respuestas se registran de forma
+          <strong>anónima</strong>: no se guarda cédula ni nombre. Solo si la persona pide
+          tratamiento se abre, aparte, un caso identificado para poder darle seguimiento.
+        </p>
+
+        <nav class="pestanas pestanas-secundarias">
+          <button class="pestana activa" data-atd-vista="captura" type="button">Captura</button>
+          <button class="pestana" data-atd-vista="derivaciones" type="button">Seguimiento y derivaciones</button>
+          <button class="pestana" data-atd-vista="informes" type="button">Informes</button>
+        </nav>
+
+        <!-- ---------- Captura ---------- -->
+        <section class="atd-subvista" id="atd-subvista-captura">
+
+          <section class="panel atd-controles">
+            <div class="campo campo-corto">
+              <label class="etiqueta" for="atd-anio">Año de la campaña</label>
+              <select class="entrada" id="atd-anio"></select>
+            </div>
+            <button class="boton-primario" id="atd-btn-nuevo" type="button">
+              + Registrar respuesta anónima
+            </button>
+            <span class="ayuda" id="atd-avance">—</span>
+          </section>
+
+          <p class="alerta" id="atd-alerta" role="alert" hidden></p>
+
+          <!-- Formulario de captura -->
+          <section class="panel" id="atd-form" hidden>
+            <h3 class="est-titulo" style="padding:0.5rem 1rem 0;">Nueva respuesta anónima</h3>
+
+            <div class="rejilla">
+              <div class="campo">
+                <label class="etiqueta" for="atd-f-genero">6. Género</label>
+                <select class="entrada" id="atd-f-genero">
+                  <option value="">— Seleccionar —</option>
+                  <option value="masculino">Masculino</option>
+                  <option value="femenino">Femenino</option>
+                  <option value="lgbtiq+">LGBTIQ+</option>
+                </select>
+              </div>
+              <div class="campo">
+                <label class="etiqueta" for="atd-f-anio-nacimiento">3. Año de nacimiento</label>
+                <input class="entrada" id="atd-f-anio-nacimiento" type="number" min="1900" max="2100" placeholder="Ej. 1990">
+              </div>
+              <div class="campo">
+                <label class="etiqueta" for="atd-f-afiliacion">4. Afiliación seguridad social</label>
+                <select class="entrada" id="atd-f-afiliacion">
+                  <option value="">— Seleccionar —</option>
+                  <option value="publica">Pública</option>
+                  <option value="privada">Privada</option>
+                </select>
+              </div>
+              <div class="campo">
+                <label class="etiqueta" for="atd-f-estado-civil">5. Estado civil</label>
+                <select class="entrada" id="atd-f-estado-civil">
+                  <option value="">— Seleccionar —</option>
+                  <option value="soltero">Soltero</option>
+                  <option value="casado">Casado</option>
+                  <option value="divorciado">Divorciado</option>
+                  <option value="viudo">Viudo/a</option>
+                  <option value="union_hecho">Unión de hecho</option>
+                </select>
+              </div>
+              <div class="campo">
+                <label class="etiqueta" for="atd-f-instruccion">7. Nivel de instrucción</label>
+                <select class="entrada" id="atd-f-instruccion">
+                  <option value="">— Seleccionar —</option>
+                  <option value="educacion_basica">Educación básica</option>
+                  <option value="bachiller">Bachiller</option>
+                  <option value="tercer_nivel">Tercer nivel</option>
+                  <option value="cuarto_nivel">Cuarto nivel</option>
+                </select>
+              </div>
+              <div class="campo">
+                <label class="etiqueta" for="atd-f-hijos">8. Número de hijos</label>
+                <input class="entrada" id="atd-f-hijos" type="number" min="0">
+              </div>
+              <div class="campo">
+                <label class="etiqueta" for="atd-f-etnia">9. Autoidentificación étnica</label>
+                <select class="entrada" id="atd-f-etnia">
+                  <option value="">— Seleccionar —</option>
+                  <option value="mestizo">Mestizo</option>
+                  <option value="blanco">Blanco</option>
+                  <option value="indigena">Indígena</option>
+                  <option value="montubio">Montubio</option>
+                  <option value="afroecuatoriano">Afroecuatoriano</option>
+                  <option value="otro">Otro</option>
+                </select>
+              </div>
+              <div class="campo">
+                <label class="etiqueta" for="atd-f-discapacidad">10. Discapacidad (con carnet CONADIS)</label>
+                <select class="entrada" id="atd-f-discapacidad">
+                  <option value="">— Seleccionar —</option>
+                  <option value="no_aplica">No aplica</option>
+                  <option value="auditiva">Auditiva</option>
+                  <option value="fisica">Física</option>
+                  <option value="intelectual">Intelectual</option>
+                  <option value="lenguaje">Lenguaje</option>
+                  <option value="psicosocial">Psicosocial</option>
+                  <option value="visual">Visual</option>
+                </select>
+              </div>
+              <div class="campo">
+                <label class="etiqueta" for="atd-f-pct-discapacidad">11. Porcentaje de discapacidad</label>
+                <input class="entrada" id="atd-f-pct-discapacidad" type="number" min="0" max="100">
+              </div>
+              <div class="campo">
+                <label class="etiqueta">
+                  <input type="checkbox" id="atd-f-sustituto">
+                  12. ¿Trabajador sustituto?
+                </label>
+              </div>
+              <div class="campo">
+                <label class="etiqueta" for="atd-f-enfermedad">13. Enfermedades pre-existentes</label>
+                <select class="entrada" id="atd-f-enfermedad">
+                  <option value="">— Seleccionar —</option>
+                  <option value="catastrofica">Catastrófica</option>
+                  <option value="cronica_no_transmisible">Crónica no transmisible</option>
+                  <option value="cronica_transmisible">Crónica transmisible</option>
+                  <option value="aguda">Aguda</option>
+                  <option value="no_diagnosticada">No diagnosticada</option>
+                </select>
+              </div>
+            </div>
+
+            <h4 class="est-titulo" style="padding:0.5rem 1rem 0;">Consumo</h4>
+            <div class="rejilla">
+              <div class="campo">
+                <label class="etiqueta" for="atd-f-droga-principal">14. Principal droga que consume</label>
+                <select class="entrada" id="atd-f-droga-principal">
+                  <option value="">— Seleccionar —</option>
+                  <option value="no_consume">No consume</option>
+                  <option value="alcohol">Alcohol</option>
+                  <option value="anfetaminas">Anfetaminas</option>
+                  <option value="base_cocaina">Base de cocaína</option>
+                  <option value="cannabis">Cannabis (marihuana, hachís, THC)</option>
+                  <option value="cocaina">Cocaína</option>
+                  <option value="drogas_sintesis">Drogas de síntesis (Éxtasis, MDMA, Ketamina)</option>
+                  <option value="hongos">Hongos</option>
+                  <option value="inhalantes">Inhalantes</option>
+                  <option value="lsd">LSD</option>
+                  <option value="mezcalina">Mezcalina</option>
+                  <option value="opiaceos">Opiáceos (Heroína, Morfina, Metadona)</option>
+                  <option value="psilocibina">Psilocibina</option>
+                  <option value="tabaco">Tabaco</option>
+                  <option value="otra">Otra</option>
+                </select>
+              </div>
+              <div class="campo">
+                <label class="etiqueta" for="atd-f-droga-otra-texto">15. Si seleccionó "otra", especifique</label>
+                <input class="entrada" id="atd-f-droga-otra-texto" type="text">
+              </div>
+              <div class="campo">
+                <label class="etiqueta" for="atd-f-otra-droga">16. Otra droga que consume (sin contar la anterior)</label>
+                <select class="entrada" id="atd-f-otra-droga">
+                  <option value="">— Seleccionar —</option>
+                  <option value="no_consume">No consume</option>
+                  <option value="alcohol">Alcohol</option>
+                  <option value="anfetaminas">Anfetaminas</option>
+                  <option value="base_cocaina">Base de cocaína</option>
+                  <option value="cannabis">Cannabis (marihuana, hachís, THC)</option>
+                  <option value="cocaina">Cocaína</option>
+                  <option value="drogas_sintesis">Drogas de síntesis (Éxtasis, MDMA, Ketamina)</option>
+                  <option value="hongos">Hongos</option>
+                  <option value="inhalantes">Inhalantes</option>
+                  <option value="lsd">LSD</option>
+                  <option value="mezcalina">Mezcalina</option>
+                  <option value="opiaceos">Opiáceos (Heroína, Morfina, Metadona)</option>
+                  <option value="psilocibina">Psilocibina</option>
+                  <option value="tabaco">Tabaco</option>
+                  <option value="otra">Otra</option>
+                </select>
+              </div>
+              <div class="campo">
+                <label class="etiqueta" for="atd-f-frecuencia">17. Frecuencia de consumo (droga principal)</label>
+                <select class="entrada" id="atd-f-frecuencia">
+                  <option value="">— Seleccionar —</option>
+                  <option value="no_consume">No consume</option>
+                  <option value="5_a_7_semana">De 5 a 7 días a la semana</option>
+                  <option value="2_a_4_semana">De 2 a 4 veces a la semana</option>
+                  <option value="2_a_7_semana">De 2 a 7 veces a la semana</option>
+                  <option value="al_menos_1_semana">Al menos una vez a la semana</option>
+                  <option value="2_a_12_anio">De 2 a 12 veces al año</option>
+                  <option value="1_anio">Una vez al año</option>
+                </select>
+              </div>
+              <div class="campo campo-ancho">
+                <label class="etiqueta" for="atd-f-ultimo-consumo">Última vez que consumió (texto libre)</label>
+                <input class="entrada" id="atd-f-ultimo-consumo" type="text" placeholder="Ej. hace 2 meses">
+              </div>
+              <div class="campo">
+                <label class="etiqueta" for="atd-f-reconoce">18. ¿Reconoce tener un problema de consumo?</label>
+                <select class="entrada" id="atd-f-reconoce">
+                  <option value="">— Seleccionar —</option>
+                  <option value="si">Sí</option>
+                  <option value="no">No</option>
+                  <option value="no_aplica">No aplica (no consume)</option>
+                </select>
+              </div>
+              <div class="campo campo-ancho">
+                <label class="etiqueta" for="atd-f-factor">19. Factor psicosocial relacionado al consumo</label>
+                <select class="entrada" id="atd-f-factor">
+                  <option value="">— Seleccionar —</option>
+                  <option value="no_aplica">No aplica</option>
+                  <option value="agobio_tension_trabajo">Agobio y tensión en el trabajo</option>
+                  <option value="acoso_laboral">Acoso laboral</option>
+                  <option value="cansancio_intenso">Cansancio intenso, agobio</option>
+                  <option value="companeros_consumidores">Compañeros consumidores</option>
+                  <option value="contratos_precarios">Contratos precarios</option>
+                  <option value="curiosidad_efectos">Curiosidad sobre los efectos de las drogas</option>
+                  <option value="dificultad_resolucion_problemas">Dificultad en la resolución de problemas</option>
+                  <option value="elevados_niveles_tension_estres">Elevados niveles de tensión y estrés laboral</option>
+                  <option value="expendio_drogas_trabajo">Existencia de expendio de drogas en el trabajo</option>
+                  <option value="familiares_consumidores">Familiares consumidores</option>
+                  <option value="insatisfaccion_tipo_trabajo">Insatisfacción con el tipo de trabajo</option>
+                  <option value="insatisfaccion_trato_recibido">Insatisfacción con el trato recibido</option>
+                  <option value="inseguridad_futuro_laboral">Inseguridad en cuanto al futuro laboral</option>
+                  <option value="largas_ausencias_hogar">Largas ausencias del hogar por motivos laborales</option>
+                  <option value="mala_situacion_economica">Mala situación económica en la familia</option>
+                  <option value="peligrosidad_tarea">Peligrosidad en el desempeño de la tarea</option>
+                  <option value="problemas_conciliacion">Problemas de conciliación trabajo-hogar</option>
+                  <option value="sentimiento_poco_capacitado">Sentimiento de estar poco capacitado</option>
+                  <option value="sindrome_burnout">Síndrome del "Burnout"</option>
+                  <option value="tareas_rutinarias">Tareas rutinarias o monótonas</option>
+                  <option value="trabajos_nocturnos">Trabajos nocturnos o a destajo</option>
+                  <option value="turnos_rotativos">Turnos rotatorios y cambiantes</option>
+                  <option value="otro_evento_social">Otro (eventos sociales, reuniones, etc.)</option>
+                </select>
+              </div>
+              <div class="campo">
+                <label class="etiqueta">
+                  <input type="checkbox" id="atd-f-desea-tratamiento">
+                  20. ¿Desea recibir tratamiento?
+                </label>
+              </div>
+            </div>
+
+            <!-- Datos de contacto: SOLO si pide tratamiento. Se guardan
+                 en una tabla aparte, identificada; nunca junto a las
+                 respuestas anónimas de arriba. -->
+            <div class="panel atd-deriv-datos" id="atd-deriv-datos" hidden>
+              <p class="ayuda" style="padding:0.5rem 1rem 0;">
+                Esta persona pidió tratamiento. Estos datos se guardan en un caso identificado
+                aparte, para poder contactarla y darle seguimiento — no se mezclan con el
+                resto del test, que sigue siendo anónimo.
+              </p>
+              <div class="rejilla" style="padding:0 1rem 1rem;">
+                <div class="campo">
+                  <label class="etiqueta" for="atd-f-deriv-nombre">Nombre completo <span class="obligatorio">*</span></label>
+                  <input class="entrada" id="atd-f-deriv-nombre" type="text">
+                </div>
+                <div class="campo">
+                  <label class="etiqueta" for="atd-f-deriv-cedula">Cédula (opcional)</label>
+                  <input class="entrada" id="atd-f-deriv-cedula" type="text">
+                </div>
+                <div class="campo">
+                  <label class="etiqueta" for="atd-f-deriv-telefono">Teléfono</label>
+                  <input class="entrada" id="atd-f-deriv-telefono" type="text">
+                </div>
+                <div class="campo campo-ancho">
+                  <label class="etiqueta" for="atd-f-deriv-direccion">Dirección</label>
+                  <input class="entrada" id="atd-f-deriv-direccion" type="text">
+                </div>
+              </div>
+            </div>
+
+            <span class="ayuda ayuda-error" id="atd-form-error" style="display:block; padding:0 1rem;"></span>
+
+            <div class="herramientas" style="padding:0.75rem 1rem;">
+              <button class="boton-secundario" id="atd-btn-cancelar" type="button">Cancelar</button>
+              <button class="boton-primario" id="atd-btn-guardar" type="button">Guardar registro anónimo</button>
+            </div>
+          </section>
+
+          <!-- Listado del año -->
+          <section class="panel">
+            <h3 class="est-titulo" style="padding:0.5rem 1rem 0;">Registros de la campaña</h3>
+            <p class="ayuda" style="padding:0 1rem;">
+              Solo un correlativo interno, sin nombre ni cédula, para poder corregir un registro
+              mal digitado.
+            </p>
+            <div class="tabla-envoltura">
+              <table class="tabla">
+                <thead>
+                  <tr>
+                    <th>N.°</th>
+                    <th>Género</th>
+                    <th>Droga principal</th>
+                    <th>Frecuencia</th>
+                    <th class="celda-centro">¿Reconoce problema?</th>
+                    <th class="celda-centro">Desea tratamiento</th>
+                    <th class="celda-centro"></th>
+                  </tr>
+                </thead>
+                <tbody id="atd-cuerpo"></tbody>
+              </table>
+            </div>
+            <p class="vacio" id="atd-vacio" hidden>Todavía no hay registros para este año.</p>
+          </section>
+
+        </section>
+
+        <!-- ---------- Seguimiento y derivaciones ---------- -->
+        <section class="atd-subvista" id="atd-subvista-derivaciones" hidden>
+
+          <section class="panel atd-controles">
+            <div class="campo campo-corto">
+              <label class="etiqueta" for="atd-deriv-filtro-anio">Año</label>
+              <select class="entrada" id="atd-deriv-filtro-anio">
+                <option value="">Todos</option>
+              </select>
+            </div>
+            <div class="campo campo-corto">
+              <label class="etiqueta" for="atd-deriv-filtro-estado">Estado</label>
+              <select class="entrada" id="atd-deriv-filtro-estado">
+                <option value="">Todos</option>
+                <option value="pendiente">Pendiente</option>
+                <option value="contactado">Contactado</option>
+                <option value="en_tratamiento">En tratamiento</option>
+                <option value="cerrado">Cerrado</option>
+                <option value="declino">Declinó</option>
+              </select>
+            </div>
+            <button class="boton-secundario" id="atd-deriv-btn-imprimir" type="button">
+              Imprimir listado de seguimiento
+            </button>
+          </section>
+
+          <p class="alerta" id="atd-deriv-alerta" role="alert" hidden></p>
+
+          <section class="panel">
+            <div class="tabla-envoltura">
+              <table class="tabla">
+                <thead>
+                  <tr>
+                    <th>Nombre</th>
+                    <th>Cédula</th>
+                    <th>Teléfono</th>
+                    <th>Dirección</th>
+                    <th class="celda-centro">Año</th>
+                    <th class="celda-centro">Estado</th>
+                    <th>Notas de seguimiento</th>
+                  </tr>
+                </thead>
+                <tbody id="atd-deriv-cuerpo"></tbody>
+              </table>
+            </div>
+            <p class="vacio" id="atd-deriv-vacio" hidden>No hay casos de derivación registrados.</p>
+          </section>
+
+        </section>
+
+        <!-- ---------- Informes ---------- -->
+        <section class="atd-subvista" id="atd-subvista-informes" hidden>
+
+          <!-- Informe anual -->
+          <section class="panel">
+            <h3 class="est-titulo" style="padding:0.5rem 1rem 0;">Informe anual</h3>
+            <p class="ayuda" style="padding:0 1rem;">
+              Estadística agregada y anónima de un año específico.
+            </p>
+            <div class="herramientas" style="padding:0 1rem;">
+              <div class="campo campo-corto">
+                <label class="etiqueta" for="atd-inf-anio">Año a informar</label>
+                <select class="entrada" id="atd-inf-anio"></select>
+              </div>
+              <button class="boton-primario" id="atd-inf-btn-generar" type="button">
+                Generar informe anual
+              </button>
+            </div>
+            <p class="alerta" id="atd-inf-alerta" role="alert" hidden></p>
+
+            <div class="panel" id="atd-inf-previa" hidden style="margin:0.75rem 1rem;">
+              <div class="inf-previa-cabecera">
+                <div>
+                  <h4 class="est-titulo">Vista previa</h4>
+                  <span class="ayuda" id="atd-inf-previa-resumen">—</span>
+                </div>
+                <button class="boton-secundario" id="atd-inf-btn-descargar" type="button">
+                  Descargar PDF
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <!-- Informe comparativo -->
+          <section class="panel">
+            <h3 class="est-titulo" style="padding:0.5rem 1rem 0;">Informe comparativo entre años</h3>
+            <p class="ayuda" style="padding:0 1rem;">
+              Disponible desde que hay al menos dos campañas capturadas. Compara el año base
+              contra uno o varios años anteriores.
+            </p>
+            <div class="herramientas" style="padding:0 1rem; flex-wrap:wrap;">
+              <div class="campo campo-corto">
+                <label class="etiqueta" for="atd-comp-base">Año base</label>
+                <select class="entrada" id="atd-comp-base"></select>
+              </div>
+              <div class="campo campo-ancho">
+                <label class="etiqueta">Comparar contra</label>
+                <div class="atd-comp-anios" id="atd-comp-anios"></div>
+              </div>
+              <button class="boton-primario" id="atd-comp-btn-generar" type="button">
+                Generar informe comparativo
+              </button>
+            </div>
+            <p class="alerta" id="atd-comp-alerta" role="alert" hidden></p>
+
+            <div class="panel" id="atd-comp-previa" hidden style="margin:0.75rem 1rem;">
+              <div class="inf-previa-cabecera">
+                <div>
+                  <h4 class="est-titulo">Vista previa</h4>
+                  <span class="ayuda" id="atd-comp-previa-resumen">—</span>
+                </div>
+                <button class="boton-secundario" id="atd-comp-btn-descargar" type="button">
+                  Descargar PDF
+                </button>
+              </div>
+            </div>
+          </section>
+
         </section>
 
       </section>
@@ -2347,6 +2779,8 @@
 
   <div class="if-impresion" id="epi-impresion"></div>
 
-  <script type="module" src="js/anexo1.js?v=28"></script>
+  <div class="if-impresion" id="atd-impresion"></div>
+
+  <script type="module" src="js/anexo1.js?v=29"></script>
 </body>
 </html>
