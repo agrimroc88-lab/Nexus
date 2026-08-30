@@ -152,3 +152,14 @@
 #atd-impresion .if-portada-datos td,
 #atd-impresion .if-tabla td,
 #atd-impresion .if-tabla th { border-color: #b7d2b7; }
+
+/* Colchón extra arriba/abajo, solo para este informe: si el
+   navegador deja activado su encabezado/pie automático de
+   impresión (URL y fecha, en letra chica), este margen de más
+   evita que se monte sobre el logo o la firma. Ese texto lo
+   agrega el navegador, no esta página — se quita marcando
+   "Sin" en Encabezados y pies de página del diálogo de
+   impresión; esto es solo un respaldo por si queda activado. */
+@media print {
+  #atd-impresion { margin-top: 6mm; }
+}
