@@ -153,27 +153,8 @@
 #atd-impresion .if-tabla td,
 #atd-impresion .if-tabla th { border-color: #b7d2b7; }
 
-/* El texto de la portada (unidad, título, empresa) alineado a
-   la izquierda, empezando justo en el margen de la hoja, en
-   vez de centrado — solo en este informe, sin tocar cómo se
-   ve la portada de los demás documentos del sistema. */
-@media print {
-  #atd-impresion .if-portada-centro,
-  #atd-impresion .if-portada-unidad,
-  #atd-impresion .if-portada-servicio,
-  #atd-impresion .if-portada-titulo,
-  #atd-impresion .if-portada-mes,
-  #atd-impresion .if-portada-empresa { text-align: left; }
-
-  #atd-impresion .if-portada-regla { margin: 13mm 0; }
-}
-#atd-impresion .if-portada-centro,
-#atd-impresion .if-portada-unidad,
-#atd-impresion .if-portada-servicio,
-#atd-impresion .if-portada-titulo,
-#atd-impresion .if-portada-mes,
-#atd-impresion .if-portada-empresa { text-align: left; }
-#atd-impresion .if-portada-regla { margin: 13mm 0; }
+/* La portada vuelve a texto centrado (estilo por defecto de
+   .if-portada); ya no se alinea a la izquierda. */
 
 /* Colchón extra arriba/abajo, solo para este informe: si el
    navegador deja activado su encabezado/pie automático de
@@ -185,6 +166,14 @@
 @media print {
   #atd-impresion { margin-top: 6mm; }
 }
+
+/* Sube toda la portada 15mm (menos aire en blanco arriba).
+   Solo afecta a la portada (primera hoja), no al resto del
+   informe. */
+@media print {
+  #atd-impresion .if-portada { margin-top: -15mm; }
+}
+#atd-impresion .if-portada { margin-top: -15mm; }
 
 /* ============================================
    Interruptor de impresión propio para el A-T-D
