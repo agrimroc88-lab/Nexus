@@ -2312,7 +2312,7 @@ function cambiarVista(vista) {
 
 /* Sub-pestañas internas del test A-T-D: Captura / Seguimiento / Informes */
 function cambiarSubvistaAtd(vista) {
-  document.querySelectorAll('#vista-atd > .pestanas-secundarias .pestana').forEach((p) => {
+  document.querySelectorAll('#vista-atd > .subpestanas .subpestana').forEach((p) => {
     p.classList.toggle('activa', p.dataset.atdVista === vista);
   });
   ['captura', 'derivaciones', 'informes'].forEach((v) => {
@@ -2361,10 +2361,10 @@ function conectarTestAtd() {
      sub-pestañas, en vez de un listener por botón: sigue
      funcionando aunque los botones se vuelvan a dibujar o el
      DOM cambie de orden. */
-  const $navSecundaria = document.querySelector('#vista-atd > .pestanas-secundarias');
+  const $navSecundaria = document.querySelector('#vista-atd > .subpestanas');
   if ($navSecundaria) {
     $navSecundaria.addEventListener('click', (ev) => {
-      const $boton = ev.target.closest('.pestana');
+      const $boton = ev.target.closest('.subpestana');
       if ($boton) cambiarSubvistaAtd($boton.dataset.atdVista);
     });
   }
