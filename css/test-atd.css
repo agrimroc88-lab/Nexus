@@ -185,3 +185,51 @@
 @media print {
   #atd-impresion { margin-top: 6mm; }
 }
+
+/* ============================================
+   Interruptor de impresión propio para el A-T-D
+   ============================================
+
+   CAUSA DEL PROBLEMA (encontrada con un PDF real): esta misma
+   página (salud-ocupacional.html) tiene DOS zonas de
+   impresión — "epi-impresion" (Evaluación periódica) y
+   "atd-impresion" (este informe) — y ambas comparten la clase
+   ".if-impresion" Y el mismo interruptor "imprimiendo-informe"
+   definido en farmacia.css. Al imprimir cualquiera de los dos,
+   el interruptor encendía AMBAS zonas a la vez. El <body> es
+   flex (ver layout.css .app), así que con dos cajas queriendo
+   ocupar el 100% cada una, el navegador las repartía a la
+   mitad — de ahí el enorme espacio en blanco a la izquierda:
+   era la otra zona, vacía, ocupando su mitad.
+
+   La solución: el A-T-D enciende su PROPIO interruptor
+   ("imprimiendo-atd"), independiente del de Evaluación
+   periódica, y cada uno apaga expresamente al otro.
+   ============================================ */
+@media print {
+  /* Al imprimir el A-T-D: se oculta la aplicación (igual que
+     el interruptor compartido) y, expresamente, la otra zona
+     de impresión de esta página. */
+  body.imprimiendo-atd .barra-lateral,
+  body.imprimiendo-atd .contenedor,
+  body.imprimiendo-atd .cabecera,
+  body.imprimiendo-atd .modal,
+  body.imprimiendo-atd nav,
+  body.imprimiendo-atd main,
+  body.imprimiendo-atd #epi-impresion { display: none !important; }
+
+  body.imprimiendo-atd #atd-impresion {
+    display: block !important;
+    width: 100%;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 10pt;
+    line-height: 1.45;
+    color: #000;
+    background: #fff;
+  }
+
+  /* Y en sentido contrario: si se imprime Evaluación
+     periódica (o cualquier otro informe que use el
+     interruptor compartido), que el A-T-D no se cuele. */
+  body.imprimiendo-informe #atd-impresion { display: none !important; }
+}
