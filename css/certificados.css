@@ -357,7 +357,10 @@
     box-sizing: border-box;
     width: 125mm;
     height: 190mm;
-    padding: 4mm;
+    /* Arriba · derecha · abajo · izquierda. El de arriba se deja
+       más grande a propósito (11mm + 4mm del margen de página =
+       15mm hasta donde inician las letras), a pedido. */
+    padding: 11mm 4mm 4mm 4mm;
     overflow: hidden;
     flex-shrink: 0;
   }
