@@ -21,7 +21,7 @@
 
 import { supabase } from './supabase.js?v=11';
 import { protegerPagina, ROLES } from './auth.js?v=11';
-import { montarNavegacion } from './nav.js?v=11';
+import { montarNavegacion } from './nav.js?v=12';
 import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=12';
 import {
   iniciarEvaluacion, crearCampana, elegirCampana, buscarTrabajador,
@@ -2379,6 +2379,15 @@ function ocultarPestanasAjenas() {
   /* Dentro de salud, el test A-T-D además exige el mismo
      alcance que la clínica: solo admin, médico y enfermería. */
   if (!puedeVerTestAtd()) quitar('atd');
+
+  /* Psicología entra a Salud ocupacional solo para Cumplimiento
+     y Capacitaciones — el resto del Anexo 1 (eventos, grupos,
+     botiquines, instalaciones, evaluación periódica, A-T-D) no
+     le corresponde. */
+  if (estado.perfil.rol === ROLES.PSICOLOGO) {
+    ['eventos', 'ocupacionales', 'grupos', 'botiquines', 'instalaciones', 'evaluacion', 'atd']
+      .forEach(quitar);
+  }
 }
 
 async function cambiarAnio() {
