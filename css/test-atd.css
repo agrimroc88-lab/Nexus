@@ -1,0 +1,78 @@
+/* ============================================
+   NEXUS · test-atd.css
+   Test de diagnóstico inicial de consumo de alcohol,
+   tabaco y otras drogas. Vive dentro de Salud ocupacional.
+   ============================================ */
+
+.atd-controles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+  padding: 1rem;
+}
+.atd-controles .campo { min-width: 12rem; }
+.atd-controles .ayuda { margin-left: auto; font-size: 0.88rem; }
+
+/* Sub-pestañas (Captura / Seguimiento / Informes), un
+   escalón por debajo de las pestañas principales del módulo. */
+.pestanas-secundarias {
+  margin-top: -0.25rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid var(--color-borde, #e2e8e2);
+}
+.pestanas-secundarias .pestana { font-size: 0.85rem; padding: 0.55rem 0.9rem; }
+
+.atd-subvista { animation: none; }
+
+/* Bloque de datos de contacto que aparece solo si la persona
+   pide tratamiento. Un borde distinto recuerda que, a partir
+   de aquí, el dato deja de ser anónimo. */
+.atd-deriv-datos {
+  border: 1px dashed var(--color-acento, #1b5e20);
+  background: var(--color-acento-suave, #e6f0e6);
+  margin: 0 1rem 1rem;
+}
+
+/* Checkboxes de "comparar contra", en cuadrícula compacta. */
+.atd-comp-anios {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  padding: 0.4rem 0;
+}
+.atd-comp-anios label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  color: var(--color-texto, #1b1c1c);
+  cursor: pointer;
+}
+
+/* Tabla de derivaciones: notas editables inline */
+#atd-deriv-cuerpo textarea.atd-notas {
+  width: 100%;
+  min-height: 2.4rem;
+  font: inherit;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--color-borde, #d8e0d5);
+  border-radius: 6px;
+  resize: vertical;
+}
+#atd-deriv-cuerpo select.atd-estado { min-width: 9rem; }
+
+/* --- Gráfico de barras del informe (SVG a mano) --- */
+.atd-grafico-caja {
+  background: var(--color-superficie, #fff);
+  border: 1px solid var(--color-borde, #e2e8e2);
+  border-radius: var(--radio, 12px);
+  padding: 1rem 1.1rem 0.6rem;
+  margin: 1rem 0;
+}
+.atd-grafico-titulo {
+  margin: 0 0 0.6rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--color-acento-oscuro, #00450d);
+}
