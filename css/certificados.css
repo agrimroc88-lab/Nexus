@@ -357,7 +357,7 @@
     box-sizing: border-box;
     width: 125mm;
     height: 190mm;
-    padding: 4mm;
+    padding: 1mm;
     overflow: hidden;
     flex-shrink: 0;
   }
