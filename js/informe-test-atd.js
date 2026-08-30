@@ -25,7 +25,7 @@ import {
   CAT_GENERO, CAT_AFILIACION, CAT_ESTADO_CIVIL, CAT_INSTRUCCION, CAT_ETNIA,
   CAT_DISCAPACIDAD, CAT_ENFERMEDAD, CAT_DROGA, CAT_FRECUENCIA, CAT_RECONOCE,
   CAT_FACTOR, CAT_ESTADO_DERIVACION
-} from './test-atd.js?v=2';
+} from './test-atd.js?v=3';
 
 const VERSION = 'v2';
 console.info('NEXUS · informe-test-atd', VERSION);

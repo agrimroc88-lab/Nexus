@@ -197,12 +197,64 @@ function limpiarFormulario() {
   document.getElementById('atd-f-desea-tratamiento').checked = false;
   document.getElementById('atd-deriv-datos').hidden = true;
   document.getElementById('atd-form-error').textContent = '';
+
+  /* La empresa es de afiliación privada casi siempre; se deja
+     preseleccionada y el médico solo la cambia en el caso raro
+     de que aplique. */
+  document.getElementById('atd-f-afiliacion').value = 'privada';
 }
 
 /** Al marcar "desea tratamiento" se revela el bloque de contacto. */
 export function alternarBloqueDerivacion() {
   const marcado = document.getElementById('atd-f-desea-tratamiento').checked;
   document.getElementById('atd-deriv-datos').hidden = !marcado;
+}
+
+/**
+ * Al salir del campo de código/cédula, busca al trabajador en la
+ * nómina de la empresa (activo, mismo año no importa) y llena
+ * cargo, año de nacimiento y género. Todo queda editable: si el
+ * dato en nómina está desactualizado o la persona no aparece
+ * (ej. código interno que no corresponde a un trabajador
+ * registrado), simplemente no se llena nada y se sigue a mano.
+ */
+export async function buscarPorCedulaAtd() {
+  const $cedula = document.getElementById('atd-f-cedula');
+  const valor = $cedula.value.trim();
+  if (!valor || !atd.empresaId) return;
+
+  try {
+    let { data } = await supabase
+      .from('v_trabajadores')
+      .select('nombre_completo, cargo, fecha_nacimiento, sexo')
+      .eq('empresa_id', atd.empresaId)
+      .eq('cedula', valor)
+      .maybeSingle();
+
+    if (!data) {
+      const intento = await supabase
+        .from('v_trabajadores')
+        .select('nombre_completo, cargo, fecha_nacimiento, sexo')
+        .eq('empresa_id', atd.empresaId)
+        .eq('codigo', valor)
+        .maybeSingle();
+      data = intento.data;
+    }
+
+    if (!data) return;
+
+    if (data.cargo) document.getElementById('atd-f-area').value = data.cargo;
+    if (data.fecha_nacimiento) {
+      document.getElementById('atd-f-anio-nacimiento').value = data.fecha_nacimiento.slice(0, 4);
+    }
+    if (data.sexo === 'M') document.getElementById('atd-f-genero').value = 'masculino';
+    else if (data.sexo === 'F') document.getElementById('atd-f-genero').value = 'femenino';
+
+    avisar(`Datos de ${data.nombre_completo} cargados desde la nómina. Puede corregir cualquier campo.`,
+      true, 'atd-alerta');
+  } catch {
+    /* Sin nómina o sin conexión: se sigue llenando a mano, sin ruido. */
+  }
 }
 
 export async function guardarRespuestaAtd() {

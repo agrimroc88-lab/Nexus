@@ -37,8 +37,8 @@ import {
 import {
   iniciarTestAtd, cambiarAnioAtd, abrirFormularioAtd, cancelarFormularioAtd,
   alternarBloqueDerivacion, guardarRespuestaAtd, pintarDerivaciones,
-  filtrarDerivaciones, imprimirListadoDerivaciones
-} from './test-atd.js?v=2';
+  filtrarDerivaciones, imprimirListadoDerivaciones, buscarPorCedulaAtd
+} from './test-atd.js?v=3';
 import {
   iniciarInformeAtd, generarInformeAnualAtd, descargarInformeAnualAtd,
   generarInformeComparativoAtd, descargarInformeComparativoAtd
@@ -2351,6 +2351,7 @@ function conectarTestAtd() {
   en('atd-btn-cancelar', 'click', cancelarFormularioAtd);
   en('atd-btn-guardar', 'click', guardarRespuestaAtd);
   en('atd-f-desea-tratamiento', 'change', alternarBloqueDerivacion);
+  en('atd-f-cedula', 'blur', buscarPorCedulaAtd);
 
   en('atd-deriv-filtro-anio', 'change', filtrarDerivaciones);
   en('atd-deriv-filtro-estado', 'change', filtrarDerivaciones);
