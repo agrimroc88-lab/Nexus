@@ -41,8 +41,8 @@ import {
 } from './test-atd.js?v=5';
 import {
   iniciarInformeAtd, generarInformeAnualAtd, descargarInformeAnualAtd,
-  generarInformeComparativoAtd, descargarInformeComparativoAtd
-} from './informe-test-atd.js?v=2';
+  generarInformeComparativoAtd, descargarInformeComparativoAtd, marcarRecomendacionesEditadas
+} from './informe-test-atd.js?v=4';
 import { montarGrupos, cargarGrupos, pintarGrupos } from './grupos.js?v=12';
 import { montarBotiquines, cargarBotiquines, pintarBotiquines }
   from './botiquines.js?v=12';
@@ -2360,6 +2360,7 @@ function conectarTestAtd() {
 
   en('atd-inf-btn-generar', 'click', generarInformeAnualAtd);
   en('atd-inf-btn-descargar', 'click', descargarInformeAnualAtd);
+  en('atd-inf-recomendaciones', 'input', marcarRecomendacionesEditadas);
   en('atd-comp-btn-generar', 'click', generarInformeComparativoAtd);
   en('atd-comp-btn-descargar', 'click', descargarInformeComparativoAtd);
 }

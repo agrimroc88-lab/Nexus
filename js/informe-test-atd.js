@@ -18,6 +18,7 @@
    ============================================ */
 
 import { sesionActual } from './auth.js?v=11';
+import { supabase } from './supabase.js?v=11';
 import { escapar, formatearFecha } from './utils.js?v=12';
 import { imprimirHoja } from './impresion.js?v=11';
 import {
@@ -25,12 +26,19 @@ import {
   CAT_GENERO, CAT_AFILIACION, CAT_ESTADO_CIVIL, CAT_INSTRUCCION, CAT_ETNIA,
   CAT_DISCAPACIDAD, CAT_ENFERMEDAD, CAT_DROGA, CAT_FRECUENCIA, CAT_RECONOCE,
   CAT_FACTOR, CAT_ESTADO_DERIVACION
-} from './test-atd.js?v=3';
+} from './test-atd.js?v=5';
 
-const VERSION = 'v2';
+const VERSION = 'v4';
 console.info('NEXUS · informe-test-atd', VERSION);
 
 const inf = { anual: null, comparativo: null };
+
+/* Años ya cerrados: anio -> resumen JSON congelado (ver
+   015_test_atd_cierre_anual.sql). Cada 1 de enero, el año que
+   terminó pasa por aquí y sus respuestas individuales
+   desaparecen de test_atd_respuestas (salvo quien pidió
+   tratamiento, que se conserva aparte para el seguimiento). */
+let cierresPorAnio = new Map();
 
 /* Dimensiones que se tabulan en ambos informes. El orden aquí
    es el orden en el que salen en el documento. */
@@ -49,19 +57,219 @@ const DIMENSIONES = [
   { clave: 'factor_psicosocial', titulo: 'Factor psicosocial asociado al consumo', catalogo: CAT_FACTOR }
 ];
 
-function pct(n, total) { return total > 0 ? Math.round((n * 100) / total) : 0; }
+const PALETA_PASTEL = ['#1b5e20', '#EB9500', '#2E7D32', '#F4B942', '#0d47a1', '#8e24aa', '#c62828', '#546e7a', '#00838f', '#6d4c41'];
+
+/**
+ * Gráfico de pastel en SVG, con leyenda debajo. Usa la paleta
+ * de marca (verde/dorado de Agrimroc) primero, y colores de
+ * respaldo para categorías adicionales.
+ */
+function graficoPastel(items, opciones = {}) {
+  const visibles = items.filter((i) => i.valor > 0);
+  if (visibles.length === 0) return '<p class="if-nota">Sin datos para graficar.</p>';
+
+  const ancho = opciones.ancho || 360;
+  const alto = opciones.alto || 260;
+  const radio = Math.min(ancho, alto - 70) / 2 - 6;
+  const cx = ancho / 2;
+  const cy = (alto - 70) / 2 + 6;
+  const total = visibles.reduce((s, i) => s + i.valor, 0);
+
+  let anguloActual = -90;
+  const trozos = visibles.map((item, idx) => {
+    const proporcion = item.valor / total;
+    const anguloInicio = anguloActual;
+    const anguloFin = anguloActual + proporcion * 360;
+    anguloActual = anguloFin;
+    const color = PALETA_PASTEL[idx % PALETA_PASTEL.length];
+
+    const rad = (g) => (g * Math.PI) / 180;
+    const x1 = cx + radio * Math.cos(rad(anguloInicio));
+    const y1 = cy + radio * Math.sin(rad(anguloInicio));
+    const x2 = cx + radio * Math.cos(rad(anguloFin));
+    const y2 = cy + radio * Math.sin(rad(anguloFin));
+    const grandeArco = anguloFin - anguloInicio > 180 ? 1 : 0;
+
+    const pctTrozo = Math.round(proporcion * 100);
+    const anguloMedio = rad((anguloInicio + anguloFin) / 2);
+    const xEtq = cx + (radio * 0.65) * Math.cos(anguloMedio);
+    const yEtq = cy + (radio * 0.65) * Math.sin(anguloMedio);
+
+    const path = visibles.length === 1
+      ? `<circle cx="${cx}" cy="${cy}" r="${radio}" fill="${color}"/>`
+      : `<path d="M${cx},${cy} L${x1.toFixed(1)},${y1.toFixed(1)} `
+        + `A${radio},${radio} 0 ${grandeArco} 1 ${x2.toFixed(1)},${y2.toFixed(1)} Z" fill="${color}"/>`;
+
+    const etiquetaTrozo = pctTrozo >= 5
+      ? `<text x="${xEtq.toFixed(1)}" y="${yEtq.toFixed(1)}" font-size="10" font-weight="bold" `
+        + `text-anchor="middle" fill="#fff">${pctTrozo}%</text>`
+      : '';
+
+    return { path, etiquetaTrozo, color, etiqueta: item.etiqueta, pct: pctTrozo };
+  });
+
+  const leyenda = trozos.map((t) =>
+    `<span style="display:inline-flex;align-items:center;gap:3px;margin:0 8px 4px 0;">`
+    + `<span style="display:inline-block;width:8px;height:8px;background:${t.color};border-radius:2px;"></span>`
+    + `<span style="font-size:8.5px;color:#333;">${escapar(String(t.etiqueta))} (${t.pct}%)</span></span>`
+  ).join('');
+
+  return `<svg viewBox="0 0 ${ancho} ${alto - 60}" width="100%" style="max-width:${ancho}px; display:block; margin:0 auto;">
+      ${trozos.map((t) => t.path).join('')}
+      ${trozos.map((t) => t.etiquetaTrozo).join('')}
+    </svg>
+    <div style="text-align:center; margin-top:2px;">${leyenda}</div>`;
+}
+
+/**
+ * Redacta el párrafo interpretativo de un gráfico, con el
+ * mismo tono que un informe de diagnóstico inicial redactado a
+ * mano: menciona las 1-3 categorías más relevantes con sus
+ * porcentajes reales.
+ */
+function parrafoInterpretativo(dim, datos, numero) {
+  if (datos.length === 0) return '';
+  const top = datos.slice(0, 3);
+
+  const frasesPorClave = {
+    droga_principal: () => {
+      const noConsume = datos.find((d) => d.valor === 'no_consume');
+      const consumen = datos.filter((d) => d.valor !== 'no_consume').slice(0, 2);
+      const partes = consumen.map((d) => `un ${d.pct}% consume ${d.etiqueta.toLowerCase()}`);
+      return `El gráfico ${numero} indica la principal droga consumida por el personal: `
+        + `${partes.join(', ')}, mientras que un ${noConsume ? noConsume.pct : 100}% `
+        + `del personal no consume ningún tipo de droga.`;
+    },
+    frecuencia_consumo: () => {
+      const noConsume = datos.find((d) => d.valor === 'no_consume');
+      const consumen = datos.filter((d) => d.valor !== 'no_consume');
+      if (consumen.length === 0) return `El gráfico ${numero} indica que ningún trabajador reportó consumo con una frecuencia definida.`;
+      const partes = consumen.map((d) => `un ${d.pct}% ${d.etiqueta.toLowerCase()}`);
+      return `El gráfico ${numero} muestra la frecuencia de consumo del personal: ${partes.join(', ')}`
+        + `${noConsume ? `, y el ${noConsume.pct}% no consume ningún tipo de sustancia.` : '.'}`;
+    },
+    reconoce_problema: () => {
+      const si = datos.find((d) => d.valor === 'si');
+      return `El gráfico ${numero} muestra que el ${si ? si.pct : 0}% del personal reconoce `
+        + `tener un problema relacionado con el consumo de sustancias.`;
+    },
+    factor_psicosocial: () => {
+      const noAplica = datos.find((d) => d.valor === 'no_aplica');
+      const factores = datos.filter((d) => d.valor !== 'no_aplica').slice(0, 2);
+      if (factores.length === 0) return `El gráfico ${numero} indica que no se identificaron factores psicosociales asociados al consumo.`;
+      const partes = factores.map((d) => `el ${d.pct}% considera "${d.etiqueta.toLowerCase()}"`);
+      return `El gráfico ${numero} indica los siguientes factores psicosociales que el personal `
+        + `relaciona con el consumo: ${partes.join(', ')} como principal factor`
+        + `${noAplica ? `, y el ${noAplica.pct}% "no aplica" debido a que no consume ninguna sustancia.` : '.'}`;
+    }
+  };
+
+  if (frasesPorClave[dim.clave]) return frasesPorClave[dim.clave]();
+
+  if (top.length === 1) {
+    return `El gráfico ${numero} muestra que el ${top[0].pct}% del personal corresponde a `
+      + `"${top[0].etiqueta}".`;
+  }
+  const [primero, ...resto] = top;
+  const partesResto = resto.map((d) => `un ${d.pct}% "${d.etiqueta}"`).join(', ');
+  return `El gráfico ${numero} muestra que el ${primero.pct}% del personal corresponde a `
+    + `"${primero.etiqueta}", mientras que ${partesResto}.`;
+}
+
+/**
+ * Bloque "Análisis y conclusiones": lee las cifras reales del
+ * año e hilvana observaciones, igual que redactaría un
+ * profesional al cerrar el informe.
+ */
+function generarConclusiones(e) {
+  const conclusiones = [];
+  const buscar = (clave, valor) => {
+    const dim = e.dimensiones.find((d) => d.clave === clave);
+    return dim ? dim.datos.find((d) => d.valor === valor) : null;
+  };
+
+  const noConsume = buscar('droga_principal', 'no_consume');
+  if (noConsume) {
+    conclusiones.push(`El ${noConsume.pct}% del personal señaló que no consume ningún tipo de `
+      + `droga, siendo un porcentaje ${noConsume.pct >= 70 ? 'alto' : noConsume.pct >= 40 ? 'moderado' : 'bajo'} libre de consumo.`);
+  }
+
+  const drogaTop = e.dimensiones.find((d) => d.clave === 'droga_principal')
+    ?.datos.find((d) => d.valor !== 'no_consume');
+  if (drogaTop) {
+    conclusiones.push(`La principal sustancia de consumo reportada es ${drogaTop.etiqueta.toLowerCase()}, `
+      + `con un ${drogaTop.pct}% del personal evaluado.`);
+  }
+
+  const factorTop = e.dimensiones.find((d) => d.clave === 'factor_psicosocial')
+    ?.datos.find((d) => d.valor !== 'no_aplica');
+  if (factorTop) {
+    conclusiones.push(`El ${factorTop.pct}% del personal considera "${factorTop.etiqueta.toLowerCase()}" `
+      + `como el principal factor psicosocial asociado al consumo.`);
+  }
+
+  if (e.reconocenProblema > 0) {
+    conclusiones.push(`El ${e.pctReconocen}% del personal reconoce tener un problema relacionado `
+      + `con el consumo de sustancias, población prioritaria para intervención.`);
+  }
+
+  if (e.desean > 0) {
+    conclusiones.push(`El ${e.pctDesean}% del personal manifestó su deseo de recibir tratamiento, `
+      + `casos que se gestionan de forma individual y confidencial en el listado de seguimiento.`);
+  }
+
+  const frecBaja = e.dimensiones.find((d) => d.clave === 'frecuencia_consumo')
+    ?.datos.find((d) => d.valor === '2_a_12_anio');
+  if (frecBaja) {
+    conclusiones.push(`El ${frecBaja.pct}% de los trabajadores consume de 2 a 12 veces al año, `
+      + `una frecuencia baja dentro del patrón de consumo.`);
+  }
+
+  return conclusiones;
+}
+
+const RECOMENDACIONES_BASE = [
+  'Continuar con acciones preventivas, como programas y charlas para disminuir el riesgo de uso y consumo prolongado de alcohol, tabaco y otras drogas.',
+  'Capacitar anualmente al personal de la empresa sobre la prevención y reducción del consumo de alcohol, tabaco y otras drogas en espacios laborales, con la finalidad de establecer un ambiente adecuado.',
+  'Sensibilización con enfoque psicoeducativo y preventivo sobre el alcohol, tabaco y otras drogas, que incluya estrategias que promuevan estilos de vida saludables en la población laboral.',
+  'Campaña de concientización sobre las secuelas y desventajas del consumo de alcohol, organizada por el personal de la empresa.',
+  'Evaluaciones psicológicas individuales dentro de un periodo de corto o mediano plazo (6 o 12 meses), con la finalidad de conocer conflictos personales, familiares, conyugales o laborales que mantenga el personal, y prevenir un consumo de drogas severo.'
+];
 
 /* ============================================
    Selectores de año (informe y comparativo)
    ============================================ */
 
-export function iniciarInformeAtd() {
+export async function iniciarInformeAtd() {
+  await cargarCierres();
   llenarSelectorAnioInforme();
   llenarSelectoresComparativo();
 }
 
+/** El médico tocó el texto de recomendaciones: ya no se le
+    pisa con el texto por defecto si vuelve a generar la vista
+    previa del mismo informe. */
+export function marcarRecomendacionesEditadas() {
+  const $reco = document.getElementById('atd-inf-recomendaciones');
+  if ($reco) $reco.dataset.editado = '1';
+}
+
+async function cargarCierres() {
+  cierresPorAnio = new Map();
+  const { data, error } = await supabase
+    .from('test_atd_cierres_anuales')
+    .select('anio, resumen')
+    .eq('empresa_id', estadoAtd().empresaId);
+
+  if (!error && data) {
+    data.forEach((fila) => cierresPorAnio.set(fila.anio, fila.resumen));
+  }
+}
+
 function aniosDisponibles() {
-  return [...new Set(estadoAtd().respuestas.map((r) => r.anio))].sort((a, b) => b - a);
+  const anios = new Set(estadoAtd().respuestas.map((r) => r.anio));
+  cierresPorAnio.forEach((_resumen, anio) => anios.add(anio));
+  return [...anios].sort((a, b) => b - a);
 }
 
 function llenarSelectorAnioInforme() {
@@ -154,6 +362,61 @@ function calcularEstadisticas(filas, anio) {
   };
 }
 
+/**
+ * Misma forma de salida que calcularEstadisticas(), pero
+ * leyendo un año ya cerrado desde su resumen congelado (JSON)
+ * en vez de contar filas individuales, porque esas filas ya
+ * no existen.
+ */
+function estadisticasDesdeResumen(resumen, anio) {
+  const total = resumen.total || 0;
+
+  const dimensiones = DIMENSIONES.map((dim) => {
+    const conteo = (resumen.dimensiones && resumen.dimensiones[dim.clave]) || {};
+    const datos = Object.entries(conteo)
+      .map(([valor, n]) => ({
+        valor, etiqueta: dim.catalogo ? (dim.catalogo[valor] || valor) : valor,
+        n, pct: pct(n, total)
+      }))
+      .sort((a, b) => b.n - a.n);
+    return { ...dim, datos };
+  });
+
+  let edad = null;
+  if (resumen.edad_n) {
+    const buckets = Object.entries(resumen.edad_buckets || {})
+      .map(([etiqueta, n]) => ({ etiqueta, n, pct: pct(n, resumen.edad_n) }))
+      .filter((b) => b.n > 0);
+    edad = { promedio: resumen.edad_promedio, buckets, n: resumen.edad_n };
+  }
+
+  const consumeAlgo = resumen.consume_algo || 0;
+  const desean = resumen.desean || 0;
+  const reconocenProblema = resumen.reconocen_problema || 0;
+
+  return {
+    anio, total, dimensiones, edad,
+    consumeAlgo, pctConsumeAlgo: pct(consumeAlgo, total),
+    desean, pctDesean: pct(desean, total),
+    reconocenProblema, pctReconocen: pct(reconocenProblema, total)
+  };
+}
+
+/**
+ * Punto único para pedir las estadísticas de un año: si ya
+ * está cerrado (existe un resumen congelado), se usa ese —
+ * las respuestas individuales de ese año ya no están, salvo
+ * quien pidió tratamiento. Si el año sigue abierto, se calcula
+ * en vivo a partir de las respuestas actuales.
+ */
+function obtenerEstadisticasAnio(anio) {
+  const resumen = cierresPorAnio.get(anio);
+  if (resumen) return estadisticasDesdeResumen(resumen, anio);
+
+  const filas = estadoAtd().respuestas.filter((r) => r.anio === anio);
+  return filas.length > 0 ? calcularEstadisticas(filas, anio) : null;
+}
+
 /* ============================================
    Informe anual
    ============================================ */
@@ -162,62 +425,91 @@ export function generarInformeAnualAtd() {
   const anio = parseInt(document.getElementById('atd-inf-anio').value, 10);
   if (!anio) return avisar('No hay campañas capturadas todavía.', false, 'atd-inf-alerta');
 
-  const filas = estadoAtd().respuestas.filter((r) => r.anio === anio);
-  if (filas.length === 0) return avisar('No hay registros para ese año.', false, 'atd-inf-alerta');
+  const stats = obtenerEstadisticasAnio(anio);
+  if (!stats || stats.total === 0) return avisar('No hay registros para ese año.', false, 'atd-inf-alerta');
 
-  inf.anual = calcularEstadisticas(filas, anio);
+  inf.anual = stats;
 
   document.getElementById('atd-inf-previa').hidden = false;
   document.getElementById('atd-inf-previa-resumen').textContent =
     `Año ${anio} · ${inf.anual.total} personas evaluadas · `
     + `${inf.anual.pctConsumeAlgo}% reporta algún consumo`;
+
+  /* Recomendaciones: se precargan con el texto por defecto, pero
+     quedan en un textarea editable — lo que esté escrito ahí al
+     momento de descargar es lo que sale impreso. */
+  const $reco = document.getElementById('atd-inf-recomendaciones');
+  if ($reco && !$reco.dataset.editado) {
+    $reco.value = RECOMENDACIONES_BASE.map((r, i) => `${i + 1}. ${r}`).join('\n\n');
+  }
 }
 
 export async function descargarInformeAnualAtd() {
   const e = inf.anual;
   if (!e) return avisar('Genere primero el informe.', false, 'atd-inf-alerta');
   const quien = quienElabora();
+  const registro = registroElabora();
   const empresaNombre = estadoAtd().empresaNombre;
+  const cerrado = cierresPorAnio.has(e.anio);
 
-  const bloqueResumen = `
-    <h2 class="if-seccion">Resumen ejecutivo</h2>
-    <p>Durante el año ${e.anio} se aplicó el test de diagnóstico inicial de consumo de alcohol,
-    tabaco y otras drogas a <strong>${e.total}</strong> trabajador(es) de ${escapar(empresaNombre)}.
-    El ${e.pctConsumeAlgo}% (${e.consumeAlgo}) reportó consumir alguna sustancia como droga
-    principal, el ${e.pctReconocen}% (${e.reconocenProblema}) reconoció tener un problema de
-    consumo, y el ${e.pctDesean}% (${e.desean}) manifestó su deseo de recibir tratamiento.</p>
-    <p class="if-nota">Este informe presenta estadística agregada: no lista personas de forma
-    individual. El detalle identificado de quién realizó el test y de quién solicitó tratamiento
-    se gestiona aparte, en el listado de seguimiento de derivaciones.</p>`;
+  const bloqueIntro = `
+    <p>La empresa <strong>${escapar(empresaNombre.toUpperCase())}</strong>, en base al Acuerdo
+    Interinstitucional expedido por el Ministerio del Trabajo, el Ministerio de Salud Pública y
+    la Secretaría Técnica de Drogas (Acuerdo Ministerial MDT-2024-196), realizó durante el año
+    ${e.anio} el registro y levantamiento de información con el personal, desarrollando el
+    <strong>diagnóstico inicial</strong> de consumo de alcohol, tabaco y otras drogas.</p>
+    <p>En el diagnóstico se analizan las diferentes variables que pueden intervenir en el uso y
+    consumo de alcohol, tabaco y otras drogas: la principal droga de consumo, su frecuencia, las
+    condiciones que motivan al consumo, y las recomendaciones y conclusiones respectivas. A
+    continuación se desarrolla el análisis gráfico de las diferentes variables evaluadas.</p>
+    ${cerrado ? `<p class="if-nota"><strong>Campaña cerrada.</strong> Las respuestas individuales
+    de ${e.anio} ya no están en el sistema (se eliminaron el 1 de enero siguiente, salvo quienes
+    pidieron tratamiento); estas cifras vienen del resumen que se guardó antes de ese cierre.</p>` : ''}`;
 
   const bloqueEdad = e.edad ? `
     <h3 class="if-subseccion">Distribución por edad</h3>
-    ${tablaSimple(e.edad.buckets)}
-    ${graficoBarras(e.edad.buckets.map((b) => ({ etiqueta: b.etiqueta, valor: b.n })))}
+    ${graficoPastel(e.edad.buckets.map((b) => ({ etiqueta: b.etiqueta, valor: b.n })))}
     <p>La edad promedio de las personas evaluadas fue de ${e.edad.promedio} años.</p>` : '';
 
-  const bloquesDimension = e.dimensiones.map((dim, i) => {
+  let numeroGrafico = 1;
+  const bloquesDimension = e.dimensiones.map((dim) => {
     if (dim.datos.length === 0) return '';
-    return `<h3 class="if-subseccion">${i + 1}. ${escapar(dim.titulo)}</h3>
-      ${tablaSimple(dim.datos)}
-      ${graficoBarras(dim.datos.slice(0, 8).map((d) => ({ etiqueta: d.etiqueta, valor: d.n })))}
+    const n = numeroGrafico++;
+    return `<h3 class="if-subseccion">${escapar(dim.titulo.toUpperCase())}</h3>
+      <p class="if-fuerte">Gráfico ${n}.-</p>
+      ${graficoPastel(dim.datos.map((d) => ({ etiqueta: d.etiqueta, valor: d.n })))}
+      <p>${parrafoInterpretativo(dim, dim.datos, n)}</p>
       ${fuente(e.anio, empresaNombre)}`;
   }).join('');
 
+  const conclusiones = generarConclusiones(e);
+  const bloqueConclusiones = conclusiones.length ? `
+    <h2 class="if-seccion">Análisis y conclusiones</h2>
+    <ul class="if-lista">${conclusiones.map((c) => `<li>${c}</li>`).join('')}</ul>` : '';
+
+  const textoRecomendaciones = (document.getElementById('atd-inf-recomendaciones')?.value || '')
+    .trim();
+  const bloqueRecomendaciones = textoRecomendaciones ? `
+    <h2 class="if-seccion">Recomendaciones</h2>
+    ${textoRecomendaciones.split(/\n\s*\n/).map((p) => `<p>${escapar(p.trim())}</p>`).join('')}` : '';
+
   const html = `
-    ${portadaHtml('Informe anual<br>Test de consumo de alcohol, tabaco y otras drogas',
-      `Correspondiente al año ${e.anio}`, quien, empresaNombre)}
+    ${portadaHtml('Programa integral de prevención y reducción<br>del uso y consumo de '
+      + 'alcohol, tabaco y otras drogas', `Diagnóstico inicial · Año ${e.anio}`, quien, empresaNombre)}
     <section class="if-contenido">
-      ${membreteHtml('Informe anual · Test A-T-D', `Año ${e.anio}`, empresaNombre)}
-      ${bloqueResumen}
+      ${membreteHtml('Diagnóstico inicial · Test A-T-D', `Año ${e.anio}`, empresaNombre)}
+      ${bloqueIntro}
+      <h2 class="if-seccion">Distribución de empleados participantes</h2>
       ${bloqueEdad}
-      <h2 class="if-seccion">Distribución detallada</h2>
       ${bloquesDimension}
+      ${bloqueConclusiones}
+      ${bloqueRecomendaciones}
+      <p style="margin-top:10mm;">Responsable del Diagnóstico Inicial:</p>
       <div class="if-firmas">
         <div class="if-firma">
           <div class="if-firma-linea"></div>
-          <p class="if-firma-rotulo">Elaborado por</p>
-          <p class="if-firma-nombre">${escapar(quien || 'No identificado')}</p>
+          <p class="if-firma-nombre if-fuerte">${escapar(quien || 'No identificado')}</p>
+          ${registro ? `<p class="if-firma-rotulo">N.° de Registro: ${escapar(registro)}</p>` : ''}
         </div>
       </div>
     </section>`;
@@ -239,10 +531,9 @@ export function generarInformeComparativoAtd() {
   }
 
   const anios = [...new Set([base, ...seleccionados])].sort((a, b) => a - b);
-  const porAnio = anios.map((anio) => {
-    const filas = estadoAtd().respuestas.filter((r) => r.anio === anio);
-    return { anio, filas, stats: calcularEstadisticas(filas, anio) };
-  }).filter((x) => x.filas.length > 0);
+  const porAnio = anios
+    .map((anio) => ({ anio, stats: obtenerEstadisticasAnio(anio) }))
+    .filter((x) => x.stats && x.stats.total > 0);
 
   if (porAnio.length < 2) {
     return avisar('No hay suficientes registros en los años elegidos para comparar.', false, 'atd-comp-alerta');
@@ -252,7 +543,7 @@ export function generarInformeComparativoAtd() {
 
   document.getElementById('atd-comp-previa').hidden = false;
   document.getElementById('atd-comp-previa-resumen').textContent =
-    `Comparando ${porAnio.map((x) => `${x.anio} (${x.filas.length})`).join(' vs ')}`;
+    `Comparando ${porAnio.map((x) => `${x.anio} (${x.stats.total})`).join(' vs ')}`;
 }
 
 export async function descargarInformeComparativoAtd() {
@@ -261,29 +552,29 @@ export async function descargarInformeComparativoAtd() {
   const quien = quienElabora();
   const empresaNombre = estadoAtd().empresaNombre;
   const anios = c.anios;
-
-  const filaTotales = { etiqueta: 'Total evaluados', n: null,
-    valores: c.porAnio.map((x) => x.filas.length) };
+  const hayAnioCerrado = c.porAnio.some((x) => cierresPorAnio.has(x.anio));
 
   const bloqueTotales = `
     <h2 class="if-seccion">1. Cobertura por año</h2>
-    ${graficoBarras(c.porAnio.map((x) => ({ etiqueta: String(x.anio), valor: x.filas.length })))}
+    ${graficoBarras(c.porAnio.map((x) => ({ etiqueta: String(x.anio), valor: x.stats.total })))}
     <table class="if-tabla">
       <thead><tr><th class="if-izq">Año</th><th>Evaluados</th><th>% consume algo</th>
         <th>% reconoce problema</th><th>% desea tratamiento</th></tr></thead>
       <tbody>${c.porAnio.map((x) => `<tr>
-        <td class="if-izq">${x.anio}</td><td>${x.filas.length}</td>
+        <td class="if-izq">${x.anio}${cierresPorAnio.has(x.anio) ? ' 🔒' : ''}</td><td>${x.stats.total}</td>
         <td>${x.stats.pctConsumeAlgo}%</td><td>${x.stats.pctReconocen}%</td>
         <td>${x.stats.pctDesean}%</td></tr>`).join('')}</tbody>
-    </table>`;
+    </table>
+    ${hayAnioCerrado ? '<p class="if-nota">🔒 Campaña cerrada: cifras tomadas del resumen '
+      + 'congelado, ya no de respuestas individuales.</p>' : ''}`;
 
-  const bloquesDimension = DIMENSIONES.map((dim, i) => {
+  const bloquesDimension = DIMENSIONES.map((dim, idx) => {
     /* Categorías que aparecieron en cualquiera de los años,
        ordenadas por su peso total, top 6 para que el gráfico
        agrupado no se sature. */
     const pesos = new Map();
     c.porAnio.forEach((x) => {
-      contarDimension(x.filas, dim).forEach((d) => {
+      x.stats.dimensiones[idx].datos.forEach((d) => {
         pesos.set(d.valor, (pesos.get(d.valor) || 0) + d.n);
       });
     });
@@ -292,19 +583,20 @@ export async function descargarInformeComparativoAtd() {
 
     const series = top.map((valor) => ({
       nombre: dim.catalogo ? (dim.catalogo[valor] || valor) : valor,
-      valores: c.porAnio.map((x) => contarDimension(x.filas, dim).find((d) => d.valor === valor)?.n || 0)
+      valores: c.porAnio.map((x) =>
+        x.stats.dimensiones[idx].datos.find((d) => d.valor === valor)?.n || 0)
     }));
 
     const filasTabla = top.map((valor) => {
       const etiqueta = dim.catalogo ? (dim.catalogo[valor] || valor) : valor;
       const celdas = c.porAnio.map((x) => {
-        const d = contarDimension(x.filas, dim).find((dd) => dd.valor === valor);
+        const d = x.stats.dimensiones[idx].datos.find((dd) => dd.valor === valor);
         return `<td>${d ? `${d.n} (${d.pct}%)` : '0 (0%)'}</td>`;
       }).join('');
       return `<tr><td class="if-izq">${escapar(etiqueta)}</td>${celdas}</tr>`;
     }).join('');
 
-    return `<h3 class="if-subseccion">${i + 2}. ${escapar(dim.titulo)}</h3>
+    return `<h3 class="if-subseccion">${idx + 2}. ${escapar(dim.titulo)}</h3>
       ${graficoBarrasAgrupado(anios, series)}
       <table class="if-tabla">
         <thead><tr><th class="if-izq">Categoría</th>
@@ -516,6 +808,11 @@ function quienElabora() {
   const p = sesionActual();
   if (!p) return null;
   return [p.titulo, p.nombres, p.apellidos].filter(Boolean).join(' ').trim() || null;
+}
+
+function registroElabora() {
+  const p = sesionActual();
+  return p?.registro_msp || null;
 }
 
 async function imprimir(html, titulo, destino) {
