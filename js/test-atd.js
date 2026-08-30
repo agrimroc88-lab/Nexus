@@ -20,7 +20,7 @@ import { supabase } from './supabase.js?v=11';
 import { escapar, retrasar } from './utils.js?v=12';
 import { alCrear, alEditar, marcarAntesDeBorrar } from './autoria.js?v=1';
 
-const VERSION = 'v2';
+const VERSION = 'v4';
 console.info('NEXUS · test-atd', VERSION);
 
 /* ============================================
@@ -197,6 +197,8 @@ function limpiarFormulario() {
   document.getElementById('atd-f-desea-tratamiento').checked = false;
   document.getElementById('atd-deriv-datos').hidden = true;
   document.getElementById('atd-form-error').textContent = '';
+  document.getElementById('atd-f-cedula-aviso').textContent = '';
+  document.getElementById('atd-btn-guardar').disabled = false;
 
   /* La empresa es de afiliación privada casi siempre; se deja
      preseleccionada y el médico solo la cambia en el caso raro
@@ -211,17 +213,57 @@ export function alternarBloqueDerivacion() {
 }
 
 /**
+ * ¿Ya existe un registro de este código/cédula en este año
+ * (de esta empresa)? Se resuelve en memoria porque atd.respuestas
+ * ya trae todos los años de la empresa cargados.
+ */
+function existeRegistroAtd(codigo, anio) {
+  const buscado = (codigo || '').trim().toLowerCase();
+  if (!buscado) return false;
+  return atd.respuestas.some((r) =>
+    r.anio === anio && (r.codigo_cedula || '').trim().toLowerCase() === buscado);
+}
+
+/**
+ * Revisa en cada tecla (con un pequeño retraso) si ese código/
+ * cédula ya tiene un test este año, y lo avisa justo debajo del
+ * campo — no hasta el final del formulario ni solo al salir de
+ * él. Mientras el aviso esté activo, bloquea "Guardar".
+ */
+export const revisarCedulaAtd = retrasar(() => {
+  const $cedula = document.getElementById('atd-f-cedula');
+  const $aviso = document.getElementById('atd-f-cedula-aviso');
+  const $guardar = document.getElementById('atd-btn-guardar');
+  const valor = $cedula.value.trim();
+
+  if (valor && existeRegistroAtd(valor, atd.anio)) {
+    $aviso.textContent = `⚠ Trabajador ya registrado: este código/cédula ya tiene un `
+      + `test guardado en ${atd.anio}.`;
+    if ($guardar) $guardar.disabled = true;
+  } else {
+    $aviso.textContent = '';
+    if ($guardar) $guardar.disabled = false;
+  }
+}, 400);
+
+/**
  * Al salir del campo de código/cédula, busca al trabajador en la
  * nómina de la empresa (activo, mismo año no importa) y llena
  * cargo, año de nacimiento y género. Todo queda editable: si el
  * dato en nómina está desactualizado o la persona no aparece
  * (ej. código interno que no corresponde a un trabajador
  * registrado), simplemente no se llena nada y se sigue a mano.
+ *
+ * Si el código/cédula ya tiene un test este año, el aviso ya
+ * salió mientras escribía (ver revisarCedulaAtd); aquí no se
+ * hace la búsqueda en nómina para no confundir con otro mensaje.
  */
 export async function buscarPorCedulaAtd() {
   const $cedula = document.getElementById('atd-f-cedula');
   const valor = $cedula.value.trim();
   if (!valor || !atd.empresaId) return;
+
+  if (existeRegistroAtd(valor, atd.anio)) return;
 
   try {
     let { data } = await supabase
@@ -272,6 +314,11 @@ export async function guardarRespuestaAtd() {
     return;
   }
 
+  if (existeRegistroAtd(v('atd-f-cedula'), atd.anio)) {
+    $error.textContent = `Ya existe un test registrado para este código/cédula en ${atd.anio}.`;
+    return;
+  }
+
   const deseaTratamiento = document.getElementById('atd-f-desea-tratamiento').checked;
 
   const fila = {
@@ -307,7 +354,9 @@ export async function guardarRespuestaAtd() {
     .from('test_atd_respuestas').insert(alCrear(fila));
 
   if (error) {
-    $error.textContent = 'No se pudo guardar: ' + error.message;
+    $error.textContent = error.message.includes('uq_atd_codigo_anio')
+      ? `Ya existe un test registrado para este código/cédula en ${atd.anio}.`
+      : 'No se pudo guardar: ' + error.message;
     return;
   }
 
