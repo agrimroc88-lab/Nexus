@@ -28,7 +28,7 @@ import {
   CAT_FACTOR, CAT_ESTADO_DERIVACION
 } from './test-atd.js?v=5';
 
-const VERSION = 'v5';
+const VERSION = 'v6';
 console.info('NEXUS · informe-test-atd', VERSION);
 
 const inf = { anual: null, comparativo: null };
@@ -822,5 +822,5 @@ async function imprimir(html, titulo, destino) {
   if (!$z) return avisar('Falta actualizar la página para poder imprimir.', false, destino);
   $z.innerHTML = html;
   avisar('En el diálogo de impresión: active «Gráficos de fondo».', true, destino);
-  await imprimirHoja('atd-impresion', 'imprimiendo-informe', titulo);
+  await imprimirHoja('atd-impresion', 'imprimiendo-atd', titulo);
 }
