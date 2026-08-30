@@ -28,7 +28,7 @@ import {
   CAT_FACTOR, CAT_ESTADO_DERIVACION
 } from './test-atd.js?v=5';
 
-const VERSION = 'v6';
+const VERSION = 'v7';
 console.info('NEXUS · informe-test-atd', VERSION);
 
 const inf = { anual: null, comparativo: null };
@@ -450,6 +450,7 @@ export async function descargarInformeAnualAtd() {
   const e = inf.anual;
   if (!e) return avisar('Genere primero el informe.', false, 'atd-inf-alerta');
   const quien = quienElabora();
+  const cargo = cargoElabora();
   const registro = registroElabora();
   const empresaNombre = estadoAtd().empresaNombre;
   const cerrado = cierresPorAnio.has(e.anio);
@@ -511,6 +512,8 @@ export async function descargarInformeAnualAtd() {
         <div class="if-firma">
           <div class="if-firma-linea"></div>
           <p class="if-firma-nombre if-fuerte">${escapar(quien || 'No identificado')}</p>
+          ${cargo ? `<p class="if-firma-rotulo">${escapar(cargo)}</p>` : ''}
+          <p class="if-firma-rotulo">Departamento Médico · ${escapar(empresaNombre)}</p>
           ${registro ? `<p class="if-firma-rotulo">N.° de Registro: ${escapar(registro)}</p>` : ''}
         </div>
       </div>
@@ -810,6 +813,11 @@ function quienElabora() {
   const p = sesionActual();
   if (!p) return null;
   return [p.titulo, p.nombres, p.apellidos].filter(Boolean).join(' ').trim() || null;
+}
+
+function cargoElabora() {
+  const p = sesionActual();
+  return p?.cargo || null;
 }
 
 function registroElabora() {
