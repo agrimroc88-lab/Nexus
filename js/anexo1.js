@@ -42,7 +42,7 @@ import {
 import {
   iniciarInformeAtd, generarInformeAnualAtd, descargarInformeAnualAtd,
   generarInformeComparativoAtd, descargarInformeComparativoAtd, marcarRecomendacionesEditadas
-} from './informe-test-atd.js?v=7';
+} from './informe-test-atd.js?v=8';
 import { montarGrupos, cargarGrupos, pintarGrupos } from './grupos.js?v=12';
 import { montarBotiquines, cargarBotiquines, pintarBotiquines }
   from './botiquines.js?v=12';
