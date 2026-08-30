@@ -274,6 +274,21 @@
 .oficio-impresion { display: none; }
 
 @media print {
+  /* El body normal es un contenedor flex en fila (.app, en
+     layout.css) para acomodar la barra lateral junto al
+     contenido. Nunca se había desactivado para impresión: aunque
+     la barra lateral y el contenedor principal se ocultan con
+     display:none, el body seguía siendo flex-row por debajo,
+     lo que puede reservar o correr espacio de forma impredecible
+     para lo único que queda visible. Se fuerza a bloque simple,
+     sin margen ni relleno, para que el oficio arranque pegado al
+     borde real de la página. */
+  body.imprimiendo-oficio {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
   body.imprimiendo-oficio .barra-lateral,
   body.imprimiendo-oficio .contenedor,
   body.imprimiendo-oficio .cabecera,
@@ -285,6 +300,9 @@
     display: block !important;
     font-family: Arial, Helvetica, sans-serif;
     background: #fff;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
   }
 
   /* Negro, sin excepciones.
