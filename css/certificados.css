@@ -339,7 +339,7 @@
      "aire" visible ya se recortó por separado (el relleno interno
      de .of-hoja bajó de 9mm a 4mm, y el espacio entre copias de
      30mm a 10mm). */
-  @page { size: A4 landscape; margin: 4mm; }
+  @page { size: A4 landscape; margin: 15mm 4mm 4mm 4mm; }
 
   /* En fila, centradas: los dos A5 verticales con la línea de
      corte al medio. Sin ancho total forzado en el contenedor. */
@@ -357,10 +357,7 @@
     box-sizing: border-box;
     width: 125mm;
     height: 190mm;
-    /* Arriba · derecha · abajo · izquierda. El de arriba se deja
-       más grande a propósito (11mm + 4mm del margen de página =
-       15mm hasta donde inician las letras), a pedido. */
-    padding: 11mm 4mm 4mm 4mm;
+    padding: 4mm;
     overflow: hidden;
     flex-shrink: 0;
   }
