@@ -287,6 +287,7 @@
     display: block !important;
     margin: 0 !important;
     padding: 0 !important;
+    min-height: 0 !important;
   }
 
   body.imprimiendo-oficio .barra-lateral,
@@ -357,7 +358,7 @@
     box-sizing: border-box;
     width: 125mm;
     height: 190mm;
-    padding: 1mm;
+    padding: 0 1mm 1mm 1mm;
     overflow: hidden;
     flex-shrink: 0;
   }
@@ -402,7 +403,7 @@
     gap: 5mm;
     align-items: center;
     padding-bottom: 2mm;
-    margin-bottom: 3.5mm;
+    margin-bottom: 1.5mm;
     border-bottom: 1pt solid #000;
   }
 
