@@ -153,6 +153,28 @@
 #atd-impresion .if-tabla td,
 #atd-impresion .if-tabla th { border-color: #b7d2b7; }
 
+/* El texto de la portada (unidad, título, empresa) alineado a
+   la izquierda, empezando justo en el margen de la hoja, en
+   vez de centrado — solo en este informe, sin tocar cómo se
+   ve la portada de los demás documentos del sistema. */
+@media print {
+  #atd-impresion .if-portada-centro,
+  #atd-impresion .if-portada-unidad,
+  #atd-impresion .if-portada-servicio,
+  #atd-impresion .if-portada-titulo,
+  #atd-impresion .if-portada-mes,
+  #atd-impresion .if-portada-empresa { text-align: left; }
+
+  #atd-impresion .if-portada-regla { margin: 13mm 0; }
+}
+#atd-impresion .if-portada-centro,
+#atd-impresion .if-portada-unidad,
+#atd-impresion .if-portada-servicio,
+#atd-impresion .if-portada-titulo,
+#atd-impresion .if-portada-mes,
+#atd-impresion .if-portada-empresa { text-align: left; }
+#atd-impresion .if-portada-regla { margin: 13mm 0; }
+
 /* Colchón extra arriba/abajo, solo para este informe: si el
    navegador deja activado su encabezado/pie automático de
    impresión (URL y fecha, en letra chica), este margen de más
