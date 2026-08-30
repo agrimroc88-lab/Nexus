@@ -28,7 +28,7 @@ import {
   CAT_FACTOR, CAT_ESTADO_DERIVACION
 } from './test-atd.js?v=5';
 
-const VERSION = 'v4';
+const VERSION = 'v5';
 console.info('NEXUS · informe-test-atd', VERSION);
 
 const inf = { anual: null, comparativo: null };
@@ -39,6 +39,8 @@ const inf = { anual: null, comparativo: null };
    desaparecen de test_atd_respuestas (salvo quien pidió
    tratamiento, que se conserva aparte para el seguimiento). */
 let cierresPorAnio = new Map();
+
+function pct(n, total) { return total > 0 ? Math.round((n * 100) / total) : 0; }
 
 /* Dimensiones que se tabulan en ambos informes. El orden aquí
    es el orden en el que salen en el documento. */

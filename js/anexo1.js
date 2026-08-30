@@ -42,7 +42,7 @@ import {
 import {
   iniciarInformeAtd, generarInformeAnualAtd, descargarInformeAnualAtd,
   generarInformeComparativoAtd, descargarInformeComparativoAtd, marcarRecomendacionesEditadas
-} from './informe-test-atd.js?v=4';
+} from './informe-test-atd.js?v=5';
 import { montarGrupos, cargarGrupos, pintarGrupos } from './grupos.js?v=12';
 import { montarBotiquines, cargarBotiquines, pintarBotiquines }
   from './botiquines.js?v=12';
@@ -2306,7 +2306,17 @@ function cambiarVista(vista) {
   if (vista === 'atd') {
     const $e = document.getElementById('empresa-activa');
     const nombreEmpresa = $e ? ($e.options[$e.selectedIndex] || {}).textContent || '' : '';
-    iniciarTestAtd(estado.empresaId, nombreEmpresa).then(iniciarInformeAtd);
+    /* Dos .catch() separados: si cargar las respuestas falla,
+       igual se intenta poblar el selector de años del informe
+       (puede haber campañas cerradas con resumen, aunque el
+       detalle vivo falle). Antes, un solo error aquí arriba
+       dejaba el selector de año permanentemente vacío y sin
+       ningún aviso — los botones de informe "no hacían nada"
+       porque no había ningún año para elegir. */
+    iniciarTestAtd(estado.empresaId, nombreEmpresa)
+      .catch((err) => console.error('NEXUS · anexo1: falló iniciarTestAtd', err))
+      .then(() => iniciarInformeAtd())
+      .catch((err) => console.error('NEXUS · anexo1: falló iniciarInformeAtd', err));
   }
 }
 
@@ -2351,6 +2361,31 @@ function conectarEvaluacion() {
 
 /* El test A-T-D solo existe en salud: seguridad industrial no
    aplica pruebas de salud a los trabajadores. */
+/* Red de seguridad para los botones de informe: si la función
+   lanza un error por cualquier motivo (dato inesperado, campo
+   vacío, lo que sea), en vez de fallar en silencio se avisa en
+   pantalla y se deja registro en la consola para depurar. Antes
+   de esto, un error acá adentro hacía que el botón pareciera no
+   hacer nada. */
+function conAvisoDeError(fn, idAlerta) {
+  return async (...args) => {
+    try {
+      await fn(...args);
+    } catch (err) {
+      console.error('NEXUS · Test A-T-D:', err);
+      const $a = document.getElementById(idAlerta);
+      if ($a) {
+        $a.textContent = 'Ocurrió un error inesperado al generar el informe: '
+          + (err?.message || err) + '. Si persiste, avisa con este mensaje.';
+        $a.className = 'alerta';
+        $a.hidden = false;
+      } else {
+        alert('Ocurrió un error inesperado: ' + (err?.message || err));
+      }
+    }
+  };
+}
+
 function conectarTestAtd() {
   const en = (id, ev2, fn) => {
     const $e = document.getElementById(id);
@@ -2381,11 +2416,11 @@ function conectarTestAtd() {
   en('atd-deriv-filtro-estado', 'change', filtrarDerivaciones);
   en('atd-deriv-btn-imprimir', 'click', imprimirListadoDerivaciones);
 
-  en('atd-inf-btn-generar', 'click', generarInformeAnualAtd);
-  en('atd-inf-btn-descargar', 'click', descargarInformeAnualAtd);
+  en('atd-inf-btn-generar', 'click', conAvisoDeError(generarInformeAnualAtd, 'atd-inf-alerta'));
+  en('atd-inf-btn-descargar', 'click', conAvisoDeError(descargarInformeAnualAtd, 'atd-inf-alerta'));
   en('atd-inf-recomendaciones', 'input', marcarRecomendacionesEditadas);
-  en('atd-comp-btn-generar', 'click', generarInformeComparativoAtd);
-  en('atd-comp-btn-descargar', 'click', descargarInformeComparativoAtd);
+  en('atd-comp-btn-generar', 'click', conAvisoDeError(generarInformeComparativoAtd, 'atd-comp-alerta'));
+  en('atd-comp-btn-descargar', 'click', conAvisoDeError(descargarInformeComparativoAtd, 'atd-comp-alerta'));
 }
 
 /** Atenciones ocupacionales y test A-T-D solo existen en salud */
