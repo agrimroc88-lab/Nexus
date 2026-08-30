@@ -38,11 +38,11 @@ import {
   iniciarTestAtd, cambiarAnioAtd, abrirFormularioAtd, cancelarFormularioAtd,
   alternarBloqueDerivacion, guardarRespuestaAtd, pintarDerivaciones,
   filtrarDerivaciones, imprimirListadoDerivaciones
-} from './test-atd.js?v=1';
+} from './test-atd.js?v=2';
 import {
   iniciarInformeAtd, generarInformeAnualAtd, descargarInformeAnualAtd,
   generarInformeComparativoAtd, descargarInformeComparativoAtd
-} from './informe-test-atd.js?v=1';
+} from './informe-test-atd.js?v=2';
 import { montarGrupos, cargarGrupos, pintarGrupos } from './grupos.js?v=12';
 import { montarBotiquines, cargarBotiquines, pintarBotiquines }
   from './botiquines.js?v=12';

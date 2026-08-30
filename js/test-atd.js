@@ -5,29 +5,22 @@
    y otras drogas (D.E. 255 / A.M. MDT-2024-196). Se aplica
    una vez al año por empresa.
 
-   Dos tablas, dos niveles de privacidad:
+   Identificada a propósito: cada fila lleva el código o
+   cédula del trabajador (control de cobertura: quién ya lo
+   hizo) y su cargo/área (para el informe de qué áreas
+   concentran más problemas de consumo). Si la persona pide
+   tratamiento, el teléfono y estado de seguimiento quedan en
+   la misma fila — no hay tabla aparte.
 
-     test_atd_respuestas    100% anónima. Sin cédula ni
-       nombre. Es la que alimenta la estadística de los
-       informes anual y comparativo.
-
-     test_atd_derivaciones  Identificada. Solo existe si la
-       persona, al responder, pidió tratamiento y dejó sus
-       datos de contacto. No lleva ninguna columna que la
-       vincule a su fila de respuestas: el enlace desaparece
-       a propósito en cuanto se guarda.
-
-   Este archivo cubre captura y seguimiento. Los informes
-   (anual y comparativo) viven en informe-test-atd.js, igual
-   que evaluacion-periodica.js / informe-evaluacion-periodica.js
-   se dividen entre captura e informe.
+   El acceso está restringido al mismo alcance que el resto
+   de la clínica: admin, medico_ocupacional y enfermeria.
    ============================================ */
 
 import { supabase } from './supabase.js?v=11';
 import { escapar, retrasar } from './utils.js?v=12';
 import { alCrear, alEditar, marcarAntesDeBorrar } from './autoria.js?v=1';
 
-const VERSION = 'v1';
+const VERSION = 'v2';
 console.info('NEXUS · test-atd', VERSION);
 
 /* ============================================
@@ -110,9 +103,7 @@ const atd = {
   empresaId: null,
   empresaNombre: '',
   anio: new Date().getFullYear(),
-  respuestas: [],       // de TODOS los años de la empresa (para historial/comparativo)
-  derivaciones: [],
-  editandoId: null
+  respuestas: []   // de TODOS los años de la empresa (historial/comparativo/seguimiento)
 };
 
 export function estadoAtd() { return atd; }
@@ -124,7 +115,7 @@ export function estadoAtd() { return atd; }
 export async function iniciarTestAtd(empresaId, empresaNombre) {
   atd.empresaId = empresaId;
   atd.empresaNombre = empresaNombre || '';
-  await Promise.all([cargarRespuestas(), cargarDerivaciones()]);
+  await cargarRespuestas();
   llenarSelectorAnioCaptura();
   pintarListadoRespuestas();
   llenarSelectorAnioDerivaciones();
@@ -141,18 +132,6 @@ async function cargarRespuestas() {
 
   atd.respuestas = error ? [] : (data || []);
   return atd.respuestas;
-}
-
-async function cargarDerivaciones() {
-  const { data, error } = await supabase
-    .from('test_atd_derivaciones')
-    .select('*')
-    .eq('empresa_id', atd.empresaId)
-    .order('anio', { ascending: false })
-    .order('creado_en', { ascending: false });
-
-  atd.derivaciones = error ? [] : (data || []);
-  return atd.derivaciones;
 }
 
 /* ============================================
@@ -194,7 +173,6 @@ function actualizarAvance() {
    ============================================ */
 
 export function abrirFormularioAtd() {
-  atd.editandoId = null;
   limpiarFormulario();
   document.getElementById('atd-form').hidden = false;
   document.getElementById('atd-form').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -207,12 +185,12 @@ export function cancelarFormularioAtd() {
 
 function limpiarFormulario() {
   const ids = [
-    'atd-f-genero', 'atd-f-anio-nacimiento', 'atd-f-afiliacion', 'atd-f-estado-civil',
-    'atd-f-instruccion', 'atd-f-hijos', 'atd-f-etnia', 'atd-f-discapacidad',
+    'atd-f-area', 'atd-f-cedula', 'atd-f-genero', 'atd-f-anio-nacimiento', 'atd-f-afiliacion',
+    'atd-f-estado-civil', 'atd-f-instruccion', 'atd-f-hijos', 'atd-f-etnia', 'atd-f-discapacidad',
     'atd-f-pct-discapacidad', 'atd-f-enfermedad', 'atd-f-droga-principal',
     'atd-f-droga-otra-texto', 'atd-f-otra-droga', 'atd-f-frecuencia',
     'atd-f-ultimo-consumo', 'atd-f-reconoce', 'atd-f-factor',
-    'atd-f-deriv-nombre', 'atd-f-deriv-cedula', 'atd-f-deriv-telefono', 'atd-f-deriv-direccion'
+    'atd-f-telefono', 'atd-f-direccion'
   ];
   ids.forEach((id) => { const $e = document.getElementById(id); if ($e) $e.value = ''; });
   document.getElementById('atd-f-sustituto').checked = false;
@@ -237,16 +215,18 @@ export async function guardarRespuestaAtd() {
     return t === '' ? null : parseInt(t, 10);
   };
 
-  const deseaTratamiento = document.getElementById('atd-f-desea-tratamiento').checked;
-
-  if (deseaTratamiento && !v('atd-f-deriv-nombre')) {
-    $error.textContent = 'Indique el nombre completo para poder darle seguimiento al caso.';
+  if (!v('atd-f-cedula')) {
+    $error.textContent = 'Indique el código de trabajador o cédula/pasaporte.';
     return;
   }
+
+  const deseaTratamiento = document.getElementById('atd-f-desea-tratamiento').checked;
 
   const fila = {
     empresa_id: atd.empresaId,
     anio: atd.anio,
+    area_cargo: v('atd-f-area'),
+    codigo_cedula: v('atd-f-cedula'),
     genero: v('atd-f-genero'),
     anio_nacimiento: vNum('atd-f-anio-nacimiento'),
     afiliacion: v('atd-f-afiliacion'),
@@ -265,7 +245,10 @@ export async function guardarRespuestaAtd() {
     ultimo_consumo: v('atd-f-ultimo-consumo'),
     reconoce_problema: v('atd-f-reconoce'),
     factor_psicosocial: v('atd-f-factor'),
-    desea_tratamiento: deseaTratamiento
+    desea_tratamiento: deseaTratamiento,
+    telefono: deseaTratamiento ? v('atd-f-telefono') : null,
+    direccion: deseaTratamiento ? v('atd-f-direccion') : null,
+    estado_seguimiento: deseaTratamiento ? 'pendiente' : null
   };
 
   const { error } = await supabase
@@ -276,28 +259,7 @@ export async function guardarRespuestaAtd() {
     return;
   }
 
-  /* La derivación es una inserción aparte, sin ningún campo
-     que la enlace a la fila anónima recién creada. */
-  if (deseaTratamiento) {
-    const derivacion = {
-      empresa_id: atd.empresaId,
-      anio: atd.anio,
-      nombre_completo: v('atd-f-deriv-nombre'),
-      cedula: v('atd-f-deriv-cedula'),
-      telefono: v('atd-f-deriv-telefono'),
-      direccion: v('atd-f-deriv-direccion'),
-      estado: 'pendiente'
-    };
-    const { error: errDeriv } = await supabase
-      .from('test_atd_derivaciones').insert(alCrear(derivacion));
-
-    if (errDeriv) {
-      avisar('El registro anónimo se guardó, pero no se pudo crear el caso de '
-        + 'derivación: ' + errDeriv.message, false, 'atd-alerta');
-    }
-  }
-
-  await Promise.all([cargarRespuestas(), cargarDerivaciones()]);
+  await cargarRespuestas();
   llenarSelectorAnioCaptura();
   document.getElementById('atd-anio').value = String(fila.anio);
   atd.anio = fila.anio;
@@ -324,9 +286,10 @@ function pintarListadoRespuestas() {
 
   $vacio.hidden = filas.length > 0;
 
-  $cuerpo.innerHTML = filas.map((r, i) => `
+  $cuerpo.innerHTML = filas.map((r) => `
     <tr>
-      <td>${i + 1}</td>
+      <td>${escapar(r.codigo_cedula || '—')}</td>
+      <td>${escapar(r.area_cargo || '—')}</td>
       <td>${escapar(CAT_GENERO[r.genero] || '—')}</td>
       <td>${escapar(CAT_DROGA[r.droga_principal] || '—')}</td>
       <td>${escapar(CAT_FRECUENCIA[r.frecuencia_consumo] || '—')}</td>
@@ -345,7 +308,7 @@ function pintarListadoRespuestas() {
 }
 
 async function eliminarRespuestaAtd(id) {
-  if (!confirm('¿Eliminar este registro anónimo? No se puede deshacer.')) return;
+  if (!confirm('¿Eliminar este registro? No se puede deshacer.')) return;
 
   await marcarAntesDeBorrar(supabase, 'test_atd_respuestas', id);
   const { error } = await supabase.from('test_atd_respuestas').delete().eq('id', id);
@@ -355,17 +318,25 @@ async function eliminarRespuestaAtd(id) {
   await cargarRespuestas();
   llenarSelectorAnioCaptura();
   pintarListadoRespuestas();
+  llenarSelectorAnioDerivaciones();
+  pintarDerivaciones();
 }
 
 /* ============================================
-   Derivaciones — seguimiento
+   Seguimiento de tratamiento
+   Vive en la misma tabla: son las filas con
+   desea_tratamiento = TRUE.
    ============================================ */
+
+function derivacionesFiltradas() {
+  return atd.respuestas.filter((r) => r.desea_tratamiento);
+}
 
 function llenarSelectorAnioDerivaciones() {
   const $s = document.getElementById('atd-deriv-filtro-anio');
   if (!$s) return;
   const previo = $s.value;
-  const anios = [...new Set(atd.derivaciones.map((d) => d.anio))].sort((a, b) => b - a);
+  const anios = [...new Set(derivacionesFiltradas().map((d) => d.anio))].sort((a, b) => b - a);
   $s.innerHTML = '<option value="">Todos</option>'
     + anios.map((a) => `<option value="${a}">${a}</option>`).join('');
   $s.value = anios.includes(parseInt(previo, 10)) ? previo : '';
@@ -379,23 +350,23 @@ export function pintarDerivaciones() {
   const anioFiltro = document.getElementById('atd-deriv-filtro-anio')?.value || '';
   const estadoFiltro = document.getElementById('atd-deriv-filtro-estado')?.value || '';
 
-  const filas = atd.derivaciones.filter((d) =>
+  const filas = derivacionesFiltradas().filter((d) =>
     (!anioFiltro || String(d.anio) === anioFiltro)
-    && (!estadoFiltro || d.estado === estadoFiltro));
+    && (!estadoFiltro || d.estado_seguimiento === estadoFiltro));
 
   $vacio.hidden = filas.length > 0;
 
   $cuerpo.innerHTML = filas.map((d) => `
     <tr>
-      <td>${escapar(d.nombre_completo)}</td>
-      <td>${escapar(d.cedula || '—')}</td>
+      <td>${escapar(d.codigo_cedula || '—')}</td>
+      <td>${escapar(d.area_cargo || '—')}</td>
       <td>${escapar(d.telefono || '—')}</td>
       <td>${escapar(d.direccion || '—')}</td>
       <td class="celda-centro">${d.anio}</td>
       <td class="celda-centro">
         <select class="entrada atd-estado" data-deriv-estado="${d.id}">
           ${Object.entries(CAT_ESTADO_DERIVACION).map(([v, txt]) =>
-            `<option value="${v}" ${d.estado === v ? 'selected' : ''}>${txt}</option>`).join('')}
+            `<option value="${v}" ${d.estado_seguimiento === v ? 'selected' : ''}>${txt}</option>`).join('')}
         </select>
       </td>
       <td>
@@ -405,7 +376,7 @@ export function pintarDerivaciones() {
     </tr>`).join('');
 
   $cuerpo.querySelectorAll('[data-deriv-estado]').forEach(($sel) => {
-    $sel.addEventListener('change', () => actualizarDerivacion($sel.dataset.derivEstado, { estado: $sel.value }));
+    $sel.addEventListener('change', () => actualizarDerivacion($sel.dataset.derivEstado, { estado_seguimiento: $sel.value }));
   });
   $cuerpo.querySelectorAll('[data-deriv-notas]').forEach(($ta) => {
     $ta.addEventListener('input', retrasar(() => {
@@ -416,14 +387,14 @@ export function pintarDerivaciones() {
 
 async function actualizarDerivacion(id, cambios) {
   const { error } = await supabase
-    .from('test_atd_derivaciones').update(alEditar(cambios)).eq('id', id);
+    .from('test_atd_respuestas').update(alEditar(cambios)).eq('id', id);
 
   if (error) {
     avisar('No se pudo guardar el cambio: ' + error.message, false, 'atd-deriv-alerta');
     return;
   }
 
-  const fila = atd.derivaciones.find((d) => d.id === id);
+  const fila = atd.respuestas.find((d) => d.id === id);
   if (fila) Object.assign(fila, cambios);
 }
 
@@ -432,7 +403,7 @@ export function filtrarDerivaciones() {
 }
 
 export async function imprimirListadoDerivaciones() {
-  const { imprimirSeguimientoDerivaciones } = await import('./informe-test-atd.js?v=1');
+  const { imprimirSeguimientoDerivaciones } = await import('./informe-test-atd.js?v=2');
   await imprimirSeguimientoDerivaciones();
 }
 

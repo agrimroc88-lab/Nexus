@@ -3,14 +3,15 @@
 
    Tres salidas, de las dos tablas del test A-T-D:
 
-     · ANUAL         estadística agregada y anónima de UN año.
+     · ANUAL         estadística agregada de UN año (cifras, no
+                      listado de personas).
      · COMPARATIVO   la misma estadística, dos o más años lado
                       a lado — disponible desde la segunda
                       campaña capturada (ej. 2026 vs 2027).
      · SEGUIMIENTO   listado identificado de quienes pidieron
                       tratamiento, con su estado de gestión.
                       Aparte de los dos anteriores: nunca cruza
-                      con las respuestas anónimas.
+                      con los registros, sin listar personas.
 
    Mismo patrón de maquetación que informe-evaluacion-periodica.js
    (portada, membrete, tablas ".if-*", gráficos SVG a mano).
@@ -24,9 +25,9 @@ import {
   CAT_GENERO, CAT_AFILIACION, CAT_ESTADO_CIVIL, CAT_INSTRUCCION, CAT_ETNIA,
   CAT_DISCAPACIDAD, CAT_ENFERMEDAD, CAT_DROGA, CAT_FRECUENCIA, CAT_RECONOCE,
   CAT_FACTOR, CAT_ESTADO_DERIVACION
-} from './test-atd.js?v=1';
+} from './test-atd.js?v=2';
 
-const VERSION = 'v1';
+const VERSION = 'v2';
 console.info('NEXUS · informe-test-atd', VERSION);
 
 const inf = { anual: null, comparativo: null };
@@ -34,6 +35,7 @@ const inf = { anual: null, comparativo: null };
 /* Dimensiones que se tabulan en ambos informes. El orden aquí
    es el orden en el que salen en el documento. */
 const DIMENSIONES = [
+  { clave: 'area_cargo', titulo: 'Cargo o área', catalogo: null },
   { clave: 'genero', titulo: 'Género', catalogo: CAT_GENERO },
   { clave: 'estado_civil', titulo: 'Estado civil', catalogo: CAT_ESTADO_CIVIL },
   { clave: 'nivel_instruccion', titulo: 'Nivel de instrucción', catalogo: CAT_INSTRUCCION },
@@ -113,7 +115,10 @@ function contarDimension(filas, dim) {
   });
   const total = filas.length;
   return [...conteo.entries()]
-    .map(([valor, n]) => ({ valor, etiqueta: dim.catalogo[valor] || valor, n, pct: pct(n, total) }))
+    .map(([valor, n]) => ({
+      valor, etiqueta: dim.catalogo ? (dim.catalogo[valor] || valor) : valor,
+      n, pct: pct(n, total)
+    }))
     .sort((a, b) => b.n - a.n);
 }
 
@@ -181,9 +186,9 @@ export async function descargarInformeAnualAtd() {
     El ${e.pctConsumeAlgo}% (${e.consumeAlgo}) reportó consumir alguna sustancia como droga
     principal, el ${e.pctReconocen}% (${e.reconocenProblema}) reconoció tener un problema de
     consumo, y el ${e.pctDesean}% (${e.desean}) manifestó su deseo de recibir tratamiento.</p>
-    <p class="if-nota">Este informe presenta estadística agregada y anónima: no identifica a
-    ninguna persona. Los casos que solicitaron tratamiento se gestionan aparte, en el listado de
-    seguimiento de derivaciones.</p>`;
+    <p class="if-nota">Este informe presenta estadística agregada: no lista personas de forma
+    individual. El detalle identificado de quién realizó el test y de quién solicitó tratamiento
+    se gestiona aparte, en el listado de seguimiento de derivaciones.</p>`;
 
   const bloqueEdad = e.edad ? `
     <h3 class="if-subseccion">Distribución por edad</h3>
@@ -286,12 +291,12 @@ export async function descargarInformeComparativoAtd() {
     if (top.length === 0) return '';
 
     const series = top.map((valor) => ({
-      nombre: dim.catalogo[valor] || valor,
+      nombre: dim.catalogo ? (dim.catalogo[valor] || valor) : valor,
       valores: c.porAnio.map((x) => contarDimension(x.filas, dim).find((d) => d.valor === valor)?.n || 0)
     }));
 
     const filasTabla = top.map((valor) => {
-      const etiqueta = dim.catalogo[valor] || valor;
+      const etiqueta = dim.catalogo ? (dim.catalogo[valor] || valor) : valor;
       const celdas = c.porAnio.map((x) => {
         const d = contarDimension(x.filas, dim).find((dd) => dd.valor === valor);
         return `<td>${d ? `${d.n} (${d.pct}%)` : '0 (0%)'}</td>`;
@@ -319,7 +324,7 @@ export async function descargarInformeComparativoAtd() {
       <p>Comparar los resultados del test de diagnóstico inicial de consumo de alcohol, tabaco y
       otras drogas de ${escapar(empresaNombre)} entre los años ${anios.join(', ')}, para observar
       la evolución de los indicadores de la empresa en el tiempo.</p>
-      <p class="if-nota">Estadística agregada y anónima: no identifica a ninguna persona.</p>
+      <p class="if-nota">Estadística agregada: no lista personas de forma individual.</p>
 
       ${bloqueTotales}
       ${bloquesDimension}
@@ -346,21 +351,21 @@ export async function imprimirSeguimientoDerivaciones() {
   const empresaNombre = estadoAtd().empresaNombre;
   const quien = quienElabora();
 
-  const filas = estadoAtd().derivaciones.filter((d) =>
-    (!anioFiltro || String(d.anio) === anioFiltro)
-    && (!estadoFiltro || d.estado === estadoFiltro));
+  const filas = estadoAtd().respuestas.filter((d) => d.desea_tratamiento
+    && (!anioFiltro || String(d.anio) === anioFiltro)
+    && (!estadoFiltro || d.estado_seguimiento === estadoFiltro));
 
   if (filas.length === 0) {
     return avisar('No hay casos que coincidan con el filtro elegido.', false, 'atd-deriv-alerta');
   }
 
   const cuerpo = filas.map((d) => `<tr>
-    <td class="if-izq">${escapar(d.nombre_completo)}</td>
-    <td class="if-izq">${escapar(d.cedula || '—')}</td>
+    <td class="if-izq">${escapar(d.codigo_cedula || '—')}</td>
+    <td class="if-izq">${escapar(d.area_cargo || '—')}</td>
     <td class="if-izq">${escapar(d.telefono || '—')}</td>
     <td class="if-izq">${escapar(d.direccion || '—')}</td>
     <td>${d.anio}</td>
-    <td class="if-izq">${escapar(CAT_ESTADO_DERIVACION[d.estado] || d.estado)}</td>
+    <td class="if-izq">${escapar(CAT_ESTADO_DERIVACION[d.estado_seguimiento] || d.estado_seguimiento || '—')}</td>
     <td class="if-izq">${escapar(d.notas_seguimiento || '—')}</td>
   </tr>`).join('');
 
@@ -375,7 +380,7 @@ export async function imprimirSeguimientoDerivaciones() {
 
       <table class="if-tabla">
         <thead><tr>
-          <th class="if-izq">Nombre</th><th class="if-izq">Cédula</th>
+          <th class="if-izq">Código / cédula</th><th class="if-izq">Cargo / área</th>
           <th class="if-izq">Teléfono</th><th class="if-izq">Dirección</th>
           <th>Año</th><th class="if-izq">Estado</th><th class="if-izq">Notas</th>
         </tr></thead>
