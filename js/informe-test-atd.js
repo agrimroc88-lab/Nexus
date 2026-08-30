@@ -28,7 +28,7 @@ import {
   CAT_FACTOR, CAT_ESTADO_DERIVACION
 } from './test-atd.js?v=5';
 
-const VERSION = 'v8';
+const VERSION = 'v9';
 console.info('NEXUS · informe-test-atd', VERSION);
 
 const inf = { anual: null, comparativo: null };
@@ -514,7 +514,8 @@ export async function descargarInformeAnualAtd() {
           <p class="if-firma-nombre if-fuerte">${escapar(quien || 'No identificado')}</p>
           ${cargo ? `<p class="if-firma-rotulo">${escapar(cargo)}</p>` : ''}
           ${registro ? `<p class="if-firma-rotulo">N.° de Registro: ${escapar(registro)}</p>` : ''}
-          <p class="if-firma-rotulo">Departamento Médico · ${escapar(empresaNombre)}</p>
+          <p class="if-firma-rotulo">Departamento Médico</p>
+          <p class="if-firma-rotulo">${escapar(empresaNombre)}</p>
         </div>
       </div>
     </section>`;
