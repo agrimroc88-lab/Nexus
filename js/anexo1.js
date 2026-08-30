@@ -34,6 +34,15 @@ import {
   generarInformeSeguimiento, descargarInformeSeguimiento,
   usarRecomendacion, abrirNuevaRecomendacion, cancelarNuevaRecomendacion, guardarNuevaRecomendacion
 } from './informe-evaluacion-periodica.js?v=8';
+import {
+  iniciarTestAtd, cambiarAnioAtd, abrirFormularioAtd, cancelarFormularioAtd,
+  alternarBloqueDerivacion, guardarRespuestaAtd, pintarDerivaciones,
+  filtrarDerivaciones, imprimirListadoDerivaciones
+} from './test-atd.js?v=1';
+import {
+  iniciarInformeAtd, generarInformeAnualAtd, descargarInformeAnualAtd,
+  generarInformeComparativoAtd, descargarInformeComparativoAtd
+} from './informe-test-atd.js?v=1';
 import { montarGrupos, cargarGrupos, pintarGrupos } from './grupos.js?v=12';
 import { montarBotiquines, cargarBotiquines, pintarBotiquines }
   from './botiquines.js?v=12';
@@ -106,6 +115,7 @@ async function iniciar() {
   prepararAniosEventos();
   ocultarPestanasAjenas();
   conectarEvaluacion();
+  conectarTestAtd();
   montarGrupos(perfil, AMBITO);
   if (AMBITO === 'salud') {
     montarBotiquines(perfil);
@@ -154,6 +164,15 @@ function puedeEscribirEventos() {
   if (puedeEscribir()) return true;
   if (AMBITO !== 'seguridad') return false;
   return ['medico_ocupacional', 'enfermeria'].includes(estado.perfil.rol);
+}
+
+/**
+ * Test A-T-D: mismo alcance que la clínica general (admin,
+ * médico, enfermería). Ni psicología ni trabajo social entran
+ * aquí, aunque sí escriben el resto del Anexo 1 salud.
+ */
+function puedeVerTestAtd() {
+  return ['admin', 'medico_ocupacional', 'enfermeria'].includes(estado.perfil.rol);
 }
 
 /* ============================================
@@ -2243,7 +2262,7 @@ function cambiarVista(vista) {
     p.classList.toggle('activa', p.dataset.vista === vista);
   });
   ['cumplimiento', 'capacitaciones', 'eventos', 'ocupacionales',
-   'grupos', 'botiquines', 'instalaciones', 'evaluacion'].forEach((v) => {
+   'grupos', 'botiquines', 'instalaciones', 'evaluacion', 'atd'].forEach((v) => {
     const $v = document.getElementById('vista-' + v);
     if ($v) $v.hidden = v !== vista;
   });
@@ -2269,6 +2288,22 @@ function cambiarVista(vista) {
     iniciarEvaluacion(estado.empresaId, nombreEmpresa);
     iniciarInformeEvaluacion(estado.empresaId, nombreEmpresa);
   }
+  if (vista === 'atd') {
+    const $e = document.getElementById('empresa-activa');
+    const nombreEmpresa = $e ? ($e.options[$e.selectedIndex] || {}).textContent || '' : '';
+    iniciarTestAtd(estado.empresaId, nombreEmpresa).then(iniciarInformeAtd);
+  }
+}
+
+/* Sub-pestañas internas del test A-T-D: Captura / Seguimiento / Informes */
+function cambiarSubvistaAtd(vista) {
+  document.querySelectorAll('#vista-atd > .pestanas-secundarias .pestana').forEach((p) => {
+    p.classList.toggle('activa', p.dataset.atdVista === vista);
+  });
+  ['captura', 'derivaciones', 'informes'].forEach((v) => {
+    const $v = document.getElementById('atd-subvista-' + v);
+    if ($v) $v.hidden = v !== vista;
+  });
 }
 
 /* La evaluación periódica solo existe en salud: seguridad
@@ -2299,15 +2334,51 @@ function conectarEvaluacion() {
   en('seg-btn-descargar', 'click', descargarInformeSeguimiento);
 }
 
-/** Atenciones ocupacionales solo existen en salud */
+/* El test A-T-D solo existe en salud: seguridad industrial no
+   aplica pruebas de salud a los trabajadores. */
+function conectarTestAtd() {
+  const en = (id, ev2, fn) => {
+    const $e = document.getElementById(id);
+    if ($e) $e.addEventListener(ev2, fn);
+  };
+
+  document.querySelectorAll('#vista-atd > .pestanas-secundarias .pestana').forEach((p) => {
+    p.addEventListener('click', () => cambiarSubvistaAtd(p.dataset.atdVista));
+  });
+
+  en('atd-anio', 'change', cambiarAnioAtd);
+  en('atd-btn-nuevo', 'click', abrirFormularioAtd);
+  en('atd-btn-cancelar', 'click', cancelarFormularioAtd);
+  en('atd-btn-guardar', 'click', guardarRespuestaAtd);
+  en('atd-f-desea-tratamiento', 'change', alternarBloqueDerivacion);
+
+  en('atd-deriv-filtro-anio', 'change', filtrarDerivaciones);
+  en('atd-deriv-filtro-estado', 'change', filtrarDerivaciones);
+  en('atd-deriv-btn-imprimir', 'click', imprimirListadoDerivaciones);
+
+  en('atd-inf-btn-generar', 'click', generarInformeAnualAtd);
+  en('atd-inf-btn-descargar', 'click', descargarInformeAnualAtd);
+  en('atd-comp-btn-generar', 'click', generarInformeComparativoAtd);
+  en('atd-comp-btn-descargar', 'click', descargarInformeComparativoAtd);
+}
+
+/** Atenciones ocupacionales y test A-T-D solo existen en salud */
 function ocultarPestanasAjenas() {
-  if (AMBITO === 'salud') return;
-  ['ocupacionales', 'evaluacion'].forEach((v) => {
+  const quitar = (v) => {
     const $p = document.querySelector(`.pestana[data-vista="${v}"]`);
     const $v = document.getElementById('vista-' + v);
     if ($p) $p.remove();
     if ($v) $v.remove();
-  });
+  };
+
+  if (AMBITO !== 'salud') {
+    ['ocupacionales', 'evaluacion', 'atd'].forEach(quitar);
+    return;
+  }
+
+  /* Dentro de salud, el test A-T-D además exige el mismo
+     alcance que la clínica: solo admin, médico y enfermería. */
+  if (!puedeVerTestAtd()) quitar('atd');
 }
 
 async function cambiarAnio() {
