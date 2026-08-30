@@ -14,14 +14,39 @@
 .atd-controles .campo { min-width: 12rem; }
 .atd-controles .ayuda { margin-left: auto; font-size: 0.88rem; }
 
-/* Sub-pestañas (Captura / Seguimiento / Informes), un
-   escalón por debajo de las pestañas principales del módulo. */
-.pestanas-secundarias {
+/* Sub-pestañas (Captura / Seguimiento / Informes). Clase
+   propia, NO ".pestana": ese nombre lo usa un selector global
+   del sistema que reacciona a cualquier botón con esa clase
+   para cambiar de pestaña PRINCIPAL — si estas sub-pestañas
+   la compartieran, cada clic aquí también dispararía ese
+   selector global con un valor inválido y ocultaría toda la
+   pantalla (justo el bug que pasaba antes). */
+.subpestanas {
+  display: flex;
+  gap: 0.25rem;
   margin-top: -0.25rem;
   margin-bottom: 0.75rem;
   border-bottom: 1px solid var(--color-borde, #e2e8e2);
 }
-.pestanas-secundarias .pestana { font-size: 0.85rem; padding: 0.55rem 0.9rem; }
+.subpestana {
+  padding: 0.55rem 0.9rem;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--color-texto-tenue, #52605a);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.subpestana:hover { color: var(--color-texto, #1b1c1c); }
+.subpestana.activa {
+  color: var(--color-acento, #1b5e20);
+  border-bottom-color: var(--color-acento, #1b5e20);
+  font-weight: 600;
+}
 
 .atd-subvista { animation: none; }
 
