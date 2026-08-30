@@ -111,15 +111,30 @@ async function iniciar() {
   estado.perfil = perfil;
   montarNavegacion(perfil, MODULO);
 
-  prepararAnios();
-  prepararAniosEventos();
-  ocultarPestanasAjenas();
-  conectarEvaluacion();
-  conectarTestAtd();
-  montarGrupos(perfil, AMBITO);
+  /* Cada paso aislado en su propio try/catch: si uno falla
+     (por ejemplo, por un elemento que falte en esta página),
+     los demás igual se ejecutan. Antes, un solo error aquí
+     arriba dejaba sin conectar todo lo de más abajo —
+     incluido el test A-T-D— sin ningún aviso visible. */
+  const pasos = [
+    ['prepararAnios', prepararAnios],
+    ['prepararAniosEventos', prepararAniosEventos],
+    ['ocultarPestanasAjenas', ocultarPestanasAjenas],
+    ['conectarEvaluacion', conectarEvaluacion],
+    ['conectarTestAtd', conectarTestAtd],
+    ['montarGrupos', () => montarGrupos(perfil, AMBITO)]
+  ];
+  for (const [nombre, fn] of pasos) {
+    try {
+      fn();
+    } catch (err) {
+      console.error(`NEXUS · anexo1: falló ${nombre}`, err);
+    }
+  }
+
   if (AMBITO === 'salud') {
-    montarBotiquines(perfil);
-    montarInstalaciones(perfil);
+    try { montarBotiquines(perfil); } catch (err) { console.error('NEXUS · anexo1: falló montarBotiquines', err); }
+    try { montarInstalaciones(perfil); } catch (err) { console.error('NEXUS · anexo1: falló montarInstalaciones', err); }
   }
   await cargarEmpresas();
   conectarEventos();
@@ -2342,9 +2357,17 @@ function conectarTestAtd() {
     if ($e) $e.addEventListener(ev2, fn);
   };
 
-  document.querySelectorAll('#vista-atd > .pestanas-secundarias .pestana').forEach((p) => {
-    p.addEventListener('click', () => cambiarSubvistaAtd(p.dataset.atdVista));
-  });
+  /* Delegación de eventos sobre el contenedor de las
+     sub-pestañas, en vez de un listener por botón: sigue
+     funcionando aunque los botones se vuelvan a dibujar o el
+     DOM cambie de orden. */
+  const $navSecundaria = document.querySelector('#vista-atd > .pestanas-secundarias');
+  if ($navSecundaria) {
+    $navSecundaria.addEventListener('click', (ev) => {
+      const $boton = ev.target.closest('.pestana');
+      if ($boton) cambiarSubvistaAtd($boton.dataset.atdVista);
+    });
+  }
 
   en('atd-anio', 'change', cambiarAnioAtd);
   en('atd-btn-nuevo', 'click', abrirFormularioAtd);
