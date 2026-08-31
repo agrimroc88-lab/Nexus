@@ -808,7 +808,25 @@ async function emitirOficio() {
   }
 
   const clase = document.getElementById('of_clase').value;
+  const motivo = document.getElementById('of_motivo').value.trim();
   const perfil = sesionActual();
+
+  /* El motivo se guarda en el certificado ANTES de imprimir, no
+     después. window.print() abre un diálogo del sistema operativo
+     que Nexus no puede saber si se aceptó o se canceló; si el
+     guardado quedara para después de imprimir, cancelar el diálogo
+     perdería lo escrito y habría que redactarlo de nuevo la próxima
+     vez que se abra este mismo oficio. */
+  if (clase === 'justificacion' && motivo !== (c.observacion || '')) {
+    const { error: errMotivo } = await supabase.from('certificados_medicos')
+      .update({ observacion: motivo || null })
+      .eq('id', c.id);
+    if (errMotivo) {
+      console.warn('NEXUS · certificados: no se pudo guardar el motivo:', errMotivo.message);
+    } else {
+      c.observacion = motivo || null;
+    }
+  }
 
   /* El oficio lo firma quien lo está emitiendo ahora mismo —el
      usuario con la sesión abierta—, nunca el médico externo que
@@ -845,7 +863,7 @@ async function emitirOficio() {
     diagnostico: c.diagnostico || '',
     cie10: c.codigo_cie10 || '',
     mostrarCie: document.getElementById('of_cie').checked,
-    motivo: document.getElementById('of_motivo').value.trim(),
+    motivo,
     reposoInicio: c.reposo_inicio,
     reposoDias: c.reposo_dias,
     rotacion,
