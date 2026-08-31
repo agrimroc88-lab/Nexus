@@ -222,7 +222,7 @@ function textoDiagnostico(d) {
  * @param {string}   d.diagnostico
  * @param {string}   d.cie10
  * @param {boolean}  d.mostrarCie
- * @param {string}   d.motivo
+ * @param {string}   d.motivo        texto abierto: completa «…indico que ___»
  * @param {string}   d.reposoInicio
  * @param {number}   d.reposoDias
  * @param {string}   d.rotacion      texto ya resuelto, o vacío
@@ -274,6 +274,18 @@ function encabezadoTrabajador(d) {
     </p>`;
 }
 
+/* La apertura es neutra a propósito: no da por sentado que el
+   trabajador faltó todo el día. Antes decía siempre "...justifico
+   la inasistencia...", lo que no calzaba cuando el trabajador sí
+   se presentó y se retiró después. Con "indico que" el motivo
+   queda totalmente abierto y quien redacta escribe la situación
+   real completa: si faltó, si se retiró, desde cuándo, por qué. */
+function fraseJustificacion(d) {
+  return 'Por medio de la presente, indico que '
+    + `${escapar(d.motivo
+      || 'el trabajador mencionado se encuentra en proceso de recuperación.')}`;
+}
+
 function hojaJustificacion(d) {
   const pagados = rangoDias(d.reposoInicio, d.reposoDias);
 
@@ -286,9 +298,7 @@ function hojaJustificacion(d) {
       ${encabezadoTrabajador(d)}
 
       <p class="of-parrafo">
-        Por medio de la presente, justifico la inasistencia del trabajador
-        mencionado, ${escapar(d.motivo
-          || 'el mismo que se encuentra en proceso de recuperación.')}
+        ${fraseJustificacion(d)}
       </p>
 
       ${d.diagnostico ? `<p class="of-dato">

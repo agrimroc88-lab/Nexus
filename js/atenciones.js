@@ -2149,8 +2149,10 @@ async function abrirDetalle(a) {
         <p class="cert-fechas" id="det-cert-fechas-rotacion" hidden></p>
 
         <div class="campo">
-          <label class="etiqueta" for="det-cert-motivo">Motivo de la inasistencia</label>
-          <textarea class="entrada area" id="det-cert-motivo" rows="2"></textarea>
+          <label class="etiqueta" for="det-cert-motivo">Motivo</label>
+          <textarea class="entrada area" id="det-cert-motivo" rows="2"
+                    placeholder="el trabajador no asistió a sus labores... / el trabajador se presentó a laborar pero fue retirado por..."></textarea>
+          <span class="ayuda">Completa la frase «…por medio de la presente, indico que ___».</span>
         </div>
 
         <button type="button" class="boton-secundario" id="btn-emitir-cert-post">
