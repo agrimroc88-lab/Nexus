@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/layout.css">
   <link rel="stylesheet" href="css/empresas.css">
-  <link rel="stylesheet" href="css/configuracion.css?v=4">
+  <link rel="stylesheet" href="css/configuracion.css?v=5">
 </head>
 <body class="app">
 
@@ -34,6 +34,7 @@
       <nav class="pestanas">
         <button class="pestana activa" data-vista="apariencia" type="button">Apariencia</button>
         <button class="pestana" data-vista="cargos" type="button">Sucursales y cargos</button>
+        <button class="pestana" data-vista="modulos" type="button">Módulos por empresa</button>
         <button class="pestana" data-vista="bitacora" type="button">Bitácora</button>
       </nav>
 
@@ -137,6 +138,26 @@
           </section>
 
         </div>
+      </section>
+
+      <!-- ===== Vista: Módulos por empresa ===== -->
+      <section class="vista" id="vista-modulos" hidden>
+
+        <section class="selector-empresa">
+          <label class="etiqueta" for="mod-empresa">Empresa</label>
+          <select class="entrada" id="mod-empresa">
+            <option value="">— Seleccione una empresa —</option>
+          </select>
+        </section>
+
+        <p class="ayuda">
+          Un módulo apagado desaparece del menú para todo el personal de esa
+          empresa, pero su información no se borra: si se vuelve a encender,
+          todo el historial sigue intacto.
+        </p>
+
+        <div class="lista mod-lista" id="mod-lista" hidden></div>
+
       </section>
 
       <!-- ===== Vista: Bitácora ===== -->
