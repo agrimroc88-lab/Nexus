@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Elegir empresa · NEXUS</title>
+  <link rel="icon" href="favicon.png">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/login.css">
+  <link rel="stylesheet" href="css/seleccionar-empresa.css">
+</head>
+<body class="pantalla-acceso">
+
+  <main class="acceso-tarjeta acceso-tarjeta-ancha">
+
+    <header class="acceso-encabezado">
+      <h1 class="acceso-marca">NEXUS</h1>
+      <p class="acceso-lema">¿Con qué empresa vas a trabajar?</p>
+    </header>
+
+    <p class="acceso-mensaje" id="mensaje" role="alert" hidden></p>
+
+    <div class="sel-emp-lista" id="sel-emp-lista">
+      <!-- Tarjetas de empresa insertadas por JS -->
+    </div>
+
+    <footer class="acceso-pie">
+      <span>Puedes cambiar de empresa luego con el botón "Salir de empresa"</span>
+    </footer>
+
+  </main>
+
+  <script type="module" src="js/seleccionar-empresa.js"></script>
+</body>
+</html>
