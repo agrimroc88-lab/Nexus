@@ -190,6 +190,18 @@ function puedeVerTestAtd() {
   return ['admin', 'medico_ocupacional', 'enfermeria'].includes(estado.perfil.rol);
 }
 
+/**
+ * Atenciones ocupacionales (conteo mensual ingreso/periódica/
+ * reintegro/egreso): son números que alimentan indicadores y
+ * reportes oficiales. A diferencia del resto del módulo, aquí
+ * solo Admin puede modificarlos — el resto del personal clínico
+ * puede consultarlos pero no editarlos, para evitar que se
+ * alteren por error o de mala fe.
+ */
+function puedeEditarOcupacionales() {
+  return estado.perfil.rol === ROLES.ADMIN;
+}
+
 /* ============================================
    Datos
    ============================================ */
@@ -1980,7 +1992,7 @@ async function cargarOcupacionales() {
   estado.indOcup = ind.data;
 
   document.getElementById('btn-abrir-ao').hidden =
-    estado.ocupacionales.length > 0 || !puedeEscribir();
+    estado.ocupacionales.length > 0 || !puedeEditarOcupacionales();
 }
 
 /* ============================================
@@ -2152,7 +2164,7 @@ function pintarOcupacionales() {
     celdas += `<td class="celda-centro celda-total">${totalMes || '—'}</td>`;
     fila.innerHTML = celdas;
 
-    if (puedeEscribir()) {
+    if (puedeEditarOcupacionales()) {
       fila.classList.add('fila-editable');
       fila.addEventListener('click', () => abrirOcupacional(mes, datos));
     }
@@ -2179,6 +2191,8 @@ function pintarOcupacionales() {
 }
 
 async function abrirAnioOcupacional() {
+  if (!puedeEditarOcupacionales()) return;
+
   const $btn = document.getElementById('btn-abrir-ao');
   $btn.disabled = true;
 
@@ -2230,6 +2244,8 @@ function abrirOcupacional(mes, datos) {
 }
 
 async function guardarOcupacional() {
+  if (!puedeEditarOcupacionales()) return;
+
   const { mes, datos } = estado.ocupActual || {};
   if (!mes) return;
 
