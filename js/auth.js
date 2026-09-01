@@ -279,3 +279,63 @@ export async function empresasPermitidas(perfil) {
     .order('razon_social');
   return data || [];
 }
+
+/* ============================================
+   Módulos activables por empresa
+   ============================================ */
+
+/**
+ * Módulos "opcionales": pueden encenderse o apagarse por empresa
+ * desde Configuración. Los que no están en esta lista (Panel,
+ * Trabajadores, Empresas, Usuarios, Configuración) son núcleo:
+ * siempre están disponibles, no se apagan.
+ */
+export const MODULOS_OPCIONALES = [
+  'salud_ocup', 'seguridad_ind', 'psicologia',
+  'trabajo_social', 'atenciones', 'farmacia', 'certificados'
+];
+
+/**
+ * Módulos opcionales activos para una empresa.
+ * Si la empresa no tiene NINGUNA fila en empresa_modulos para un
+ * módulo dado, ese módulo se considera ACTIVO por defecto — así
+ * ninguna empresa existente (Agrimroc) pierde acceso a nada hasta
+ * que un admin apague algo explícitamente desde Configuración.
+ * @param {string|null} empresaId
+ * @returns {Promise<Set<string>>} ids de módulos opcionales activos
+ */
+export async function modulosActivosEmpresa(empresaId) {
+  if (!empresaId) return new Set(MODULOS_OPCIONALES);
+
+  const { data, error } = await supabase
+    .from('empresa_modulos')
+    .select('modulo_id, activo')
+    .eq('empresa_id', empresaId);
+
+  if (error) {
+    // Si la tabla no existe todavía o falla la lectura, no se
+    // bloquea a nadie: se comporta como si todo estuviera activo.
+    console.warn('NEXUS · empresa_modulos: no se pudo leer (' + error.message + '), se muestran todos los módulos por defecto');
+    return new Set(MODULOS_OPCIONALES);
+  }
+
+  const apagados = new Set((data || []).filter((r) => r.activo === false).map((r) => r.modulo_id));
+  return new Set(MODULOS_OPCIONALES.filter((m) => !apagados.has(m)));
+}
+
+/**
+ * Enciende/apaga un módulo para una empresa. Usada solo desde la
+ * pestaña "Módulos" de Configuración (admin).
+ * @param {string} empresaId
+ * @param {string} moduloId
+ * @param {boolean} activo
+ */
+export async function fijarModuloEmpresa(empresaId, moduloId, activo) {
+  const { error } = await supabase
+    .from('empresa_modulos')
+    .upsert(
+      { empresa_id: empresaId, modulo_id: moduloId, activo, actualizado_en: new Date().toISOString() },
+      { onConflict: 'empresa_id,modulo_id' }
+    );
+  return { ok: !error, mensaje: error?.message || '' };
+}

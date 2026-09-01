@@ -20,7 +20,7 @@
    ============================================ */
 
 import { supabase } from './supabase.js?v=11';
-import { protegerPagina, ROLES, empresasPermitidas, resolverEmpresaActiva } from './auth.js?v=11';
+import { protegerPagina, ROLES, empresasPermitidas, resolverEmpresaActiva, modulosActivosEmpresa } from './auth.js?v=11';
 import { montarNavegacion } from './nav.js?v=12';
 import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=12';
 import {
@@ -145,6 +145,16 @@ async function iniciar() {
   }
   const empresa = resolverEmpresaActiva(permitidas);
   if (!empresa) return; // está redirigiendo a seleccionar-empresa.html
+
+  /* Candado por si alguien llega por URL directa a un módulo que
+     esta empresa tiene apagado (el enlace del menú ya no aparece,
+     pero la URL sigue existiendo). */
+  const activos = await modulosActivosEmpresa(empresa.id);
+  if (!activos.has(MODULO)) {
+    document.querySelector('.contenido').innerHTML =
+      '<p class="aviso-inicial">Este módulo no está activo para esta empresa.</p>';
+    return;
+  }
 
   if ($nombreEmpresa) $nombreEmpresa.textContent = empresa.razon_social;
 

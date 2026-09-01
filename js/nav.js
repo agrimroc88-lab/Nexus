@@ -5,7 +5,7 @@
    para el catálogo de módulos del sistema.
    ============================================ */
 
-import { cerrarSesion, puedeVerModulo, empresasPermitidas, salirDeEmpresa } from './auth.js?v=11';
+import { cerrarSesion, puedeVerModulo, empresasPermitidas, salirDeEmpresa, empresaActivaId, modulosActivosEmpresa } from './auth.js?v=11';
 import { supabase } from './supabase.js?v=11';
 
 /* --- Catálogo de módulos ---
@@ -23,18 +23,19 @@ export const MODULOS = [
     roles: ['admin'] },
   { id: 'trabajadores',  texto: 'Trabajadores',         archivo: 'trabajadores.html',         listo: true  },
   { id: 'salud_ocup',    texto: 'Salud ocupacional',    archivo: 'salud-ocupacional.html',    listo: true,
-    roles: ['admin', 'medico_ocupacional', 'enfermeria', 'psicologo'] },
+    roles: ['admin', 'medico_ocupacional', 'enfermeria', 'psicologo'], opcional: true },
   { id: 'psicologia',    texto: 'Psicología',           archivo: 'psicologia.html',           listo: true,
-    roles: ['admin', 'psicologo', 'psico_social'] },
+    roles: ['admin', 'psicologo', 'psico_social'], opcional: true },
   { id: 'seguridad_ind', texto: 'Seguridad industrial', archivo: 'seguridad-industrial.html', listo: true,
-    roles: ['admin', 'tecnico_sst', 'medico_ocupacional', 'enfermeria'] },
+    roles: ['admin', 'tecnico_sst', 'medico_ocupacional', 'enfermeria'], opcional: true },
   { id: 'trabajo_social',texto: 'Trabajo Social',       archivo: 'trabajo-social.html',       listo: true,
-    roles: ['admin', 'trabajo_social', 'psico_social', 'medico_ocupacional'] },
+    roles: ['admin', 'trabajo_social', 'psico_social', 'medico_ocupacional'], opcional: true },
   { id: 'atenciones',    texto: 'Atenciones médicas',   archivo: 'atenciones.html',           listo: true,
-    roles: ['admin', 'medico_ocupacional', 'enfermeria'] },
+    roles: ['admin', 'medico_ocupacional', 'enfermeria'], opcional: true },
   { id: 'farmacia',      texto: 'Farmacia',             archivo: 'farmacia.html',             listo: true,
-    roles: ['admin', 'enfermeria'] },
-  { id: 'certificados',  texto: 'Certificados médicos', archivo: 'certificados.html',         listo: true },
+    roles: ['admin', 'enfermeria'], opcional: true },
+  { id: 'certificados',  texto: 'Certificados médicos', archivo: 'certificados.html',         listo: true,
+    opcional: true },
   { id: 'usuarios',      texto: 'Usuarios',             archivo: 'usuarios.html',             listo: true,
     roles: ['admin'] },
   { id: 'configuracion', texto: 'Configuración',        archivo: 'configuracion.html',        listo: true,
@@ -154,9 +155,15 @@ function pintarUsuario(perfil) {
   }
 }
 
-function pintarEnlaces(perfil, moduloActivo) {
+async function pintarEnlaces(perfil, moduloActivo) {
   const $nav = document.getElementById('lateral-nav');
   if (!$nav) return;
+
+  // Módulos opcionales apagados para la empresa activa (Fase 3).
+  // Si algo falla o no hay empresa aún, se asume todo activo —
+  // nunca se oculta un módulo por error de red, solo por decisión
+  // explícita del admin en Configuración.
+  const activos = await modulosActivosEmpresa(empresaActivaId());
 
   const fragmento = document.createDocumentFragment();
 
@@ -164,6 +171,10 @@ function pintarEnlaces(perfil, moduloActivo) {
     // Filtro de visibilidad por rol. Si el módulo no declara `roles`,
     // puedeVerModulo() devuelve true y lo ven todos.
     if (!puedeVerModulo(perfil.rol, modulo)) return;
+
+    // Filtro por empresa: los módulos núcleo (sin `opcional`) no
+    // se evalúan aquí y siempre se muestran si el rol lo permite.
+    if (modulo.opcional && !activos.has(modulo.id)) return;
 
     const enlace = document.createElement('a');
     enlace.className = 'nav-enlace';

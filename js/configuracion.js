@@ -7,8 +7,8 @@
 
 import { supabase } from './supabase.js';
 import { protegerPagina } from './auth.js';
-import { montarNavegacion } from './nav.js';
-import { empresasPermitidas, sesionActual } from './auth.js';
+import { montarNavegacion, MODULOS } from './nav.js';
+import { empresasPermitidas, sesionActual, MODULOS_OPCIONALES, modulosActivosEmpresa, fijarModuloEmpresa } from './auth.js';
 import { escapar } from './utils.js';
 
 const estado = {
@@ -178,8 +178,10 @@ async function initCargos() {
       document.querySelectorAll('.pestana').forEach((x) => x.classList.toggle('activa', x === p));
       document.getElementById('vista-apariencia').hidden = v !== 'apariencia';
       document.getElementById('vista-cargos').hidden = v !== 'cargos';
+      document.getElementById('vista-modulos').hidden = v !== 'modulos';
       document.getElementById('vista-bitacora').hidden = v !== 'bitacora';
       if (v === 'cargos') cargarEmpresasCargos();
+      if (v === 'modulos') cargarEmpresasModulos();
       if (v === 'bitacora') iniciarBitacora();
     }));
 
@@ -187,6 +189,12 @@ async function initCargos() {
     cargosEstado.empresaId = e.target.value || null;
     document.getElementById('cargos-area').hidden = !cargosEstado.empresaId;
     if (cargosEstado.empresaId) { cargarSuc(); cargarCargos(); }
+  });
+
+  document.getElementById('mod-empresa').addEventListener('change', (e) => {
+    const id = e.target.value || null;
+    document.getElementById('mod-lista').hidden = !id;
+    if (id) pintarModulos(id);
   });
 
   document.getElementById('btn-add-suc').addEventListener('click', addSucursal);
@@ -205,6 +213,66 @@ async function cargarEmpresasCargos() {
     $s.appendChild(o);
   });
   empresasCargadasCargos = true;
+}
+
+/* ============================================
+   Pestaña: Módulos por empresa
+   ============================================ */
+
+let empresasCargadasModulos = false;
+async function cargarEmpresasModulos() {
+  if (empresasCargadasModulos) return;
+  const perfil = sesionActual() || { rol: 'admin' };
+  const data = await empresasPermitidas(perfil);
+  const $s = document.getElementById('mod-empresa');
+  (data || []).forEach((e) => {
+    const o = document.createElement('option');
+    o.value = e.id; o.textContent = e.razon_social;
+    $s.appendChild(o);
+  });
+  empresasCargadasModulos = true;
+}
+
+async function pintarModulos(empresaId) {
+  const $lista = document.getElementById('mod-lista');
+  $lista.innerHTML = '<p class="ayuda">Cargando…</p>';
+
+  const opcionales = MODULOS.filter((m) => MODULOS_OPCIONALES.includes(m.id));
+  const activos = await modulosActivosEmpresa(empresaId);
+
+  $lista.innerHTML = '';
+  opcionales.forEach((modulo) => {
+    const fila = document.createElement('div');
+    fila.className = 'item mod-item';
+
+    const nombre = document.createElement('span');
+    nombre.className = 'item-nombre';
+    nombre.textContent = modulo.texto;
+    fila.appendChild(nombre);
+
+    const label = document.createElement('label');
+    label.className = 'mod-switch';
+    const chk = document.createElement('input');
+    chk.type = 'checkbox';
+    chk.checked = activos.has(modulo.id);
+    const cursor = document.createElement('span');
+    cursor.className = 'mod-switch-cursor';
+    label.appendChild(chk);
+    label.appendChild(cursor);
+    fila.appendChild(label);
+
+    chk.addEventListener('change', async () => {
+      chk.disabled = true;
+      const r = await fijarModuloEmpresa(empresaId, modulo.id, chk.checked);
+      chk.disabled = false;
+      if (!r.ok) {
+        alert('No se pudo guardar el cambio: ' + r.mensaje);
+        chk.checked = !chk.checked; // revertir el switch visualmente
+      }
+    });
+
+    $lista.appendChild(fila);
+  });
 }
 
 async function cargarSuc() {

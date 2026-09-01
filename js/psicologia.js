@@ -14,7 +14,7 @@
    ============================================ */
 
 import { supabase } from './supabase.js?v=11';
-import { protegerPagina, puedeVerPsicologia, empresasPermitidas, resolverEmpresaActiva } from './auth.js?v=11';
+import { protegerPagina, puedeVerPsicologia, empresasPermitidas, resolverEmpresaActiva, modulosActivosEmpresa } from './auth.js?v=11';
 import { montarNavegacion } from './nav.js?v=11';
 import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=11';
 import { alCrear } from './autoria.js?v=1';
@@ -79,6 +79,13 @@ async function iniciar() {
   }
   const empresa = resolverEmpresaActiva(permitidas);
   if (!empresa) return; // está redirigiendo a seleccionar-empresa.html
+
+  const activos = await modulosActivosEmpresa(empresa.id);
+  if (!activos.has('psicologia')) {
+    document.querySelector('.contenido').innerHTML =
+      '<p class="aviso-inicial">Este módulo no está activo para esta empresa.</p>';
+    return;
+  }
 
   if ($nombreEmpresa) $nombreEmpresa.textContent = empresa.razon_social;
 
