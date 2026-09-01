@@ -1,0 +1,50 @@
+/* ============================================
+   NEXUS · seleccionar-empresa.css
+   Estilos exclusivos de seleccionar-empresa.html
+   Complementa login.css (misma tarjeta, mismo tono).
+   ============================================ */
+
+.acceso-tarjeta-ancha {
+  max-width: 480px;
+}
+
+.sel-emp-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sel-emp-opcion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.95rem 1.1rem;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-texto);
+  background: var(--color-fondo);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.sel-emp-opcion:hover {
+  border-color: var(--color-acento);
+  background: var(--color-acento-suave);
+}
+
+.sel-emp-flecha {
+  color: var(--color-texto-tenue);
+  font-weight: 400;
+}
+
+.sel-emp-vacio {
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--color-texto-tenue);
+}
