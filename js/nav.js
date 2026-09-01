@@ -54,6 +54,29 @@ export function montarNavegacion(perfil, moduloActivo) {
   pintarEnlaces(perfil, moduloActivo);
   conectarEventos();
   aplicarConfigVisual();  // lee config_sistema y ajusta tamaños (asíncrono)
+  suscribirModulosEnVivo(perfil, moduloActivo);
+}
+
+/* Un solo canal por pestaña abierta. Si Configuración enciende o
+   apaga un módulo para la empresa activa mientras esta pestaña
+   está abierta, el menú se redibuja solo — sin F5. */
+let canalModulos = null;
+
+function suscribirModulosEnVivo(perfil, moduloActivo) {
+  const empresaId = empresaActivaId();
+  if (!empresaId || canalModulos) return;
+
+  canalModulos = supabase
+    .channel('nexus-empresa-modulos-' + empresaId)
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'empresa_modulos',
+      filter: 'empresa_id=eq.' + empresaId
+    }, () => {
+      pintarEnlaces(perfil, moduloActivo);
+    })
+    .subscribe();
 }
 
 /* Lee la configuración visual guardada y la aplica al logo
@@ -164,6 +187,12 @@ async function pintarEnlaces(perfil, moduloActivo) {
   // nunca se oculta un módulo por error de red, solo por decisión
   // explícita del admin en Configuración.
   const activos = await modulosActivosEmpresa(empresaActivaId());
+
+  // Se limpia antes de redibujar: además del arranque normal, esta
+  // función se vuelve a llamar en vivo cuando cambia empresa_modulos
+  // (ver suscribirModulosEnVivo), y sin este paso los enlaces se
+  // duplicarían en cada actualización.
+  $nav.innerHTML = '';
 
   const fragmento = document.createDocumentFragment();
 
