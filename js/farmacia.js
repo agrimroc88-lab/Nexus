@@ -11,7 +11,7 @@
    ============================================ */
 
 import { supabase } from './supabase.js?v=11';
-import { protegerPagina, puedeVerClinica, sesionActual } from './auth.js?v=11';
+import { protegerPagina, puedeVerClinica, sesionActual, empresasPermitidas } from './auth.js?v=11';
 import { montarNavegacion } from './nav.js?v=11';
 import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=11';
 import { alCrear, alEditar, autorId } from './autoria.js?v=1';
@@ -85,13 +85,7 @@ async function iniciar() {
    ============================================ */
 
 async function cargarEmpresas() {
-  const { data, error } = await supabase
-    .from('empresas')
-    .select('id, razon_social')
-    .eq('activo', true)
-    .order('razon_social');
-
-  if (error) { alert('No fue posible cargar las empresas: ' + error.message); return; }
+  const data = await empresasPermitidas(estado.perfil);
 
   (data || []).forEach((e) => {
     const opcion = document.createElement('option');

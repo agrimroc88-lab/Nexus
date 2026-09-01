@@ -15,7 +15,7 @@
    ============================================ */
 
 import { supabase } from './supabase.js?v=11';
-import { protegerPagina, ROLES, puedeVerClinica } from './auth.js?v=11';
+import { protegerPagina, ROLES, puedeVerClinica, empresasPermitidas } from './auth.js?v=11';
 import { montarNavegacion } from './nav.js?v=11';
 import { validarCedula, escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=11';
 import { montarEmergencia, fijarEmpresaEmergencia, traerAlertas,
@@ -93,16 +93,7 @@ function puedeEscribir() {
    ============================================ */
 
 async function cargarEmpresas() {
-  const { data, error } = await supabase
-    .from('empresas')
-    .select('id, razon_social')
-    .eq('activo', true)
-    .order('razon_social');
-
-  if (error) {
-    mostrarGlobal('No fue posible cargar las empresas: ' + error.message);
-    return;
-  }
+  const data = await empresasPermitidas(estado.perfil);
 
   (data || []).forEach((e) => {
     const opcion = document.createElement('option');

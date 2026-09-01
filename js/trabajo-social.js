@@ -6,7 +6,7 @@
    ============================================ */
 
 import { supabase } from './supabase.js?v=11';
-import { protegerPagina } from './auth.js?v=11';
+import { protegerPagina, empresasPermitidas } from './auth.js?v=11';
 import { montarNavegacion } from './nav.js?v=11';
 import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=11';
 import { alCrear } from './autoria.js?v=1';
@@ -60,8 +60,7 @@ async function iniciar() {
 }
 
 async function cargarEmpresas() {
-  const { data } = await supabase.from('empresas').select('id, razon_social').order('razon_social');
-  const lista = data || [];
+  const lista = await empresasPermitidas(estado.perfil);
   lista.forEach((e) => {
     const o = document.createElement('option');
     o.value = e.id; o.textContent = e.razon_social;

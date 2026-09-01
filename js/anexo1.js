@@ -20,7 +20,7 @@
    ============================================ */
 
 import { supabase } from './supabase.js?v=11';
-import { protegerPagina, ROLES } from './auth.js?v=11';
+import { protegerPagina, ROLES, empresasPermitidas } from './auth.js?v=11';
 import { montarNavegacion } from './nav.js?v=12';
 import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=12';
 import {
@@ -207,13 +207,7 @@ function puedeEditarOcupacionales() {
    ============================================ */
 
 async function cargarEmpresas() {
-  const { data, error } = await supabase
-    .from('empresas')
-    .select('id, razon_social')
-    .eq('activo', true)
-    .order('razon_social');
-
-  if (error) { alert('No fue posible cargar las empresas: ' + error.message); return; }
+  const data = await empresasPermitidas(estado.perfil);
 
   (data || []).forEach((e) => {
     const opcion = document.createElement('option');

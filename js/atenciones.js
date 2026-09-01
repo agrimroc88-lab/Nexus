@@ -15,7 +15,7 @@
    ============================================ */
 
 import { supabase } from './supabase.js?v=11';
-import { protegerPagina, puedeVerClinica } from './auth.js?v=11';
+import { protegerPagina, puedeVerClinica, empresasPermitidas } from './auth.js?v=11';
 import { montarNavegacion } from './nav.js?v=11';
 import { escapar, textoOGuion, retrasar, formatearFecha, resumenReposo, validarCedula }
   from './utils.js?v=12';
@@ -111,13 +111,13 @@ function prepararAnios() {
    ============================================ */
 
 async function cargarEmpresas() {
-  const { data, error } = await supabase
-    .from('empresas')
-    .select('id, razon_social')
-    .eq('activo', true)
-    .order('razon_social');
-
-  if (error) { alert('No fue posible cargar las empresas: ' + error.message); return; }
+  /* Antes traía TODAS las empresas activas del sistema, sin
+     filtrar por el usuario. Ahora usa la misma función central
+     que ya usan Certificados, Panel y Configuración: admin ve
+     todas, el resto solo las suyas (usuario_empresas). Para
+     Agrimroc y el personal ya asignado no cambia nada — siguen
+     viendo exactamente lo mismo que hoy. */
+  const data = await empresasPermitidas(estado.perfil);
 
   (data || []).forEach((e) => {
     const opcion = document.createElement('option');

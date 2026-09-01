@@ -19,7 +19,8 @@ import { supabase } from './supabase.js?v=11';
 
 export const MODULOS = [
   { id: 'dashboard',     texto: 'Panel general',        archivo: 'dashboard.html',            listo: true  },
-  { id: 'empresas',      texto: 'Empresas',             archivo: 'empresas.html',             listo: true  },
+  { id: 'empresas',      texto: 'Empresas',             archivo: 'empresas.html',             listo: true,
+    roles: ['admin'] },
   { id: 'trabajadores',  texto: 'Trabajadores',         archivo: 'trabajadores.html',         listo: true  },
   { id: 'salud_ocup',    texto: 'Salud ocupacional',    archivo: 'salud-ocupacional.html',    listo: true,
     roles: ['admin', 'medico_ocupacional', 'enfermeria', 'psicologo'] },

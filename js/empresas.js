@@ -40,7 +40,10 @@ iniciar();
    ============================================ */
 
 async function iniciar() {
-  const perfil = await protegerPagina();
+  /* Solo admin ve y gestiona empresas — igual que Usuarios y
+     Configuración. Esto es además de ocultar el enlace en el
+     menú: si alguien escribe la URL directo, lo regresa. */
+  const perfil = await protegerPagina(['admin']);
   if (!perfil) return;
 
   estado.perfil = perfil;
