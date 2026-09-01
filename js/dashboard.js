@@ -13,7 +13,7 @@
    ============================================ */
 
 import { supabase } from './supabase.js';
-import { protegerPagina, empresasPermitidas } from './auth.js';
+import { protegerPagina, empresasPermitidas, resolverEmpresaActiva } from './auth.js';
 import { montarNavegacion } from './nav.js';
 import { escapar, formatearFecha } from './utils.js';
 import { mostrarAvisosCertificados } from './avisos-certificados.js';
@@ -50,7 +50,7 @@ const COLOR = {
   tenue:   'var(--color-texto-tenue)'
 };
 
-const $empresa = document.getElementById('empresa-activa');
+const $nombreEmpresa = document.getElementById('empresa-activa-nombre');
 const $tablero = document.getElementById('tablero');
 const $aviso = document.getElementById('aviso-inicial');
 
@@ -68,7 +68,27 @@ async function iniciar() {
   montarNavegacion(perfil, 'dashboard');
 
   prepararAnios();
-  await cargarEmpresas();
+
+  const permitidas = await empresasPermitidas(perfil);
+  if (permitidas.length === 0) {
+    $aviso.textContent = 'No tienes ninguna empresa asignada. Contacta al administrador.';
+    return;
+  }
+  const empresaBase = resolverEmpresaActiva(permitidas);
+  if (!empresaBase) return; // está redirigiendo a seleccionar-empresa.html
+
+  // Detalle completo (incluye num_trabajadores, que las tarjetas
+  // del panel necesitan y empresasPermitidas() no trae).
+  const { data: detalle } = await supabase
+    .from('empresas')
+    .select('id, razon_social, num_trabajadores')
+    .eq('id', empresaBase.id)
+    .maybeSingle();
+
+  const empresa = detalle || { ...empresaBase, num_trabajadores: 0 };
+  if ($nombreEmpresa) $nombreEmpresa.textContent = empresa.razon_social;
+
+  await seleccionarEmpresa(empresa);
   conectarEventos();
 
   /* Notificación de reposos/reubicaciones por vencer (todos los roles) */
@@ -96,40 +116,6 @@ function prepararAnios() {
   }
 
   $anio.value = actual;
-}
-
-async function cargarEmpresas() {
-  // Empresas que este usuario puede ver (admin: todas; otros: asignadas)
-  const permitidas = await empresasPermitidas(estado.perfil);
-  const idsPermitidos = permitidas.map((e) => e.id);
-
-  if (idsPermitidos.length === 0) {
-    // Usuario sin empresas asignadas: no muestra nada
-    return;
-  }
-
-  const { data, error } = await supabase
-    .from('empresas')
-    .select('id, razon_social, num_trabajadores')
-    .in('id', idsPermitidos)
-    .eq('activo', true)
-    .order('razon_social');
-
-  if (error) { alert('No fue posible cargar las empresas: ' + error.message); return; }
-
-  (data || []).forEach((e) => {
-    const o = document.createElement('option');
-    o.value = e.id;
-    o.textContent = e.razon_social;
-    o.dataset.trabajadores = e.num_trabajadores ?? 0;
-    $empresa.appendChild(o);
-  });
-
-  const guardada = sessionStorage.getItem('nexus_empresa');
-  if (guardada && (data || []).some((e) => e.id === guardada)) {
-    $empresa.value = guardada;
-    await seleccionarEmpresa();
-  }
 }
 
 /* ============================================
@@ -672,22 +658,11 @@ function pintarCapacitacion() {
    Selección
    ============================================ */
 
-async function seleccionarEmpresa() {
-  estado.empresaId = $empresa.value || null;
-
-  if (!estado.empresaId) {
-    sessionStorage.removeItem('nexus_empresa');
-    $tablero.hidden = true;
-    $aviso.hidden = false;
-    return;
-  }
-
-  sessionStorage.setItem('nexus_empresa', estado.empresaId);
-
-  const opcion = $empresa.selectedOptions[0];
+async function seleccionarEmpresa(empresa) {
+  estado.empresaId = empresa.id;
   estado.empresa = {
-    razon_social: opcion.textContent,
-    num_trabajadores: parseInt(opcion.dataset.trabajadores, 10) || 0
+    razon_social: empresa.razon_social,
+    num_trabajadores: parseInt(empresa.num_trabajadores, 10) || 0
   };
 
   $tablero.hidden = false;
@@ -732,7 +707,6 @@ async function cambiarComparacion() {
    ============================================ */
 
 function conectarEventos() {
-  $empresa.addEventListener('change', seleccionarEmpresa);
   document.getElementById('tablero-anio').addEventListener('change', cambiarAnio);
   document.getElementById('tablero-comparar').addEventListener('change', cambiarComparacion);
   document.getElementById('btn-imprimir').addEventListener('click', () => window.print());

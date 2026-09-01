@@ -14,7 +14,7 @@
    ============================================ */
 
 import { supabase } from './supabase.js?v=11';
-import { protegerPagina, puedeVerPsicologia, empresasPermitidas } from './auth.js?v=11';
+import { protegerPagina, puedeVerPsicologia, empresasPermitidas, resolverEmpresaActiva } from './auth.js?v=11';
 import { montarNavegacion } from './nav.js?v=11';
 import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=11';
 import { alCrear } from './autoria.js?v=1';
@@ -23,6 +23,7 @@ import { alCrear } from './autoria.js?v=1';
 const estado = {
   perfil: null,
   empresaId: null,
+  empresaNombre: '',
   fichas: [],          // fichas de la empresa (v_fichas_psicologicas)
   manual: [],          // registro manual de atenciones (atenciones_manual_salud)
   manualActual: null,  // { mes, datosMes } del modal abierto
@@ -47,7 +48,7 @@ const TIPOS = {
 };
 
 /* --- Referencias --- */
-const $empresa  = document.getElementById('empresa-activa');
+const $nombreEmpresa = document.getElementById('empresa-activa-nombre');
 const $area     = document.getElementById('area-trabajo');
 const $avisoIni = document.getElementById('aviso-inicial');
 
@@ -70,7 +71,18 @@ async function iniciar() {
   montarNavegacion(perfil, 'psicologia');
 
   prepararAnios();
-  await cargarEmpresas();
+
+  const permitidas = await empresasPermitidas(perfil);
+  if (permitidas.length === 0) {
+    $avisoIni.textContent = 'No tienes ninguna empresa asignada. Contacta al administrador.';
+    return;
+  }
+  const empresa = resolverEmpresaActiva(permitidas);
+  if (!empresa) return; // está redirigiendo a seleccionar-empresa.html
+
+  if ($nombreEmpresa) $nombreEmpresa.textContent = empresa.razon_social;
+
+  await seleccionarEmpresa(empresa);
   conectarEventos();
 }
 
@@ -88,23 +100,6 @@ function prepararAnios() {
 /* ============================================
    Datos
    ============================================ */
-
-async function cargarEmpresas() {
-  const data = await empresasPermitidas(estado.perfil);
-
-  (data || []).forEach((e) => {
-    const opcion = document.createElement('option');
-    opcion.value = e.id;
-    opcion.textContent = e.razon_social;
-    $empresa.appendChild(opcion);
-  });
-
-  const guardada = sessionStorage.getItem('nexus_empresa');
-  if (guardada && (data || []).some((e) => e.id === guardada)) {
-    $empresa.value = guardada;
-    await seleccionarEmpresa();
-  }
-}
 
 async function cargarFichas() {
   const { data, error } = await supabase
@@ -1376,17 +1371,9 @@ function cambiarVista(vista) {
   if (vista === 'fichas') document.getElementById('busca_codigo').focus();
 }
 
-async function seleccionarEmpresa() {
-  estado.empresaId = $empresa.value || null;
-
-  if (!estado.empresaId) {
-    sessionStorage.removeItem('nexus_empresa');
-    $area.hidden = true;
-    $avisoIni.hidden = false;
-    return;
-  }
-
-  sessionStorage.setItem('nexus_empresa', estado.empresaId);
+async function seleccionarEmpresa(empresa) {
+  estado.empresaId = empresa.id;
+  estado.empresaNombre = empresa.razon_social;
   $area.hidden = false;
   $avisoIni.hidden = true;
 
@@ -1414,8 +1401,6 @@ async function recargar() {
    ============================================ */
 
 function conectarEventos() {
-  $empresa.addEventListener('change', seleccionarEmpresa);
-
   document.querySelectorAll('.pestana').forEach((p) => {
     p.addEventListener('click', () => cambiarVista(p.dataset.vista));
   });

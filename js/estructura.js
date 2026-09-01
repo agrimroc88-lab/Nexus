@@ -4,19 +4,20 @@
    ============================================ */
 
 import { supabase } from './supabase.js';
-import { protegerPagina, empresasPermitidas } from './auth.js';
+import { protegerPagina, empresasPermitidas, resolverEmpresaActiva } from './auth.js';
 import { montarNavegacion } from './nav.js';
 import { escapar } from './utils.js';
 
 const estado = {
   perfil: null,
   empresaId: null,
+  empresaNombre: '',
   sucursalSel: null,
   areaSel: null,
   modo: null   // 'sucursal' | 'area' | 'cargo'
 };
 
-const $empresa = document.getElementById('empresa-activa');
+const $nombreEmpresa = document.getElementById('empresa-activa-nombre');
 const $area = document.getElementById('area-trabajo');
 const $avisoIni = document.getElementById('aviso-inicial');
 
@@ -27,34 +28,26 @@ async function iniciar() {
   if (!perfil) return;
   estado.perfil = perfil;
   montarNavegacion(perfil, 'estructura');
-  await cargarEmpresas();
+
+  const permitidas = await empresasPermitidas(perfil);
+  if (permitidas.length === 0) {
+    $avisoIni.textContent = 'No tienes ninguna empresa asignada. Contacta al administrador.';
+    return;
+  }
+  const empresa = resolverEmpresaActiva(permitidas);
+  if (!empresa) return; // está redirigiendo a seleccionar-empresa.html
+
+  if ($nombreEmpresa) $nombreEmpresa.textContent = empresa.razon_social;
+
+  seleccionarEmpresa(empresa);
   conectar();
 }
 
-async function cargarEmpresas() {
-  const data = await empresasPermitidas(estado.perfil);
-  (data || []).forEach((e) => {
-    const o = document.createElement('option');
-    o.value = e.id; o.textContent = e.razon_social;
-    $empresa.appendChild(o);
-  });
-  const g = sessionStorage.getItem('nexus_empresa');
-  if (g && (data || []).some((e) => e.id === g)) {
-    $empresa.value = g;
-    seleccionarEmpresa();
-  }
-}
-
-function seleccionarEmpresa() {
-  estado.empresaId = $empresa.value || null;
+function seleccionarEmpresa(empresa) {
+  estado.empresaId = empresa.id;
+  estado.empresaNombre = empresa.razon_social;
   estado.sucursalSel = null;
   estado.areaSel = null;
-  if (!estado.empresaId) {
-    $area.hidden = true; $avisoIni.hidden = false;
-    sessionStorage.removeItem('nexus_empresa');
-    return;
-  }
-  sessionStorage.setItem('nexus_empresa', estado.empresaId);
   $area.hidden = false; $avisoIni.hidden = true;
   cargarSucursales();
   document.getElementById('lista-areas').innerHTML = '';
@@ -195,12 +188,6 @@ async function guardar() {
     $alerta.hidden = false; return;
   }
 
-  // Respaldo: si por algún motivo estado.empresaId está vacío,
-  // tomarlo directamente del selector.
-  if (!estado.empresaId) {
-    estado.empresaId = document.getElementById('empresa-activa').value || null;
-  }
-
   let tabla, fila;
   if (estado.modo === 'sucursal') {
     tabla = 'sucursales';
@@ -229,7 +216,6 @@ async function guardar() {
 }
 
 function conectar() {
-  $empresa.addEventListener('change', seleccionarEmpresa);
   document.getElementById('btn-add-sucursal').addEventListener('click', () => abrirModal('sucursal', null));
   document.getElementById('btn-add-area').addEventListener('click', () => abrirModal('area', null));
   document.getElementById('btn-add-cargo').addEventListener('click', () => abrirModal('cargo', null));

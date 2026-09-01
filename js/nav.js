@@ -5,7 +5,7 @@
    para el catálogo de módulos del sistema.
    ============================================ */
 
-import { cerrarSesion, puedeVerModulo } from './auth.js?v=11';
+import { cerrarSesion, puedeVerModulo, empresasPermitidas, salirDeEmpresa } from './auth.js?v=11';
 import { supabase } from './supabase.js?v=11';
 
 /* --- Catálogo de módulos ---
@@ -136,6 +136,21 @@ function pintarUsuario(perfil) {
     btn.textContent = 'Cerrar sesión';
     btn.addEventListener('click', cerrarSesion);
     $usuario.appendChild(btn);
+  }
+
+  // Botón de salir de empresa: solo si tiene más de una asignada.
+  // No cierra sesión, solo regresa a elegir con cuál trabajar.
+  if ($usuario && !document.getElementById('btn-salir-empresa')) {
+    empresasPermitidas(perfil).then((permitidas) => {
+      if (permitidas.length <= 1) return;
+      const btn = document.createElement('button');
+      btn.id = 'btn-salir-empresa';
+      btn.className = 'btn-salir-cabecera btn-salir-empresa';
+      btn.type = 'button';
+      btn.textContent = 'Salir de empresa';
+      btn.addEventListener('click', salirDeEmpresa);
+      $usuario.appendChild(btn);
+    });
   }
 }
 

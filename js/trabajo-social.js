@@ -6,7 +6,7 @@
    ============================================ */
 
 import { supabase } from './supabase.js?v=11';
-import { protegerPagina, empresasPermitidas } from './auth.js?v=11';
+import { protegerPagina, empresasPermitidas, resolverEmpresaActiva } from './auth.js?v=11';
 import { montarNavegacion } from './nav.js?v=11';
 import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=11';
 import { alCrear } from './autoria.js?v=1';
@@ -26,6 +26,7 @@ const MESES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
 const estado = {
   perfil: null,
   empresaId: null,
+  empresaNombre: '',
   fichas: [],
   manual: [],  // registro manual de atenciones (atenciones_manual_salud)
   manualActual: null,  // { mes, datosMes } del modal abierto
@@ -37,7 +38,7 @@ const estado = {
 
 const HOY = () => new Date().toISOString().slice(0, 10);
 
-const $empresa = document.getElementById('empresa-activa');
+const $nombreEmpresa = document.getElementById('empresa-activa-nombre');
 
 iniciar();
 
@@ -53,24 +54,22 @@ async function iniciar() {
   estado.perfil = perfil;
 
   prepararAnios();
-  await cargarEmpresas();
+
+  const permitidas = await empresasPermitidas(perfil);
+  if (permitidas.length === 0) {
+    document.querySelector('.contenido').innerHTML =
+      '<p class="aviso-inicial">No tienes ninguna empresa asignada. Contacta al administrador.</p>';
+    return;
+  }
+  const empresa = resolverEmpresaActiva(permitidas);
+  if (!empresa) return; // está redirigiendo a seleccionar-empresa.html
+
+  if ($nombreEmpresa) $nombreEmpresa.textContent = empresa.razon_social;
+
+  await alCambiarEmpresa(empresa);
   conectarEventos();
 
   try { montarNavegacion(perfil, 'trabajo_social'); } catch (e) { console.warn('nav:', e); }
-}
-
-async function cargarEmpresas() {
-  const lista = await empresasPermitidas(estado.perfil);
-  lista.forEach((e) => {
-    const o = document.createElement('option');
-    o.value = e.id; o.textContent = e.razon_social;
-    $empresa.appendChild(o);
-  });
-  // Si solo hay una empresa, seleccionarla automáticamente
-  if (lista.length === 1) {
-    $empresa.value = lista[0].id;
-    await alCambiarEmpresa();
-  }
 }
 
 async function cargarFichas() {
@@ -116,8 +115,6 @@ function prepararAnios() {
    ============================================ */
 
 function conectarEventos() {
-  $empresa.addEventListener('change', alCambiarEmpresa);
-
   document.querySelectorAll('.pestana').forEach((p) =>
     p.addEventListener('click', () => cambiarVista(p.dataset.vista)));
 
@@ -164,12 +161,11 @@ function conectarEventos() {
   document.getElementById('btn-guardar-manual')?.addEventListener('click', guardarManual);
 }
 
-async function alCambiarEmpresa() {
-  estado.empresaId = $empresa.value || null;
-  const hay = !!estado.empresaId;
-  document.getElementById('pestanas').hidden = !hay;
-  document.getElementById('vista-ficha').hidden = !hay;
-  if (!hay) return;
+async function alCambiarEmpresa(empresa) {
+  estado.empresaId = empresa.id;
+  estado.empresaNombre = empresa.razon_social;
+  document.getElementById('pestanas').hidden = false;
+  document.getElementById('vista-ficha').hidden = false;
   await Promise.all([cargarFichas(), cargarManual()]);
   cambiarVista('ficha');
 }

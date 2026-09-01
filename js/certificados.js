@@ -5,7 +5,7 @@
    ============================================ */
 
 import { supabase } from './supabase.js';
-import { protegerPagina, empresasPermitidas } from './auth.js';
+import { protegerPagina, empresasPermitidas, resolverEmpresaActiva } from './auth.js';
 import { montarNavegacion } from './nav.js';
 import { escapar, textoOGuion, retrasar, formatearFecha, finDeReposo }
   from './utils.js?v=12';
@@ -38,6 +38,7 @@ const ORIGENES = {
 const estado = {
   perfil: null,
   empresaId: null,
+  empresaNombre: '',
   puedeEscribir: false,
   certificados: [],
   ausentismo: [],
@@ -50,7 +51,7 @@ const estado = {
 
 const HOY = () => new Date().toISOString().slice(0, 10);
 
-const $empresa  = document.getElementById('empresa-activa');
+const $nombreEmpresa = document.getElementById('empresa-activa-nombre');
 const $area     = document.getElementById('area-trabajo');
 const $avisoIni = document.getElementById('aviso-inicial');
 
@@ -66,7 +67,18 @@ async function iniciar() {
   montarNavegacion(perfil, 'certificados');
 
   prepararAnios();
-  await cargarEmpresas();
+
+  const permitidas = await empresasPermitidas(perfil);
+  if (permitidas.length === 0) {
+    $avisoIni.textContent = 'No tienes ninguna empresa asignada. Contacta al administrador.';
+    return;
+  }
+  const empresa = resolverEmpresaActiva(permitidas);
+  if (!empresa) return; // está redirigiendo a seleccionar-empresa.html
+
+  if ($nombreEmpresa) $nombreEmpresa.textContent = empresa.razon_social;
+
+  await seleccionarEmpresa(empresa);
   conectarEventos();
 }
 
@@ -83,25 +95,6 @@ function prepararAnios() {
 /* ============================================
    Datos
    ============================================ */
-
-async function cargarEmpresas() {
-  const data = await empresasPermitidas(estado.perfil);
-  const error = null;
-
-  if (error) { alert('No fue posible cargar las empresas: ' + error.message); return; }
-
-  (data || []).forEach((e) => {
-    const o = document.createElement('option');
-    o.value = e.id; o.textContent = e.razon_social;
-    $empresa.appendChild(o);
-  });
-
-  const guardada = sessionStorage.getItem('nexus_empresa');
-  if (guardada && (data || []).some((e) => e.id === guardada)) {
-    $empresa.value = guardada;
-    await seleccionarEmpresa();
-  }
-}
 
 async function cargarCertificados() {
   const { data, error } = await supabase
@@ -133,10 +126,7 @@ async function cargarConfig() {
   /* Los destinatarios del oficio se leen aquí, junto con la
      configuración: son del mismo bloque de ajustes y así no
      hay una segunda consulta al abrir cada certificado. */
-  const $e = document.getElementById('empresa-activa');
-  const nombreEmpresa = $e
-    ? ($e.options[$e.selectedIndex] || {}).textContent || '' : '';
-  await cargarDatosOficio(estado.empresaId, nombreEmpresa);
+  await cargarDatosOficio(estado.empresaId, estado.empresaNombre || '');
   llenarDestinatarios('of_destinatario');
   pintarConfig();
 }
@@ -998,9 +988,8 @@ function pintarEstadisticas() {
   poblarAniosEstadisticas();
   // Nombre de empresa en el membrete de impresión
   const $en = document.getElementById('est-empresa-nombre');
-  if ($en && $empresa) {
-    const opt = $empresa.options[$empresa.selectedIndex];
-    if (opt && opt.textContent) $en.textContent = opt.textContent;
+  if ($en && estado.empresaNombre) {
+    $en.textContent = estado.empresaNombre;
   }
   const anio = parseInt(document.getElementById('est-anio').value, 10) || new Date().getFullYear();
   const lista = estado.certificados.filter(
@@ -1095,13 +1084,9 @@ function cambiarVista(v) {
   if (v === 'config') pintarConfig();
 }
 
-async function seleccionarEmpresa() {
-  estado.empresaId = $empresa.value || null;
-  if (!estado.empresaId) {
-    sessionStorage.removeItem('nexus_empresa');
-    $area.hidden = true; $avisoIni.hidden = false; return;
-  }
-  sessionStorage.setItem('nexus_empresa', estado.empresaId);
+async function seleccionarEmpresa(empresa) {
+  estado.empresaId = empresa.id;
+  estado.empresaNombre = empresa.razon_social;
   $area.hidden = false; $avisoIni.hidden = true;
 
   document.getElementById('btn-nuevo-cert').hidden = !estado.puedeEscribir;
@@ -1120,8 +1105,6 @@ async function recargar() {
    ============================================ */
 
 function conectarEventos() {
-  $empresa.addEventListener('change', seleccionarEmpresa);
-
   document.querySelectorAll('.pestana').forEach((p) =>
     p.addEventListener('click', () => cambiarVista(p.dataset.vista)));
 

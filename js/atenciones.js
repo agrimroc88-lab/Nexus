@@ -15,7 +15,7 @@
    ============================================ */
 
 import { supabase } from './supabase.js?v=11';
-import { protegerPagina, puedeVerClinica, empresasPermitidas } from './auth.js?v=11';
+import { protegerPagina, puedeVerClinica, empresasPermitidas, resolverEmpresaActiva } from './auth.js?v=11';
 import { montarNavegacion } from './nav.js?v=11';
 import { escapar, textoOGuion, retrasar, formatearFecha, resumenReposo, validarCedula }
   from './utils.js?v=12';
@@ -37,6 +37,7 @@ import {
 const estado = {
   perfil: null,
   empresaId: null,
+  empresaNombre: '',
   atenciones: [],
   medicamentos: [],
   insumos: [],
@@ -64,7 +65,7 @@ const MESES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
                'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
 /* --- Referencias --- */
-const $empresa  = document.getElementById('empresa-activa');
+const $nombreEmpresa = document.getElementById('empresa-activa-nombre');
 const $area     = document.getElementById('area-trabajo');
 const $avisoIni = document.getElementById('aviso-inicial');
 
@@ -88,7 +89,22 @@ async function iniciar() {
   montarNavegacion(perfil, 'atenciones');
 
   prepararAnios();
-  await cargarEmpresas();
+
+  /* La empresa ya no se elige aquí: viene resuelta desde el
+     login (una sola asignada) o desde la pantalla de selección
+     (varias asignadas). Este módulo solo la muestra y trabaja
+     con ella. */
+  const permitidas = await empresasPermitidas(perfil);
+  if (permitidas.length === 0) {
+    $avisoIni.textContent = 'No tienes ninguna empresa asignada. Contacta al administrador.';
+    return;
+  }
+  const empresa = resolverEmpresaActiva(permitidas);
+  if (!empresa) return; // está redirigiendo a seleccionar-empresa.html
+
+  if ($nombreEmpresa) $nombreEmpresa.textContent = empresa.razon_social;
+
+  await seleccionarEmpresa(empresa);
   conectarEventos();
   montarEmergencia(perfil, estado.empresaId);
 }
@@ -109,29 +125,6 @@ function prepararAnios() {
 /* ============================================
    Datos
    ============================================ */
-
-async function cargarEmpresas() {
-  /* Antes traía TODAS las empresas activas del sistema, sin
-     filtrar por el usuario. Ahora usa la misma función central
-     que ya usan Certificados, Panel y Configuración: admin ve
-     todas, el resto solo las suyas (usuario_empresas). Para
-     Agrimroc y el personal ya asignado no cambia nada — siguen
-     viendo exactamente lo mismo que hoy. */
-  const data = await empresasPermitidas(estado.perfil);
-
-  (data || []).forEach((e) => {
-    const opcion = document.createElement('option');
-    opcion.value = e.id;
-    opcion.textContent = e.razon_social;
-    $empresa.appendChild(opcion);
-  });
-
-  const guardada = sessionStorage.getItem('nexus_empresa');
-  if (guardada && (data || []).some((e) => e.id === guardada)) {
-    $empresa.value = guardada;
-    await seleccionarEmpresa();
-  }
-}
 
 async function cargarAtenciones() {
   const { data, error } = await supabase
@@ -2927,29 +2920,25 @@ function cambiarVista(vista) {
   if (vista === 'externos') pintarExternos();
   if (vista === 'informe' && !estado.informeIniciado) {
     estado.informeIniciado = true;
-    iniciarInformeAtenciones(estado.empresaId, $empresa.selectedOptions[0]?.textContent || '');
+    iniciarInformeAtenciones(estado.empresaId, estado.empresaNombre || '');
   }
   if (vista === 'atenciones') document.getElementById('busca_codigo').focus();
 }
 
-async function seleccionarEmpresa() {
-  estado.empresaId = $empresa.value || null;
+/**
+ * Ya no elige nada: recibe la empresa ya resuelta (una sola
+ * asignada, o la elegida en seleccionar-empresa.html) y carga
+ * todo lo que antes disparaba el cambio del selector.
+ */
+async function seleccionarEmpresa(empresa) {
+  estado.empresaId = empresa.id;
+  estado.empresaNombre = empresa.razon_social;
   estado.informeIniciado = false;
   fijarEmpresaEmergencia(estado.empresaId);
 
-  if (!estado.empresaId) {
-    sessionStorage.removeItem('nexus_empresa');
-    $area.hidden = true;
-    $avisoIni.hidden = false;
-    return;
-  }
-
-  sessionStorage.setItem('nexus_empresa', estado.empresaId);
-
   /* Destinatarios y membrete del oficio: se leen una vez al
-     elegir la empresa, no en cada certificado. */
-  cargarDatosOficio(estado.empresaId,
-    ($empresa.options[$empresa.selectedIndex] || {}).textContent || '')
+     entrar al módulo, no en cada certificado. */
+  cargarDatosOficio(estado.empresaId, estado.empresaNombre)
     .then(() => llenarDestinatarios('at_cert_dest'));
   $area.hidden = false;
   $avisoIni.hidden = true;
@@ -2980,8 +2969,6 @@ async function recargar() {
    ============================================ */
 
 function conectarEventos() {
-  $empresa.addEventListener('change', seleccionarEmpresa);
-
   document.querySelectorAll('.pestana').forEach((p) => {
     p.addEventListener('click', () => cambiarVista(p.dataset.vista));
   });

@@ -15,7 +15,7 @@
    ============================================ */
 
 import { supabase } from './supabase.js?v=11';
-import { protegerPagina, ROLES, puedeVerClinica, empresasPermitidas } from './auth.js?v=11';
+import { protegerPagina, ROLES, puedeVerClinica, empresasPermitidas, resolverEmpresaActiva } from './auth.js?v=11';
 import { montarNavegacion } from './nav.js?v=11';
 import { validarCedula, escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=11';
 import { montarEmergencia, fijarEmpresaEmergencia, traerAlertas,
@@ -26,6 +26,7 @@ const estado = {
   alertas: {},   // trabajador_id → marcas clínicas para el listado
   perfil: null,
   empresaId: null,
+  empresaNombre: '',
   trabajadores: [],
   cargos: [],
   editandoId: null,
@@ -40,7 +41,7 @@ const estado = {
 };
 
 /* --- Referencias --- */
-const $empresa   = document.getElementById('empresa-activa');
+const $nombreEmpresa = document.getElementById('empresa-activa-nombre');
 const $resumen   = document.getElementById('resumen');
 const $herr      = document.getElementById('herramientas');
 const $panel     = document.getElementById('panel');
@@ -79,7 +80,18 @@ async function iniciar() {
 
   if (!puedeEscribir()) $btnNuevo.hidden = true;
 
-  await cargarEmpresas();
+  const permitidas = await empresasPermitidas(perfil);
+  if (permitidas.length === 0) {
+    $avisoIni.textContent = 'No tienes ninguna empresa asignada. Contacta al administrador.';
+    $avisoIni.hidden = false;
+    return;
+  }
+  const empresa = resolverEmpresaActiva(permitidas);
+  if (!empresa) return; // está redirigiendo a seleccionar-empresa.html
+
+  if ($nombreEmpresa) $nombreEmpresa.textContent = empresa.razon_social;
+
+  await seleccionarEmpresa(empresa);
   conectarEventos();
   montarEmergencia(perfil, estado.empresaId);
 }
@@ -91,24 +103,6 @@ function puedeEscribir() {
 /* ============================================
    Datos · Empresas y cargos
    ============================================ */
-
-async function cargarEmpresas() {
-  const data = await empresasPermitidas(estado.perfil);
-
-  (data || []).forEach((e) => {
-    const opcion = document.createElement('option');
-    opcion.value = e.id;
-    opcion.textContent = e.razon_social;
-    $empresa.appendChild(opcion);
-  });
-
-  /* Recordar la última empresa consultada */
-  const guardada = sessionStorage.getItem('nexus_empresa');
-  if (guardada && (data || []).some((e) => e.id === guardada)) {
-    $empresa.value = guardada;
-    seleccionarEmpresa();
-  }
-}
 
 async function cargarCargos() {
   /* Cargos del catálogo de la empresa. Corre junto con
@@ -1061,18 +1055,11 @@ function limpiarAyudas() {
    Selección de empresa
    ============================================ */
 
-async function seleccionarEmpresa() {
-  estado.empresaId = $empresa.value || null;
+async function seleccionarEmpresa(empresa) {
+  estado.empresaId = empresa.id;
+  estado.empresaNombre = empresa.razon_social;
   fijarEmpresaEmergencia(estado.empresaId);
 
-  if (!estado.empresaId) {
-    sessionStorage.removeItem('nexus_empresa');
-    $resumen.hidden = $herr.hidden = $panel.hidden = true;
-    $avisoIni.hidden = false;
-    return;
-  }
-
-  sessionStorage.setItem('nexus_empresa', estado.empresaId);
   $resumen.hidden = $herr.hidden = $panel.hidden = false;
   $avisoIni.hidden = true;
 
@@ -1126,7 +1113,6 @@ function obtenerSubareaId() {
 }
 
 function conectarEventos() {
-  $empresa.addEventListener('change', seleccionarEmpresa);
   const $suc = document.getElementById('sucursal_id');
   if ($suc) $suc.addEventListener('change', alCambiarSucursal);
   const $bc = document.getElementById('btn-add-cargo-nuevo');

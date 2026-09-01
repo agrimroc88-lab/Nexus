@@ -20,7 +20,7 @@
    ============================================ */
 
 import { supabase } from './supabase.js?v=11';
-import { protegerPagina, ROLES, empresasPermitidas } from './auth.js?v=11';
+import { protegerPagina, ROLES, empresasPermitidas, resolverEmpresaActiva } from './auth.js?v=11';
 import { montarNavegacion } from './nav.js?v=12';
 import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=12';
 import {
@@ -62,6 +62,7 @@ const MODULO = document.body.dataset.modulo || 'salud_ocup';
 const estado = {
   perfil: null,
   empresaId: null,
+  empresaNombre: '',
   requisitos: [],
   evidencias: {},      // requisito_codigo → [evidencias esperadas]
   enlaces: {},         // cumplimiento_id → [enlaces]
@@ -94,7 +95,7 @@ const ETIQUETA_ESTADO = {
 };
 
 /* --- Referencias --- */
-const $empresa  = document.getElementById('empresa-activa');
+const $nombreEmpresa = document.getElementById('empresa-activa-nombre');
 const $area     = document.getElementById('area-trabajo');
 const $avisoIni = document.getElementById('aviso-inicial');
 
@@ -136,7 +137,18 @@ async function iniciar() {
     try { montarBotiquines(perfil); } catch (err) { console.error('NEXUS · anexo1: falló montarBotiquines', err); }
     try { montarInstalaciones(perfil); } catch (err) { console.error('NEXUS · anexo1: falló montarInstalaciones', err); }
   }
-  await cargarEmpresas();
+
+  const permitidas = await empresasPermitidas(perfil);
+  if (permitidas.length === 0) {
+    $avisoIni.textContent = 'No tienes ninguna empresa asignada. Contacta al administrador.';
+    return;
+  }
+  const empresa = resolverEmpresaActiva(permitidas);
+  if (!empresa) return; // está redirigiendo a seleccionar-empresa.html
+
+  if ($nombreEmpresa) $nombreEmpresa.textContent = empresa.razon_social;
+
+  await seleccionarEmpresa(empresa);
   conectarEventos();
 }
 
@@ -205,23 +217,6 @@ function puedeEditarOcupacionales() {
 /* ============================================
    Datos
    ============================================ */
-
-async function cargarEmpresas() {
-  const data = await empresasPermitidas(estado.perfil);
-
-  (data || []).forEach((e) => {
-    const opcion = document.createElement('option');
-    opcion.value = e.id;
-    opcion.textContent = e.razon_social;
-    $empresa.appendChild(opcion);
-  });
-
-  const guardada = sessionStorage.getItem('nexus_empresa');
-  if (guardada && (data || []).some((e) => e.id === guardada)) {
-    $empresa.value = guardada;
-    await seleccionarEmpresa();
-  }
-}
 
 async function cargarTodo() {
   /* Los indicadores no dependen de los requisitos —solo de la
@@ -2296,9 +2291,7 @@ function cambiarVista(vista) {
     pintarEventos();
     if (!estado.informeEventosIniciado) {
       estado.informeEventosIniciado = true;
-      const $e = document.getElementById('empresa-activa');
-      const nombreEmpresa = $e ? ($e.options[$e.selectedIndex] || {}).textContent || '' : '';
-      iniciarInformeEventos(estado.empresaId, nombreEmpresa);
+      iniciarInformeEventos(estado.empresaId, estado.empresaNombre || '');
     }
   }
   if (vista === 'grupos') pintarGrupos();
@@ -2308,14 +2301,10 @@ function cambiarVista(vista) {
     cargarOcupacionales().then(pintarOcupacionales);
   }
   if (vista === 'evaluacion') {
-    const $e = document.getElementById('empresa-activa');
-    const nombreEmpresa = $e ? ($e.options[$e.selectedIndex] || {}).textContent || '' : '';
-    iniciarEvaluacion(estado.empresaId, nombreEmpresa);
-    iniciarInformeEvaluacion(estado.empresaId, nombreEmpresa);
+    iniciarEvaluacion(estado.empresaId, estado.empresaNombre || '');
+    iniciarInformeEvaluacion(estado.empresaId, estado.empresaNombre || '');
   }
   if (vista === 'atd') {
-    const $e = document.getElementById('empresa-activa');
-    const nombreEmpresa = $e ? ($e.options[$e.selectedIndex] || {}).textContent || '' : '';
     /* Dos .catch() separados: si cargar las respuestas falla,
        igual se intenta poblar el selector de años del informe
        (puede haber campañas cerradas con resumen, aunque el
@@ -2323,7 +2312,7 @@ function cambiarVista(vista) {
        dejaba el selector de año permanentemente vacío y sin
        ningún aviso — los botones de informe "no hacían nada"
        porque no había ningún año para elegir. */
-    iniciarTestAtd(estado.empresaId, nombreEmpresa)
+    iniciarTestAtd(estado.empresaId, estado.empresaNombre || '')
       .catch((err) => console.error('NEXUS · anexo1: falló iniciarTestAtd', err))
       .then(() => iniciarInformeAtd())
       .catch((err) => console.error('NEXUS · anexo1: falló iniciarInformeAtd', err));
@@ -2471,22 +2460,13 @@ async function cambiarAnio() {
    Empresa
    ============================================ */
 
-async function seleccionarEmpresa() {
-  estado.empresaId = $empresa.value || null;
-
-  if (!estado.empresaId) {
-    sessionStorage.removeItem('nexus_empresa');
-    $area.hidden = true;
-    $avisoIni.hidden = false;
-    return;
-  }
-
-  sessionStorage.setItem('nexus_empresa', estado.empresaId);
+async function seleccionarEmpresa(empresa) {
+  estado.empresaId = empresa.id;
+  estado.empresaNombre = empresa.razon_social;
   $area.hidden = false;
   $avisoIni.hidden = true;
 
-  const nombreEmpresa =
-    ($empresa.options[$empresa.selectedIndex] || {}).textContent || '';
+  const nombreEmpresa = estado.empresaNombre;
 
   await cargarTodo();
   await Promise.all([
@@ -2543,8 +2523,6 @@ function enEl(id, evento, fn) {
 }
 
 function conectarEventos() {
-  $empresa.addEventListener('change', seleccionarEmpresa);
-
   enEl('infoev-btn-generar', 'click', generarInformeEventos);
   enEl('infoev-btn-descargar', 'click', descargarInformeEventos);
   enEl('infoev-btn-usar-recomendacion', 'click', usarRecomendacionEventos);

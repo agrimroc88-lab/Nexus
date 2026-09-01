@@ -49,7 +49,7 @@ async function procesarIngreso() {
     return;
   }
 
-  window.location.href = BASE + 'dashboard.html';
+  window.location.href = BASE + 'seleccionar-empresa.html';
 }
 
 /* --- Interfaz --- */

@@ -24,6 +24,7 @@ export const ROLES = {
 
 const BASE = '/Nexus/';
 const CLAVE_SESION = 'nexus_sesion';
+const CLAVE_EMPRESA = 'nexus_empresa_activa';
 
 /* ============================================
    Sesión (localStorage)
@@ -45,6 +46,71 @@ function guardarSesion(perfil) {
 
 function borrarSesion() {
   localStorage.removeItem(CLAVE_SESION);
+}
+
+/* ============================================
+   Empresa activa (localStorage)
+   La empresa con la que se trabaja queda fija para toda
+   la sesión, en vez de elegirse suelta en cada módulo.
+   Se guarda en localStorage (no sessionStorage) para que
+   no se pierda al cerrar una pestaña por accidente — solo
+   se borra al cerrar sesión o al salir de empresa a propósito.
+   ============================================ */
+
+/** Id de la empresa activa guardada, o null si no hay ninguna. */
+export function empresaActivaId() {
+  return localStorage.getItem(CLAVE_EMPRESA);
+}
+
+function fijarEmpresaActiva(id) {
+  localStorage.setItem(CLAVE_EMPRESA, id);
+}
+
+function limpiarEmpresaActiva() {
+  localStorage.removeItem(CLAVE_EMPRESA);
+}
+
+/**
+ * Botón "Salir de empresa": no cierra sesión, solo borra la
+ * empresa activa y regresa a elegir otra.
+ */
+export function salirDeEmpresa() {
+  limpiarEmpresaActiva();
+  window.location.href = BASE + 'seleccionar-empresa.html';
+}
+
+/**
+ * Resuelve cuál es la empresa activa a partir de la lista de
+ * empresas permitidas para este usuario (ver empresasPermitidas).
+ * - Una sola permitida: se fija sola, sin preguntar nada.
+ * - Más de una y ya hay una guardada que sigue siendo válida:
+ *   se respeta esa.
+ * - Más de una y no hay ninguna guardada (o ya no es válida,
+ *   p. ej. le quitaron esa empresa): manda a elegir y devuelve
+ *   null — quien llama debe detenerse, la página va a cambiar.
+ * @param {Array<{id, razon_social}>} permitidas
+ * @returns {{id, razon_social}|null}
+ */
+export function resolverEmpresaActiva(permitidas) {
+  if (permitidas.length === 1) {
+    fijarEmpresaActiva(permitidas[0].id);
+    return permitidas[0];
+  }
+
+  const guardada = empresaActivaId();
+  const encontrada = permitidas.find((e) => e.id === guardada);
+  if (encontrada) return encontrada;
+
+  window.location.href = BASE + 'seleccionar-empresa.html';
+  return null;
+}
+
+/**
+ * Usada solo por seleccionar-empresa.js cuando el usuario elige
+ * una empresa a mano entre varias.
+ */
+export function elegirEmpresaActiva(id) {
+  fijarEmpresaActiva(id);
 }
 
 /**
@@ -115,12 +181,14 @@ export async function iniciarSesion(cedula, clave) {
   }
 
   guardarSesion(data);
+  limpiarEmpresaActiva(); // sesión nueva: se vuelve a elegir la empresa
   return { ok: true, mensaje: 'Sesión iniciada' };
 }
 
 /** Cierra la sesión y vuelve al login. */
 export async function cerrarSesion() {
   borrarSesion();
+  limpiarEmpresaActiva();
   window.location.href = BASE + 'login.html';
 }
 
@@ -168,7 +236,7 @@ export async function protegerPagina(rolesPermitidos = []) {
 
 /** Si ya hay sesión, va al dashboard. Se usa en login.html. */
 export async function redirigirSiAutenticado() {
-  if (sesionActual()) window.location.href = BASE + 'dashboard.html';
+  if (sesionActual()) window.location.href = BASE + 'seleccionar-empresa.html';
 }
 
 /* ============================================
