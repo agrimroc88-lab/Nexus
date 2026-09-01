@@ -228,3 +228,59 @@
   justify-content: space-between;
   padding-top: 0.8rem;
 }
+
+/* --- Pestaña Módulos por empresa --- */
+
+.mod-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mod-switch {
+  position: relative;
+  display: inline-block;
+  width: 42px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.mod-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.mod-switch-cursor {
+  position: absolute;
+  inset: 0;
+  background: var(--color-borde);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.mod-switch-cursor::before {
+  content: "";
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  left: 3px;
+  top: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.15s;
+}
+
+.mod-switch input:checked + .mod-switch-cursor {
+  background: var(--color-acento);
+}
+
+.mod-switch input:checked + .mod-switch-cursor::before {
+  transform: translateX(18px);
+}
+
+.mod-switch input:disabled + .mod-switch-cursor {
+  opacity: 0.6;
+  cursor: default;
+}
