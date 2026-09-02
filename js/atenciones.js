@@ -25,7 +25,7 @@ import { sesionActual } from './auth.js?v=11';
 import {
   cargarDatosOficio, llenarDestinatarios, destinatarioPorId,
   mostrarCiePorDefecto, rangoDias, imprimirOficio, destinatariosLista
-} from './oficio-certificado.js?v=8';
+} from './oficio-certificado.js?v=9';
 import { alCrear, marcarAntesDeBorrar, autorId, alEditar } from './autoria.js?v=1';
 import {
   iniciarInformeAtenciones, cambiarTipoPeriodo, generarInformeAtenciones,
@@ -1671,7 +1671,7 @@ async function emitirCertificadoInterno(diagnosticos) {
     ? (rangoDias(rotInicio || inicio, rotDias) || rotDetalle || '')
     : '';
 
-  imprimirOficio({
+  await imprimirOficio({
     clase: 'justificacion',
     destinatario: dest,
     trabajador: {
@@ -1920,7 +1920,7 @@ async function reimprimirCertificado() {
   const elegido = opciones[parseInt(eleccion, 10) - 1];
   if (!elegido) return;
 
-  imprimirOficio({
+  await imprimirOficio({
     clase: 'justificacion',
     destinatario: elegido,
     trabajador: {
@@ -2410,7 +2410,7 @@ async function emitirCertificadoPost() {
     ? (rangoDias(rotInicio || inicio, rotDias) || rotDetalle || '')
     : '';
 
-  imprimirOficio({
+  await imprimirOficio({
     clase: 'justificacion',
     destinatario: elegido,
     trabajador: { nombre_completo: a.nombre_completo, cargo: a.cargo, codigo: a.codigo_trabajador },

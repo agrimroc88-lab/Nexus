@@ -14,7 +14,7 @@ import { sesionActual } from './auth.js';
 import {
   cargarDatosOficio, llenarDestinatarios, destinatarioPorId,
   mostrarCiePorDefecto, imprimirOficio, rangoDias
-} from './oficio-certificado.js?v=8';
+} from './oficio-certificado.js?v=9';
 import { alCrear } from './autoria.js?v=1';
 
 /* Roles que pueden registrar. El técnico solo lee. */
@@ -848,7 +848,7 @@ async function emitirOficio() {
         .filter(Boolean).join(' · ')
     : '';
 
-  const ok = imprimirOficio({
+  const ok = await imprimirOficio({
     clase,
     destinatario: dest,
     trabajador: {

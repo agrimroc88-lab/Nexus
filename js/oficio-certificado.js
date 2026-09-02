@@ -28,6 +28,7 @@
 import { supabase } from './supabase.js';
 import { escapar } from './utils.js?v=12';
 import { aplicarColorDocumento } from './logo-empresa.js';
+import { esperarImagenes } from './impresion.js?v=11';
 
 const VERSION = 'v4';
 console.info('NEXUS · oficio-certificado', VERSION);
@@ -264,7 +265,7 @@ function textoDiagnostico(d) {
  * @param {string}   d.valoracion
  * @returns {boolean} false si falta la zona de impresión
  */
-export function imprimirOficio(d) {
+export async function imprimirOficio(d) {
   const $z = document.getElementById('oficio-impresion');
   if (!$z) {
     alert('Falta actualizar la página en el servidor para imprimir oficios.');
@@ -284,6 +285,13 @@ export function imprimirOficio(d) {
   const titulo = document.title;
   document.title = `Oficio · ${d.trabajador?.nombre_completo || ''}`;
   document.body.classList.add('imprimiendo-oficio');
+
+  /* El navegador no descarga el logo hasta que el <img> entra al
+     documento, y print() no espera por él: llamarlo de inmediato
+     saca la vista previa sin logo (o a medio dibujar). El resto
+     del sistema ya resuelve esto en impresion.js —aquí solo
+     faltaba usarlo, como en informes, farmacia y grupos. */
+  await esperarImagenes($z);
   window.print();
 
   setTimeout(() => {
