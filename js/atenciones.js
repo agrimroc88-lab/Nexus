@@ -26,7 +26,7 @@ import {
   cargarDatosOficio, llenarDestinatarios, destinatarioPorId,
   mostrarCiePorDefecto, rangoDias, imprimirOficio, destinatariosLista
 } from './oficio-certificado.js?v=6';
-import { alCrear, marcarAntesDeBorrar } from './autoria.js?v=1';
+import { alCrear, marcarAntesDeBorrar, autorId } from './autoria.js?v=1';
 import {
   iniciarInformeAtenciones, cambiarTipoPeriodo, generarInformeAtenciones,
   descargarInformeAtenciones, guardarInformeAtenciones,
@@ -1742,7 +1742,8 @@ async function guardarAtencion() {
       insumo_id: p.item_id,
       cantidad: p.cantidad,
       indicacion: p.indicacion
-    }))
+    })),
+    p_usuario_id: autorId()
   });
 
   $btn.disabled = false;
@@ -1817,7 +1818,8 @@ async function guardarAtencionExterna() {
       insumo_id: p.item_id,
       cantidad: p.cantidad,
       indicacion: p.indicacion
-    }))
+    })),
+    p_usuario_id: autorId()
   });
 
   $btn.disabled = false;
