@@ -48,15 +48,15 @@
 }
 
 .nav-enlace:hover {
-  background: var(--color-acento-suave, #e6f0e6);
-  color: var(--color-acento-oscuro, #00450d);
+  background: var(--color-marca-suave, var(--color-acento-suave, #e6f0e6));
+  color: var(--color-marca-oscuro, var(--color-acento-oscuro, #00450d));
 }
 
 .nav-enlace.activo {
-  background: var(--color-acento-suave, #e6f0e6);
-  color: var(--color-acento-oscuro, #00450d);
+  background: var(--color-marca-suave, var(--color-acento-suave, #e6f0e6));
+  color: var(--color-marca-oscuro, var(--color-acento-oscuro, #00450d));
   font-weight: 600;
-  border-left: 3px solid var(--color-acento);
+  border-left: 3px solid var(--color-marca-oscuro, var(--color-acento));
   padding-left: calc(0.75rem - 3px);
 }
 

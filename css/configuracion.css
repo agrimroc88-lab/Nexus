@@ -311,3 +311,28 @@
   max-height: 160px;
   height: auto;
 }
+
+.logo-paleta {
+  margin-top: 0.75rem;
+}
+
+.logo-paleta-pastillas {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+
+.logo-pastilla {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid var(--color-superficie);
+  box-shadow: 0 0 0 1px var(--color-borde);
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.1s;
+}
+
+.logo-pastilla:hover {
+  transform: scale(1.12);
+}
