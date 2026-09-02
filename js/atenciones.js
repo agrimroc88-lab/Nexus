@@ -26,7 +26,7 @@ import {
   cargarDatosOficio, llenarDestinatarios, destinatarioPorId,
   mostrarCiePorDefecto, rangoDias, imprimirOficio, destinatariosLista
 } from './oficio-certificado.js?v=6';
-import { alCrear, marcarAntesDeBorrar, autorId } from './autoria.js?v=1';
+import { alCrear, marcarAntesDeBorrar, autorId, alEditar } from './autoria.js?v=1';
 import {
   iniciarInformeAtenciones, cambiarTipoPeriodo, generarInformeAtenciones,
   descargarInformeAtenciones, guardarInformeAtenciones,
