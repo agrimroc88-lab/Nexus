@@ -37,7 +37,8 @@ const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
 const of = {
   destinatarios: [],
   config: {},
-  empresaNombre: ''
+  empresaNombre: '',
+  logoUrl: 'logo.png'  // respaldo: el logo fijo de siempre, si la empresa no tiene uno propio
 };
 
 /* ============================================
@@ -47,15 +48,17 @@ const of = {
 /** Lee destinatarios y datos de membrete. Una vez por página. */
 export async function cargarDatosOficio(empresaId, empresaNombre) {
   of.empresaNombre = empresaNombre || '';
+  of.logoUrl = 'logo.png';
   if (!empresaId) return;
 
-  const [dest, cfg] = await Promise.all([
+  const [dest, cfg, emp] = await Promise.all([
     supabase.from('oficio_destinatarios').select('*')
       .eq('activo', true)
       .or(`empresa_id.is.null,empresa_id.eq.${empresaId}`)
       .order('orden'),
     supabase.from('config_certificados').select('*')
-      .eq('empresa_id', empresaId).maybeSingle()
+      .eq('empresa_id', empresaId).maybeSingle(),
+    supabase.from('empresas').select('logo_url').eq('id', empresaId).maybeSingle()
   ]);
 
   if (dest.error) {
@@ -66,6 +69,7 @@ export async function cargarDatosOficio(empresaId, empresaNombre) {
   }
 
   of.config = cfg.data || {};
+  of.logoUrl = emp.data?.logo_url || 'logo.png';
 }
 
 /** Los destinatarios cargados, para armar menús a medida. */
@@ -172,7 +176,7 @@ export function rangoDias(inicio, dias) {
 function encabezado() {
   return `
     <header class="of-membrete">
-      <img src="logo.png" class="of-logo" alt="">
+      <img src="${escapar(of.logoUrl)}" class="of-logo" alt="">
       <div class="of-membrete-texto">
         <span class="of-empresa">${escapar(of.empresaNombre || 'Empresa')}</span>
         <span class="of-unidad">Unidad de Seguridad y Salud Ocupacional</span>

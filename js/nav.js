@@ -48,8 +48,10 @@ export const MODULOS = [
  * @param {string} moduloActivo - id del módulo actual
  */
 export async function montarNavegacion(perfil, moduloActivo) {
-  await pintarMarca();
-  await pintarTituloEmpresa();
+  const empresa = await datosEmpresaActiva();
+  pintarMarca(empresa);
+  pintarTituloEmpresa(empresa);
+  aplicarColorSidebar(empresa?.color_marca);
   pintarUsuario(perfil);
   pintarEnlaces(perfil, moduloActivo);
   conectarEventos();
@@ -146,11 +148,47 @@ function escaparTexto(texto) {
   return div.innerHTML;
 }
 
-async function pintarMarca() {
+/* --- Color del menú lateral, derivado del color de marca ---
+   Solo afecta el resaltado al pasar el cursor y la opción
+   activa del sidebar — nada más de la interfaz cambia. Si la
+   empresa no tiene color propio, se quita la variable y todo
+   vuelve al verde de siempre (ver layout.css, que ya trae ese
+   verde como respaldo). */
+
+function hexARgb(hex) {
+  const limpio = (hex || '').replace('#', '');
+  const completo = limpio.length === 3
+    ? limpio.split('').map((c) => c + c).join('')
+    : limpio;
+  const num = parseInt(completo, 16);
+  return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+}
+
+function mezclarColor(hex, hacia, cantidad) {
+  const { r, g, b } = hexARgb(hex);
+  const mr = Math.round(r + (hacia[0] - r) * cantidad);
+  const mg = Math.round(g + (hacia[1] - g) * cantidad);
+  const mb = Math.round(b + (hacia[2] - b) * cantidad);
+  return `rgb(${mr}, ${mg}, ${mb})`;
+}
+
+function aplicarColorSidebar(color) {
+  const raiz = document.documentElement.style;
+  if (!color) {
+    raiz.removeProperty('--color-marca-suave');
+    raiz.removeProperty('--color-marca-oscuro');
+    return;
+  }
+  try {
+    raiz.setProperty('--color-marca-suave', mezclarColor(color, [255, 255, 255], 0.85));
+    raiz.setProperty('--color-marca-oscuro', mezclarColor(color, [0, 0, 0], 0.35));
+  } catch (_) { /* color mal formado: se ignora, queda el verde de siempre */ }
+}
+
+async function pintarMarca(empresa) {
   const $marca = document.querySelector('.lateral-marca');
   if (!$marca) return;
 
-  const empresa = await datosEmpresaActiva();
   const logo = empresa?.logo_url || 'logo.png';
   const alt = empresa?.razon_social || 'Nexus';
 
@@ -159,11 +197,10 @@ async function pintarMarca() {
 }
 
 /* Título centrado en la cabecera: nombre de la empresa activa. */
-async function pintarTituloEmpresa() {
+async function pintarTituloEmpresa(empresa) {
   const $cab = document.querySelector('.cabecera');
   if (!$cab || document.querySelector('.empresa-titulo')) return;
 
-  const empresa = await datosEmpresaActiva();
   const nombre = empresa?.razon_social || 'AGRIMROC S.A.';
   const color = empresa?.color_marca;
 

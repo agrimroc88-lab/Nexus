@@ -39,6 +39,7 @@ const estado = {
   perfil: null,
   empresaId: null,
   empresaNombre: '',
+  logoUrl: 'logo.png',  // respaldo: el logo fijo, si la empresa no tiene uno propio
   puedeEscribir: false,
   certificados: [],
   ausentismo: [],
@@ -909,7 +910,7 @@ function linea(etq, val) {
 function cuerpoVer(c) {
   return `
     <div class="verc-membrete">
-      <img src="logo.png" class="verc-logo" alt="">
+      <img src="${escapar(estado.logoUrl)}" class="verc-logo" alt="">
       <div class="verc-membrete-datos">
         <strong>${escapar(c.empresa || 'Empresa')}</strong>
         <span>Unidad de Seguridad y Salud Ocupacional</span>
@@ -938,9 +939,9 @@ function imprimirCertificado() {
   $z.innerHTML = `
     <div class="hoja">
       <div class="membrete">
-        <img src="logo.png" class="membrete-logo" alt="">
+        <img src="${escapar(estado.logoUrl)}" class="membrete-logo" alt="">
         <div class="membrete-datos">
-          <strong>${escapar(c.empresa || 'AGRIMROC S.A.')}</strong>
+          <strong>${escapar(c.empresa || 'Empresa')}</strong>
           <span>Unidad de Seguridad y Salud Ocupacional</span>
         </div>
       </div>
@@ -1095,6 +1096,12 @@ async function seleccionarEmpresa(empresa) {
   estado.empresaId = empresa.id;
   estado.empresaNombre = empresa.razon_social;
   $area.hidden = false; $avisoIni.hidden = true;
+
+  // Logo propio de la empresa para los certificados y oficios
+  // impresos; si no tiene uno subido, se usa el fijo de siempre.
+  const { data: emp } = await supabase.from('empresas')
+    .select('logo_url').eq('id', empresa.id).maybeSingle();
+  estado.logoUrl = emp?.logo_url || 'logo.png';
 
   document.getElementById('btn-nuevo-cert').hidden = !estado.puedeEscribir;
   await recargar();

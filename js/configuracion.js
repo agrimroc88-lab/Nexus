@@ -321,6 +321,7 @@ async function cargarLogoActual() {
   logoEstado.logoRecortadoDataUrl = null;
   $btn.disabled = true;
   $alerta.hidden = true;
+  document.getElementById('logo-paleta').hidden = true;
   document.getElementById('logo-guardado').textContent = '';
   document.getElementById('color-guardado').textContent = '';
 
@@ -360,6 +361,8 @@ async function alElegirLogo(e) {
     document.getElementById('logo-previa').src = dataUrl;
     document.getElementById('logo-previa-caja').hidden = false;
     document.getElementById('btn-guardar-logo').disabled = false;
+
+    pintarPaletaColores(dataUrl);
   } catch (err) {
     console.error('NEXUS · configuracion: no se pudo recortar el logo', err);
     $alerta.textContent = 'No se pudo procesar esa imagen. Intente con otro archivo.';
@@ -468,6 +471,75 @@ function recortarEnLienzo(img) {
   );
 
   return final.toDataURL('image/png');
+}
+
+/**
+ * Extrae 3-5 colores representativos del logo ya recortado, para
+ * mostrarlos como pastillas de un clic — así no hay que adivinar
+ * ni buscar el código de color a mano. Ignora blancos, negros y
+ * grises casi puros (suelen ser fondo o texto, no "el color de
+ * la marca"), y evita pastillas casi idénticas entre sí.
+ */
+function pintarPaletaColores(dataUrl) {
+  const $paleta = document.getElementById('logo-paleta');
+  const $pastillas = document.getElementById('logo-paleta-pastillas');
+
+  const img = new Image();
+  img.onload = () => {
+    const escala = Math.min(1, 80 / Math.max(img.naturalWidth, img.naturalHeight));
+    const lienzo = document.createElement('canvas');
+    lienzo.width = Math.max(1, Math.round(img.naturalWidth * escala));
+    lienzo.height = Math.max(1, Math.round(img.naturalHeight * escala));
+    const ctx = lienzo.getContext('2d');
+    ctx.drawImage(img, 0, 0, lienzo.width, lienzo.height);
+    const { data } = ctx.getImageData(0, 0, lienzo.width, lienzo.height);
+
+    const cubos = new Map();
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i + 3] < 200) continue; // transparente: no cuenta
+
+      const r = data[i], g = data[i + 1], b = data[i + 2];
+      const max = Math.max(r, g, b), min = Math.min(r, g, b);
+      const saturacion = max === 0 ? 0 : (max - min) / max;
+
+      if (max > 240 && min > 225) continue; // casi blanco
+      if (max < 35) continue;               // casi negro
+      if (saturacion < 0.15) continue;      // gris
+
+      const clave = `${Math.round(r / 24) * 24},${Math.round(g / 24) * 24},${Math.round(b / 24) * 24}`;
+      cubos.set(clave, (cubos.get(clave) || 0) + 1);
+    }
+
+    const ordenados = [...cubos.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([clave]) => clave.split(',').map(Number));
+
+    const elegidos = [];
+    for (const [r, g, b] of ordenados) {
+      if (elegidos.length >= 5) break;
+      const parecido = elegidos.some(([r2, g2, b2]) =>
+        Math.abs(r - r2) + Math.abs(g - g2) + Math.abs(b - b2) < 60);
+      if (!parecido) elegidos.push([r, g, b]);
+    }
+
+    if (elegidos.length === 0) { $paleta.hidden = true; return; }
+
+    $pastillas.innerHTML = '';
+    elegidos.forEach(([r, g, b]) => {
+      const hex = '#' + [r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'logo-pastilla';
+      btn.style.background = hex;
+      btn.title = hex;
+      btn.addEventListener('click', () => {
+        document.getElementById('logo-color').value = hex;
+      });
+      $pastillas.appendChild(btn);
+    });
+    $paleta.hidden = false;
+  };
+  img.src = dataUrl;
 }
 
 function dataUrlABlob(dataUrl) {
