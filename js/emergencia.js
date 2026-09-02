@@ -26,10 +26,12 @@
 import { supabase } from './supabase.js?v=11';
 import { ROLES } from './auth.js?v=11';
 import { escapar, formatearFecha, textoOGuion } from './utils.js?v=11';
+import { logoEmpresa } from './logo-empresa.js';
 
 const em = {
   perfil: null,
   empresaId: null,
+  logoUrl: 'logo.png',
   fichaActual: null,       // ficha abierta en el modal
   medicacion: [],          // medicación del trabajador abierto
   destinoMedicacion: null, // registro en edición
@@ -86,14 +88,16 @@ function puedeMedicar() {
    Arranque
    ============================================ */
 
-export function montarEmergencia(perfil, empresaId) {
+export async function montarEmergencia(perfil, empresaId) {
   em.perfil = perfil;
   em.empresaId = empresaId ?? null;
+  em.logoUrl = await logoEmpresa(em.empresaId);
   conectar();
 }
 
-export function fijarEmpresaEmergencia(empresaId) {
+export async function fijarEmpresaEmergencia(empresaId) {
   em.empresaId = empresaId ?? null;
+  em.logoUrl = await logoEmpresa(em.empresaId);
 }
 
 /* ============================================
@@ -591,7 +595,7 @@ function imprimirFichaEmergencia() {
   const html = `
     <div class="em-hoja">
       <header class="em-hoja-cabecera">
-        <img src="logo.png" class="em-hoja-logo" alt="">
+        <img src="${escapar(em.logoUrl)}" class="em-hoja-logo" alt="">
         <div class="em-hoja-identidad">
           <span class="em-hoja-titulo">Ficha de emergencia</span>
           <span class="em-hoja-unidad">Departamento de Seguridad y Salud Ocupacional</span>

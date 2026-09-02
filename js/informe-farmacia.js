@@ -39,6 +39,7 @@ import { escapar, formatearFecha } from './utils.js?v=11';
 import { alCrear } from './autoria.js?v=1';
 import { imprimirHoja } from './impresion.js?v=11';
 import { redactar } from './ia.js?v=1';
+import { logoEmpresa } from './logo-empresa.js';
 
 const VERSION = 'v11';
 console.info('NEXUS · informe-farmacia', VERSION);
@@ -136,6 +137,7 @@ async function traerTodo(consulta) {
 const inf = {
   empresaId: null,
   empresaNombre: '',
+  logoUrl: 'logo.png',
   periodo: null,      // primer día del mes que cubre
   logo: null,
   informes: [],       // los ya emitidos
@@ -202,9 +204,10 @@ function pintarTextosPorDefecto() {
    Arranque
    ============================================ */
 
-export function iniciarInforme(empresaId, empresaNombre) {
+export async function iniciarInforme(empresaId, empresaNombre) {
   inf.empresaId = empresaId;
   inf.empresaNombre = empresaNombre || '';
+  inf.logoUrl = await logoEmpresa(empresaId);
 
   const $p = document.getElementById('inf-periodo');
   if ($p && !$p.value) $p.value = mesAnterior();
@@ -757,7 +760,7 @@ function construirDocumento({ medicamentos, insumos, nombre, quien, cargo, fecha
       <div class="if-portada-banda"></div>
 
       <div class="if-portada-marca">
-        <img src="logo.png" class="if-portada-logo" alt="">
+        <img src="${escapar(inf.logoUrl)}" class="if-portada-logo" alt="">
       </div>
 
       <div class="if-portada-centro">
@@ -795,7 +798,7 @@ function construirDocumento({ medicamentos, insumos, nombre, quien, cargo, fecha
     <section class="if-contenido">
 
       <header class="if-membrete">
-        <img src="logo.png" class="if-membrete-logo" alt="">
+        <img src="${escapar(inf.logoUrl)}" class="if-membrete-logo" alt="">
         <div class="if-membrete-texto">
           <strong>${escapar(inf.empresaNombre || 'Empresa')}</strong><br>
           Unidad de Seguridad y Salud Ocupacional · Servicios Médicos

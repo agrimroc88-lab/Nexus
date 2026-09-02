@@ -18,12 +18,14 @@ import { protegerPagina, puedeVerPsicologia, empresasPermitidas, resolverEmpresa
 import { montarNavegacion } from './nav.js?v=11';
 import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=11';
 import { alCrear } from './autoria.js?v=1';
+import { logoEmpresa } from './logo-empresa.js';
 
 /* --- Estado --- */
 const estado = {
   perfil: null,
   empresaId: null,
   empresaNombre: '',
+  logoUrl: 'logo.png',
   fichas: [],          // fichas de la empresa (v_fichas_psicologicas)
   manual: [],          // registro manual de atenciones (atenciones_manual_salud)
   manualActual: null,  // { mes, datosMes } del modal abierto
@@ -1117,7 +1119,7 @@ async function imprimirFicha() {
   $zona.innerHTML = `
     <div class="fp-hoja">
       <div class="fp-encabezado">
-        <img src="logo.png" class="fp-logo" alt="">
+        <img src="${escapar(estado.logoUrl)}" class="fp-logo" alt="">
         <div class="fp-titulo-empresa">
           <strong>AGRIMROC S.A</strong>
           <span>Departamento de Salud Mental y Apoyo Psicosocial</span>
@@ -1314,7 +1316,7 @@ function htmlCertificadoAptitud(f) {
   return `
   <div class="fp-hoja cert-hoja">
     <div class="fp-encabezado">
-      <img src="logo.png" class="fp-logo" alt="">
+      <img src="${escapar(estado.logoUrl)}" class="fp-logo" alt="">
       <div class="fp-titulo-empresa">
         <strong>SERVICIO MÉDICO DE EMPRESA AGRIMROC S.A</strong>
         <span>San Antonio – Camilo Ponce Enríquez · Azuay</span>
@@ -1381,6 +1383,7 @@ function cambiarVista(vista) {
 async function seleccionarEmpresa(empresa) {
   estado.empresaId = empresa.id;
   estado.empresaNombre = empresa.razon_social;
+  estado.logoUrl = await logoEmpresa(empresa.id);
   $area.hidden = false;
   $avisoIni.hidden = true;
 

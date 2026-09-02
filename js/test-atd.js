@@ -19,6 +19,7 @@
 import { supabase } from './supabase.js?v=11';
 import { escapar, retrasar } from './utils.js?v=12';
 import { alCrear, alEditar, marcarAntesDeBorrar } from './autoria.js?v=1';
+import { logoEmpresa } from './logo-empresa.js';
 
 const VERSION = 'v4';
 console.info('NEXUS · test-atd', VERSION);
@@ -102,6 +103,7 @@ export const CAT_ESTADO_DERIVACION = {
 const atd = {
   empresaId: null,
   empresaNombre: '',
+  logoUrl: 'logo.png',
   anio: new Date().getFullYear(),
   respuestas: []   // de TODOS los años de la empresa (historial/comparativo/seguimiento)
 };
@@ -115,6 +117,7 @@ export function estadoAtd() { return atd; }
 export async function iniciarTestAtd(empresaId, empresaNombre) {
   atd.empresaId = empresaId;
   atd.empresaNombre = empresaNombre || '';
+  atd.logoUrl = await logoEmpresa(empresaId);
   await cargarRespuestas();
   llenarSelectorAnioCaptura();
   pintarListadoRespuestas();

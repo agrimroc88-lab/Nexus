@@ -10,6 +10,7 @@ import { protegerPagina, empresasPermitidas, resolverEmpresaActiva, modulosActiv
 import { montarNavegacion } from './nav.js?v=11';
 import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=11';
 import { alCrear } from './autoria.js?v=1';
+import { logoEmpresa } from './logo-empresa.js';
 
 const ROLES_TS = ['admin', 'trabajo_social', 'psico_social'];
 
@@ -27,6 +28,7 @@ const estado = {
   perfil: null,
   empresaId: null,
   empresaNombre: '',
+  logoUrl: 'logo.png',
   fichas: [],
   manual: [],  // registro manual de atenciones (atenciones_manual_salud)
   manualActual: null,  // { mes, datosMes } del modal abierto
@@ -171,6 +173,7 @@ function conectarEventos() {
 async function alCambiarEmpresa(empresa) {
   estado.empresaId = empresa.id;
   estado.empresaNombre = empresa.razon_social;
+  estado.logoUrl = await logoEmpresa(empresa.id);
   document.getElementById('pestanas').hidden = false;
   document.getElementById('vista-ficha').hidden = false;
   await Promise.all([cargarFichas(), cargarManual()]);
@@ -1149,7 +1152,7 @@ function htmlRegistroPersonal(f) {
   return `
   <div class="doc-hoja doc-registro">
     <div class="doc-encabezado">
-      <img src="logo.png" class="doc-logo" alt="">
+      <img src="${escapar(estado.logoUrl)}" class="doc-logo" alt="">
       <div class="doc-titulo-empresa">
         <strong>AGRIMROC. S.A</strong>
         <h1>REGISTRO DE PERSONAL</h1>

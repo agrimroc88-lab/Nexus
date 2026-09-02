@@ -23,6 +23,7 @@ import { supabase } from './supabase.js?v=11';
 import { ROLES } from './auth.js?v=11';
 import { escapar, formatearFecha } from './utils.js?v=11';
 import { imprimirHoja } from './impresion.js?v=11';
+import { logoEmpresa } from './logo-empresa.js';
 
 /* --- Estado --- */
 const gp = {
@@ -30,6 +31,7 @@ const gp = {
   ambito: 'salud',
   empresaId: null,
   empresaNombre: '',
+  logoUrl: 'logo.png',
   registros: [],
   indicaciones: {},   // grupo_id → [indicaciones]
   adaptaciones: {},   // grupo_id → [adaptaciones]
@@ -144,6 +146,7 @@ export function montarGrupos(perfil, ambito) {
 export async function cargarGrupos(empresaId, empresaNombre) {
   gp.empresaId = empresaId;
   gp.empresaNombre = empresaNombre || '';
+  gp.logoUrl = await logoEmpresa(empresaId);
   if (!empresaId) { gp.registros = []; return; }
 
   const [reg, sug, nom, cat] = await Promise.all([
@@ -1099,7 +1102,7 @@ function fechaCorta() {
 function cabeceraImpresion(titulo, codigoDoc, subtitulo) {
   return `
     <header class="gp-cabecera">
-      <img src="logo.png" class="gp-logo" alt="">
+      <img src="${escapar(gp.logoUrl)}" class="gp-logo" alt="">
 
       <div class="gp-identidad">
         <span class="gp-empresa">${escapar(gp.empresaNombre || 'Empresa')}</span>

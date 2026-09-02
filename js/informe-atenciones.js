@@ -25,6 +25,7 @@ import { sesionActual } from './auth.js?v=11';
 import { escapar, formatearFecha } from './utils.js?v=12';
 import { alCrear } from './autoria.js?v=1';
 import { imprimirHoja } from './impresion.js?v=11';
+import { logoEmpresa } from './logo-empresa.js';
 
 const VERSION = 'v1';
 console.info('NEXUS · informe-atenciones', VERSION);
@@ -34,7 +35,7 @@ const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
 const MESES_ABREV = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
                       'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
-const inf = { empresaId: null, empresaNombre: '', ultimo: null };
+const inf = { empresaId: null, empresaNombre: '', logoUrl: 'logo.png', ultimo: null };
 
 /* ============================================
    Textos del informe — editables, se guardan CON cada
@@ -81,9 +82,10 @@ const TEXTOS = {
    Arranque
    ============================================ */
 
-export function iniciarInformeAtenciones(empresaId, empresaNombre) {
+export async function iniciarInformeAtenciones(empresaId, empresaNombre) {
   inf.empresaId = empresaId;
   inf.empresaNombre = empresaNombre || '';
+  inf.logoUrl = await logoEmpresa(empresaId);
   llenarAnios();
   pintarTextosPorDefecto();
   cambiarTipoPeriodo();
@@ -567,7 +569,7 @@ function construirDocumento(datos, textos, quien, cargo) {
     <!-- ===== Portada ===== -->
     <section class="if-portada">
       <div class="if-portada-banda"></div>
-      <div class="if-portada-marca"><img src="logo.png" class="if-portada-logo" alt=""></div>
+      <div class="if-portada-marca"><img src="${escapar(inf.logoUrl)}" class="if-portada-logo" alt=""></div>
       <div class="if-portada-centro">
         <p class="if-portada-unidad">Unidad de Seguridad y Salud Ocupacional</p>
         <p class="if-portada-servicio">Servicios Médicos de la Empresa</p>
@@ -592,7 +594,7 @@ function construirDocumento(datos, textos, quien, cargo) {
     <!-- ===== Contenido ===== -->
     <section class="if-contenido">
       <header class="if-membrete">
-        <img src="logo.png" class="if-membrete-logo" alt="">
+        <img src="${escapar(inf.logoUrl)}" class="if-membrete-logo" alt="">
         <div class="if-membrete-texto">
           <strong>${escapar(inf.empresaNombre || 'Empresa')}</strong><br>
           Unidad de Seguridad y Salud Ocupacional · Servicios Médicos

@@ -26,6 +26,7 @@
 import { supabase } from './supabase.js?v=11';
 import { escapar, formatearFecha, retrasar } from './utils.js?v=12';
 import { alCrear, alEditar, autorId } from './autoria.js?v=1';
+import { logoEmpresa } from './logo-empresa.js';
 import { ROLES, sesionActual } from './auth.js?v=11';
 import {
   envolverWord, descargarWord, membreteWord, bandaTitulo, tablaWord,
@@ -104,6 +105,7 @@ document.addEventListener('click', (e) => {
 const ev = {
   empresaId: null,
   empresaNombre: '',
+  logoUrl: 'logo.png',
   evaluacion: null,      // campaña abierta
   examenes: [],          // catálogo
   resultados: [],        // de la campaña
@@ -129,6 +131,7 @@ const CEDULA_MEDICO_OCUPACIONAL = '0705191229';
 export async function iniciarEvaluacion(empresaId, empresaNombre) {
   ev.empresaId = empresaId;
   ev.empresaNombre = empresaNombre || '';
+  ev.logoUrl = await logoEmpresa(empresaId);
 
   if (!empresaId) return;
 
@@ -1105,7 +1108,7 @@ function filtrarConvocados(filtro) {
 export async function imprimirListaConvocados() {
   if (!ev.evaluacion) return avisar('Elija primero la campaña.');
 
-  const logo = await logoEnBase64('logo.png', 76).catch(() => null);
+  const logo = await logoEnBase64(ev.logoUrl, 76).catch(() => null);
 
   const filtroTexto = {
     todos: 'Todos los convocados',

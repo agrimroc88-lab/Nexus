@@ -15,6 +15,7 @@ import { protegerPagina, puedeVerClinica, sesionActual, empresasPermitidas, reso
 import { montarNavegacion } from './nav.js?v=11';
 import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=11';
 import { alCrear, alEditar, autorId } from './autoria.js?v=1';
+import { logoEmpresa } from './logo-empresa.js';
 import { imprimirHoja } from './impresion.js?v=11';
 import {
   iniciarInforme, generarInformeMensual, guardarInforme, descargarActual,
@@ -26,6 +27,7 @@ const estado = {
   perfil: null,
   empresaId: null,
   empresaNombre: '',
+  logoUrl: 'logo.png',
   medicamentos: [],
   insumos: [],
   lotes: [],
@@ -1365,7 +1367,7 @@ async function imprimirOrden() {
   const html = `
     <div class="oc-hoja">
       <div class="oc-cabecera">
-        <img src="logo.png" class="oc-logo" alt="">
+        <img src="${escapar(estado.logoUrl)}" class="oc-logo" alt="">
         <div>
           <h1>ORDEN DE COMPRA / REPOSICIÓN DE MEDICAMENTOS E INSUMOS</h1>
           <p><strong>${escapar(empresaNombre)}</strong></p>
@@ -1425,6 +1427,7 @@ function cambiarVista(vista) {
 async function seleccionarEmpresa(empresa) {
   estado.empresaId = empresa.id;
   estado.empresaNombre = empresa.razon_social;
+  estado.logoUrl = await logoEmpresa(empresa.id);
   $area.hidden = false;
   $avisoIni.hidden = true;
 
@@ -1626,7 +1629,7 @@ async function reimprimirOrden(o) {
   document.getElementById('orden-impresion').innerHTML = `
     <div class="oc-hoja">
       <div class="oc-cabecera">
-        <img src="logo.png" class="oc-logo" alt="">
+        <img src="${escapar(estado.logoUrl)}" class="oc-logo" alt="">
         <div>
           <h1>ORDEN DE COMPRA / REPOSICIÓN DE MEDICAMENTOS E INSUMOS</h1>
           <p><strong>${escapar(empresaNombre)}</strong></p>

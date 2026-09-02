@@ -29,12 +29,13 @@ import { sesionActual } from './auth.js?v=11';
 import { escapar, formatearFecha } from './utils.js?v=12';
 import { alCrear } from './autoria.js?v=1';
 import { imprimirHoja } from './impresion.js?v=11';
+import { logoEmpresa } from './logo-empresa.js';
 
 const VERSION = 'v2';
 console.info('NEXUS · informe-evaluacion-periodica', VERSION);
 
 const inf = {
-  empresaId: null, empresaNombre: '',
+  empresaId: null, empresaNombre: '', logoUrl: 'logo.png',
   historico: [], recomendaciones: [],
   epidemiologico: null, seguimiento: null
 };
@@ -123,6 +124,7 @@ function categoriaImc(fila) {
 export async function iniciarInformeEvaluacion(empresaId, empresaNombre) {
   inf.empresaId = empresaId;
   inf.empresaNombre = empresaNombre || '';
+  inf.logoUrl = await logoEmpresa(empresaId);
 
   await Promise.all([cargarHistorico(), cargarRecomendaciones()]);
   llenarSelectorAnio();
@@ -496,7 +498,7 @@ function fuente(anio) {
 
 function membreteHtml(titulo, periodo) {
   return `<header class="if-membrete">
-    <img src="logo.png" class="if-membrete-logo" alt="">
+    <img src="${escapar(inf.logoUrl)}" class="if-membrete-logo" alt="">
     <div class="if-membrete-texto">
       <strong>${escapar(inf.empresaNombre || 'Empresa')}</strong><br>
       Unidad de Seguridad y Salud Ocupacional · Servicios Médicos
@@ -508,7 +510,7 @@ function membreteHtml(titulo, periodo) {
 function portadaHtml(titulo, periodo, quien) {
   return `<section class="if-portada">
     <div class="if-portada-banda"></div>
-    <div class="if-portada-marca"><img src="logo.png" class="if-portada-logo" alt=""></div>
+    <div class="if-portada-marca"><img src="${escapar(inf.logoUrl)}" class="if-portada-logo" alt=""></div>
     <div class="if-portada-centro">
       <p class="if-portada-unidad">Unidad de Seguridad y Salud Ocupacional</p>
       <p class="if-portada-servicio">Vigilancia de la Salud en el Trabajo</p>

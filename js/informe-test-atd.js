@@ -778,7 +778,7 @@ function fuente(anio, empresaNombre) {
 
 function membreteHtml(titulo, periodo, empresaNombre) {
   return `<header class="if-membrete">
-    <img src="logo.png" class="if-membrete-logo" alt="">
+    <img src="${escapar(estadoAtd().logoUrl)}" class="if-membrete-logo" alt="">
     <div class="if-membrete-texto">
       <strong>${escapar(empresaNombre || 'Empresa')}</strong><br>
       Unidad de Seguridad y Salud Ocupacional · Servicios Médicos
@@ -790,7 +790,7 @@ function membreteHtml(titulo, periodo, empresaNombre) {
 function portadaHtml(titulo, periodo, quien, empresaNombre) {
   return `<section class="if-portada">
     <div class="if-portada-banda"></div>
-    <div class="if-portada-marca"><img src="logo.png" class="if-portada-logo" alt=""></div>
+    <div class="if-portada-marca"><img src="${escapar(estadoAtd().logoUrl)}" class="if-portada-logo" alt=""></div>
     <div class="if-portada-centro">
       <p class="if-portada-unidad">Unidad de Seguridad y Salud Ocupacional</p>
       <p class="if-portada-servicio">Vigilancia de la Salud en el Trabajo</p>
