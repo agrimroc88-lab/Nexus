@@ -50,6 +50,7 @@ export const MODULOS = [
 export async function montarNavegacion(perfil, moduloActivo) {
   const empresa = await datosEmpresaActiva();
   pintarMarca(empresa);
+  pintarFavicon(empresa);
   pintarTituloEmpresa(empresa);
   aplicarColorSidebar(empresa?.color_marca);
   pintarUsuario(perfil);
@@ -194,6 +195,22 @@ async function pintarMarca(empresa) {
 
   $marca.innerHTML =
     `<img src="${escaparTexto(logo)}" alt="${escaparTexto(alt)}" class="lateral-logo">`;
+}
+
+/* Ícono de la pestaña del navegador (favicon): el mismo logo que
+   se usa en el menú lateral, para reforzar de qué empresa se está
+   trabajando incluso con varias pestañas abiertas. Si la empresa
+   no tiene logo propio, se deja el favicon fijo de siempre. */
+function pintarFavicon(empresa) {
+  const logo = empresa?.logo_url || 'favicon.png';
+
+  let $icono = document.querySelector('link[rel="icon"]');
+  if (!$icono) {
+    $icono = document.createElement('link');
+    $icono.rel = 'icon';
+    document.head.appendChild($icono);
+  }
+  $icono.href = logo;
 }
 
 /* Título centrado en la cabecera: nombre de la empresa activa. */
