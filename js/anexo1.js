@@ -2338,6 +2338,17 @@ function cambiarSubvistaAtd(vista) {
     const $v = document.getElementById('atd-subvista-' + v);
     if ($v) $v.hidden = v !== vista;
   });
+
+  /* El selector de campañas del informe se llenaba UNA sola vez,
+     al abrir el módulo Test A-T-D por primera vez. Si después se
+     registraba una campaña nueva sin recargar la página, esta
+     pestaña seguía mostrando "sin campañas capturadas" aunque la
+     campaña sí existiera — porque nadie volvía a construir la
+     lista. Ahora se reconstruye cada vez que se entra aquí. */
+  if (vista === 'informes') {
+    iniciarInformeAtd().catch((err) =>
+      console.error('NEXUS · anexo1: falló al refrescar el informe A-T-D', err));
+  }
 }
 
 /* La evaluación periódica solo existe en salud: seguridad
