@@ -122,16 +122,28 @@ export function mostrarCiePorDefecto() {
    se venía escribiendo a mano.
    ============================================ */
 
+/* Por si la fecha llega con hora u otro sufijo pegado (por
+   ejemplo al leerla de vuelta desde la base de datos en vez de
+   tomarla recién tecleada de un <input type="date">). Sin esto,
+   "2026-09-02T05:00:00+00:00" + "T00:00" arma una fecha inválida
+   y todo lo que sigue sale en NaN / undefined. Mismo blindaje
+   que ya usa formatearFecha() en utils.js. */
+function soloFecha(valor) {
+  return valor ? String(valor).slice(0, 10) : '';
+}
+
 function fechaLarga(iso) {
-  if (!iso) return '';
-  const d = new Date(iso + 'T00:00');
+  const limpia = soloFecha(iso);
+  if (!limpia) return '';
+  const d = new Date(limpia + 'T00:00');
   return `${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}`;
 }
 
 export function rangoDias(inicio, dias) {
-  if (!inicio || !dias || dias < 1) return '';
+  const limpia = soloFecha(inicio);
+  if (!limpia || !dias || dias < 1) return '';
 
-  const d0 = new Date(inicio + 'T00:00');
+  const d0 = new Date(limpia + 'T00:00');
   const fechas = [];
   for (let i = 0; i < dias; i++) {
     const d = new Date(d0);
