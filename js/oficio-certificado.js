@@ -27,6 +27,7 @@
 
 import { supabase } from './supabase.js';
 import { escapar } from './utils.js?v=12';
+import { aplicarColorDocumento } from './logo-empresa.js';
 
 const VERSION = 'v4';
 console.info('NEXUS · oficio-certificado', VERSION);
@@ -58,7 +59,7 @@ export async function cargarDatosOficio(empresaId, empresaNombre) {
       .order('orden'),
     supabase.from('config_certificados').select('*')
       .eq('empresa_id', empresaId).maybeSingle(),
-    supabase.from('empresas').select('logo_url').eq('id', empresaId).maybeSingle()
+    supabase.from('empresas').select('logo_url, color_marca').eq('id', empresaId).maybeSingle()
   ]);
 
   if (dest.error) {
@@ -70,6 +71,7 @@ export async function cargarDatosOficio(empresaId, empresaNombre) {
 
   of.config = cfg.data || {};
   of.logoUrl = emp.data?.logo_url || 'logo.png';
+  aplicarColorDocumento(emp.data?.color_marca || null);
 }
 
 /** Los destinatarios cargados, para armar menús a medida. */

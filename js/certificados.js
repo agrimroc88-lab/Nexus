@@ -6,6 +6,7 @@
 
 import { supabase } from './supabase.js';
 import { protegerPagina, empresasPermitidas, resolverEmpresaActiva, modulosActivosEmpresa } from './auth.js';
+import { aplicarColorDocumento } from './logo-empresa.js';
 import { montarNavegacion } from './nav.js';
 import { escapar, textoOGuion, retrasar, formatearFecha, finDeReposo }
   from './utils.js?v=12';
@@ -1100,8 +1101,9 @@ async function seleccionarEmpresa(empresa) {
   // Logo propio de la empresa para los certificados y oficios
   // impresos; si no tiene uno subido, se usa el fijo de siempre.
   const { data: emp } = await supabase.from('empresas')
-    .select('logo_url').eq('id', empresa.id).maybeSingle();
+    .select('logo_url, color_marca').eq('id', empresa.id).maybeSingle();
   estado.logoUrl = emp?.logo_url || 'logo.png';
+  aplicarColorDocumento(emp?.color_marca || null);
 
   document.getElementById('btn-nuevo-cert').hidden = !estado.puedeEscribir;
   await recargar();
