@@ -124,12 +124,22 @@ export function mostrarCiePorDefecto() {
 
 /* Por si la fecha llega con hora u otro sufijo pegado (por
    ejemplo al leerla de vuelta desde la base de datos en vez de
-   tomarla recién tecleada de un <input type="date">). Sin esto,
-   "2026-09-02T05:00:00+00:00" + "T00:00" arma una fecha inválida
-   y todo lo que sigue sale en NaN / undefined. Mismo blindaje
-   que ya usa formatearFecha() en utils.js. */
+   tomarla recién tecleada de un <input type="date">), o si lo
+   que llega ni siquiera es una fecha (un dato viejo guardado
+   mal, en algún registro de antes de este arreglo). Sin esto,
+   cualquier texto raro arma una fecha inválida y todo lo que
+   sigue sale en NaN / undefined. Se valida con una expresión
+   regular en vez de solo recortar el texto, porque recortar no
+   alcanza cuando el contenido no es una fecha para empezar. */
 function soloFecha(valor) {
-  return valor ? String(valor).slice(0, 10) : '';
+  if (!valor) return '';
+  const texto = String(valor).slice(0, 10);
+  const valida = /^\d{4}-\d{2}-\d{2}$/.test(texto);
+  if (!valida) {
+    console.warn('NEXUS · oficio-certificado: fecha inválida recibida, se ignora:', valor);
+    return '';
+  }
+  return texto;
 }
 
 function fechaLarga(iso) {
@@ -140,8 +150,18 @@ function fechaLarga(iso) {
 }
 
 export function rangoDias(inicio, dias) {
+  if (!dias || dias < 1) return '';
+
+  const cuantos = dias === 1 ? '(UN DÍA)'
+    : dias === 2 ? '(DOS DÍAS)'
+    : dias === 3 ? '(TRES DÍAS)'
+    : `(${dias} DÍAS)`;
+
+  /* Sin una fecha de inicio válida no se puede nombrar el rango,
+     pero sí se sabe cuántos días son — mejor mostrar solo eso
+     que mostrar una fecha inventada (NaN / undefined). */
   const limpia = soloFecha(inicio);
-  if (!limpia || !dias || dias < 1) return '';
+  if (!limpia) return cuantos;
 
   const d0 = new Date(limpia + 'T00:00');
   const fechas = [];
@@ -150,11 +170,6 @@ export function rangoDias(inicio, dias) {
     d.setDate(d.getDate() + i);
     fechas.push(d);
   }
-
-  const cuantos = dias === 1 ? '(UN DÍA)'
-    : dias === 2 ? '(DOS DÍAS)'
-    : dias === 3 ? '(TRES DÍAS)'
-    : `(${dias} DÍAS)`;
 
   const ultimo = fechas[fechas.length - 1];
   const mismoMes = fechas.every((d) =>
