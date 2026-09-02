@@ -8,6 +8,31 @@
   max-width: 480px;
 }
 
+/* Botón de cerrar sesión: arriba a la derecha, igual que en el
+   resto de módulos (cabecera-usuario). Aquí no hay cabecera, así
+   que va fijo a la ventana. Es la única salida en esta pantalla:
+   quien llega aquí ya inició sesión pero todavía no tiene empresa
+   activa, así que "Salir de empresa" no aplica todavía. */
+.btn-cerrar-sesion-flotante {
+  position: fixed;
+  top: 1.25rem;
+  right: 1.25rem;
+  padding: 0.45rem 0.95rem;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #fff;
+  background: var(--color-acento);
+  border: none;
+  border-radius: var(--radio);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-cerrar-sesion-flotante:hover {
+  background: var(--color-acento-oscuro);
+}
+
 .sel-emp-lista {
   display: flex;
   flex-direction: column;
