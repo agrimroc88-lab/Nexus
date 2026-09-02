@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/layout.css">
   <link rel="stylesheet" href="css/empresas.css">
-  <link rel="stylesheet" href="css/configuracion.css?v=5">
+  <link rel="stylesheet" href="css/configuracion.css?v=6">
 </head>
 <body class="app">
 
@@ -35,6 +35,7 @@
         <button class="pestana activa" data-vista="apariencia" type="button">Apariencia</button>
         <button class="pestana" data-vista="cargos" type="button">Sucursales y cargos</button>
         <button class="pestana" data-vista="modulos" type="button">Módulos por empresa</button>
+        <button class="pestana" data-vista="logo" type="button">Logo y color por empresa</button>
         <button class="pestana" data-vista="bitacora" type="button">Bitácora</button>
       </nav>
 
@@ -157,6 +158,59 @@
         </p>
 
         <div class="lista mod-lista" id="mod-lista" hidden></div>
+
+      </section>
+
+      <!-- ===== Vista: Logo y color por empresa ===== -->
+      <section class="vista" id="vista-logo" hidden>
+
+        <section class="selector-empresa">
+          <label class="etiqueta" for="logo-empresa">Empresa</label>
+          <select class="entrada" id="logo-empresa">
+            <option value="">— Seleccione una empresa —</option>
+          </select>
+        </section>
+
+        <div class="logo-grid" id="logo-area" hidden>
+
+          <section class="panel">
+            <h2 class="panel-titulo">Logo</h2>
+            <p class="ayuda">
+              Sube cualquier imagen del logo (PNG o JPG). El espacio vacío o
+              transparente alrededor de la marca se recorta solo, para que se
+              vea igual de grande sin importar cómo venga el archivo original.
+            </p>
+            <input type="file" id="logo-archivo" accept="image/png, image/jpeg">
+            <div class="logo-previa-caja" id="logo-previa-caja" hidden>
+              <img id="logo-previa" class="logo-previa" alt="Vista previa del logo recortado">
+            </div>
+            <div class="config-acciones">
+              <button class="boton-primario" id="btn-guardar-logo" type="button" disabled>
+                Guardar logo
+              </button>
+              <span class="ayuda" id="logo-guardado"></span>
+            </div>
+            <p class="alerta" id="alerta-logo" role="alert" hidden></p>
+          </section>
+
+          <section class="panel">
+            <h2 class="panel-titulo">Color del nombre</h2>
+            <p class="ayuda">
+              Solo cambia el color del nombre de la empresa en la cabecera —
+              no toca botones ni el resto de la interfaz.
+            </p>
+            <div class="control">
+              <input type="color" id="logo-color" value="#1b5e20">
+            </div>
+            <div class="config-acciones">
+              <button class="boton-primario" id="btn-guardar-color" type="button">
+                Guardar color
+              </button>
+              <span class="ayuda" id="color-guardado"></span>
+            </div>
+          </section>
+
+        </div>
 
       </section>
 
