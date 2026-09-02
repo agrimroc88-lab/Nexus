@@ -284,3 +284,30 @@
   opacity: 0.6;
   cursor: default;
 }
+
+/* --- Pestaña Logo y color por empresa --- */
+
+.logo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+.logo-previa-caja {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  margin: 1rem 0;
+  padding: 1rem;
+  background: var(--color-fondo);
+  border: 1px dashed var(--color-borde);
+  border-radius: var(--radio);
+}
+
+.logo-previa {
+  max-width: 100%;
+  max-height: 160px;
+  height: auto;
+}
