@@ -11,13 +11,16 @@
     · 2+ empresas          → el usuario elige una tarjeta.
    ============================================ */
 
-import { protegerPagina, empresasPermitidas, elegirEmpresaActiva }
+import { protegerPagina, empresasPermitidas, elegirEmpresaActiva, cerrarSesion }
   from './auth.js';
 
 const BASE = '/Nexus/';
 
 const $lista = document.getElementById('sel-emp-lista');
 const $mensaje = document.getElementById('mensaje');
+const $btnCerrarSesion = document.getElementById('btn-cerrar-sesion');
+
+if ($btnCerrarSesion) $btnCerrarSesion.addEventListener('click', cerrarSesion);
 
 iniciar();
 
