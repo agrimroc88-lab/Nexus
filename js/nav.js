@@ -47,9 +47,9 @@ export const MODULOS = [
  * @param {object} perfil - perfil devuelto por protegerPagina()
  * @param {string} moduloActivo - id del módulo actual
  */
-export function montarNavegacion(perfil, moduloActivo) {
-  pintarMarca();
-  pintarTituloEmpresa();
+export async function montarNavegacion(perfil, moduloActivo) {
+  await pintarMarca();
+  await pintarTituloEmpresa();
   pintarUsuario(perfil);
   pintarEnlaces(perfil, moduloActivo);
   conectarEventos();
@@ -118,25 +118,61 @@ async function aplicarConfigVisual() {
   } catch (_) { /* silencioso: usa defaults */ }
 }
 
-/* Logo de Agrimroc en el sidebar (reemplaza el texto NEXUS).
-   Ruta relativa: logo.png en la raíz del repo. */
-function pintarMarca() {
-  const $marca = document.querySelector('.lateral-marca');
-  if (!$marca) return;
-  $marca.innerHTML =
-    '<img src="logo.png" alt="Minera Agrimroc S.A." class="lateral-logo">';
+/* Datos de marca de la empresa activa: logo, nombre y color.
+   Si la empresa no tiene logo o color configurado todavía (caso
+   de Agrimroc, que nunca pasó por la pestaña nueva), se usa el
+   logo fijo de siempre — así ninguna empresa existente cambia
+   de aspecto sin que un admin lo configure a propósito. */
+async function datosEmpresaActiva() {
+  const id = empresaActivaId();
+  if (!id) return null;
+
+  const { data, error } = await supabase
+    .from('empresas')
+    .select('razon_social, logo_url, color_marca')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (error) {
+    console.warn('NEXUS · nav: no se pudo leer la empresa activa:', error.message);
+    return null;
+  }
+  return data;
 }
 
-/* Título centrado en la cabecera: AGRIMROC S.A + USSO. */
-function pintarTituloEmpresa() {
+function escaparTexto(texto) {
+  const div = document.createElement('div');
+  div.textContent = texto ?? '';
+  return div.innerHTML;
+}
+
+async function pintarMarca() {
+  const $marca = document.querySelector('.lateral-marca');
+  if (!$marca) return;
+
+  const empresa = await datosEmpresaActiva();
+  const logo = empresa?.logo_url || 'logo.png';
+  const alt = empresa?.razon_social || 'Nexus';
+
+  $marca.innerHTML =
+    `<img src="${escaparTexto(logo)}" alt="${escaparTexto(alt)}" class="lateral-logo">`;
+}
+
+/* Título centrado en la cabecera: nombre de la empresa activa. */
+async function pintarTituloEmpresa() {
   const $cab = document.querySelector('.cabecera');
   if (!$cab || document.querySelector('.empresa-titulo')) return;
+
+  const empresa = await datosEmpresaActiva();
+  const nombre = empresa?.razon_social || 'AGRIMROC S.A.';
+  const color = empresa?.color_marca;
 
   const div = document.createElement('div');
   div.className = 'empresa-titulo';
   div.innerHTML =
-    '<span class="empresa-nombre">AGRIMROC S.A.</span>' +
-    '<span class="empresa-sub">USSO · Unidad de Seguridad y Salud Ocupacional</span>';
+    `<span class="empresa-nombre"${color ? ` style="color:${escaparTexto(color)}"` : ''}>`
+    + `${escaparTexto(nombre)}</span>`
+    + '<span class="empresa-sub">USSO · Unidad de Seguridad y Salud Ocupacional</span>';
 
   // Insertar centrado: después del título del módulo
   const $titulo = $cab.querySelector('.cabecera-titulo');

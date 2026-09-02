@@ -179,9 +179,11 @@ async function initCargos() {
       document.getElementById('vista-apariencia').hidden = v !== 'apariencia';
       document.getElementById('vista-cargos').hidden = v !== 'cargos';
       document.getElementById('vista-modulos').hidden = v !== 'modulos';
+      document.getElementById('vista-logo').hidden = v !== 'logo';
       document.getElementById('vista-bitacora').hidden = v !== 'bitacora';
       if (v === 'cargos') cargarEmpresasCargos();
       if (v === 'modulos') cargarEmpresasModulos();
+      if (v === 'logo') cargarEmpresasLogo();
       if (v === 'bitacora') iniciarBitacora();
     }));
 
@@ -196,6 +198,15 @@ async function initCargos() {
     document.getElementById('mod-lista').hidden = !id;
     if (id) pintarModulos(id);
   });
+
+  document.getElementById('logo-empresa').addEventListener('change', (e) => {
+    logoEstado.empresaId = e.target.value || null;
+    document.getElementById('logo-area').hidden = !logoEstado.empresaId;
+    if (logoEstado.empresaId) cargarLogoActual();
+  });
+  document.getElementById('logo-archivo').addEventListener('change', alElegirLogo);
+  document.getElementById('btn-guardar-logo').addEventListener('click', guardarLogo);
+  document.getElementById('btn-guardar-color').addEventListener('click', guardarColor);
 
   document.getElementById('btn-add-suc').addEventListener('click', addSucursal);
   document.getElementById('btn-add-cargo').addEventListener('click', addCargo);
@@ -273,6 +284,266 @@ async function pintarModulos(empresaId) {
 
     $lista.appendChild(fila);
   });
+}
+
+/* ============================================
+   Pestaña: Logo y color por empresa
+   ============================================ */
+
+const logoEstado = { empresaId: null, logoRecortadoDataUrl: null };
+
+let empresasCargadasLogo = false;
+async function cargarEmpresasLogo() {
+  if (empresasCargadasLogo) return;
+  const perfil = sesionActual() || { rol: 'admin' };
+  const data = await empresasPermitidas(perfil);
+  const $s = document.getElementById('logo-empresa');
+  (data || []).forEach((e) => {
+    const o = document.createElement('option');
+    o.value = e.id; o.textContent = e.razon_social;
+    $s.appendChild(o);
+  });
+  empresasCargadasLogo = true;
+}
+
+/* Trae el logo y color ya guardados de la empresa elegida, para
+   que la vista previa arranque mostrando lo que ya existe, no
+   un cuadro en blanco. */
+async function cargarLogoActual() {
+  const $btn = document.getElementById('btn-guardar-logo');
+  const $previaCaja = document.getElementById('logo-previa-caja');
+  const $previa = document.getElementById('logo-previa');
+  const $archivo = document.getElementById('logo-archivo');
+  const $color = document.getElementById('logo-color');
+  const $alerta = document.getElementById('alerta-logo');
+
+  $archivo.value = '';
+  logoEstado.logoRecortadoDataUrl = null;
+  $btn.disabled = true;
+  $alerta.hidden = true;
+  document.getElementById('logo-guardado').textContent = '';
+  document.getElementById('color-guardado').textContent = '';
+
+  const { data } = await supabase
+    .from('empresas')
+    .select('logo_url, color_marca')
+    .eq('id', logoEstado.empresaId)
+    .maybeSingle();
+
+  if (data?.logo_url) {
+    $previa.src = data.logo_url;
+    $previaCaja.hidden = false;
+  } else {
+    $previaCaja.hidden = true;
+  }
+
+  $color.value = data?.color_marca || '#1b5e20';
+}
+
+/* Al elegir un archivo, se recorta el espacio vacío o
+   transparente alrededor de la marca ANTES de mostrar la vista
+   previa — así, sin importar cómo venga el archivo original,
+   el logo siempre llena el espacio disponible al máximo. Esto
+   es lo que garantiza que cualquier empresa nueva se vea igual
+   de grande que Agrimroc en cada documento. */
+async function alElegirLogo(e) {
+  const archivo = e.target.files?.[0];
+  const $alerta = document.getElementById('alerta-logo');
+  $alerta.hidden = true;
+
+  if (!archivo) return;
+
+  try {
+    const dataUrl = await recortarImagen(archivo);
+    logoEstado.logoRecortadoDataUrl = dataUrl;
+
+    document.getElementById('logo-previa').src = dataUrl;
+    document.getElementById('logo-previa-caja').hidden = false;
+    document.getElementById('btn-guardar-logo').disabled = false;
+  } catch (err) {
+    console.error('NEXUS · configuracion: no se pudo recortar el logo', err);
+    $alerta.textContent = 'No se pudo procesar esa imagen. Intente con otro archivo.';
+    $alerta.hidden = false;
+  }
+}
+
+/**
+ * Recorta el espacio transparente o casi blanco alrededor de la
+ * marca, usando un lienzo (canvas) en el navegador. Devuelve un
+ * PNG en formato data URL, listo para subir.
+ */
+function recortarImagen(archivo) {
+  return new Promise((resolve, reject) => {
+    const lector = new FileReader();
+    lector.onerror = () => reject(new Error('No se pudo leer el archivo'));
+    lector.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('No se pudo cargar la imagen'));
+      img.onload = () => {
+        try {
+          resolve(recortarEnLienzo(img));
+        } catch (err) {
+          reject(err);
+        }
+      };
+      img.src = lector.result;
+    };
+    lector.readAsDataURL(archivo);
+  });
+}
+
+function recortarEnLienzo(img) {
+  const ancho = img.naturalWidth;
+  const alto = img.naturalHeight;
+
+  const lienzo = document.createElement('canvas');
+  lienzo.width = ancho;
+  lienzo.height = alto;
+  const ctx = lienzo.getContext('2d');
+  ctx.drawImage(img, 0, 0);
+
+  const { data } = ctx.getImageData(0, 0, ancho, alto);
+
+  /* Un píxel cuenta como "vacío" si es transparente o casi
+     blanco puro — el margen que sobra alrededor del logotipo
+     en la mayoría de archivos exportados desde Canva, Figma o
+     Word. */
+  const esVacio = (i) => {
+    const a = data[i + 3];
+    if (a < 10) return true;
+    return data[i] > 250 && data[i + 1] > 250 && data[i + 2] > 250;
+  };
+
+  let top = 0, bottom = alto - 1, left = 0, right = ancho - 1;
+
+  busquedaTop:
+  for (; top < alto; top++) {
+    for (let x = 0; x < ancho; x++) {
+      if (!esVacio((top * ancho + x) * 4)) break busquedaTop;
+    }
+  }
+
+  busquedaBottom:
+  for (; bottom > top; bottom--) {
+    for (let x = 0; x < ancho; x++) {
+      if (!esVacio((bottom * ancho + x) * 4)) break busquedaBottom;
+    }
+  }
+
+  busquedaLeft:
+  for (; left < ancho; left++) {
+    for (let y = top; y <= bottom; y++) {
+      if (!esVacio((y * ancho + left) * 4)) break busquedaLeft;
+    }
+  }
+
+  busquedaRight:
+  for (; right > left; right--) {
+    for (let y = top; y <= bottom; y++) {
+      if (!esVacio((y * ancho + right) * 4)) break busquedaRight;
+    }
+  }
+
+  /* Si la imagen resultara vacía por completo (un archivo en
+     blanco, por ejemplo), se usa la original tal cual en vez de
+     producir un recorte de tamaño cero. */
+  const anchoRecorte = right - left + 1;
+  const altoRecorte = bottom - top + 1;
+  if (anchoRecorte <= 0 || altoRecorte <= 0) {
+    return lienzo.toDataURL('image/png');
+  }
+
+  /* Un margen pequeño y parejo se ve más ordenado que el logo
+     pegado justo al borde de su propia caja. */
+  const margen = Math.round(Math.max(anchoRecorte, altoRecorte) * 0.04);
+
+  const final = document.createElement('canvas');
+  final.width = anchoRecorte + margen * 2;
+  final.height = altoRecorte + margen * 2;
+  const ctxFinal = final.getContext('2d');
+  ctxFinal.drawImage(
+    lienzo,
+    left, top, anchoRecorte, altoRecorte,
+    margen, margen, anchoRecorte, altoRecorte
+  );
+
+  return final.toDataURL('image/png');
+}
+
+function dataUrlABlob(dataUrl) {
+  const [cabecera, base64] = dataUrl.split(',');
+  const binario = atob(base64);
+  const bytes = new Uint8Array(binario.length);
+  for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
+  return new Blob([bytes], { type: 'image/png' });
+}
+
+async function guardarLogo() {
+  if (!logoEstado.empresaId || !logoEstado.logoRecortadoDataUrl) return;
+
+  const $btn = document.getElementById('btn-guardar-logo');
+  const $guardado = document.getElementById('logo-guardado');
+  const $alerta = document.getElementById('alerta-logo');
+  $alerta.hidden = true;
+  $btn.disabled = true;
+  $btn.textContent = 'Guardando…';
+
+  const blob = dataUrlABlob(logoEstado.logoRecortadoDataUrl);
+  const ruta = `${logoEstado.empresaId}/logo.png`;
+
+  const { error: errSubida } = await supabase.storage
+    .from('logos-empresas')
+    .upload(ruta, blob, { upsert: true, contentType: 'image/png' });
+
+  if (errSubida) {
+    $btn.disabled = false;
+    $btn.textContent = 'Guardar logo';
+    $alerta.textContent = 'No se pudo subir el logo: ' + errSubida.message;
+    $alerta.hidden = false;
+    return;
+  }
+
+  const { data: publica } = supabase.storage.from('logos-empresas').getPublicUrl(ruta);
+  // Se agrega la hora como parámetro para que el navegador no
+  // siga mostrando el logo viejo desde su caché al reemplazarlo.
+  const url = `${publica.publicUrl}?t=${Date.now()}`;
+
+  const { error: errGuardar } = await supabase
+    .from('empresas')
+    .update({ logo_url: url })
+    .eq('id', logoEstado.empresaId);
+
+  $btn.disabled = false;
+  $btn.textContent = 'Guardar logo';
+
+  if (errGuardar) {
+    $alerta.textContent = 'El archivo se subió, pero no se pudo guardar en la empresa: ' + errGuardar.message;
+    $alerta.hidden = false;
+    return;
+  }
+
+  $guardado.textContent = 'Logo guardado ✓';
+  setTimeout(() => { $guardado.textContent = ''; }, 3000);
+}
+
+async function guardarColor() {
+  if (!logoEstado.empresaId) return;
+
+  const color = document.getElementById('logo-color').value;
+  const $guardado = document.getElementById('color-guardado');
+
+  const { error } = await supabase
+    .from('empresas')
+    .update({ color_marca: color })
+    .eq('id', logoEstado.empresaId);
+
+  if (error) {
+    alert('No se pudo guardar el color: ' + error.message);
+    return;
+  }
+
+  $guardado.textContent = 'Color guardado ✓';
+  setTimeout(() => { $guardado.textContent = ''; }, 3000);
 }
 
 async function cargarSuc() {
