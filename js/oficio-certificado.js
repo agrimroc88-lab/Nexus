@@ -266,6 +266,12 @@ function textoDiagnostico(d) {
  * @returns {boolean} false si falta la zona de impresión
  */
 export async function imprimirOficio(d) {
+  const $z = document.getElementById('oficio-impresion');
+  if (!$z) {
+    alert('Falta actualizar la página en el servidor para imprimir oficios.');
+    return false;
+  }
+
   const html = d.clase === 'restricciones' ? hojaRestricciones(d) : hojaJustificacion(d);
 
   /* Dos copias del MISMO oficio en la misma hoja: una para el
@@ -273,63 +279,25 @@ export async function imprimirOficio(d) {
      dejar la segunda mitad en blanco, como antes. La segunda
      copia va envuelta aparte para poder darle su propio
      margen izquierdo, sin afectar a la primera. */
-  const contenido = `<div class="of-a4">${html}<div class="of-corte"></div>`
-                   + `<div class="of-copia-derecha">${html}</div></div>`;
+  $z.innerHTML = `<div class="of-a4">${html}<div class="of-corte"></div>`
+               + `<div class="of-copia-derecha">${html}</div></div>`;
 
-  /* Ventana de impresión aparte, con SOLO el CSS que el oficio
-     necesita (base.css + certificados.css) — nada de lo demás
-     que cargue la página desde donde se llame. Así el oficio se
-     ve exactamente igual sin importar si se imprime desde
-     Atenciones médicas, Certificados médicos, o cualquier otro
-     módulo que en el futuro lo use: nunca hereda ni choca con
-     el resto de hojas de estilo de esa página (como el @page de
-     farmacia.css, que competía con el de este documento y
-     empujaba el encabezado fuera de la hoja). */
-  const $ventana = window.open('', '_blank', 'width=900,height=700');
-  if (!$ventana) {
-    alert('El navegador bloqueó la ventana de impresión. Permite las ventanas emergentes para este sitio e inténtalo de nuevo.');
-    return false;
-  }
+  const titulo = document.title;
+  document.title = `Oficio · ${d.trabajador?.nombre_completo || ''}`;
+  document.body.classList.add('imprimiendo-oficio');
 
-  const raiz = new URL('..', import.meta.url).href; // .../Nexus/
-  $ventana.document.write(`<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <title>Oficio · ${escapar(d.trabajador?.nombre_completo || '')}</title>
-  <base href="${raiz}">
-  <link rel="stylesheet" href="css/base.css">
-  <link rel="stylesheet" href="css/certificados.css">
-</head>
-<body class="imprimiendo-oficio">
-  <div class="oficio-impresion">${contenido}</div>
-</body>
-</html>`);
-  $ventana.document.close();
+  /* El navegador no descarga el logo hasta que el <img> entra al
+     documento, y print() no espera por él: llamarlo de inmediato
+     saca la vista previa sin logo (o a medio dibujar). El resto
+     del sistema ya resuelve esto en impresion.js —aquí solo
+     faltaba usarlo, como en informes, farmacia y grupos. */
+  await esperarImagenes($z);
+  window.print();
 
-  /* Dos cosas que esperar antes de imprimir, ninguna de las dos
-     lista de inmediato:
-     1) el CSS —las @page, tamaños y colores del oficio viven en
-        certificados.css, que se acaba de pedir por red; si se
-        imprime antes de que llegue, sale con el tamaño y la
-        orientación "de fábrica" del navegador (justo lo que
-        pasó en la primera prueba: encabezado enorme, vertical).
-     2) el logo —el navegador no lo descarga hasta que el <img>
-        entra al documento, y print() no espera por él. */
-  const $hojas = [...$ventana.document.querySelectorAll('link[rel="stylesheet"]')];
-  const cssListo = Promise.race([
-    Promise.all($hojas.map(($h) => $h.sheet
-      ? Promise.resolve()
-      : new Promise((listo) => {
-          $h.addEventListener('load', listo, { once: true });
-          $h.addEventListener('error', listo, { once: true });
-        }))),
-    new Promise((listo) => setTimeout(listo, 3000)),
-  ]);
-  await Promise.all([cssListo, esperarImagenes($ventana.document.body)]);
-
-  $ventana.focus();
-  $ventana.print();
+  setTimeout(() => {
+    document.body.classList.remove('imprimiendo-oficio');
+    document.title = titulo;
+  }, 500);
 
   return true;
 }
