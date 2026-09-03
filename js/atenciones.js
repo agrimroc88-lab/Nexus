@@ -2946,9 +2946,14 @@ async function seleccionarEmpresa(empresa) {
   fijarEmpresaEmergencia(estado.empresaId);
 
   /* Destinatarios y membrete del oficio: se leen una vez al
-     entrar al módulo, no en cada certificado. */
-  cargarDatosOficio(estado.empresaId, estado.empresaNombre)
-    .then(() => llenarDestinatarios('at_cert_dest'));
+     entrar al módulo, no en cada certificado. Antes esto se
+     disparaba sin esperar (fire-and-forget): si el usuario
+     atendía y emitía el certificado muy rápido, el logo y el
+     nombre de la empresa todavía no habían llegado y el oficio
+     salía sin encabezado. Certificados médicos sí lo esperaba
+     (dentro de cargarConfig); aquí faltaba ese mismo await. */
+  await cargarDatosOficio(estado.empresaId, estado.empresaNombre);
+  llenarDestinatarios('at_cert_dest');
   $area.hidden = false;
   $avisoIni.hidden = true;
 
