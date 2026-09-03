@@ -286,6 +286,22 @@ export async function imprimirOficio(d) {
   document.title = `Oficio · ${d.trabajador?.nombre_completo || ''}`;
   document.body.classList.add('imprimiendo-oficio');
 
+  /* Atenciones médicas también carga farmacia.css, que trae su
+     propia @page (vertical, con margen, para sus informes). Con
+     dos @page compitiendo por la misma hoja, el navegador no es
+     confiable resolviendo cuál gana —el mismo motivo por el que
+     el margen de esta hoja ya se dejó fijo más abajo, según su
+     propio comentario—. En vez de sumar una tercera @page a
+     competir (ya se probó: tampoco es confiable), se apaga la
+     hoja de Farmacia nada más mientras se imprime el oficio, y
+     se reactiva enseguida. No afecta a Farmacia —solo se apaga
+     un instante, cuando no se está imprimiendo un informe suyo—
+     y en Certificados médicos no hace nada, porque esa página
+     ni siquiera carga farmacia.css. */
+  const $cssFarmacia = [...document.styleSheets]
+    .find((h) => h.href && h.href.includes('farmacia.css'));
+  if ($cssFarmacia) $cssFarmacia.disabled = true;
+
   /* El navegador no descarga el logo hasta que el <img> entra al
      documento, y print() no espera por él: llamarlo de inmediato
      saca la vista previa sin logo (o a medio dibujar). El resto
@@ -297,6 +313,7 @@ export async function imprimirOficio(d) {
   setTimeout(() => {
     document.body.classList.remove('imprimiendo-oficio');
     document.title = titulo;
+    if ($cssFarmacia) $cssFarmacia.disabled = false;
   }, 500);
 
   return true;
