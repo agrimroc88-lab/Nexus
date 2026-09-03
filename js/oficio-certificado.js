@@ -274,6 +274,16 @@ export async function imprimirOficio(d) {
 
   const html = d.clase === 'restricciones' ? hojaRestricciones(d) : hojaJustificacion(d);
 
+  // --- DIAGNÓSTICO TEMPORAL: quitar después de resolver el tema del logo ---
+  console.log('%c=== DIAGNÓSTICO OFICIO ===', 'font-weight:bold;color:#2a6;font-size:14px;');
+  console.log('of.logoUrl:', of.logoUrl);
+  console.log('of.empresaNombre:', of.empresaNombre);
+  console.log('of.config:', of.config);
+  console.log('destinatario recibido:', d.destinatario);
+  console.log('HTML generado (primeros 800 caracteres):', html.slice(0, 800));
+  console.log('%c=== FIN DIAGNÓSTICO ===', 'font-weight:bold;color:#2a6;font-size:14px;');
+  // --- FIN DIAGNÓSTICO TEMPORAL ---
+
   /* Dos copias del MISMO oficio en la misma hoja: una para el
      archivo de la empresa, otra para el trabajador —en vez de
      dejar la segunda mitad en blanco, como antes. La segunda
