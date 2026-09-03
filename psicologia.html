@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="css/empresas.css">
   <link rel="stylesheet" href="css/trabajadores.css">
   <link rel="stylesheet" href="css/atenciones.css">
-  <link rel="stylesheet" href="css/psicologia.css?v=6">
+  <link rel="stylesheet" href="css/psicologia.css?v=7">
   <style>
     .seccion-titulo {
       font-size: 0.95rem;
@@ -246,6 +246,12 @@
               <div class="ficha-item">
                 <span class="ficha-etiqueta">Cargo</span>
                 <span class="ficha-valor" id="p-cargo">—</span>
+                <button class="boton-enlace" id="btn-editar-cargo" type="button" title="Corregir el cargo de este trabajador">Editar</button>
+                <span class="ficha-cargo-edicion" id="p-cargo-edicion" hidden>
+                  <select class="entrada" id="p-cargo-select"></select>
+                  <button class="boton-secundario" id="btn-guardar-cargo" type="button">Guardar</button>
+                  <button class="boton-secundario" id="btn-cancelar-cargo" type="button">Cancelar</button>
+                </span>
               </div>
               <div class="ficha-item">
                 <span class="ficha-etiqueta">Fichas</span>
@@ -747,6 +753,6 @@
   <!-- Área de impresión: se llena al imprimir y solo es visible en @media print -->
   <div id="zona-impresion" class="zona-impresion" aria-hidden="true"></div>
 
-  <script type="module" src="js/psicologia.js?v=23"></script>
+  <script type="module" src="js/psicologia.js?v=24"></script>
 </body>
 </html>
