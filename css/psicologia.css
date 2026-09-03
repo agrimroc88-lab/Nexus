@@ -328,3 +328,29 @@
 }
 .cap-campos .campo-crece { grid-column: 1 / -1; }
 
+
+/* ---------- Corregir cargo desde la ficha ----------
+   El psicólogo detecta cargos desactualizados al atender, y
+   antes tenía que avisarle a otra persona para corregirlo en
+   Trabajadores. Se le da esta salida rápida, acotada solo al
+   cargo (no toca nada más del trabajador). */
+.boton-enlace {
+  margin-left: 0.5rem;
+  padding: 0;
+  font-family: inherit;
+  font-size: 0.76rem;
+  color: var(--color-acento);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.boton-enlace:hover { opacity: 0.8; }
+
+.ficha-cargo-edicion {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: 0.5rem;
+}
+.ficha-cargo-edicion select { max-width: 220px; }
