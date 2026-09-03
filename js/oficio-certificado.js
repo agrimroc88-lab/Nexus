@@ -274,16 +274,6 @@ export async function imprimirOficio(d) {
 
   const html = d.clase === 'restricciones' ? hojaRestricciones(d) : hojaJustificacion(d);
 
-  // --- DIAGNÓSTICO TEMPORAL: quitar después de resolver el tema del logo ---
-  console.log('%c=== DIAGNÓSTICO OFICIO ===', 'font-weight:bold;color:#2a6;font-size:14px;');
-  console.log('of.logoUrl:', of.logoUrl);
-  console.log('of.empresaNombre:', of.empresaNombre);
-  console.log('of.config:', of.config);
-  console.log('destinatario recibido:', d.destinatario);
-  console.log('HTML generado (primeros 800 caracteres):', html.slice(0, 800));
-  console.log('%c=== FIN DIAGNÓSTICO ===', 'font-weight:bold;color:#2a6;font-size:14px;');
-  // --- FIN DIAGNÓSTICO TEMPORAL ---
-
   /* Dos copias del MISMO oficio en la misma hoja: una para el
      archivo de la empresa, otra para el trabajador —en vez de
      dejar la segunda mitad en blanco, como antes. La segunda
@@ -292,22 +282,23 @@ export async function imprimirOficio(d) {
   $z.innerHTML = `<div class="of-a4">${html}<div class="of-corte"></div>`
                + `<div class="of-copia-derecha">${html}</div></div>`;
 
+  /* certificados.css centra el oficio con un margen superior
+     negativo (-20mm), afinado y probado a fondo para Certificados
+     médicos —no se toca ese archivo—. En Atenciones médicas, ese
+     mismo margen empuja el encabezado (logo + "PARA:") fuera del
+     borde de la hoja: el contenido SÍ se genera bien (confirmado
+     con el diagnóstico), solo queda tapado. Se anula ese margen
+     por JavaScript, y solo en Atenciones —se detecta por si esta
+     página también carga farmacia.css, cosa que Certificados
+     médicos nunca hace—, así que allá esto no cambia nada. */
+  const enAtenciones = !!document.querySelector('link[href*="farmacia.css"]');
+  if (enAtenciones) {
+    $z.querySelectorAll('.of-a4').forEach(($a4) => { $a4.style.marginTop = '0'; });
+  }
+
   const titulo = document.title;
   document.title = `Oficio · ${d.trabajador?.nombre_completo || ''}`;
   document.body.classList.add('imprimiendo-oficio');
-
-  /* Atenciones médicas también carga farmacia.css, que trae su
-     propia @page (vertical, con margen, para sus informes). Con
-     dos @page compitiendo por la misma hoja, el navegador no
-     resuelve de forma confiable cuál gana —ya se probó apagarla
-     con "disabled" y no bastó—. Esta vez se QUITA por completo
-     del documento (no solo se desactiva) justo antes de
-     imprimir, y se vuelve a poner en su lugar apenas termina.
-     En Certificados médicos esto no hace nada, porque esa
-     página ni siquiera carga farmacia.css. */
-  const $linkFarmacia = document.querySelector('link[href*="farmacia.css"]');
-  const $marcador = document.createComment('farmacia.css (quitado temporalmente para imprimir el oficio)');
-  if ($linkFarmacia) $linkFarmacia.replaceWith($marcador);
 
   /* El navegador no descarga el logo hasta que el <img> entra al
      documento, y print() no espera por él: llamarlo de inmediato
@@ -320,7 +311,6 @@ export async function imprimirOficio(d) {
   setTimeout(() => {
     document.body.classList.remove('imprimiendo-oficio');
     document.title = titulo;
-    if ($linkFarmacia) $marcador.replaceWith($linkFarmacia);
   }, 500);
 
   return true;
