@@ -1296,6 +1296,27 @@ async function registrarOrden(medicamentos, insumos) {
    la base, y se imprime con ese número. Si el guardado falla
    se avisa y NO se imprime: una hoja con un número que no
    existe en el sistema es peor que ninguna hoja. */
+/* Quien aprueba la orden es el encargado del área de salud, y
+   no cambia con la sesión —la misma persona que firma como
+   "Elaborado por" en el informe mensual, leída de la misma
+   tabla: si mañana cambia el responsable, se corrige en un
+   solo sitio y no en varios documentos por separado. */
+async function obtenerRevisorOrden() {
+  const { data, error } = await supabase
+    .from('botiquin_destinatarios')
+    .select('nombre, cargo')
+    .eq('tipo', 'elabora')
+    .eq('activo', true)
+    .maybeSingle();
+
+  if (error || !data) {
+    console.warn('NEXUS · orden de compra: no hay firmante de aprobación '
+               + 'configurado (botiquin_destinatarios con tipo = elabora).');
+    return null;
+  }
+  return { nombre: data.nombre, cargo: data.cargo || '' };
+}
+
 async function imprimirOrden() {
   const lista = medicamentosAReponer();
   const insumos = insumosAReponer();
@@ -1307,6 +1328,15 @@ async function imprimirOrden() {
   const empresaNombre = estado.empresaNombre || 'Empresa';
   const hoy = new Date();
   const fecha = hoy.toLocaleDateString('es-EC', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  /* Quien solicita: el profesional que tiene la sesión abierta
+     ahora mismo, igual que "Elaborado por" en el informe
+     mensual. Quien aprueba: el encargado fijo del área. */
+  const perfil = sesionActual();
+  const solicitante = perfil
+    ? [perfil.titulo, perfil.nombres, perfil.apellidos].filter(Boolean).join(' ').trim()
+    : null;
+  const revisor = await obtenerRevisorOrden();
 
   const $btn = document.getElementById('btn-imprimir-orden');
   $btn.disabled = true;
@@ -1387,8 +1417,18 @@ async function imprimirOrden() {
       ${seccionIns}
 
       <div class="oc-firmas">
-        <div class="oc-firma"><div class="oc-linea"></div><p>Solicitado por</p></div>
-        <div class="oc-firma"><div class="oc-linea"></div><p>Autorizado por</p></div>
+        <div class="oc-firma">
+          <div class="oc-linea"></div>
+          <p class="oc-firma-rotulo">Solicitado por</p>
+          <p class="oc-firma-nombre">${escapar(solicitante || 'No identificado')}</p>
+          ${perfil?.cargo ? `<p class="oc-firma-cargo">${escapar(perfil.cargo)}</p>` : ''}
+        </div>
+        <div class="oc-firma">
+          <div class="oc-linea"></div>
+          <p class="oc-firma-rotulo">Autorizado por</p>
+          <p class="oc-firma-nombre">${escapar(revisor?.nombre || 'Por definir')}</p>
+          ${revisor?.cargo ? `<p class="oc-firma-cargo">${escapar(revisor.cargo)}</p>` : ''}
+        </div>
       </div>
     </div>`;
 
@@ -1629,6 +1669,8 @@ async function reimprimirOrden(o) {
       </table>`;
   };
 
+  const revisor = await obtenerRevisorOrden();
+
   document.getElementById('orden-impresion').innerHTML = `
     <div class="oc-hoja">
       <div class="oc-cabecera">
@@ -1646,10 +1688,17 @@ async function reimprimirOrden(o) {
       ${bloque('Medicamentos', 'medicamento')}
       ${bloque('Insumos', 'insumo')}
       <div class="oc-firmas">
-        <div class="oc-firma"><div class="oc-linea"></div>
-          <p>Solicitado por${o.solicitado_por
-            ? '<br>' + escapar(o.solicitado_por) : ''}</p></div>
-        <div class="oc-firma"><div class="oc-linea"></div><p>Autorizado por</p></div>
+        <div class="oc-firma">
+          <div class="oc-linea"></div>
+          <p class="oc-firma-rotulo">Solicitado por</p>
+          <p class="oc-firma-nombre">${escapar(o.solicitado_por || 'No identificado')}</p>
+        </div>
+        <div class="oc-firma">
+          <div class="oc-linea"></div>
+          <p class="oc-firma-rotulo">Autorizado por</p>
+          <p class="oc-firma-nombre">${escapar(revisor?.nombre || 'Por definir')}</p>
+          ${revisor?.cargo ? `<p class="oc-firma-cargo">${escapar(revisor.cargo)}</p>` : ''}
+        </div>
       </div>
     </div>`;
 
