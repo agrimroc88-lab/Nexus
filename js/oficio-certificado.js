@@ -286,6 +286,19 @@ export async function imprimirOficio(d) {
   document.title = `Oficio · ${d.trabajador?.nombre_completo || ''}`;
   document.body.classList.add('imprimiendo-oficio');
 
+  /* Atenciones médicas también carga farmacia.css, que trae su
+     propia @page (vertical, con margen, para sus informes). Con
+     dos @page compitiendo por la misma hoja, el navegador no
+     resuelve de forma confiable cuál gana —ya se probó apagarla
+     con "disabled" y no bastó—. Esta vez se QUITA por completo
+     del documento (no solo se desactiva) justo antes de
+     imprimir, y se vuelve a poner en su lugar apenas termina.
+     En Certificados médicos esto no hace nada, porque esa
+     página ni siquiera carga farmacia.css. */
+  const $linkFarmacia = document.querySelector('link[href*="farmacia.css"]');
+  const $marcador = document.createComment('farmacia.css (quitado temporalmente para imprimir el oficio)');
+  if ($linkFarmacia) $linkFarmacia.replaceWith($marcador);
+
   /* El navegador no descarga el logo hasta que el <img> entra al
      documento, y print() no espera por él: llamarlo de inmediato
      saca la vista previa sin logo (o a medio dibujar). El resto
@@ -297,6 +310,7 @@ export async function imprimirOficio(d) {
   setTimeout(() => {
     document.body.classList.remove('imprimiendo-oficio');
     document.title = titulo;
+    if ($linkFarmacia) $marcador.replaceWith($linkFarmacia);
   }, 500);
 
   return true;
