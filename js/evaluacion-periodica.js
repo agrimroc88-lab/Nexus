@@ -42,7 +42,10 @@ function esAdminEP() {
 const VERSION = 'v1';
 console.info('NEXUS · evaluacion-periodica', VERSION);
 
-const HOY = () => new Date().toISOString().slice(0, 10);
+const HOY = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 /** Autor real de la sesión si no se encontró al médico ocupacional en
  *  usuarios_app; así un fallo en la búsqueda no deja el registro sin autor. */

@@ -20,7 +20,7 @@ import { montarNavegacion } from './nav.js?v=11';
 import { escapar, textoOGuion, retrasar, formatearFecha, resumenReposo, validarCedula }
   from './utils.js?v=12';
 import { montarEmergencia, fijarEmpresaEmergencia, pintarPanelClinico }
-  from './emergencia.js?v=11';
+  from './emergencia.js?v=12';
 import { sesionActual } from './auth.js?v=11';
 import {
   cargarDatosOficio, llenarDestinatarios, destinatarioPorId,
@@ -59,7 +59,10 @@ const estado = {
   vista: 'atenciones'
 };
 
-const HOY = () => new Date().toISOString().slice(0, 10);
+const HOY = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 const MESES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
                'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];

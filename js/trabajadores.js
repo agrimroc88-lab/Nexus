@@ -19,7 +19,7 @@ import { protegerPagina, ROLES, puedeVerClinica, empresasPermitidas, resolverEmp
 import { montarNavegacion } from './nav.js?v=11';
 import { validarCedula, escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=11';
 import { montarEmergencia, fijarEmpresaEmergencia, traerAlertas,
-         insigniasNomina, abrirFichaEmergencia } from './emergencia.js?v=11';
+         insigniasNomina, abrirFichaEmergencia } from './emergencia.js?v=12';
 
 /* --- Estado --- */
 const estado = {

@@ -106,7 +106,10 @@ const RESULTADOS = {
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
                'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
-const HOY = () => new Date().toISOString().slice(0, 10);
+const HOY = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 function puedeEscribir() {
   return PERSONAL.includes(ins.perfil?.rol);

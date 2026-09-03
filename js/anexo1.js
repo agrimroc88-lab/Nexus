@@ -28,7 +28,7 @@ import {
   guardarCaptura, cerrarCaptura, marcarFichaOcupacional,
   abrirNuevoExamen, cancelarFormExamen, guardarExamen,
   buscarParaAgregarConvocado, imprimirListaConvocados
-} from './evaluacion-periodica.js?v=10';
+} from './evaluacion-periodica.js?v=11';
 import {
   iniciarInformeEvaluacion, generarInformeEpidemiologico, descargarInformeEpidemiologico,
   generarInformeSeguimiento, descargarInformeSeguimiento,
@@ -43,11 +43,11 @@ import {
   iniciarInformeAtd, generarInformeAnualAtd, descargarInformeAnualAtd,
   generarInformeComparativoAtd, descargarInformeComparativoAtd, marcarRecomendacionesEditadas
 } from './informe-test-atd.js?v=9';
-import { montarGrupos, cargarGrupos, pintarGrupos } from './grupos.js?v=12';
+import { montarGrupos, cargarGrupos, pintarGrupos } from './grupos.js?v=13';
 import { montarBotiquines, cargarBotiquines, pintarBotiquines }
-  from './botiquines.js?v=12';
+  from './botiquines.js?v=13';
 import { montarInstalaciones, cargarInstalaciones, pintarInstalaciones }
-  from './instalaciones.js?v=19';
+  from './instalaciones.js?v=20';
 import {
   iniciarInformeEventos, generarInformeEventos, descargarInformeEventos,
   usarRecomendacionEventos, abrirNuevaRecomendacionEventos,

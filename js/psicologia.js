@@ -37,7 +37,10 @@ const estado = {
   editandoId: null      // id de la ficha que se está editando (null = ficha nueva)
 };
 
-const HOY = () => new Date().toISOString().slice(0, 10);
+const HOY = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 const MESES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
                'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];

@@ -38,7 +38,10 @@ const em = {
   alVolver: null           // se ejecuta al cerrar la ficha
 };
 
-const HOY = () => new Date().toISOString().slice(0, 10);
+const HOY = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 /* Etiquetas de grupo. Se replican aquí a propósito: este
    módulo debe funcionar en Atenciones y Trabajadores, que
