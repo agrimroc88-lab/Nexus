@@ -121,4 +121,52 @@
   .bt-impresion .bt-hoja,
   .gp-impresion .gp-hoja,
   .em-impresion .em-hoja { padding: 0 !important; }
+
+  /* ---------- Firma de la orden de compra ----------
+     Estas clases (.oc-firmas, .oc-firma, .oc-linea) nunca
+     habían tenido estilo propio en ningún archivo: por eso
+     salían sin línea para firmar y con muy poco aire. El
+     espacio POR ENCIMA de este bloque ya lo calcula
+     impresion.js solo (5 cm, si la hoja lo permite —la misma
+     lógica que usa el informe mensual—); aquí solo hace
+     falta el diseño del bloque en sí, con el mismo estilo
+     visual que el resto de documentos de la unidad. */
+  .oc-firmas {
+    display: flex;
+    gap: 18mm;
+    justify-content: space-around;
+    text-align: center;
+    page-break-inside: avoid;
+  }
+
+  .oc-firma { flex: 1; max-width: 74mm; }
+
+  .oc-linea {
+    height: 0;
+    margin-bottom: 2.5mm;
+    border-top: 0.75pt solid var(--doc-texto);
+  }
+
+  .oc-firma-rotulo {
+    margin: 0 0 1.5mm !important;
+    font-size: 8pt;
+    letter-spacing: 0.6pt;
+    color: var(--doc-verde);
+    text-align: center !important;
+    text-transform: uppercase;
+  }
+
+  .oc-firma-nombre {
+    margin: 0 !important;
+    font-size: 10pt;
+    font-weight: bold;
+    text-align: center !important;
+  }
+
+  .oc-firma-cargo {
+    margin: 1mm 0 0 !important;
+    font-size: 9pt;
+    color: var(--doc-texto-suave);
+    text-align: center !important;
+  }
 }
