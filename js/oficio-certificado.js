@@ -286,24 +286,6 @@ export async function imprimirOficio(d) {
   document.title = `Oficio · ${d.trabajador?.nombre_completo || ''}`;
   document.body.classList.add('imprimiendo-oficio');
 
-  /* Atenciones médicas también carga farmacia.css, que trae su
-     propia @page (vertical, con margen, para sus informes). Dos
-     @page sin nombre compitiendo por la misma hoja empujaba y
-     recortaba el encabezado —nunca pasaba en Certificados
-     médicos porque esa página no carga farmacia.css—.
-
-     Una @page CON NOMBRE hubiera evitado el choque, pero fuerza
-     un salto de página antes del elemento que la usa: por eso
-     el oficio de prueba salió partido en dos hojas. En su lugar,
-     esta hoja de estilo se agrega de último, después de todo lo
-     demás —incluida farmacia.css, sin importar en qué orden
-     esté en el HTML—, así que su @page (sigue sin nombre) es
-     siempre la que manda. Se quita apenas termina de imprimir,
-     sin dejar rastro. */
-  const $paginaOficio = document.createElement('style');
-  $paginaOficio.textContent = '@page { size: A4 landscape; margin: 0; }';
-  document.head.appendChild($paginaOficio);
-
   /* El navegador no descarga el logo hasta que el <img> entra al
      documento, y print() no espera por él: llamarlo de inmediato
      saca la vista previa sin logo (o a medio dibujar). El resto
@@ -314,7 +296,6 @@ export async function imprimirOficio(d) {
 
   setTimeout(() => {
     document.body.classList.remove('imprimiendo-oficio');
-    $paginaOficio.remove();
     document.title = titulo;
   }, 500);
 
