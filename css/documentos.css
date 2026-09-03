@@ -101,18 +101,27 @@
   .doc-hoja,
   .gp-hoja,
   .em-hoja,
-  .oc-hoja,
   .hoja,
   .bt-impresion,
   .gp-impresion,
   .em-impresion,
-  .zona-impresion,
-  #orden-impresion {
+  .zona-impresion {
     /* Superior · derecho · inferior · izquierdo.
        El izquierdo es mayor porque estos documentos se
        perforan y se archivan: con margen simétrico, la
        perforadora muerde la primera columna de la tabla. */
     padding: 20mm 15mm 20mm 30mm !important;
+    box-sizing: border-box;
+  }
+
+  /* La orden de compra pidió aprovechar todo el ancho posible
+     de la hoja: 24mm desde el borde izquierdo (en vez de los
+     30mm del resto de documentos), sin la reserva extra para
+     perforadora que sí necesitan los que se archivan en
+     carpeta. */
+  .oc-hoja,
+  #orden-impresion {
+    padding: 20mm 15mm 20mm 24mm !important;
     box-sizing: border-box;
   }
 
