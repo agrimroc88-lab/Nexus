@@ -340,22 +340,11 @@
      "aire" visible ya se recortó por separado (el relleno interno
      de .of-hoja bajó de 9mm a 4mm, y el espacio entre copias de
      30mm a 10mm). */
-  /* Con nombre propia ("oficio-a4") y no la @page genérica sin
-     nombre: Atenciones médicas también carga farmacia.css, que
-     define su PROPIA @page (vertical, con margen, para sus
-     informes). Dos @page sin nombre compitiendo por la misma
-     hoja es justo lo que empujaba y recortaba el encabezado del
-     oficio ahí —nunca pasaba en Certificados médicos porque esa
-     página no carga farmacia.css—. Con nombre, esta @page ya no
-     compite con ninguna otra: .of-a4 la pide explícitamente más
-     abajo con "page: oficio-a4;", sin importar qué más se haya
-     cargado antes o después. */
-  @page oficio-a4 { size: A4 landscape; margin: 0; }
+  @page { size: A4 landscape; margin: 0; }
 
   /* En fila, centradas: los dos A5 verticales con la línea de
      corte al medio. Sin ancho total forzado en el contenedor. */
   .of-a4 {
-    page: oficio-a4;
     display: flex;
     flex-direction: row;
     justify-content: center;
