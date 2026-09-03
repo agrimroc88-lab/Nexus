@@ -307,12 +307,27 @@ export async function imprimirOficio(d) {
 </html>`);
   $ventana.document.close();
 
-  /* El navegador no descarga el logo hasta que el <img> entra al
-     documento, y print() no espera por él: llamarlo de inmediato
-     saca la vista previa sin logo (o a medio dibujar). El resto
-     del sistema ya resuelve esto en impresion.js —aquí se espera
-     igual, pero sobre el documento de la ventana nueva. */
-  await esperarImagenes($ventana.document.body);
+  /* Dos cosas que esperar antes de imprimir, ninguna de las dos
+     lista de inmediato:
+     1) el CSS —las @page, tamaños y colores del oficio viven en
+        certificados.css, que se acaba de pedir por red; si se
+        imprime antes de que llegue, sale con el tamaño y la
+        orientación "de fábrica" del navegador (justo lo que
+        pasó en la primera prueba: encabezado enorme, vertical).
+     2) el logo —el navegador no lo descarga hasta que el <img>
+        entra al documento, y print() no espera por él. */
+  const $hojas = [...$ventana.document.querySelectorAll('link[rel="stylesheet"]')];
+  const cssListo = Promise.race([
+    Promise.all($hojas.map(($h) => $h.sheet
+      ? Promise.resolve()
+      : new Promise((listo) => {
+          $h.addEventListener('load', listo, { once: true });
+          $h.addEventListener('error', listo, { once: true });
+        }))),
+    new Promise((listo) => setTimeout(listo, 3000)),
+  ]);
+  await Promise.all([cssListo, esperarImagenes($ventana.document.body)]);
+
   $ventana.focus();
   $ventana.print();
 
