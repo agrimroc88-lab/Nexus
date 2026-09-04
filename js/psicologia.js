@@ -34,7 +34,8 @@ const estado = {
   histAbierto: false,
   vista: 'fichas',
   verId: null,          // ficha mostrada en el modal de detalle
-  editandoId: null      // id de la ficha que se está editando (null = ficha nueva)
+  editandoId: null,     // id de la ficha que se está editando (null = ficha nueva)
+  cargos: []            // catálogo de cargos de la empresa, para poder corregirlo
 };
 
 const HOY = () => {
@@ -524,9 +525,98 @@ function ocultarSugerencias() {
   $c.innerHTML = '';
 }
 
+/* ============================================
+   Corregir el cargo desde la ficha
+
+   El cargo no vive en trabajadores directamente: v_trabajadores
+   lo calcula a partir del período laboral vigente (el que tiene
+   fecha_salida en blanco). Corregirlo es actualizar el
+   cargo_texto de ESE período —igual que hace Trabajadores al
+   editar un trabajador—, sin abrir uno nuevo ni tocar fechas.
+   ============================================ */
+
+async function cargarCargosCatalogo() {
+  const { data } = await supabase
+    .from('cargos_catalogo')
+    .select('id, nombre')
+    .eq('empresa_id', estado.empresaId)
+    .eq('activo', true)
+    .order('nombre');
+
+  estado.cargos = data || [];
+}
+
+function activarEdicionCargo() {
+  if (!estado.paciente) return;
+
+  const $select = document.getElementById('p-cargo-select');
+  $select.innerHTML = '<option value="">— Seleccionar —</option>';
+  estado.cargos.forEach((c) => {
+    const o = document.createElement('option');
+    o.value = c.nombre;
+    o.textContent = c.nombre;
+    if (c.nombre === estado.paciente.cargo) o.selected = true;
+    $select.appendChild(o);
+  });
+
+  document.getElementById('p-cargo').hidden = true;
+  document.getElementById('btn-editar-cargo').hidden = true;
+  document.getElementById('p-cargo-edicion').hidden = false;
+}
+
+function cancelarEdicionCargo() {
+  document.getElementById('p-cargo').hidden = false;
+  document.getElementById('btn-editar-cargo').hidden = false;
+  document.getElementById('p-cargo-edicion').hidden = true;
+}
+
+async function guardarCargoFicha() {
+  if (!estado.paciente) return;
+
+  const nuevoCargo = document.getElementById('p-cargo-select').value;
+  if (!nuevoCargo) { alert('Seleccione un cargo.'); return; }
+
+  const $btn = document.getElementById('btn-guardar-cargo');
+  $btn.disabled = true;
+
+  // El período laboral vigente es el que no tiene fecha de salida.
+  const { data: periodo, error: errBuscar } = await supabase
+    .from('periodos_laborales')
+    .select('id')
+    .eq('trabajador_id', estado.paciente.id)
+    .is('fecha_salida', null)
+    .order('fecha_ingreso', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (errBuscar || !periodo) {
+    $btn.disabled = false;
+    alert('No se encontró un período laboral vigente para corregir el cargo. '
+        + 'Pida a Trabajadores que lo revise.');
+    return;
+  }
+
+  const { error } = await supabase
+    .from('periodos_laborales')
+    .update({ cargo_texto: nuevoCargo })
+    .eq('id', periodo.id);
+
+  $btn.disabled = false;
+
+  if (error) {
+    alert('No se pudo actualizar el cargo: ' + error.message);
+    return;
+  }
+
+  estado.paciente.cargo = nuevoCargo;
+  document.getElementById('p-cargo').textContent = nuevoCargo;
+  cancelarEdicionCargo();
+}
+
 function mostrarPaciente(t) {
   estado.paciente = t;
   estado.histAbierto = false;
+  cancelarEdicionCargo();
 
   document.getElementById('aviso-fichas').hidden = true;
   document.getElementById('paciente').hidden = false;
@@ -1394,7 +1484,7 @@ async function seleccionarEmpresa(empresa) {
 }
 
 async function recargar() {
-  await Promise.all([cargarFichas(), cargarManual()]);
+  await Promise.all([cargarFichas(), cargarManual(), cargarCargosCatalogo()]);
   pintarResumen();
 
   if (estado.vista === 'atenciones') pintarAtenciones();
@@ -1429,6 +1519,11 @@ function conectarEventos() {
   document.getElementById('busca_codigo').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); buscarPaciente(); }
   });
+
+  /* --- Corregir cargo --- */
+  document.getElementById('btn-editar-cargo').addEventListener('click', activarEdicionCargo);
+  document.getElementById('btn-guardar-cargo').addEventListener('click', guardarCargoFicha);
+  document.getElementById('btn-cancelar-cargo').addEventListener('click', cancelarEdicionCargo);
   document.getElementById('busca_nombre').addEventListener('input', retrasar(buscarPorNombre, 200));
   document.getElementById('btn-nueva-ficha').addEventListener('click', abrirFichaNueva);
   document.getElementById('btn-historial').addEventListener('click', alternarHistorial);
