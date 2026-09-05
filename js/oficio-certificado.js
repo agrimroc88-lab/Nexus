@@ -433,6 +433,10 @@ function hojaRestricciones(d) {
           ${lineas.map((x) => `<li>${escapar(x)}</li>`).join('')}
         </ul>` : ''}
 
+      <p class="of-dato">
+        <b>ROTACIÓN DE ÁREA:</b> ${escapar(d.rotacion || 'AL MOMENTO NO AMERITA')}
+      </p>
+
       <p class="of-parrafo">
         Las presentes recomendaciones tienen como finalidad favorecer el control
         de su condición y prevenir su agravamiento en el desempeño de sus

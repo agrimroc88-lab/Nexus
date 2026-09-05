@@ -14,7 +14,7 @@ import { sesionActual } from './auth.js';
 import {
   cargarDatosOficio, llenarDestinatarios, destinatarioPorId,
   mostrarCiePorDefecto, imprimirOficio, rangoRotacion
-} from './oficio-certificado.js?v=19';
+} from './oficio-certificado.js?v=20';
 import { alCrear } from './autoria.js?v=1';
 
 /* Roles que pueden registrar. El técnico solo lee. */
