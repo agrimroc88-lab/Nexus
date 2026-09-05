@@ -191,6 +191,33 @@ export function rangoDias(inicio, dias) {
   return `${lista} de ${MESES[ultimo.getMonth()]} de ${ultimo.getFullYear()} ${cuantos}`;
 }
 
+/* La rotación de área suele cubrir semanas o meses, no unos
+   pocos días como el reposo. Nombrar cada fecha («5, 6, 7... de
+   septiembre») vuelve el oficio ilegible en cuanto el período
+   pasa de una semana. Aquí se nombra el rango: «del 5 de
+   septiembre de 2026 al 4 de octubre de 2026 (30 DÍAS)». */
+export function rangoRotacion(inicio, dias) {
+  if (!dias || dias < 1) return '';
+
+  const cuantos = dias === 1 ? '(UN DÍA)'
+    : dias === 2 ? '(DOS DÍAS)'
+    : dias === 3 ? '(TRES DÍAS)'
+    : `(${dias} DÍAS)`;
+
+  const limpia = soloFecha(inicio);
+  if (!limpia) return cuantos;
+
+  const d0 = new Date(limpia + 'T00:00');
+  const nombreFecha = (d) => `${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}`;
+
+  if (dias === 1) return `${nombreFecha(d0)} ${cuantos}`;
+
+  const dFin = new Date(d0);
+  dFin.setDate(dFin.getDate() + dias - 1); // el día de inicio cuenta
+
+  return `del ${nombreFecha(d0)} al ${nombreFecha(dFin)} ${cuantos}`;
+}
+
 /* ============================================
    El documento
    ============================================ */

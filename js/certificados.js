@@ -13,8 +13,8 @@ import { escapar, textoOGuion, retrasar, formatearFecha, finDeReposo }
 import { sesionActual } from './auth.js';
 import {
   cargarDatosOficio, llenarDestinatarios, destinatarioPorId,
-  mostrarCiePorDefecto, imprimirOficio, rangoDias
-} from './oficio-certificado.js?v=18';
+  mostrarCiePorDefecto, imprimirOficio, rangoRotacion
+} from './oficio-certificado.js?v=19';
 import { alCrear } from './autoria.js?v=1';
 
 /* Roles que pueden registrar. El técnico solo lee. */
@@ -848,7 +848,7 @@ async function emitirOficio() {
      el oficio decía "AL MOMENTO NO AMERITA" aunque sí hubiera
      días de rotación cargados. */
   const rotacion = c.amerita_reubicacion
-    ? [rangoDias(c.rotacion_inicio, c.rotacion_dias), c.rotacion_detalle]
+    ? [rangoRotacion(c.rotacion_inicio, c.rotacion_dias), c.rotacion_detalle]
         .filter(Boolean).join(' · ')
     : '';
 

@@ -24,8 +24,8 @@ import { montarEmergencia, fijarEmpresaEmergencia, pintarPanelClinico }
 import { sesionActual } from './auth.js?v=11';
 import {
   cargarDatosOficio, llenarDestinatarios, destinatarioPorId,
-  mostrarCiePorDefecto, rangoDias, imprimirOficio, destinatariosLista
-} from './oficio-certificado.js?v=18';
+  mostrarCiePorDefecto, rangoRotacion, imprimirOficio, destinatariosLista
+} from './oficio-certificado.js?v=19';
 import { alCrear, marcarAntesDeBorrar, autorId, alEditar } from './autoria.js?v=1';
 import {
   iniciarInformeAtenciones, cambiarTipoPeriodo, generarInformeAtenciones,
@@ -1671,7 +1671,7 @@ async function emitirCertificadoInterno(diagnosticos) {
 
   /* --- Se imprime --- */
   const rotacion = rota
-    ? (rangoDias(rotInicio || inicio, rotDias) || rotDetalle || '')
+    ? (rangoRotacion(rotInicio || inicio, rotDias) || rotDetalle || '')
     : '';
 
   await imprimirOficio({
@@ -1941,7 +1941,7 @@ async function reimprimirCertificado() {
     reposoInicio: c.reposo_inicio,
     reposoDias: c.reposo_dias,
     rotacion: c.amerita_reubicacion
-      ? (rangoDias(c.rotacion_inicio, c.rotacion_dias) || c.rotacion_detalle || '')
+      ? (rangoRotacion(c.rotacion_inicio, c.rotacion_dias) || c.rotacion_detalle || '')
       : ''
   });
 }
@@ -2410,7 +2410,7 @@ async function emitirCertificadoPost() {
   if (error) return alert('No se pudo emitir el certificado: ' + error.message);
 
   const rotacion = rota
-    ? (rangoDias(rotInicio || inicio, rotDias) || rotDetalle || '')
+    ? (rangoRotacion(rotInicio || inicio, rotDias) || rotDetalle || '')
     : '';
 
   await imprimirOficio({
