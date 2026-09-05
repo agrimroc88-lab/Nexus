@@ -4,14 +4,57 @@
    ============================================ */
 
 .pantalla-acceso {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 100vh;
   padding: 1.5rem;
+  overflow: hidden;
+  background: var(--color-acento-oscuro); /* se ve un instante antes de
+    que el video cargue, y es lo que queda si el navegador bloquea
+    el autoplay o el usuario prefiere movimiento reducido */
+}
+
+/* --- Video de fondo ---
+
+   El clip es de baja resolución (596×336) pensado para reproducirse
+   pequeño; estirado a pantalla completa se ve algo suave. Se acepta
+   ese "suave" a propósito con un leve desenfoque + oscurecido: en
+   vez de disimular el escalado, lo convierte en estética de fondo
+   abstracto, y de paso baja el contraste para que la tarjeta blanca
+   de encima siga siendo lo primero que se lee. */
+.acceso-video-fondo {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(1.5px) brightness(0.55) saturate(1.15);
+  z-index: 0;
+}
+
+/* Capa intermedia: refuerza el verde de marca sobre el video y
+   pareja el contraste en cualquier parte del clip, clara u oscura,
+   para que la tarjeta nunca dependa del fotograma que esté pasando. */
+.acceso-video-capa {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 26, 8, 0.55) 0%,
+    rgba(0, 26, 8, 0.72) 100%
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .acceso-video-fondo { display: none; }
 }
 
 .acceso-tarjeta {
+  position: relative;
+  z-index: 2;
   width: 100%;
   max-width: 380px;
   padding: 2.5rem 2rem;
