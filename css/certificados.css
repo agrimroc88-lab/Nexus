@@ -441,12 +441,17 @@
   .of-parrafo {
     margin: 0 0 3mm;
     text-align: justify;
+    overflow-wrap: anywhere; /* si el texto libre (valoración, motivo,
+      restricciones) viene sin espacios donde partir, que rompa la
+      palabra en vez de desbordar la hoja: .of-hoja tiene
+      overflow:hidden, así que lo que se sale del ancho fijo queda
+      recortado y no se ve nada después de esa línea. */
   }
 
-  .of-dato { margin: 0 0 2mm; }
+  .of-dato { margin: 0 0 2mm; overflow-wrap: anywhere; }
 
   .of-lista { margin: 0 0 2.2mm 6mm; padding: 0; }
-  .of-lista li { margin-bottom: 1.2mm; text-align: justify; }
+  .of-lista li { margin-bottom: 1.2mm; text-align: justify; overflow-wrap: anywhere; }
 
   .of-cierre { margin: 2.5mm 0 0; }
 
