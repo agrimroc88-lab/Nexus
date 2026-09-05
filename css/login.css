@@ -18,19 +18,17 @@
 
 /* --- Video de fondo ---
 
-   El clip es de baja resolución (596×336) pensado para reproducirse
-   pequeño; estirado a pantalla completa se ve algo suave. Se acepta
-   ese "suave" a propósito con un leve desenfoque + oscurecido: en
-   vez de disimular el escalado, lo convierte en estética de fondo
-   abstracto, y de paso baja el contraste para que la tarjeta blanca
-   de encima siga siendo lo primero que se lee. */
+   Este clip ya viene en 1280×720 (a diferencia del anterior, que
+   era de 596×336), así que no hace falta desenfocarlo para
+   disimular el escalado — con oscurecerlo un poco basta para que
+   la tarjeta blanca siga siendo lo primero que se lee encima. */
 .acceso-video-fondo {
   position: fixed;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  filter: blur(1.5px) brightness(0.55) saturate(1.15);
+  filter: brightness(0.6) saturate(1.05);
   z-index: 0;
 }
 
