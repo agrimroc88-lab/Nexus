@@ -27,7 +27,7 @@ import { supabase } from './supabase.js?v=11';
 import { escapar, formatearFecha, retrasar } from './utils.js?v=12';
 import { alCrear, alEditar, autorId } from './autoria.js?v=1';
 import { logoEmpresa } from './logo-empresa.js';
-import { ROLES, sesionActual } from './auth.js?v=11';
+import { ROLES, sesionActual } from './auth.js?v=12';
 import {
   envolverWord, descargarWord, membreteWord, bandaTitulo, tablaWord,
   logoEnBase64, escaparTexto

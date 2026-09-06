@@ -34,7 +34,7 @@
    ============================================ */
 
 import { supabase } from './supabase.js?v=11';
-import { sesionActual } from './auth.js?v=11';
+import { sesionActual } from './auth.js?v=12';
 import { escapar, formatearFecha } from './utils.js?v=11';
 import { alCrear } from './autoria.js?v=1';
 import { imprimirHoja } from './impresion.js?v=11';

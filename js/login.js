@@ -15,6 +15,11 @@ const $mensaje = document.getElementById('mensaje');
 /* Si ya hay sesión activa, no mostrar el login */
 redirigirSiAutenticado();
 
+/* Si venimos de un cierre automático por inactividad, avisar */
+if (new URLSearchParams(window.location.search).get('motivo') === 'inactividad') {
+  mostrarMensaje('Tu sesión se cerró por inactividad. Ingresa de nuevo.');
+}
+
 /* --- Eventos --- */
 
 $boton.addEventListener('click', procesarIngreso);

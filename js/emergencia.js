@@ -24,7 +24,7 @@
    ============================================ */
 
 import { supabase } from './supabase.js?v=11';
-import { ROLES } from './auth.js?v=11';
+import { ROLES } from './auth.js?v=12';
 import { escapar, formatearFecha, textoOGuion } from './utils.js?v=11';
 import { logoEmpresa } from './logo-empresa.js';
 

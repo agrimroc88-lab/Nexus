@@ -3,8 +3,12 @@
    Sesión, roles y guardia de acceso.
    MÉTODO SIMPLE: login con cédula + contraseña
    comparadas contra la tabla usuarios_app.
-   La sesión se guarda en localStorage para
-   persistir entre las distintas páginas.
+   La sesión se guarda en sessionStorage: dura mientras esa
+   pestaña/ventana del navegador esté abierta. Al cerrarla, se
+   pierde sola —sin necesidad de que nadie presione "Salir"—,
+   pensado para computadores compartidos entre compañeros.
+   Además se cierra sola tras 1 hora sin actividad (ver
+   INACTIVIDAD más abajo), aunque la pestaña siga abierta.
    ARCHIVO COMPARTIDO — no modificar por módulo.
    ============================================ */
 
@@ -27,13 +31,13 @@ const CLAVE_SESION = 'nexus_sesion';
 const CLAVE_EMPRESA = 'nexus_empresa_activa';
 
 /* ============================================
-   Sesión (localStorage)
+   Sesión (sessionStorage)
    ============================================ */
 
 /** Devuelve el perfil guardado en la sesión local, o null. */
 export function sesionActual() {
   try {
-    const s = localStorage.getItem(CLAVE_SESION);
+    const s = sessionStorage.getItem(CLAVE_SESION);
     return s ? JSON.parse(s) : null;
   } catch {
     return null;
@@ -41,11 +45,11 @@ export function sesionActual() {
 }
 
 function guardarSesion(perfil) {
-  localStorage.setItem(CLAVE_SESION, JSON.stringify(perfil));
+  sessionStorage.setItem(CLAVE_SESION, JSON.stringify(perfil));
 }
 
 function borrarSesion() {
-  localStorage.removeItem(CLAVE_SESION);
+  sessionStorage.removeItem(CLAVE_SESION);
 }
 
 /* ============================================
@@ -181,6 +185,7 @@ export async function iniciarSesion(cedula, clave) {
   }
 
   guardarSesion(data);
+  marcarActividad();
   limpiarEmpresaActiva(); // sesión nueva: se vuelve a elegir la empresa
   return { ok: true, mensaje: 'Sesión iniciada' };
 }
@@ -189,7 +194,64 @@ export async function iniciarSesion(cedula, clave) {
 export async function cerrarSesion() {
   borrarSesion();
   limpiarEmpresaActiva();
+  sessionStorage.removeItem(CLAVE_ACTIVIDAD);
   window.location.href = BASE + 'login.html';
+}
+
+/* ============================================
+   Inactividad (1 hora)
+   Se guarda "cuándo fue la última vez que alguien tocó algo"
+   en esta misma pestaña. protegerPagina() revisa ese dato al
+   entrar a cualquier página, y además queda un reloj corriendo
+   mientras la página sigue abierta —para no depender de que la
+   persona navegue a otra pantalla para notar que ya pasó la hora.
+   ============================================ */
+
+const CLAVE_ACTIVIDAD = 'nexus_ultima_actividad';
+const LIMITE_INACTIVIDAD_MS = 60 * 60 * 1000; // 1 hora
+
+function marcarActividad() {
+  sessionStorage.setItem(CLAVE_ACTIVIDAD, String(Date.now()));
+}
+
+function llevaMuchoInactivo() {
+  const ultima = Number(sessionStorage.getItem(CLAVE_ACTIVIDAD));
+  if (!ultima) return false; // sesión recién iniciada, sin marca todavía
+  return (Date.now() - ultima) > LIMITE_INACTIVIDAD_MS;
+}
+
+/**
+ * Arranca la vigilancia de inactividad en la página actual.
+ * Se llama una sola vez, desde protegerPagina(). No se exporta:
+ * cada módulo la recibe gratis al llamar a protegerPagina().
+ */
+function iniciarVigilanciaInactividad() {
+  marcarActividad();
+
+  // Cualquiera de estos eventos cuenta como "seguimos aquí".
+  // Se limita a una escritura cada 15s (mousemove/scroll disparan
+  // decenas de veces por segundo; no hace falta anotar todas).
+  let ultimoRegistro = 0;
+  const registrar = () => {
+    const ahora = Date.now();
+    if (ahora - ultimoRegistro > 15000) {
+      ultimoRegistro = ahora;
+      marcarActividad();
+    }
+  };
+  ['click', 'keydown', 'mousemove', 'scroll', 'touchstart']
+    .forEach((ev) => window.addEventListener(ev, registrar, { passive: true }));
+
+  // Revisa cada minuto por si la persona dejó la pestaña abierta
+  // sin navegar a otra página —ahí protegerPagina() no se vuelve
+  // a ejecutar sola, así que hay que chequear desde aquí.
+  setInterval(() => {
+    if (llevaMuchoInactivo()) {
+      borrarSesion();
+      limpiarEmpresaActiva();
+      window.location.href = BASE + 'login.html?motivo=inactividad';
+    }
+  }, 60 * 1000);
 }
 
 /* ============================================
@@ -210,6 +272,13 @@ export async function protegerPagina(rolesPermitidos = []) {
     return null;
   }
 
+  if (llevaMuchoInactivo()) {
+    borrarSesion();
+    limpiarEmpresaActiva();
+    window.location.href = BASE + 'login.html?motivo=inactividad';
+    return null;
+  }
+
   // Revalidar contra la base: si lo desactivaron, sacarlo.
   const { data } = await supabase
     .from('usuarios_app')
@@ -225,6 +294,7 @@ export async function protegerPagina(rolesPermitidos = []) {
 
   // Actualizar la sesión por si cambió el rol
   guardarSesion(data);
+  iniciarVigilanciaInactividad();
 
   if (rolesPermitidos.length > 0 && !rolesPermitidos.includes(data.rol)) {
     window.location.href = BASE + 'dashboard.html';

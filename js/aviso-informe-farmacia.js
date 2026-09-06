@@ -45,7 +45,7 @@
    ============================================ */
 
 import { supabase } from './supabase.js?v=11';
-import { empresasPermitidas, puedeGestionarFarmacia } from './auth.js?v=11';
+import { empresasPermitidas, puedeGestionarFarmacia } from './auth.js?v=12';
 import { escapar } from './utils.js?v=11';
 
 const VERSION = 'v2';

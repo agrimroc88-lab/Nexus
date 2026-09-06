@@ -5,7 +5,7 @@
    para el catálogo de módulos del sistema.
    ============================================ */
 
-import { cerrarSesion, puedeVerModulo, empresasPermitidas, salirDeEmpresa, empresaActivaId, modulosActivosEmpresa } from './auth.js?v=11';
+import { cerrarSesion, puedeVerModulo, empresasPermitidas, salirDeEmpresa, empresaActivaId, modulosActivosEmpresa } from './auth.js?v=12';
 import { supabase } from './supabase.js?v=11';
 
 /* --- Catálogo de módulos ---

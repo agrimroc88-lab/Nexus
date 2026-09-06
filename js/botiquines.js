@@ -20,7 +20,7 @@
    ============================================ */
 
 import { supabase } from './supabase.js?v=11';
-import { ROLES } from './auth.js?v=11';
+import { ROLES } from './auth.js?v=12';
 import { escapar, formatearFecha } from './utils.js?v=11';
 import { esperarImagenes } from './impresion.js?v=11';
 import { envolverWord, descargarWord, recuadroFoto, bloqueFirmas,

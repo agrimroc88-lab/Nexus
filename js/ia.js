@@ -30,7 +30,7 @@
    ============================================ */
 
 import { supabase } from './supabase.js?v=11';
-import { sesionActual } from './auth.js?v=11';
+import { sesionActual } from './auth.js?v=12';
 
 const VERSION = 'v1';
 console.info('NEXUS · ia', VERSION);

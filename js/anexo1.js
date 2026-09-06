@@ -20,7 +20,7 @@
    ============================================ */
 
 import { supabase } from './supabase.js?v=11';
-import { protegerPagina, ROLES, empresasPermitidas, resolverEmpresaActiva, modulosActivosEmpresa } from './auth.js?v=11';
+import { protegerPagina, ROLES, empresasPermitidas, resolverEmpresaActiva, modulosActivosEmpresa } from './auth.js?v=12';
 import { montarNavegacion } from './nav.js?v=12';
 import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=12';
 import {

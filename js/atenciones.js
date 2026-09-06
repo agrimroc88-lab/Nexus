@@ -15,13 +15,13 @@
    ============================================ */
 
 import { supabase } from './supabase.js?v=11';
-import { protegerPagina, puedeVerClinica, empresasPermitidas, resolverEmpresaActiva, modulosActivosEmpresa } from './auth.js?v=11';
+import { protegerPagina, puedeVerClinica, empresasPermitidas, resolverEmpresaActiva, modulosActivosEmpresa } from './auth.js?v=12';
 import { montarNavegacion } from './nav.js?v=11';
 import { escapar, textoOGuion, retrasar, formatearFecha, resumenReposo, validarCedula }
   from './utils.js?v=12';
 import { montarEmergencia, fijarEmpresaEmergencia, pintarPanelClinico }
   from './emergencia.js?v=12';
-import { sesionActual } from './auth.js?v=11';
+import { sesionActual } from './auth.js?v=12';
 import {
   cargarDatosOficio, llenarDestinatarios, destinatarioPorId,
   mostrarCiePorDefecto, rangoRotacion, imprimirOficio, destinatariosLista
