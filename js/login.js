@@ -20,9 +20,10 @@ const BASE = '/Nexus/';
    ============================================ */
 
 const TEMPORADAS = [
-  // { nombre: 'Halloween',      desdeMD: [10, 15], hastaMD: [10, 31], archivo: 'img/login-fondo-halloween.mp4' },
-  // { nombre: 'Navidad',        desdeMD: [12, 15], hastaMD: [1, 6],   archivo: 'img/login-fondo-navidad.mp4' },
-  // { nombre: 'Día del Trabajador', desdeMD: [4, 28], hastaMD: [5, 2], archivo: 'img/login-fondo-trabajador.mp4' },
+  { nombre: 'Halloween',   desdeMD: [10, 20], hastaMD: [10, 31], archivo: 'img/login-fondo-halloween.mp4' },
+  { nombre: 'Navidad',     desdeMD: [12, 10], hastaMD: [12, 27], archivo: 'img/login-fondo-navidad.mp4' },
+  { nombre: 'Fin de año',  desdeMD: [12, 28], hastaMD: [1, 2],   archivo: 'img/login-fondo-finanio.mp4' },
+  { nombre: 'Reyes Magos', desdeMD: [1, 5],   hastaMD: [1, 6],   archivo: 'img/login-fondo-reyes.mp4' },
 ];
 
 const VIDEO_POR_DEFECTO = 'img/login-fondo.mp4';
