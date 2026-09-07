@@ -11,38 +11,48 @@
   min-height: 100vh;
   padding: 1.5rem;
   overflow: hidden;
-  background: var(--color-acento-oscuro); /* se ve un instante antes de
-    que el video cargue, y es lo que queda si el navegador bloquea
-    el autoplay o el usuario prefiere movimiento reducido */
+  background: #0b0714; /* se ve un instante antes de que el video
+    cargue, y es lo que queda si el navegador bloquea el autoplay
+    o el usuario prefiere movimiento reducido */
+
+  /* Paleta local de esta pantalla, tomada del propio video (morado
+     / azul neón) — no toca las variables de --color-acento etc.
+     de base.css, así que el resto del sistema sigue en verde. */
+  --acceso-vidrio: rgba(20, 14, 38, 0.38);
+  --acceso-borde: rgba(179, 146, 255, 0.4);
+  --acceso-texto: #f3efff;
+  --acceso-texto-tenue: rgba(224, 216, 255, 0.68);
+  --acceso-acento: #9b7bff;
+  --acceso-acento-2: #4fd6ff;
 }
 
 /* --- Video de fondo ---
 
-   Este clip ya viene en 1280×720 (a diferencia del anterior, que
-   era de 596×336), así que no hace falta desenfocarlo para
-   disimular el escalado — con oscurecerlo un poco basta para que
-   la tarjeta blanca siga siendo lo primero que se lee encima. */
+   Sin oscurecer ni desaturar: se deja tal cual se grabó. El
+   contraste con la tarjeta ya no depende de atenuar el video sino
+   de que la tarjeta sea un vidrio esmerilado (ver .acceso-tarjeta),
+   que se lee bien encima de cualquier fotograma sin taparlo. */
 .acceso-video-fondo {
   position: fixed;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  filter: brightness(0.6) saturate(1.05);
   z-index: 0;
 }
 
-/* Capa intermedia: refuerza el verde de marca sobre el video y
-   pareja el contraste en cualquier parte del clip, clara u oscura,
-   para que la tarjeta nunca dependa del fotograma que esté pasando. */
+/* Antes era un tinte verde oscuro sólido tapando el video. Ahora
+   es solo un leve viñeteado en las esquinas —el centro, donde
+   está la tarjeta, queda intacto— para que el texto de los bordes
+   nunca dependa del fotograma que esté pasando justo ahí. */
 .acceso-video-capa {
   position: fixed;
   inset: 0;
   z-index: 1;
-  background: linear-gradient(
-    180deg,
-    rgba(0, 26, 8, 0.55) 0%,
-    rgba(0, 26, 8, 0.72) 100%
+  background: radial-gradient(
+    ellipse at center,
+    rgba(0, 0, 0, 0) 45%,
+    rgba(5, 2, 12, 0.35) 100%
   );
 }
 
@@ -50,15 +60,26 @@
   .acceso-video-fondo { display: none; }
 }
 
+/* --- Tarjeta: vidrio esmerilado sobre el video ---
+
+   En vez de una tarjeta blanca (que peleaba con el video) es un
+   panel translúcido con desenfoque de fondo: dentro se ve el
+   video "a través" del cristal, con los acentos en el mismo
+   morado/azul de las líneas de circuito del clip. */
 .acceso-tarjeta {
   position: relative;
   z-index: 2;
   width: 100%;
   max-width: 380px;
   padding: 2.5rem 2rem;
-  background: var(--color-superficie);
-  border: 1px solid var(--color-borde);
+  background: var(--acceso-vidrio);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  border: 1px solid var(--acceso-borde);
   border-radius: var(--radio);
+  box-shadow:
+    0 8px 40px rgba(60, 20, 120, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .acceso-encabezado {
@@ -71,13 +92,14 @@
   font-size: 2.25rem;
   font-weight: 700;
   letter-spacing: 0.15em;
-  color: var(--color-acento);
+  color: var(--acceso-acento-2);
+  text-shadow: 0 0 22px rgba(123, 92, 255, 0.55);
 }
 
 .acceso-lema {
   margin: 0.35rem 0 0;
   font-size: 0.85rem;
-  color: var(--color-texto-tenue);
+  color: var(--acceso-texto-tenue);
 }
 
 .acceso-campo { margin-bottom: 1.1rem; }
@@ -86,7 +108,7 @@
   display: block;
   margin-bottom: 0.4rem;
   font-size: 0.8rem;
-  color: var(--color-texto-tenue);
+  color: var(--acceso-texto-tenue);
 }
 
 .acceso-entrada {
@@ -94,23 +116,28 @@
   padding: 0.7rem 0.85rem;
   font-family: inherit;
   font-size: 0.95rem;
-  color: var(--color-texto);
-  background: var(--color-fondo);
-  border: 1px solid var(--color-borde);
+  color: var(--acceso-texto);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--acceso-borde);
   border-radius: var(--radio);
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-.acceso-entrada:focus { border-color: var(--color-acento); }
+.acceso-entrada::placeholder { color: rgba(224, 216, 255, 0.35); }
+
+.acceso-entrada:focus {
+  border-color: var(--acceso-acento-2);
+  box-shadow: 0 0 0 3px rgba(79, 214, 255, 0.18);
+}
 
 .acceso-mensaje {
   margin: 0 0 1rem;
   padding: 0.6rem 0.8rem;
   font-size: 0.85rem;
   color: #ffb4ab;
-  background: rgba(255, 90, 80, 0.08);
-  border: 1px solid rgba(255, 90, 80, 0.3);
+  background: rgba(255, 90, 80, 0.12);
+  border: 1px solid rgba(255, 90, 80, 0.35);
   border-radius: var(--radio);
 }
 
@@ -121,19 +148,20 @@
   font-size: 0.95rem;
   font-weight: 600;
   color: #fff;
-  background: var(--color-acento);
+  background: linear-gradient(135deg, var(--acceso-acento) 0%, var(--acceso-acento-2) 100%);
   border: none;
   border-radius: var(--radio);
   cursor: pointer;
-  transition: opacity 0.15s;
+  transition: opacity 0.15s, box-shadow 0.15s;
+  box-shadow: 0 4px 18px rgba(123, 92, 255, 0.35);
 }
 
-.acceso-boton:hover:not(:disabled) { opacity: 0.9; }
-.acceso-boton:disabled { opacity: 0.5; cursor: default; }
+.acceso-boton:hover:not(:disabled) { opacity: 0.92; }
+.acceso-boton:disabled { opacity: 0.5; cursor: default; box-shadow: none; }
 
 .acceso-pie {
   margin-top: 1.5rem;
   text-align: center;
   font-size: 0.72rem;
-  color: var(--color-texto-tenue);
+  color: var(--acceso-texto-tenue);
 }
