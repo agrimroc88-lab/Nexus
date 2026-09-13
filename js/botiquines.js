@@ -258,9 +258,18 @@ export function pintarBotiquines() {
   pintarTabla();
 
   const abierto = bt.revisiones.length > 0;
+
+  /* No basta con "hay alguna revisión este mes": si se crea un
+     botiquín nuevo después de abrir el mes, ese botiquín se queda
+     sin revisión y sin botón para generarla. Hay que comparar
+     botiquín por botiquín, no el total. */
+  const conRevision = new Set(bt.revisiones.map((r) => r.botiquin_id));
+  const faltanPorAbrir = bt.botiquines.some((b) => !conRevision.has(b.id));
+
   const $abrir = document.getElementById('bt-btn-abrir');
   if ($abrir) {
-    $abrir.hidden = abierto || !puedeEscribir() || bt.botiquines.length === 0;
+    $abrir.hidden = !faltanPorAbrir || !puedeEscribir() || bt.botiquines.length === 0;
+    $abrir.textContent = abierto ? 'Abrir revisión · botiquines nuevos' : 'Abrir revisión del mes';
   }
 
   const $nuevo = document.getElementById('bt-btn-nuevo');
