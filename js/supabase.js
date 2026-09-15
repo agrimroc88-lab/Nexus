@@ -32,12 +32,19 @@ export const supabase = globalThis[CLAVE] ??= createClient(
   SUPABASE_ANON_KEY,
   {
     auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true
-      /* No se toca storageKey: cambiarlo cerraría la sesión de
-         todo el mundo, porque las que hay guardadas viven bajo
-         la clave que Supabase asigna por defecto. */
+      /* NEXUS no usa el login nativo de Supabase (el ingreso es
+         cédula + contraseña contra usuarios_app, con sesión en
+         sessionStorage — ver auth.js). Dejar esta maquinaria
+         encendida no aporta nada y sí arma, en segundo plano, un
+         refresco de token y un bloqueo entre pestañas que a veces
+         no se libera después de que el navegador deja "dormida"
+         una pestaña inactiva un rato — eso deja a CUALQUIER
+         consulta nueva esperando ese bloqueo para siempre, y la
+         pantalla se ve congelada hasta que se refresca la página.
+         Al apagarla, esa clase entera de bloqueo desaparece. */
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false
     }
   }
 );
