@@ -88,9 +88,12 @@
 }
 
 .acceso-logo {
-  width: 64px;
-  height: 64px;
-  margin-bottom: 0.6rem;
+  display: block;
+  width: 260px;
+  max-width: 100%;
+  height: 280px;
+  object-fit: contain;
+  margin: 0 auto 0.6rem;
   filter: drop-shadow(0 0 14px rgba(123, 92, 255, 0.5));
 }
 
