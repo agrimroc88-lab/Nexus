@@ -102,11 +102,11 @@ const SITUACIONES = {
    trabajo social en una entrevista. Y prescribir adaptaciones
    tampoco: ergonomía indica sobre postura.
 
-   Psicología quedó afuera de esta lista a pedido explícito
-   (2026): antes registraba/indicaba aquí como parte normal de
-   una evaluación psicosocial, pero ahora solo interactúa con
-   Cumplimiento y Capacitaciones — ve Grupos prioritarios en
-   solo lectura, sin excepción.
+   Psicología y psico-social quedaron afuera de esta lista a
+   pedido explícito (2026): antes registraban/indicaban aquí
+   como parte normal de una evaluación psicosocial, pero ahora
+   solo interactúan con Cumplimiento y Capacitaciones — ven
+   Grupos prioritarios en solo lectura, sin excepción.
 
    Debe coincidir con es_personal_salud() del lado de la base;
    si no, la pantalla ofrecería botones que el servidor
@@ -114,7 +114,7 @@ const SITUACIONES = {
    por definición. */
 const PERSONAL_SALUD = [
   ROLES.ADMIN, ROLES.MEDICO, ROLES.ENFERMERIA,
-  ROLES.TRABAJO_SOCIAL, ROLES.PSICO_SOCIAL, ROLES.ERGONOMO, ROLES.TECNICO
+  ROLES.TRABAJO_SOCIAL, ROLES.ERGONOMO, ROLES.TECNICO
 ];
 
 /** Registrar la condición */

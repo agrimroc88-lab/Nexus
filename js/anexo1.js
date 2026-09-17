@@ -198,27 +198,35 @@ function puedeEscribir() {
  * para apoyar cuando el técnico está en campo. No les habilita
  * el resto del módulo (capacitaciones, requisitos del Anexo 1).
  *
- * Psicología es la excepción dentro de "quienes escriben salud":
- * ve Enfermedades profesionales, pero no le corresponde
- * registrarlas — solo interactúa en Cumplimiento y Capacitaciones.
+ * Psicología y psico-social son la excepción dentro de "quienes
+ * escriben salud": ven Enfermedades profesionales, pero no les
+ * corresponde registrarlas — solo interactúan en Cumplimiento
+ * y Capacitaciones.
  */
 function puedeEscribirEventos() {
   const r = estado.perfil.rol;
   if (r === ROLES.ADMIN) return true;
-  if (AMBITO === 'salud') return ESCRIBEN_SALUD.includes(r) && r !== ROLES.PSICOLOGO;
+  if (AMBITO === 'salud') return ESCRIBEN_SALUD.includes(r) && !esSoloLecturaSalud();
   if (AMBITO !== 'seguridad') return false;
   return ['medico_ocupacional', 'enfermeria'].includes(r);
 }
 
 /**
  * Test A-T-D: acceso de lectura y escritura para admin, médico
- * y enfermería. Psicología también puede VERLO (a pedido
- * explícito, para tener contexto completo del módulo), pero
- * queda en solo lectura — ver fijarSoloLecturaAtd() más abajo.
+ * y enfermería. Psicología y psico-social también pueden VERLO
+ * (a pedido explícito, para tener contexto completo del módulo),
+ * pero quedan en solo lectura — ver fijarSoloLecturaAtd() más abajo.
  * Trabajo social sigue sin entrar aquí en absoluto.
  */
 function puedeVerTestAtd() {
-  return ['admin', 'medico_ocupacional', 'enfermeria', ROLES.PSICOLOGO].includes(estado.perfil.rol);
+  return ['admin', 'medico_ocupacional', 'enfermeria', ROLES.PSICOLOGO, ROLES.PSICO_SOCIAL]
+    .includes(estado.perfil.rol);
+}
+
+/** Roles que ven Salud Ocupacional completa pero solo
+    interactúan con Cumplimiento y Capacitaciones. */
+function esSoloLecturaSalud() {
+  return estado.perfil.rol === ROLES.PSICOLOGO || estado.perfil.rol === ROLES.PSICO_SOCIAL;
 }
 
 /**
@@ -2320,7 +2328,7 @@ function cambiarVista(vista) {
     cargarOcupacionales().then(pintarOcupacionales);
   }
   if (vista === 'evaluacion') {
-    if (estado.perfil.rol === ROLES.PSICOLOGO) {
+    if (esSoloLecturaSalud()) {
       ['ep-btn-nueva', 'ep-btn-guardar', 'ep-btn-cerrar', 'ep-btn-ficha', 'ep-btn-nuevo-examen']
         .forEach((id) => { const $b = document.getElementById(id); if ($b) $b.hidden = true; });
     }
@@ -2335,9 +2343,9 @@ function cambiarVista(vista) {
        dejaba el selector de año permanentemente vacío y sin
        ningún aviso — los botones de informe "no hacían nada"
        porque no había ningún año para elegir. */
-    fijarSoloLecturaAtd(estado.perfil.rol === ROLES.PSICOLOGO);
+    fijarSoloLecturaAtd(esSoloLecturaSalud());
     const $nuevoAtd = document.getElementById('atd-btn-nuevo');
-    if ($nuevoAtd) $nuevoAtd.hidden = estado.perfil.rol === ROLES.PSICOLOGO;
+    if ($nuevoAtd) $nuevoAtd.hidden = esSoloLecturaSalud();
 
     iniciarTestAtd(estado.empresaId, estado.empresaNombre || '')
       .catch((err) => console.error('NEXUS · anexo1: falló iniciarTestAtd', err))

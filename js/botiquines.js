@@ -62,14 +62,14 @@ const bt = {
   logoChico: null       // versión reducida para las páginas de continuación
 };
 
-/* Antes incluía también a ROLES.PSICOLOGO; se sacó a pedido
-   explícito — psicología ve Botiquines pero ya no interactúa
-   con nada fuera de Cumplimiento y Capacitaciones. Si esto
-   cambia, también hay que tocar es_personal_salud() en la base,
-   que debía coincidir con esta lista. */
+/* Antes incluía también a ROLES.PSICOLOGO y ROLES.PSICO_SOCIAL;
+   se sacaron a pedido explícito — ambos ven Botiquines pero ya
+   no interactúan con nada fuera de Cumplimiento y Capacitaciones.
+   Si esto cambia, también hay que tocar es_personal_salud() en
+   la base, que debía coincidir con esta lista. */
 const PERSONAL = [
   ROLES.ADMIN, ROLES.MEDICO, ROLES.ENFERMERIA,
-  ROLES.TRABAJO_SOCIAL, ROLES.PSICO_SOCIAL, ROLES.ERGONOMO, ROLES.TECNICO
+  ROLES.TRABAJO_SOCIAL, ROLES.ERGONOMO, ROLES.TECNICO
 ];
 
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',

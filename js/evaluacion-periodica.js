@@ -39,12 +39,14 @@ function esAdminEP() {
   return sesionActual()?.rol === ROLES.ADMIN;
 }
 
-/* Psicología ve esta pestaña (a pedido explícito, 2026) pero no
-   interactúa con ella — solo con Cumplimiento y Capacitaciones.
-   Los botones ya se ocultan desde anexo1.js; esto es el respaldo
-   del lado de los datos, por si alguien los vuelve a mostrar. */
+/* Psicología y psico-social ven esta pestaña (a pedido
+   explícito, 2026) pero no interactúan con ella — solo con
+   Cumplimiento y Capacitaciones. Los botones ya se ocultan
+   desde anexo1.js; esto es el respaldo del lado de los datos,
+   por si alguien los vuelve a mostrar. */
 function puedeEscribirEP() {
-  return sesionActual()?.rol !== ROLES.PSICOLOGO;
+  const r = sesionActual()?.rol;
+  return r !== ROLES.PSICOLOGO && r !== ROLES.PSICO_SOCIAL;
 }
 
 const VERSION = 'v1';
