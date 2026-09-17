@@ -68,9 +68,12 @@ const PIEZAS = {
   mesa:      { texto: 'Mesa',      letra: 'M', orden: 6 }
 };
 
-/* Debe coincidir con las políticas de la base */
+/* Antes incluía también a ROLES.PSICOLOGO; se sacó a pedido
+   explícito (2026) — psicología ve Instalaciones pero ya no
+   interactúa con nada fuera de Cumplimiento y Capacitaciones.
+   Debe coincidir con las políticas de la base. */
 const PERSONAL = [
-  ROLES.ADMIN, ROLES.MEDICO, ROLES.ENFERMERIA, ROLES.PSICOLOGO,
+  ROLES.ADMIN, ROLES.MEDICO, ROLES.ENFERMERIA,
   ROLES.TRABAJO_SOCIAL, ROLES.PSICO_SOCIAL, ROLES.ERGONOMO, ROLES.TECNICO
 ];
 

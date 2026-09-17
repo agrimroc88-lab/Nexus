@@ -62,9 +62,13 @@ const bt = {
   logoChico: null       // versión reducida para las páginas de continuación
 };
 
-/* Debe coincidir con es_personal_salud() de la base */
+/* Antes incluía también a ROLES.PSICOLOGO; se sacó a pedido
+   explícito — psicología ve Botiquines pero ya no interactúa
+   con nada fuera de Cumplimiento y Capacitaciones. Si esto
+   cambia, también hay que tocar es_personal_salud() en la base,
+   que debía coincidir con esta lista. */
 const PERSONAL = [
-  ROLES.ADMIN, ROLES.MEDICO, ROLES.ENFERMERIA, ROLES.PSICOLOGO,
+  ROLES.ADMIN, ROLES.MEDICO, ROLES.ENFERMERIA,
   ROLES.TRABAJO_SOCIAL, ROLES.PSICO_SOCIAL, ROLES.ERGONOMO, ROLES.TECNICO
 ];
 

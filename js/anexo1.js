@@ -36,6 +36,7 @@ import {
 } from './informe-evaluacion-periodica.js?v=8';
 import {
   iniciarTestAtd, cambiarAnioAtd, abrirFormularioAtd, cancelarFormularioAtd,
+  fijarSoloLecturaAtd,
   alternarBloqueDerivacion, guardarRespuestaAtd, pintarDerivaciones,
   filtrarDerivaciones, imprimirListadoDerivaciones, buscarPorCedulaAtd, revisarCedulaAtd
 } from './test-atd.js?v=5';
@@ -196,20 +197,28 @@ function puedeEscribir() {
  * Además del técnico, el personal médico puede registrarlos
  * para apoyar cuando el técnico está en campo. No les habilita
  * el resto del módulo (capacitaciones, requisitos del Anexo 1).
+ *
+ * Psicología es la excepción dentro de "quienes escriben salud":
+ * ve Enfermedades profesionales, pero no le corresponde
+ * registrarlas — solo interactúa en Cumplimiento y Capacitaciones.
  */
 function puedeEscribirEventos() {
-  if (puedeEscribir()) return true;
+  const r = estado.perfil.rol;
+  if (r === ROLES.ADMIN) return true;
+  if (AMBITO === 'salud') return ESCRIBEN_SALUD.includes(r) && r !== ROLES.PSICOLOGO;
   if (AMBITO !== 'seguridad') return false;
-  return ['medico_ocupacional', 'enfermeria'].includes(estado.perfil.rol);
+  return ['medico_ocupacional', 'enfermeria'].includes(r);
 }
 
 /**
- * Test A-T-D: mismo alcance que la clínica general (admin,
- * médico, enfermería). Ni psicología ni trabajo social entran
- * aquí, aunque sí escriben el resto del Anexo 1 salud.
+ * Test A-T-D: acceso de lectura y escritura para admin, médico
+ * y enfermería. Psicología también puede VERLO (a pedido
+ * explícito, para tener contexto completo del módulo), pero
+ * queda en solo lectura — ver fijarSoloLecturaAtd() más abajo.
+ * Trabajo social sigue sin entrar aquí en absoluto.
  */
 function puedeVerTestAtd() {
-  return ['admin', 'medico_ocupacional', 'enfermeria'].includes(estado.perfil.rol);
+  return ['admin', 'medico_ocupacional', 'enfermeria', ROLES.PSICOLOGO].includes(estado.perfil.rol);
 }
 
 /**
@@ -2311,6 +2320,10 @@ function cambiarVista(vista) {
     cargarOcupacionales().then(pintarOcupacionales);
   }
   if (vista === 'evaluacion') {
+    if (estado.perfil.rol === ROLES.PSICOLOGO) {
+      ['ep-btn-nueva', 'ep-btn-guardar', 'ep-btn-cerrar', 'ep-btn-ficha', 'ep-btn-nuevo-examen']
+        .forEach((id) => { const $b = document.getElementById(id); if ($b) $b.hidden = true; });
+    }
     iniciarEvaluacion(estado.empresaId, estado.empresaNombre || '');
     iniciarInformeEvaluacion(estado.empresaId, estado.empresaNombre || '');
   }
@@ -2322,6 +2335,10 @@ function cambiarVista(vista) {
        dejaba el selector de año permanentemente vacío y sin
        ningún aviso — los botones de informe "no hacían nada"
        porque no había ningún año para elegir. */
+    fijarSoloLecturaAtd(estado.perfil.rol === ROLES.PSICOLOGO);
+    const $nuevoAtd = document.getElementById('atd-btn-nuevo');
+    if ($nuevoAtd) $nuevoAtd.hidden = estado.perfil.rol === ROLES.PSICOLOGO;
+
     iniciarTestAtd(estado.empresaId, estado.empresaNombre || '')
       .catch((err) => console.error('NEXUS · anexo1: falló iniciarTestAtd', err))
       .then(() => iniciarInformeAtd())
@@ -2457,18 +2474,18 @@ function ocultarPestanasAjenas() {
     return;
   }
 
-  /* Dentro de salud, el test A-T-D además exige el mismo
-     alcance que la clínica: solo admin, médico y enfermería. */
+  /* Dentro de salud, el test A-T-D exige admin, médico,
+     enfermería o psicología (esta última en solo lectura —
+     ver fijarSoloLecturaAtd() donde se pinta la vista 'atd'). */
   if (!puedeVerTestAtd()) quitar('atd');
 
-  /* Psicología entra a Salud ocupacional solo para Cumplimiento
-     y Capacitaciones — el resto del Anexo 1 (eventos, grupos,
-     botiquines, instalaciones, evaluación periódica, A-T-D) no
-     le corresponde. */
-  if (estado.perfil.rol === ROLES.PSICOLOGO) {
-    ['eventos', 'ocupacionales', 'grupos', 'botiquines', 'instalaciones', 'evaluacion', 'atd']
-      .forEach(quitar);
-  }
+  /* Psicología ve las nueve pestañas de Salud Ocupacional, pero
+     solo interactúa (agregar/editar/guardar) en Cumplimiento y
+     Capacitaciones — a pedido explícito. El resto queda visible
+     en solo lectura: cada módulo (botiquines.js, grupos.js,
+     instalaciones.js) resuelve internamente si este rol puede
+     escribir, y puedeEscribirEventos() de aquí mismo hace lo
+     propio con Enfermedades profesionales. Nada se oculta ya. */
 }
 
 async function cambiarAnio() {

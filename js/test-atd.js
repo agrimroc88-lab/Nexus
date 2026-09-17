@@ -105,10 +105,21 @@ const atd = {
   empresaNombre: '',
   logoUrl: 'logo.png',
   anio: new Date().getFullYear(),
-  respuestas: []   // de TODOS los años de la empresa (historial/comparativo/seguimiento)
+  respuestas: [],  // de TODOS los años de la empresa (historial/comparativo/seguimiento)
+  soloLectura: false
 };
 
 export function estadoAtd() { return atd; }
+
+/**
+ * El rol psicólogo ve este módulo pero no interactúa con él
+ * (dato sensible de consumo de alcohol/drogas, fuera de su
+ * ámbito — ver anexo1.js). Quien orquesta la página decide
+ * cuándo aplica y llama a esto antes de pintar la pantalla.
+ */
+export function fijarSoloLecturaAtd(valor) {
+  atd.soloLectura = !!valor;
+}
 
 /* ============================================
    Arranque
@@ -176,6 +187,7 @@ function actualizarAvance() {
    ============================================ */
 
 export function abrirFormularioAtd() {
+  if (atd.soloLectura) return;
   limpiarFormulario();
   document.getElementById('atd-form').hidden = false;
   document.getElementById('atd-form').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -306,6 +318,11 @@ export async function guardarRespuestaAtd() {
   const $error = document.getElementById('atd-form-error');
   $error.textContent = '';
 
+  if (atd.soloLectura) {
+    $error.textContent = 'Este módulo es de solo lectura para su rol.';
+    return;
+  }
+
   const v = (id) => document.getElementById(id).value.trim() || null;
   const vNum = (id) => {
     const t = document.getElementById(id).value;
@@ -400,9 +417,10 @@ function pintarListadoRespuestas() {
       <td class="celda-centro">${escapar(CAT_RECONOCE[r.reconoce_problema] || '—')}</td>
       <td class="celda-centro">${r.desea_tratamiento ? 'Sí' : 'No'}</td>
       <td class="celda-centro">
+        ${atd.soloLectura ? '—' : `
         <button class="boton-secundario boton-pequeno" data-borrar-atd="${r.id}" type="button">
           Eliminar
-        </button>
+        </button>`}
       </td>
     </tr>`).join('');
 
@@ -412,6 +430,7 @@ function pintarListadoRespuestas() {
 }
 
 async function eliminarRespuestaAtd(id) {
+  if (atd.soloLectura) return;
   if (!confirm('¿Eliminar este registro? No se puede deshacer.')) return;
 
   await marcarAntesDeBorrar(supabase, 'test_atd_respuestas', id);

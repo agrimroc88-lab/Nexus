@@ -39,6 +39,14 @@ function esAdminEP() {
   return sesionActual()?.rol === ROLES.ADMIN;
 }
 
+/* Psicología ve esta pestaña (a pedido explícito, 2026) pero no
+   interactúa con ella — solo con Cumplimiento y Capacitaciones.
+   Los botones ya se ocultan desde anexo1.js; esto es el respaldo
+   del lado de los datos, por si alguien los vuelve a mostrar. */
+function puedeEscribirEP() {
+  return sesionActual()?.rol !== ROLES.PSICOLOGO;
+}
+
 const VERSION = 'v1';
 console.info('NEXUS · evaluacion-periodica', VERSION);
 
@@ -197,6 +205,7 @@ async function cargarCampanas() {
 }
 
 export async function crearCampana() {
+  if (!puedeEscribirEP()) return;
   const anio = parseInt(prompt('¿De qué año es la evaluación?',
     String(new Date().getFullYear())), 10);
   if (!Number.isFinite(anio)) return;
@@ -381,6 +390,7 @@ function pintarFichaOcupacional() {
 }
 
 export async function marcarFichaOcupacional() {
+  if (!puedeEscribirEP()) return;
   if (!ev.evaluacion || !ev.trabajador) return;
 
   const $btn = document.getElementById('ep-btn-ficha');
@@ -792,6 +802,7 @@ async function pintarImcSugerido() {
 }
 
 export async function guardarCaptura() {
+  if (!puedeEscribirEP()) return;
   if (!ev.evaluacion || !ev.trabajador) return;
 
   const admin = esAdminEP();
@@ -907,6 +918,7 @@ function pintarCatalogo() {
 }
 
 export function abrirNuevoExamen() {
+  if (!puedeEscribirEP()) return;
   abrirFormExamen(null);
 }
 
@@ -926,6 +938,7 @@ export function cancelarFormExamen() {
 }
 
 export async function guardarExamen() {
+  if (!puedeEscribirEP()) return;
   const $error = document.getElementById('ep-examen-error');
   $error.textContent = '';
 

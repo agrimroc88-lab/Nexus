@@ -99,16 +99,21 @@ const SITUACIONES = {
 
 /* Identificar a un trabajador de un grupo prioritario no es
    acto reservado al médico: lo hace enfermería en consulta,
-   psicología en una evaluación, trabajo social en una
-   entrevista. Y prescribir adaptaciones tampoco: psicología
-   indica sobre carga mental, ergonomía sobre postura.
+   trabajo social en una entrevista. Y prescribir adaptaciones
+   tampoco: ergonomía indica sobre postura.
+
+   Psicología quedó afuera de esta lista a pedido explícito
+   (2026): antes registraba/indicaba aquí como parte normal de
+   una evaluación psicosocial, pero ahora solo interactúa con
+   Cumplimiento y Capacitaciones — ve Grupos prioritarios en
+   solo lectura, sin excepción.
 
    Debe coincidir con es_personal_salud() del lado de la base;
    si no, la pantalla ofrecería botones que el servidor
    rechaza. El rol consulta queda fuera: es de solo lectura
    por definición. */
 const PERSONAL_SALUD = [
-  ROLES.ADMIN, ROLES.MEDICO, ROLES.ENFERMERIA, ROLES.PSICOLOGO,
+  ROLES.ADMIN, ROLES.MEDICO, ROLES.ENFERMERIA,
   ROLES.TRABAJO_SOCIAL, ROLES.PSICO_SOCIAL, ROLES.ERGONOMO, ROLES.TECNICO
 ];
 
