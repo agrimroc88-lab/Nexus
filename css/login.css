@@ -87,6 +87,13 @@
   margin-bottom: 2rem;
 }
 
+.acceso-logo {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 0.6rem;
+  filter: drop-shadow(0 0 14px rgba(123, 92, 255, 0.5));
+}
+
 .acceso-marca {
   margin: 0;
   font-size: 2.25rem;
