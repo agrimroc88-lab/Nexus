@@ -23,6 +23,7 @@ import { supabase } from './supabase.js?v=11';
 import { ROLES } from './auth.js?v=12';
 import { escapar, formatearFecha } from './utils.js?v=11';
 import { esperarImagenes } from './impresion.js?v=11';
+import { alCrear } from './autoria.js?v=1';
 import { envolverWord, descargarWord, recuadroFoto, bloqueFirmas,
          membreteWord, bandaTitulo, tablaWord,
          listaDocumento, seccionDocumento, logoEnBase64,
@@ -59,7 +60,12 @@ const bt = {
   destinatarios: [],    // del informe general
   nomina: [],           // para el buscador de destinatario
   logo: null,           // en base64, para que viaje en el .doc
-  logoChico: null       // versión reducida para las páginas de continuación
+  logoChico: null,      // versión reducida para las páginas de continuación
+  farmaciaCargada: false,
+  farmaciaMedicamentos: [],
+  farmaciaLotes: [],
+  farmaciaInsumos: [],
+  vinculosFarmacia: new Map() // insumo_botiquin_id → "med:id" | "ins:id", ya confirmados
 };
 
 /* Antes incluía también a ROLES.PSICOLOGO y ROLES.PSICO_SOCIAL;
@@ -162,11 +168,14 @@ export async function cargarBotiquines(empresaId, empresaNombre) {
     supabase.from('v_trabajadores')
       .select('id, codigo, cedula, nombre_completo')
       .eq('empresa_id', empresaId).eq('activo', true).order('codigo'),
-    /* Catálogo de insumos: es común a todas las empresas, como el
-       de motivos. Un botiquín de cocina y uno de mina llevan las
-       mismas gasas; lo que cambia es cuántas. */
+    /* Catálogo de insumos: ahora es propio de cada empresa (antes
+       era una sola lista compartida por todo el sistema — hasta
+       lo que una empresa agregaba a mano se veía en las demás).
+       Toda empresa nueva arranca con una copia de la plantilla
+       estándar, sembrada sola al crearse (ver 042_botiquin_
+       insumos_por_empresa.sql), y de ahí en adelante es 100% suya. */
     supabase.from('botiquin_insumos').select('*')
-      .eq('activo', true).order('orden').order('nombre')
+      .eq('empresa_id', empresaId).eq('activo', true).order('orden').order('nombre')
   ]);
 
   bt.botiquines = bots.data || [];
@@ -573,6 +582,221 @@ function completarReposicion() {
   });
 }
 
+/* ============================================
+   Descuento en Farmacia al reponer un botiquín
+   ============================================
+   El catálogo de insumos de un botiquín (botiquin_insumos) es
+   una plantilla genérica compartida por todas las empresas —
+   no tiene ningún id que lo conecte con el medicamento o
+   insumo real de Farmacia de ESTA empresa. Por eso, reponer un
+   botiquín nunca bajaba el stock real: no había forma de saber
+   de dónde salió.
+
+   Esto pregunta, al cerrar una revisión con reposiciones, de
+   qué medicamento o insumo de Farmacia salió cada una, y recién
+   ahí descuenta. No requiere tocar la base de datos ni crear
+   una tabla nueva — se resuelve completo aquí. */
+
+async function cargarCatalogoFarmacia() {
+  if (bt.farmaciaCargada) return;
+  const [meds, lotes, insumos] = await Promise.all([
+    supabase.from('v_stock_medicamentos').select('id, nombre_generico, nombre_comercial, stock_disponible')
+      .eq('empresa_id', bt.empresaId).eq('activo', true).order('nombre_generico'),
+    supabase.from('v_stock_lotes').select('medicamento_id, lote_id, saldo, fecha_caducidad')
+      .eq('empresa_id', bt.empresaId).eq('medicamento_activo', true).gt('saldo', 0)
+      .order('fecha_caducidad'),
+    supabase.from('insumos').select('id, nombre, stock_disponible')
+      .eq('empresa_id', bt.empresaId).eq('activo', true).order('nombre')
+  ]);
+  bt.farmaciaMedicamentos = meds.data || [];
+  bt.farmaciaLotes = lotes.data || [];
+  bt.farmaciaInsumos = insumos.data || [];
+  bt.farmaciaCargada = true;
+}
+
+/** Coincidencia simple por nombre, solo para preseleccionar
+    la opción más probable — la persona siempre puede cambiarla. */
+function normalizarTexto(s) {
+  return (s || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+}
+
+function preseleccionarFarmacia(nombreBotiquin) {
+  const n = normalizarTexto(nombreBotiquin);
+  const med = bt.farmaciaMedicamentos.find((m) => {
+    const g = normalizarTexto(m.nombre_generico);
+    const c = normalizarTexto(m.nombre_comercial);
+    return n.includes(g) || g.includes(n) || (c && (n.includes(c) || c.includes(n)));
+  });
+  if (med) return `med:${med.id}`;
+  const ins = bt.farmaciaInsumos.find((i) => {
+    const x = normalizarTexto(i.nombre);
+    return n.includes(x) || x.includes(n);
+  });
+  if (ins) return `ins:${ins.id}`;
+  return 'omitir';
+}
+
+/**
+ * Muestra un modal pidiendo, para cada insumo repuesto, de qué
+ * medicamento o insumo real de Farmacia salió. Devuelve un
+ * array de {insumoId, nombre, cantidad, valor} o null si la
+ * persona canceló (en ese caso no se cierra la revisión, para
+ * no dejarla a medias sin que Farmacia quede registrada).
+ */
+function pedirOrigenFarmacia(items) {
+  return new Promise((resolve) => {
+    const opciones = ['<option value="omitir">— No descontar de Farmacia —</option>'];
+    if (bt.farmaciaMedicamentos.length > 0) {
+      opciones.push('<optgroup label="Medicamentos">' + bt.farmaciaMedicamentos.map((m) =>
+        `<option value="med:${m.id}">${escapar(m.nombre_generico)}`
+        + `${m.nombre_comercial ? ' (' + escapar(m.nombre_comercial) + ')' : ''}`
+        + ` — stock: ${m.stock_disponible}</option>`).join('') + '</optgroup>');
+    }
+    if (bt.farmaciaInsumos.length > 0) {
+      opciones.push('<optgroup label="Insumos">' + bt.farmaciaInsumos.map((i) =>
+        `<option value="ins:${i.id}">${escapar(i.nombre)} — stock: ${i.stock_disponible}</option>`
+      ).join('') + '</optgroup>');
+    }
+    const opcionesHtml = opciones.join('');
+
+    const filas = items.map((it, idx) => `
+      <tr>
+        <td>${escapar(it.nombre)}</td>
+        <td class="celda-centro">${it.repuesto}</td>
+        <td>
+          <select class="bt-origen-sel" data-idx="${idx}">${opcionesHtml}</select>
+        </td>
+      </tr>`).join('');
+
+    const fondo = document.createElement('div');
+    fondo.className = 'modal';
+    fondo.innerHTML = `
+      <div class="modal-caja modal-ancho" role="dialog" aria-modal="true">
+        <header class="modal-cabecera">
+          <h2 class="modal-titulo">¿De dónde sale, en Farmacia, lo que se repuso?</h2>
+        </header>
+        <div class="modal-cuerpo">
+          <p class="ayuda">Esto es lo único que descuenta el stock real. Si ya lo registraste
+             aparte en Farmacia, deja esa fila en "No descontar" para no restarlo dos veces.</p>
+          <table class="bt-tabla-origen">
+            <thead><tr><th>Insumo del botiquín</th><th>Repuesto</th><th>Sale de Farmacia como…</th></tr></thead>
+            <tbody>${filas}</tbody>
+          </table>
+        </div>
+        <footer class="modal-pie">
+          <button type="button" class="boton-secundario" id="bt-origen-cancelar">Cancelar</button>
+          <button type="button" class="boton-primario" id="bt-origen-confirmar">Confirmar y cerrar</button>
+        </footer>
+      </div>`;
+    document.body.appendChild(fondo);
+
+    fondo.querySelectorAll('.bt-origen-sel').forEach((sel, idx) => {
+      sel.value = preseleccionarFarmacia(items[idx].nombre);
+    });
+
+    fondo.querySelector('#bt-origen-cancelar').addEventListener('click', () => {
+      fondo.remove();
+      resolve(null);
+    });
+    fondo.querySelector('#bt-origen-confirmar').addEventListener('click', () => {
+      const selects = [...fondo.querySelectorAll('.bt-origen-sel')];
+      const resultado = selects.map((sel, idx) => ({ ...items[idx], valor: sel.value }));
+      fondo.remove();
+      resolve(resultado);
+    });
+  });
+}
+
+/** Aplica de verdad el descuento en Farmacia. Sigue adelante
+    aunque una fila falle, para no dejar a medio camino las que
+    sí funcionaron — y al final avisa cuáles no se pudieron. */
+async function aplicarDescuentoFarmacia(vinculos, revisionInfo) {
+  const fallos = [];
+  for (const v of vinculos) {
+    if (v.valor === 'omitir') continue;
+    const [tipo, id] = v.valor.split(':');
+    const nota = `Reposición botiquín "${bt.actual?.botiquin || ''}" — `
+               + `revisión del ${formatearFecha(revisionInfo.fecha_revision || HOY())} — ${v.nombre}`;
+
+    if (tipo === 'med') {
+      const lote = bt.farmaciaLotes.find((l) => l.medicamento_id === id);
+      if (!lote) { fallos.push(`${v.nombre}: no hay lote con saldo disponible`); continue; }
+      const { error } = await supabase.from('kardex').insert(alCrear({
+        empresa_id: bt.empresaId,
+        medicamento_id: id,
+        lote_id: lote.lote_id,
+        tipo: 'salida_consumo',
+        fecha: HOY(),
+        cantidad: v.repuesto,
+        observacion: nota
+      }));
+      if (error) fallos.push(`${v.nombre}: ${error.message}`);
+    } else if (tipo === 'ins') {
+      const insumo = bt.farmaciaInsumos.find((i) => i.id === id);
+      if (!insumo) { fallos.push(`${v.nombre}: insumo no encontrado`); continue; }
+      const nuevo = Math.max(0, Number(insumo.stock_disponible) - Number(v.repuesto));
+      const { error: e1 } = await supabase.from('insumos')
+        .update(alCrear({ stock_disponible: nuevo })).eq('id', id);
+      if (e1) { fallos.push(`${v.nombre}: ${e1.message}`); continue; }
+      const { error: e2 } = await supabase.from('insumos_kardex').insert(alCrear({
+        insumo_id: id, tipo: 'salida_consumo', cantidad: v.repuesto, nota
+      }));
+      if (e2) fallos.push(`${v.nombre}: ${e2.message}`);
+      insumo.stock_disponible = nuevo; // por si se repite el mismo insumo en otra fila
+    }
+  }
+  bt.farmaciaCargada = false; // para que la próxima vez traiga el stock ya actualizado
+  if (fallos.length > 0) {
+    alert('La revisión se cerró, pero Farmacia no se pudo descontar en:\n\n' + fallos.join('\n'));
+  }
+}
+
+
+async function cargarVinculosFarmacia() {
+  bt.vinculosFarmacia = new Map(); // insumo_botiquin_id → "med:id" | "ins:id"
+  const { data, error } = await supabase
+    .from('botiquin_insumo_farmacia')
+    .select('insumo_botiquin_id, tipo, articulo_id')
+    .eq('empresa_id', bt.empresaId);
+
+  if (error) {
+    /* Sin esta tabla, simplemente vuelve a preguntar siempre —
+       no es un error que deba detener el cierre de la revisión. */
+    console.warn('NEXUS · botiquines: no se pudo leer botiquin_insumo_farmacia. '
+               + '¿Se ejecutó 041_botiquin_insumo_farmacia.sql? ' + error.message);
+    return;
+  }
+  (data || []).forEach((v) => {
+    bt.vinculosFarmacia.set(v.insumo_botiquin_id, `${v.tipo === 'medicamento' ? 'med' : 'ins'}:${v.articulo_id}`);
+  });
+}
+
+/** Guarda cada respuesta nueva (menos "omitir", que no es un
+    vínculo real) para no volver a preguntarla la próxima vez. */
+async function guardarVinculosFarmacia(respuestas) {
+  const filas = respuestas
+    .filter((r) => r.valor !== 'omitir')
+    .map((r) => {
+      const [tipo, articulo_id] = r.valor.split(':');
+      return alCrear({
+        empresa_id: bt.empresaId,
+        insumo_botiquin_id: r.insumoId,
+        tipo: tipo === 'med' ? 'medicamento' : 'insumo',
+        articulo_id
+      });
+    });
+  if (filas.length === 0) return;
+
+  const { error } = await supabase
+    .from('botiquin_insumo_farmacia')
+    .upsert(filas, { onConflict: 'empresa_id,insumo_botiquin_id' });
+
+  if (error) {
+    console.warn('NEXUS · botiquines: no se pudo guardar el vínculo con Farmacia '
+               + '(va a volver a preguntar la próxima vez): ' + error.message);
+  }
+}
+
 async function guardarRevision(cerrar) {
   const r = bt.actual;
   if (!r) return;
@@ -611,6 +835,38 @@ async function guardarRevision(cerrar) {
     }
   }
 
+  let vinculosFarmacia = [];
+  const conRepuesto = detalle.filter((d) => d.repuesto > 0);
+  if (cerrar && conRepuesto.length > 0) {
+    await cargarCatalogoFarmacia();
+    await cargarVinculosFarmacia();
+
+    const items = conRepuesto.map((d) => ({
+      insumoId: d.insumo_id,
+      nombre: bt.insumos.find((i) => i.id === d.insumo_id)?.nombre || '(insumo)',
+      repuesto: d.repuesto
+    }));
+
+    /* Lo que ya se vinculó antes (mismo insumo, misma empresa)
+       va directo, sin preguntar de nuevo — es justo lo que
+       "repuesto: X" ya está diciendo. Solo se pregunta, y se
+       guarda para la próxima vez, lo que nunca se ha vinculado. */
+    const yaVinculados = items
+      .filter((it) => bt.vinculosFarmacia.has(it.insumoId))
+      .map((it) => ({ ...it, valor: bt.vinculosFarmacia.get(it.insumoId) }));
+
+    const nuevos = items.filter((it) => !bt.vinculosFarmacia.has(it.insumoId));
+
+    let respuestasNuevas = [];
+    if (nuevos.length > 0) {
+      respuestasNuevas = await pedirOrigenFarmacia(nuevos);
+      if (respuestasNuevas === null) return; // canceló: no se cierra la revisión
+      await guardarVinculosFarmacia(respuestasNuevas);
+    }
+
+    vinculosFarmacia = [...yaVinculados, ...respuestasNuevas];
+  }
+
   const $btn = document.getElementById(cerrar ? 'bt-btn-cerrar-revision' : 'bt-btn-guardar');
   $btn.disabled = true;
 
@@ -637,6 +893,10 @@ async function guardarRevision(cerrar) {
 
   $btn.disabled = false;
   if (e2) return alertaRevision(traducir(e2));
+
+  if (vinculosFarmacia.length > 0) {
+    await aplicarDescuentoFarmacia(vinculosFarmacia, cabecera);
+  }
 
   document.getElementById('bt-modal-revision').hidden = true;
   await refrescar();
@@ -1561,6 +1821,7 @@ async function crearInsumo() {
   $btn.disabled = true;
 
   const fila = {
+    empresa_id: bt.empresaId,
     nombre,
     presentacion: document.getElementById('bt_ins_presentacion').value.trim() || null,
     unidad,
