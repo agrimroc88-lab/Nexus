@@ -6,7 +6,7 @@
    ============================================ */
 
 import { supabase } from './supabase.js';
-import { protegerPagina } from './auth.js';
+import { protegerPagina, empresaActivaId } from './auth.js';
 import { montarNavegacion } from './nav.js';
 import { escapar, textoOGuion } from './utils.js';
 
@@ -79,9 +79,32 @@ function pintarEmpresasModal() {
 }
 
 async function cargarUsuarios() {
+  /* Antes traía TODOS los usuarios de TODAS las empresas, sin
+     filtro — cualquier admin veía la nómina completa de
+     cualquier otra empresa que use Nexus, no solo la propia.
+     Ahora se limita a quienes están asignados (en
+     usuario_empresas) a la empresa activa. Si alguien está
+     asignado a más de una empresa, va a aparecer en cada una
+     de esas — pero nunca en una a la que no pertenece. */
+  const empresaId = empresaActivaId();
+
+  const { data: asignaciones, error: errorAsig } = await supabase
+    .from('usuario_empresas')
+    .select('usuario_id')
+    .eq('empresa_id', empresaId);
+
+  if (errorAsig || !asignaciones || asignaciones.length === 0) {
+    estado.usuarios = [];
+    pintar();
+    return;
+  }
+
+  const ids = asignaciones.map((a) => a.usuario_id);
+
   const { data, error } = await supabase
     .from('usuarios_app')
     .select('id, cedula, nombres, apellidos, rol, registro_msp, activo')
+    .in('id', ids)
     .order('apellidos');
   estado.usuarios = error ? [] : (data || []);
   pintar();
