@@ -137,13 +137,18 @@ function prepararAnios() {
    ============================================ */
 
 async function cargarAtenciones() {
+  /* Antes tenía .limit(500): una vez que la empresa pasó de 500
+     atenciones históricas, la consulta siempre traía "las 500
+     más recientes" y descartaba el resto — por eso el contador
+     del año se quedaba pegado justo en 500, sin importar cuántas
+     hubiera de verdad. Se quita el tope: esta vista necesita el
+     historial completo (hay pantallas que agrupan por año). */
   const { data, error } = await supabase
     .from('v_atenciones')
     .select('*')
     .eq('empresa_id', estado.empresaId)
     .order('fecha', { ascending: false })
-    .order('creado_en', { ascending: false })
-    .limit(500);
+    .order('creado_en', { ascending: false });
 
   estado.atenciones = error ? [] : (data || []);
 }
