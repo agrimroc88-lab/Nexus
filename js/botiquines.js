@@ -480,7 +480,7 @@ function botonFarmaciaHtml(l) {
   if (repuesto === descontado) {
     return descontado > 0
       ? '<span class="celda-tenue">✓ al día</span>'
-      : '<span class="celda-tenue">—</span>';
+      : '';
   }
   const etiqueta = descontado === 0 ? 'Reponer' : 'Actualizar';
   return `<button type="button" class="boton-secundario boton-pequeno bt-btn-farmacia"
@@ -547,8 +547,8 @@ async function manejarBotonFarmacia(fila, l) {
   l.farmacia_descontado = nuevoDescontado;
   bt.farmaciaCargada = false; // para que la próxima acción traiga el stock ya actualizado
 
-  const $col = fila.querySelector('td:last-child');
-  if ($col) $col.innerHTML = botonFarmaciaHtml(l);
+  const $estado = fila.querySelector('.bt-farmacia-estado');
+  if ($estado) $estado.innerHTML = botonFarmaciaHtml(l);
   fila.querySelector('.bt-btn-farmacia')?.addEventListener('click', () => manejarBotonFarmacia(fila, l));
 
   if (mensaje) alert(mensaje);
@@ -583,7 +583,7 @@ function pintarDetalle() {
                data-campo="repuesto" value="${num(l.repuesto)}"
                ${editable ? '' : 'disabled'}>
       </td>
-      <td>
+      <td class="bt-celda-motivo">
         <select class="entrada bt-motivo" data-campo="motivo"
                 ${editable ? '' : 'disabled'}>
           <option value="">—</option>
@@ -593,9 +593,7 @@ function pintarDetalle() {
             </option>`).join('')}
           <option value="__nuevo">+ Otro motivo…</option>
         </select>
-      </td>
-      <td class="celda-centro">
-        ${botonFarmaciaHtml(l)}
+        <span class="bt-farmacia-estado">${botonFarmaciaHtml(l)}</span>
       </td>
     `;
 
