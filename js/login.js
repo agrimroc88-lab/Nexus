@@ -49,6 +49,51 @@ const $video = document.getElementById('video-fondo');
 $video.src = elegirVideoDeTemporada();
 $video.load();
 
+/* ============================================
+   Marco del video (ver login.css, .acceso-marco-video)
+
+   "object-fit: cover" en el <video> recorta el contenido según
+   la forma de la pantalla, pero no expone ese cálculo a nada
+   más — así que si uno posiciona los campos con % directamente
+   sobre la ventana, se desalinean del dibujo en cuanto cambia
+   el tamaño de pantalla. Esto reproduce el mismo cálculo que
+   hace "cover" por dentro, y lo aplica a un marco del tamaño
+   exacto del video (1280×720) para que los campos —puestos en
+   % sobre ESE marco— queden siempre pegados al mismo lugar.
+   ============================================ */
+
+const VIDEO_ANCHO = 1280;
+const VIDEO_ALTO = 720;
+const $marco = document.getElementById('marco-video');
+const $escena = document.getElementById('acceso-escena');
+
+function ajustarMarcoVideo() {
+  const vw = $escena.clientWidth;
+  const vh = $escena.clientHeight;
+  const razonVideo = VIDEO_ANCHO / VIDEO_ALTO;
+  const razonPantalla = vw / vh;
+
+  let ancho, alto;
+  if (razonPantalla > razonVideo) {
+    // Pantalla más "ancha" que el video: se recorta arriba/abajo
+    ancho = vw;
+    alto = vw / razonVideo;
+  } else {
+    // Pantalla más "alta" que el video: se recorta a los lados
+    alto = vh;
+    ancho = vh * razonVideo;
+  }
+
+  $marco.style.width = `${ancho}px`;
+  $marco.style.height = `${alto}px`;
+  $marco.style.left = `${(vw - ancho) / 2}px`;
+  $marco.style.top = `${(vh - alto) / 2}px`;
+  $marco.style.setProperty('--escala-video', String(ancho / VIDEO_ANCHO));
+}
+
+ajustarMarcoVideo();
+window.addEventListener('resize', ajustarMarcoVideo);
+
 const $correo = document.getElementById('correo');
 const $clave = document.getElementById('clave');
 const $boton = document.getElementById('btn-ingresar');
