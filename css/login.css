@@ -70,18 +70,39 @@
 
 .campo-flotante {
   position: absolute;
+  box-sizing: border-box;
+  padding: calc(1.5px * var(--escala-video, 1));
 }
 
-.campo-cedula { left: 37.11%; top: 37.22%; width: 25%; height: 7.22%; }
-.campo-clave  { left: 37.11%; top: 46.94%; width: 25%; height: 7.22%; }
-.campo-boton  { left: 37.11%; top: 56.67%; width: 25%; height: 7.22%; }
+.campo-flotante::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  padding: calc(1.5px * var(--escala-video, 1));
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--acceso-acento-2), var(--acceso-acento));
+  /* Sin esto, el degradado pintaría todo el círculo, no solo el
+     anillo. Esto lo "recorta" para que exista solo en el borde. */
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.campo-cedula { left: 39.61%; top: 39.03%; width: 20%; height: 3.61%; }
+.campo-clave  { left: 39.61%; top: 48.75%; width: 20%; height: 3.61%; }
+.campo-boton  { left: 39.61%; top: 58.48%; width: 20%; height: 3.61%; }
 
 .campo-mensaje {
   left: 30%;
-  top: 66%;
+  top: 64%;
   width: 40%;
   text-align: center;
+  padding: 0;
 }
+
+.campo-mensaje::before { content: none; }
 
 /* Oculto visualmente, pero legible para lectores de pantalla —
    las etiquetas Cédula/Contraseña siguen existiendo para
@@ -104,12 +125,13 @@
    crezca o encoja junto con el video, en vez de quedar fijo. */
 .acceso-entrada,
 .acceso-boton {
+  display: block;
   width: 100%;
   height: 100%;
   box-sizing: border-box;
   font-family: inherit;
   font-size: calc(15px * var(--escala-video, 1));
-  border: calc(1.5px * var(--escala-video, 1)) solid transparent;
+  border: none;
   border-radius: 999px;
   outline: none;
 }
@@ -117,9 +139,7 @@
 .acceso-entrada {
   padding: 0 calc(1.1rem * var(--escala-video, 1));
   color: var(--acceso-texto);
-  background:
-    linear-gradient(rgba(7, 16, 27, 0.97), rgba(7, 16, 27, 0.97)) padding-box,
-    linear-gradient(90deg, var(--acceso-acento-2), var(--acceso-acento)) border-box;
+  background: rgba(7, 16, 27, 0.35);
   transition: box-shadow 0.15s, filter 0.15s;
 }
 
@@ -129,7 +149,7 @@
   box-shadow:
     0 0 0 3px rgba(34, 224, 224, 0.16),
     0 0 18px rgba(255, 61, 95, 0.22);
-  filter: brightness(1.08);
+  filter: brightness(1.15);
 }
 
 /* Chrome pinta los campos con autocompletado guardado con su
@@ -141,8 +161,8 @@
 .acceso-entrada:-webkit-autofill:hover,
 .acceso-entrada:-webkit-autofill:focus {
   -webkit-text-fill-color: var(--acceso-texto);
-  -webkit-box-shadow: 0 0 0 1000px rgba(7, 16, 27, 0.97) inset;
-  box-shadow: 0 0 0 1000px rgba(7, 16, 27, 0.97) inset;
+  -webkit-box-shadow: 0 0 0 1000px rgba(7, 16, 27, 0.55) inset;
+  box-shadow: 0 0 0 1000px rgba(7, 16, 27, 0.55) inset;
   caret-color: var(--acceso-texto);
   transition: background-color 9999s ease-in-out 0s;
 }
@@ -152,16 +172,14 @@
   letter-spacing: 0.03em;
   color: #fff;
   cursor: pointer;
-  background:
-    linear-gradient(rgba(9, 20, 33, 0.97), rgba(9, 20, 33, 0.97)) padding-box,
-    linear-gradient(90deg, var(--acceso-acento-2), var(--acceso-acento)) border-box;
+  background: rgba(9, 20, 33, 0.35);
   transition: filter 0.15s, box-shadow 0.15s;
   box-shadow:
     0 0 20px rgba(34, 224, 224, 0.22),
     0 0 20px rgba(255, 61, 95, 0.18);
 }
 
-.acceso-boton:hover:not(:disabled) { filter: brightness(1.12); }
+.acceso-boton:hover:not(:disabled) { filter: brightness(1.25); }
 .acceso-boton:disabled { opacity: 0.5; cursor: default; box-shadow: none; }
 
 .acceso-mensaje {
