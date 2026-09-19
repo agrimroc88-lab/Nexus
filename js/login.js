@@ -64,8 +64,8 @@ $video.load();
    "cover" nunca recorta— queden siempre pegados al mismo lugar.
    ============================================ */
 
-const VIDEO_ANCHO = 1280;
-const VIDEO_ALTO = 720;
+const VIDEO_ANCHO = 1920;
+const VIDEO_ALTO = 1080;
 const $marco = document.getElementById('marco-video');
 const $escena = document.getElementById('acceso-escena');
 
