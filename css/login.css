@@ -130,6 +130,21 @@
   filter: brightness(1.08);
 }
 
+/* Chrome pinta los campos con autocompletado guardado con su
+   propio fondo claro, por encima de cualquier estilo — este es
+   el único truco que lo anula: un box-shadow interior enorme
+   del mismo color oscuro del campo, más grande que el propio
+   campo, "tapa" ese fondo claro por dentro. */
+.acceso-entrada:-webkit-autofill,
+.acceso-entrada:-webkit-autofill:hover,
+.acceso-entrada:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--acceso-texto);
+  -webkit-box-shadow: 0 0 0 1000px rgba(7, 16, 27, 0.97) inset;
+  box-shadow: 0 0 0 1000px rgba(7, 16, 27, 0.97) inset;
+  caret-color: var(--acceso-texto);
+  transition: background-color 9999s ease-in-out 0s;
+}
+
 .acceso-boton {
   font-weight: 700;
   letter-spacing: 0.03em;
