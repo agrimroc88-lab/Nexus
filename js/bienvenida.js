@@ -12,5 +12,6 @@ $video.load();
 document.getElementById('pantalla-bienvenida').addEventListener('click', continuar);
 
 function continuar() {
+  sessionStorage.setItem('nexus_vio_bienvenida', '1');
   window.location.href = BASE + 'login.html';
 }

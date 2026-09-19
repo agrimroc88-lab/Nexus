@@ -7,6 +7,18 @@ import { iniciarSesion, redirigirSiAutenticado } from './auth.js';
 
 const BASE = '/Nexus/';
 
+/* El video de bienvenida (index.html) es la puerta de entrada
+   por defecto: si alguien llega directo a login.html sin haber
+   pasado por ahí en esta sesión del navegador, se le manda
+   primero — así entre por el link que entre, siempre ve el
+   video antes del login. Una vez que lo ve, no se le repite
+   cada vez que recargue o vuelva a esta página en la misma
+   sesión (sessionStorage se borra al cerrar la pestaña/navegador,
+   así que la próxima vez que abra el navegador lo vuelve a ver). */
+if (!sessionStorage.getItem('nexus_vio_bienvenida')) {
+  window.location.href = BASE + 'index.html';
+}
+
 /* ============================================
    Video de fondo según la temporada
    Cada entrada es un rango de fechas (mes, día) y el archivo que
