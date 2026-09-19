@@ -1,39 +1,33 @@
 /* ============================================
    NEXUS · login.css
    Estilos exclusivos de login.html
+
+   Paleta cian/rojo, tomada del video de fondo del escudo (y que
+   además combina con los colores reales del logo). No toca las
+   variables de --color-acento etc. de base.css, así que el
+   resto del sistema sigue en verde.
    ============================================ */
 
 .pantalla-acceso {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  margin: 0;
   min-height: 100vh;
-  padding: 1.5rem;
-  overflow: hidden;
-  background: #0b0714; /* se ve un instante antes de que el video
-    cargue, y es lo que queda si el navegador bloquea el autoplay
-    o el usuario prefiere movimiento reducido */
+  background: #060c16; /* se ve un instante antes de que el video cargue */
 
-  /* Paleta local de esta pantalla, tomada del propio video (morado
-     / azul neón) — no toca las variables de --color-acento etc.
-     de base.css, así que el resto del sistema sigue en verde. */
-  --acceso-vidrio: rgba(20, 14, 38, 0.38);
-  --acceso-borde: rgba(179, 146, 255, 0.4);
-  --acceso-texto: #f3efff;
-  --acceso-texto-tenue: rgba(224, 216, 255, 0.68);
-  --acceso-acento: #9b7bff;
-  --acceso-acento-2: #4fd6ff;
+  --acceso-texto: #eaf6ff;
+  --acceso-texto-tenue: rgba(210, 225, 235, 0.68);
+  --acceso-acento: #ff3d5f;    /* rojo */
+  --acceso-acento-2: #22e0e0;  /* cian */
 }
 
-/* --- Video de fondo ---
-
-   Sin oscurecer ni desaturar: se deja tal cual se grabó. El
-   contraste con la tarjeta ya no depende de atenuar el video sino
-   de que la tarjeta sea un vidrio esmerilado (ver .acceso-tarjeta),
-   que se lee bien encima de cualquier fotograma sin taparlo. */
-.acceso-video-fondo {
+/* --- Escena: el video de fondo, a pantalla completa --- */
+.acceso-escena {
   position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+.acceso-video-fondo {
+  position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
@@ -41,18 +35,14 @@
   z-index: 0;
 }
 
-/* Antes era un tinte verde oscuro sólido tapando el video. Ahora
-   es solo un leve viñeteado en las esquinas —el centro, donde
-   está la tarjeta, queda intacto— para que el texto de los bordes
-   nunca dependa del fotograma que esté pasando justo ahí. */
 .acceso-video-capa {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 1;
   background: radial-gradient(
     ellipse at center,
     rgba(0, 0, 0, 0) 45%,
-    rgba(5, 2, 12, 0.35) 100%
+    rgba(4, 8, 16, 0.3) 100%
   );
 }
 
@@ -60,118 +50,109 @@
   .acceso-video-fondo { display: none; }
 }
 
-/* --- Tarjeta: vidrio esmerilado sobre el video ---
+/* --- Marco del video ---
 
-   En vez de una tarjeta blanca (que peleaba con el video) es un
-   panel translúcido con desenfoque de fondo: dentro se ve el
-   video "a través" del cristal, con los acentos en el mismo
-   morado/azul de las líneas de circuito del clip. */
-.acceso-tarjeta {
-  position: relative;
+   El video se muestra con "object-fit: cover": según la forma
+   de la pantalla, se recorta por los lados o por arriba/abajo.
+   Este marco reproduce EXACTAMENTE ese mismo recorte (lo calcula
+   login.js en cada cambio de tamaño), para que los campos de
+   adentro —posicionados en % sobre este marco— queden siempre
+   pegados al mismo lugar del dibujo del video, sea cual sea el
+   tamaño de la ventana. */
+.acceso-marco-video {
+  position: absolute;
   z-index: 2;
-  width: 100%;
-  max-width: 380px;
-  padding: 2.5rem 2rem;
-  background: var(--acceso-vidrio);
-  backdrop-filter: blur(18px) saturate(150%);
-  -webkit-backdrop-filter: blur(18px) saturate(150%);
-  border: 1px solid var(--acceso-borde);
-  border-radius: var(--radio);
-  box-shadow:
-    0 8px 40px rgba(60, 20, 120, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  /* ancho/alto/posición los pone login.js */
 }
 
-.acceso-encabezado {
+.campo-flotante {
+  position: absolute;
+}
+
+.campo-cedula { left: 37.11%; top: 37.22%; width: 25%; height: 7.22%; }
+.campo-clave  { left: 37.11%; top: 46.94%; width: 25%; height: 7.22%; }
+.campo-boton  { left: 37.11%; top: 56.67%; width: 25%; height: 7.22%; }
+
+.campo-mensaje {
+  left: 30%;
+  top: 66%;
+  width: 40%;
   text-align: center;
-  margin-bottom: 2rem;
 }
 
-.acceso-logo {
-  display: block;
-  width: 130px;
-  max-width: 100%;
-  height: 140px;
-  object-fit: contain;
-  margin: 0 auto 0.4rem;
-  filter: drop-shadow(0 0 14px rgba(123, 92, 255, 0.5));
+/* Oculto visualmente, pero legible para lectores de pantalla —
+   las etiquetas Cédula/Contraseña siguen existiendo para
+   accesibilidad, solo que ahora el diseño usa el placeholder
+   como etiqueta visual (así se ve como en el video). */
+.visualmente-oculto {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
-.acceso-marca {
-  margin: 0;
-  font-size: 2.25rem;
-  font-weight: 700;
-  letter-spacing: 0.15em;
-  color: var(--acceso-acento-2);
-  text-shadow: 0 0 22px rgba(123, 92, 255, 0.55);
-}
+/* --- Campos: píldora con borde degradado cian→rojo ---
 
-.acceso-lema {
-  margin: 0.35rem 0 0;
-  font-size: 0.85rem;
-  color: var(--acceso-texto-tenue);
-}
-
-.acceso-campo { margin-bottom: 1.1rem; }
-
-.acceso-etiqueta {
-  display: block;
-  margin-bottom: 0.4rem;
-  font-size: 0.8rem;
-  color: var(--acceso-texto-tenue);
+   El tamaño de fuente usa la variable --escala-video (la pone
+   login.js, = ancho real del marco ÷ 1280) para que el texto
+   crezca o encoja junto con el video, en vez de quedar fijo. */
+.acceso-entrada,
+.acceso-boton {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: calc(15px * var(--escala-video, 1));
+  border: calc(1.5px * var(--escala-video, 1)) solid transparent;
+  border-radius: 999px;
+  outline: none;
 }
 
 .acceso-entrada {
-  width: 100%;
-  padding: 0.7rem 0.85rem;
-  font-family: inherit;
-  font-size: 0.95rem;
+  padding: 0 calc(1.1rem * var(--escala-video, 1));
   color: var(--acceso-texto);
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid var(--acceso-borde);
-  border-radius: var(--radio);
-  outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  background:
+    linear-gradient(rgba(7, 16, 27, 0.97), rgba(7, 16, 27, 0.97)) padding-box,
+    linear-gradient(90deg, var(--acceso-acento-2), var(--acceso-acento)) border-box;
+  transition: box-shadow 0.15s, filter 0.15s;
 }
 
-.acceso-entrada::placeholder { color: rgba(224, 216, 255, 0.35); }
+.acceso-entrada::placeholder { color: rgba(210, 225, 235, 0.4); }
 
 .acceso-entrada:focus {
-  border-color: var(--acceso-acento-2);
-  box-shadow: 0 0 0 3px rgba(79, 214, 255, 0.18);
-}
-
-.acceso-mensaje {
-  margin: 0 0 1rem;
-  padding: 0.6rem 0.8rem;
-  font-size: 0.85rem;
-  color: #ffb4ab;
-  background: rgba(255, 90, 80, 0.12);
-  border: 1px solid rgba(255, 90, 80, 0.35);
-  border-radius: var(--radio);
+  box-shadow:
+    0 0 0 3px rgba(34, 224, 224, 0.16),
+    0 0 18px rgba(255, 61, 95, 0.22);
+  filter: brightness(1.08);
 }
 
 .acceso-boton {
-  width: 100%;
-  padding: 0.8rem;
-  font-family: inherit;
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 0.03em;
   color: #fff;
-  background: linear-gradient(135deg, var(--acceso-acento) 0%, var(--acceso-acento-2) 100%);
-  border: none;
-  border-radius: var(--radio);
   cursor: pointer;
-  transition: opacity 0.15s, box-shadow 0.15s;
-  box-shadow: 0 4px 18px rgba(123, 92, 255, 0.35);
+  background:
+    linear-gradient(rgba(9, 20, 33, 0.97), rgba(9, 20, 33, 0.97)) padding-box,
+    linear-gradient(90deg, var(--acceso-acento-2), var(--acceso-acento)) border-box;
+  transition: filter 0.15s, box-shadow 0.15s;
+  box-shadow:
+    0 0 20px rgba(34, 224, 224, 0.22),
+    0 0 20px rgba(255, 61, 95, 0.18);
 }
 
-.acceso-boton:hover:not(:disabled) { opacity: 0.92; }
+.acceso-boton:hover:not(:disabled) { filter: brightness(1.12); }
 .acceso-boton:disabled { opacity: 0.5; cursor: default; box-shadow: none; }
 
-.acceso-pie {
-  margin-top: 1.5rem;
-  text-align: center;
-  font-size: 0.72rem;
-  color: var(--acceso-texto-tenue);
+.acceso-mensaje {
+  margin: 0;
+  padding: calc(0.55rem * var(--escala-video, 1)) calc(0.8rem * var(--escala-video, 1));
+  font-size: calc(13px * var(--escala-video, 1));
+  color: #ffb4ab;
+  background: rgba(255, 90, 80, 0.16);
+  border: 1px solid rgba(255, 90, 80, 0.4);
+  border-radius: var(--radio);
+  backdrop-filter: blur(6px);
 }
