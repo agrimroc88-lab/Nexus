@@ -23,7 +23,7 @@ import { supabase } from './supabase.js?v=11';
 import { ROLES } from './auth.js?v=12';
 import { escapar, formatearFecha } from './utils.js?v=11';
 import { esperarImagenes } from './impresion.js?v=11';
-import { alCrear } from './autoria.js?v=1';
+import { alCrear, alEditar } from './autoria.js?v=1';
 import { envolverWord, descargarWord, recuadroFoto, bloqueFirmas,
          membreteWord, bandaTitulo, tablaWord,
          listaDocumento, seccionDocumento, logoEnBase64,
@@ -471,6 +471,89 @@ function abrirRevision(r) {
   document.getElementById('bt-modal-revision').hidden = false;
 }
 
+/** Qué mostrar en la columna Farmacia de cada fila: nada si
+    coincide, "Reponer" si nunca se ha tocado, "Actualizar" si
+    ya se descontó algo antes pero "repuesto" cambió después. */
+function botonFarmaciaHtml(l) {
+  const repuesto = Number(l.repuesto) || 0;
+  const descontado = Number(l.farmacia_descontado) || 0;
+  if (repuesto === descontado) {
+    return descontado > 0
+      ? '<span class="celda-tenue">✓ al día</span>'
+      : '<span class="celda-tenue">—</span>';
+  }
+  const etiqueta = descontado === 0 ? 'Reponer' : 'Actualizar';
+  return `<button type="button" class="boton-secundario boton-pequeno bt-btn-farmacia"
+            ${puedeEscribir() ? '' : 'disabled'}>${etiqueta}</button>`;
+}
+
+/** Al presionar Reponer/Actualizar de una fila: calcula la
+    diferencia contra lo ya descontado, pregunta el vínculo con
+    Farmacia si hace falta (y lo recuerda para la próxima vez),
+    aplica solo esa diferencia, y guarda el nuevo acumulado —
+    todo sin tocar ninguna otra fila de la revisión. */
+async function manejarBotonFarmacia(fila, l) {
+  const $btn = fila.querySelector('.bt-btn-farmacia');
+  if (!$btn) return;
+
+  const repuestoActual = Number(fila.querySelector('[data-campo="repuesto"]').value || 0);
+  const yaDescontado = Number(l.farmacia_descontado) || 0;
+  const delta = repuestoActual - yaDescontado;
+  if (delta === 0) return;
+
+  const etiquetaOriginal = $btn.textContent;
+  $btn.disabled = true;
+  $btn.textContent = '…';
+
+  const nombreInsumo = l.insumo + (l.presentacion ? ` (${l.presentacion})` : '');
+
+  await cargarCatalogoFarmacia();
+  await cargarVinculosFarmacia();
+
+  let valor = bt.vinculosFarmacia.get(l.insumo_id);
+  if (!valor) {
+    const resp = await pedirOrigenFarmacia([
+      { insumoId: l.insumo_id, nombre: nombreInsumo, repuesto: Math.abs(delta) }
+    ]);
+    if (resp === null) {
+      $btn.disabled = false;
+      $btn.textContent = etiquetaOriginal;
+      return; // canceló: no se toca Farmacia ni se guarda nada
+    }
+    valor = resp[0].valor;
+    if (valor !== 'omitir') await guardarVinculosFarmacia(resp);
+  }
+
+  const r = bt.actual;
+  const nota = `Reposición botiquín "${r.botiquin || ''}" — `
+             + `revisión del ${formatearFecha(r.fecha_revision || HOY())} — ${nombreInsumo}`;
+
+  let aplicado = delta;
+  let mensaje = null;
+  if (valor !== 'omitir') {
+    ({ aplicado, mensaje } = await ajustarFarmaciaInsumo(valor, delta, nombreInsumo, nota));
+  }
+
+  const nuevoDescontado = yaDescontado + aplicado;
+  const { error } = await supabase
+    .from('botiquin_revision_detalle')
+    .update(alEditar({ farmacia_descontado: nuevoDescontado }))
+    .eq('revision_id', r.id).eq('insumo_id', l.insumo_id);
+
+  if (error) {
+    console.error('NEXUS · botiquines: no se pudo guardar el avance del ajuste', error);
+  }
+
+  l.farmacia_descontado = nuevoDescontado;
+  bt.farmaciaCargada = false; // para que la próxima acción traiga el stock ya actualizado
+
+  const $col = fila.querySelector('td:last-child');
+  if ($col) $col.innerHTML = botonFarmaciaHtml(l);
+  fila.querySelector('.bt-btn-farmacia')?.addEventListener('click', () => manejarBotonFarmacia(fila, l));
+
+  if (mensaje) alert(mensaje);
+}
+
 function pintarDetalle() {
   const r = bt.actual;
   const lineas = bt.detalle[r.id] || [];
@@ -511,7 +594,12 @@ function pintarDetalle() {
           <option value="__nuevo">+ Otro motivo…</option>
         </select>
       </td>
+      <td class="celda-centro">
+        ${botonFarmaciaHtml(l)}
+      </td>
     `;
+
+    fila.querySelector('.bt-btn-farmacia')?.addEventListener('click', () => manejarBotonFarmacia(fila, l));
 
     /* El faltante se recalcula al teclear: quien revisa ve el
        resultado sin esperar a guardar. */
@@ -602,8 +690,11 @@ async function cargarCatalogoFarmacia() {
   const [meds, lotes, insumos] = await Promise.all([
     supabase.from('v_stock_medicamentos').select('id, nombre_generico, nombre_comercial, stock_disponible')
       .eq('empresa_id', bt.empresaId).eq('activo', true).order('nombre_generico'),
+    /* Sin el filtro de saldo > 0: ahora también hace falta
+       poder DEVOLVER stock a un lote (cuando "Actualizar" baja
+       la cantidad), y para eso hay que verlo aunque esté en 0. */
     supabase.from('v_stock_lotes').select('medicamento_id, lote_id, saldo, fecha_caducidad')
-      .eq('empresa_id', bt.empresaId).eq('medicamento_activo', true).gt('saldo', 0)
+      .eq('empresa_id', bt.empresaId).eq('medicamento_activo', true)
       .order('fecha_caducidad'),
     supabase.from('insumos').select('id, nombre, stock_disponible')
       .eq('empresa_id', bt.empresaId).eq('activo', true).order('nombre')
@@ -716,92 +807,100 @@ function pedirOrigenFarmacia(items) {
   });
 }
 
-/** Aplica de verdad el descuento en Farmacia. Sigue adelante
-    aunque una fila falle, para no dejar a medio camino las que
-    sí funcionaron — y al final avisa cuáles no se pudieron. */
-async function aplicarDescuentoFarmacia(vinculos, revisionInfo) {
-  const fallos = [];
-  for (const v of vinculos) {
-    if (v.valor === 'omitir') continue;
-    const [tipo, id] = v.valor.split(':');
-    const nota = `Reposición botiquín "${bt.actual?.botiquin || ''}" — `
-               + `revisión del ${formatearFecha(revisionInfo.fecha_revision || HOY())} — ${v.nombre}`;
+/**
+ * Ajusta en Farmacia UN SOLO insumo, por la diferencia (delta)
+ * indicada — positiva para descontar (reponer), negativa para
+ * devolver (cuando "Actualizar" baja la cantidad). Devuelve
+ * {ok, mensaje}: ok=true si se aplicó completo; si no, mensaje
+ * explica qué faltó, pero de todas formas deja aplicado lo que
+ * sí se pudo.
+ */
+async function ajustarFarmaciaInsumo(valor, delta, nombre, nota) {
+  if (delta === 0) return { aplicado: 0, mensaje: null };
+  const [tipo, id] = valor.split(':');
+  const salida = delta > 0; // true = sale de Farmacia, false = vuelve a Farmacia
 
-    if (tipo === 'med') {
-      /* FEFO de verdad: si el lote que vence primero no alcanza
-         para cubrir toda la cantidad, se completa con el/los
-         siguientes — antes se tomaba TODO de un solo lote sin
-         revisar si tenía suficiente, y si no alcanzaba, la base
-         probablemente rechazaba la operación por dejarlo en
-         negativo (eso explicaría tu caso del ibuprofeno). */
-      const candidatos = bt.farmaciaLotes
-        .filter((l) => l.medicamento_id === id)
-        .sort((a, b) => new Date(a.fecha_caducidad) - new Date(b.fecha_caducidad));
+  if (tipo === 'med') {
+    const deLaMisma = bt.farmaciaLotes.filter((l) => l.medicamento_id === id)
+      .sort((a, b) => new Date(a.fecha_caducidad) - new Date(b.fecha_caducidad));
 
-      if (candidatos.length === 0) {
-        fallos.push(`${v.nombre}: no hay ningún lote con saldo disponible en Farmacia para este medicamento`);
-        continue;
-      }
-
-      let restante = Number(v.repuesto);
-      for (const lote of candidatos) {
-        if (restante <= 0) break;
-        const tomar = Math.min(restante, Number(lote.saldo));
-        if (tomar <= 0) continue;
-        const { error } = await supabase.from('kardex').insert(alCrear({
-          empresa_id: bt.empresaId,
-          medicamento_id: id,
-          lote_id: lote.lote_id,
-          /* 'salida_consumo' es para cuando se le dispensa algo
-             a un paciente puntual (así lo usa registrar_atencion)
-             y la base exige un trabajador asociado
-             (ck_consumo_con_trabajador). Reponer un botiquín no
-             tiene un paciente específico, así que se usa
-             'ajuste_negativo' en su lugar. */
-          tipo: 'ajuste_negativo',
-          fecha: HOY(),
-          cantidad: tomar,
-          observacion: nota
-        }));
-        if (error) {
-          /* Puede pasar que, entre que se cargó el catálogo y
-             este momento, el saldo real de ESTE lote ya haya
-             bajado (alguien más lo usó mientras tanto) — en vez
-             de rendirse, se prueba con el siguiente lote. */
-          console.error('NEXUS · botiquines: error al descontar de Farmacia', v.nombre, lote, error);
-          continue;
-        }
-        lote.saldo -= tomar; // por si el mismo medicamento se repite en otra fila
-        restante -= tomar;
-      }
-      if (restante > 0) {
-        const entregado = v.repuesto - restante;
-        fallos.push(entregado > 0
-          ? `${v.nombre}: solo se pudo descontar ${entregado} de ${v.repuesto} — no había más stock disponible en Farmacia en este momento`
-          : `${v.nombre}: no había stock disponible en Farmacia para descontar nada`);
-      }
-    } else if (tipo === 'ins') {
-      const insumo = bt.farmaciaInsumos.find((i) => i.id === id);
-      if (!insumo) { fallos.push(`${v.nombre}: insumo no encontrado`); continue; }
-      const nuevo = Math.max(0, Number(insumo.stock_disponible) - Number(v.repuesto));
-      const { error: e1 } = await supabase.from('insumos')
-        .update(alCrear({ stock_disponible: nuevo })).eq('id', id);
-      if (e1) {
-        console.error('NEXUS · botiquines: error al descontar insumo', v.nombre, e1);
-        fallos.push(`${v.nombre}: ${e1.message}${e1.code ? ' (código ' + e1.code + ')' : ''}`);
-        continue;
-      }
-      const { error: e2 } = await supabase.from('insumos_kardex').insert(alCrear({
-        insumo_id: id, tipo: 'salida_consumo', cantidad: v.repuesto, nota
-      }));
-      if (e2) fallos.push(`${v.nombre}: ${e2.message}`);
-      insumo.stock_disponible = nuevo; // por si se repite el mismo insumo en otra fila
+    if (deLaMisma.length === 0) {
+      return { aplicado: 0, mensaje: `${nombre}: no hay ningún lote de este medicamento en Farmacia` };
     }
+
+    if (!salida) {
+      const lote = deLaMisma[0];
+      const { error } = await supabase.from('kardex').insert(alCrear({
+        empresa_id: bt.empresaId, medicamento_id: id, lote_id: lote.lote_id,
+        tipo: 'ajuste_positivo', fecha: HOY(), cantidad: Math.abs(delta), observacion: nota
+      }));
+      if (error) {
+        console.error('NEXUS · botiquines: error al devolver a Farmacia', nombre, error);
+        return { aplicado: 0, mensaje: `${nombre}: ${error.message}` };
+      }
+      lote.saldo += Math.abs(delta);
+      return { aplicado: delta, mensaje: null };
+    }
+
+    let restante = delta;
+    const candidatos = deLaMisma.filter((l) => l.saldo > 0);
+    for (const lote of candidatos) {
+      if (restante <= 0) break;
+      const tomar = Math.min(restante, Number(lote.saldo));
+      if (tomar <= 0) continue;
+      const { error } = await supabase.from('kardex').insert(alCrear({
+        empresa_id: bt.empresaId, medicamento_id: id, lote_id: lote.lote_id,
+        tipo: 'ajuste_negativo', fecha: HOY(), cantidad: tomar, observacion: nota
+      }));
+      if (error) {
+        console.error('NEXUS · botiquines: error al descontar de Farmacia', nombre, lote, error);
+        continue;
+      }
+      lote.saldo -= tomar;
+      restante -= tomar;
+    }
+    const aplicado = delta - restante;
+    if (restante > 0) {
+      return {
+        aplicado,
+        mensaje: aplicado > 0
+          ? `${nombre}: solo se pudo descontar ${aplicado} de ${delta} — no había más stock disponible en Farmacia`
+          : `${nombre}: no había stock disponible en Farmacia para descontar nada`
+      };
+    }
+    return { aplicado, mensaje: null };
   }
-  bt.farmaciaCargada = false; // para que la próxima vez traiga el stock ya actualizado
-  if (fallos.length > 0) {
-    alert('La revisión se cerró, pero Farmacia no se pudo descontar en:\n\n' + fallos.join('\n'));
+
+  if (tipo === 'ins') {
+    const insumo = bt.farmaciaInsumos.find((i) => i.id === id);
+    if (!insumo) return { aplicado: 0, mensaje: `${nombre}: insumo no encontrado en Farmacia` };
+
+    const actual = Number(insumo.stock_disponible);
+    /* Al sacar, no se puede bajar de 0 — se aplica como máximo
+       lo que haya. Al devolver, no hay tope: siempre se puede
+       sumar de vuelta lo que se está corrigiendo. */
+    const aplicado = salida ? Math.min(delta, actual) : delta;
+    const nuevo = actual - aplicado;
+
+    const { error: e1 } = await supabase.from('insumos')
+      .update(alCrear({ stock_disponible: nuevo })).eq('id', id);
+    if (e1) {
+      console.error('NEXUS · botiquines: error al ajustar insumo', nombre, e1);
+      return { aplicado: 0, mensaje: `${nombre}: ${e1.message}` };
+    }
+    const { error: e2 } = await supabase.from('insumos_kardex').insert(alCrear({
+      insumo_id: id, tipo: salida ? 'ajuste_negativo' : 'ajuste_positivo',
+      cantidad: Math.abs(aplicado), nota
+    }));
+    if (e2) console.error('NEXUS · botiquines: no se pudo registrar el kárdex del insumo', nombre, e2);
+    insumo.stock_disponible = nuevo;
+    if (aplicado !== delta) {
+      return { aplicado, mensaje: `${nombre}: solo se pudo descontar ${aplicado} de ${delta} — no había más stock` };
+    }
+    return { aplicado, mensaje: null };
   }
+
+  return { aplicado: 0, mensaje: `${nombre}: tipo de vínculo desconocido` };
 }
 
 
@@ -888,38 +987,6 @@ async function guardarRevision(cerrar) {
     }
   }
 
-  let vinculosFarmacia = [];
-  const conRepuesto = detalle.filter((d) => d.repuesto > 0);
-  if (cerrar && conRepuesto.length > 0) {
-    await cargarCatalogoFarmacia();
-    await cargarVinculosFarmacia();
-
-    const items = conRepuesto.map((d) => ({
-      insumoId: d.insumo_id,
-      nombre: bt.insumos.find((i) => i.id === d.insumo_id)?.nombre || '(insumo)',
-      repuesto: d.repuesto
-    }));
-
-    /* Lo que ya se vinculó antes (mismo insumo, misma empresa)
-       va directo, sin preguntar de nuevo — es justo lo que
-       "repuesto: X" ya está diciendo. Solo se pregunta, y se
-       guarda para la próxima vez, lo que nunca se ha vinculado. */
-    const yaVinculados = items
-      .filter((it) => bt.vinculosFarmacia.has(it.insumoId))
-      .map((it) => ({ ...it, valor: bt.vinculosFarmacia.get(it.insumoId) }));
-
-    const nuevos = items.filter((it) => !bt.vinculosFarmacia.has(it.insumoId));
-
-    let respuestasNuevas = [];
-    if (nuevos.length > 0) {
-      respuestasNuevas = await pedirOrigenFarmacia(nuevos);
-      if (respuestasNuevas === null) return; // canceló: no se cierra la revisión
-      await guardarVinculosFarmacia(respuestasNuevas);
-    }
-
-    vinculosFarmacia = [...yaVinculados, ...respuestasNuevas];
-  }
-
   const $btn = document.getElementById(cerrar ? 'bt-btn-cerrar-revision' : 'bt-btn-guardar');
   $btn.disabled = true;
 
@@ -946,10 +1013,6 @@ async function guardarRevision(cerrar) {
 
   $btn.disabled = false;
   if (e2) return alertaRevision(traducir(e2));
-
-  if (vinculosFarmacia.length > 0) {
-    await aplicarDescuentoFarmacia(vinculosFarmacia, cabecera);
-  }
 
   document.getElementById('bt-modal-revision').hidden = true;
   await refrescar();
