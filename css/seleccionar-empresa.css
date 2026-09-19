@@ -1,11 +1,79 @@
 /* ============================================
    NEXUS · seleccionar-empresa.css
    Estilos exclusivos de seleccionar-empresa.html
-   Complementa login.css (misma tarjeta, mismo tono).
+
+   login.css ya no trae una tarjeta genérica (el login se rediseñó
+   como campos flotando sobre el video, sin tarjeta) — así que esta
+   página necesita la suya propia. Misma paleta cian/rojo del login,
+   en formato de tarjeta de vidrio clásica, que es lo que le sirve
+   a una lista dinámica de empresas.
    ============================================ */
+
+.acceso-tarjeta {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 380px;
+  margin: 4rem auto;
+  padding: 2.25rem 2rem;
+  background: rgba(6, 14, 24, 0.6);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radio);
+  box-shadow:
+    0 8px 40px rgba(0, 0, 0, 0.45),
+    0 0 60px rgba(34, 224, 224, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+
+  --acceso-texto: #eaf6ff;
+  --acceso-texto-tenue: rgba(210, 225, 235, 0.68);
+  --acceso-acento: #ff3d5f;
+  --acceso-acento-2: #22e0e0;
+}
 
 .acceso-tarjeta-ancha {
   max-width: 480px;
+}
+
+.acceso-encabezado {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.acceso-marca {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  background: linear-gradient(180deg, #ffffff 0%, #c3ced8 55%, #8b97a3 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+}
+
+.acceso-lema {
+  margin: 0.4rem 0 0;
+  font-size: 0.88rem;
+  color: var(--acceso-texto-tenue);
+}
+
+.acceso-mensaje {
+  margin: 0 0 1rem;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.85rem;
+  color: #ffb4ab;
+  background: rgba(255, 90, 80, 0.14);
+  border: 1px solid rgba(255, 90, 80, 0.38);
+  border-radius: var(--radio);
+}
+
+.acceso-pie {
+  margin-top: 1.25rem;
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--acceso-texto-tenue);
 }
 
 /* Botón de cerrar sesión: arriba a la derecha, igual que en el
