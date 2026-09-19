@@ -16,6 +16,33 @@ import { protegerPagina, empresasPermitidas, elegirEmpresaActiva, cerrarSesion }
 
 const BASE = '/Nexus/';
 
+/* Mismo criterio de temporada que login.js — si se agrega una
+   temporada nueva ahí, hay que replicarla aquí también (son dos
+   páginas de acceso, cada una con su propio <video>). */
+const TEMPORADAS = [
+  { desdeMD: [10, 20], hastaMD: [10, 31], archivo: 'img/login-fondo-halloween.mp4' },
+  { desdeMD: [12, 10], hastaMD: [12, 27], archivo: 'img/login-fondo-navidad.mp4' },
+  { desdeMD: [12, 28], hastaMD: [1, 2],   archivo: 'img/login-fondo-finanio.mp4' },
+  { desdeMD: [1, 5],   hastaMD: [1, 6],   archivo: 'img/login-fondo-reyes.mp4' },
+];
+const VIDEO_POR_DEFECTO = 'img/login-fondo.mp4';
+
+function fechaEnRango(hoy, [mesDesde, diaDesde], [mesHasta, diaHasta]) {
+  const num = (mes, dia) => mes * 100 + dia;
+  const actual = num(hoy.getMonth() + 1, hoy.getDate());
+  const desde = num(mesDesde, diaDesde);
+  const hasta = num(mesHasta, diaHasta);
+  return desde <= hasta ? (actual >= desde && actual <= hasta) : (actual >= desde || actual <= hasta);
+}
+
+const $video = document.getElementById('video-fondo');
+if ($video) {
+  const hoy = new Date();
+  const activa = TEMPORADAS.find((t) => fechaEnRango(hoy, t.desdeMD, t.hastaMD));
+  $video.src = activa ? activa.archivo : VIDEO_POR_DEFECTO;
+  $video.load();
+}
+
 const $lista = document.getElementById('sel-emp-lista');
 const $mensaje = document.getElementById('mensaje');
 const $btnCerrarSesion = document.getElementById('btn-cerrar-sesion');
