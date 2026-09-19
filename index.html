@@ -6,14 +6,17 @@
   <title>NEXUS · Sistema Inteligente de Medicina Ocupacional y SG-SST</title>
   <link rel="icon" href="nexus-favicon.png">
   <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/bienvenida.css">
 </head>
-<body class="pantalla-inicio">
+<body class="pantalla-bienvenida" id="pantalla-bienvenida">
 
-  <main class="inicio-contenedor">
-    <h1 class="inicio-marca">NEXUS</h1>
-    <p class="inicio-lema">Sistema Inteligente de Medicina Ocupacional y SG-SST</p>
-    <p class="inicio-estado">Sistema en construcción · Módulo base activo</p>
-  </main>
+  <video id="video-bienvenida" class="bienvenida-video" autoplay muted loop playsinline aria-hidden="true"></video>
+  <div class="bienvenida-capa" aria-hidden="true"></div>
 
+  <div class="bienvenida-clic">
+    <span>Haz clic para continuar</span>
+  </div>
+
+  <script type="module" src="js/bienvenida.js"></script>
 </body>
 </html>
