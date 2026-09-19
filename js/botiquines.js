@@ -608,6 +608,15 @@ async function cargarCatalogoFarmacia() {
     supabase.from('insumos').select('id, nombre, stock_disponible')
       .eq('empresa_id', bt.empresaId).eq('activo', true).order('nombre')
   ]);
+
+  /* Antes, un error acá quedaba en silencio (el catálogo
+     quedaba vacío sin avisar nada) — ahora queda registrado en
+     la consola del navegador (F12 → Consola) para poder
+     diagnosticarlo, en vez de parecer que "no pasó nada". */
+  if (meds.error) console.error('NEXUS · botiquines: v_stock_medicamentos', meds.error);
+  if (lotes.error) console.error('NEXUS · botiquines: v_stock_lotes', lotes.error);
+  if (insumos.error) console.error('NEXUS · botiquines: insumos', insumos.error);
+
   bt.farmaciaMedicamentos = meds.data || [];
   bt.farmaciaLotes = lotes.data || [];
   bt.farmaciaInsumos = insumos.data || [];
@@ -719,25 +728,69 @@ async function aplicarDescuentoFarmacia(vinculos, revisionInfo) {
                + `revisión del ${formatearFecha(revisionInfo.fecha_revision || HOY())} — ${v.nombre}`;
 
     if (tipo === 'med') {
-      const lote = bt.farmaciaLotes.find((l) => l.medicamento_id === id);
-      if (!lote) { fallos.push(`${v.nombre}: no hay lote con saldo disponible`); continue; }
-      const { error } = await supabase.from('kardex').insert(alCrear({
-        empresa_id: bt.empresaId,
-        medicamento_id: id,
-        lote_id: lote.lote_id,
-        tipo: 'salida_consumo',
-        fecha: HOY(),
-        cantidad: v.repuesto,
-        observacion: nota
-      }));
-      if (error) fallos.push(`${v.nombre}: ${error.message}`);
+      /* FEFO de verdad: si el lote que vence primero no alcanza
+         para cubrir toda la cantidad, se completa con el/los
+         siguientes — antes se tomaba TODO de un solo lote sin
+         revisar si tenía suficiente, y si no alcanzaba, la base
+         probablemente rechazaba la operación por dejarlo en
+         negativo (eso explicaría tu caso del ibuprofeno). */
+      const candidatos = bt.farmaciaLotes
+        .filter((l) => l.medicamento_id === id)
+        .sort((a, b) => new Date(a.fecha_caducidad) - new Date(b.fecha_caducidad));
+
+      if (candidatos.length === 0) {
+        fallos.push(`${v.nombre}: no hay ningún lote con saldo disponible en Farmacia para este medicamento`);
+        continue;
+      }
+
+      let restante = Number(v.repuesto);
+      for (const lote of candidatos) {
+        if (restante <= 0) break;
+        const tomar = Math.min(restante, Number(lote.saldo));
+        if (tomar <= 0) continue;
+        const { error } = await supabase.from('kardex').insert(alCrear({
+          empresa_id: bt.empresaId,
+          medicamento_id: id,
+          lote_id: lote.lote_id,
+          /* 'salida_consumo' es para cuando se le dispensa algo
+             a un paciente puntual (así lo usa registrar_atencion)
+             y la base exige un trabajador asociado
+             (ck_consumo_con_trabajador). Reponer un botiquín no
+             tiene un paciente específico, así que se usa
+             'ajuste_negativo' en su lugar. */
+          tipo: 'ajuste_negativo',
+          fecha: HOY(),
+          cantidad: tomar,
+          observacion: nota
+        }));
+        if (error) {
+          /* Puede pasar que, entre que se cargó el catálogo y
+             este momento, el saldo real de ESTE lote ya haya
+             bajado (alguien más lo usó mientras tanto) — en vez
+             de rendirse, se prueba con el siguiente lote. */
+          console.error('NEXUS · botiquines: error al descontar de Farmacia', v.nombre, lote, error);
+          continue;
+        }
+        lote.saldo -= tomar; // por si el mismo medicamento se repite en otra fila
+        restante -= tomar;
+      }
+      if (restante > 0) {
+        const entregado = v.repuesto - restante;
+        fallos.push(entregado > 0
+          ? `${v.nombre}: solo se pudo descontar ${entregado} de ${v.repuesto} — no había más stock disponible en Farmacia en este momento`
+          : `${v.nombre}: no había stock disponible en Farmacia para descontar nada`);
+      }
     } else if (tipo === 'ins') {
       const insumo = bt.farmaciaInsumos.find((i) => i.id === id);
       if (!insumo) { fallos.push(`${v.nombre}: insumo no encontrado`); continue; }
       const nuevo = Math.max(0, Number(insumo.stock_disponible) - Number(v.repuesto));
       const { error: e1 } = await supabase.from('insumos')
         .update(alCrear({ stock_disponible: nuevo })).eq('id', id);
-      if (e1) { fallos.push(`${v.nombre}: ${e1.message}`); continue; }
+      if (e1) {
+        console.error('NEXUS · botiquines: error al descontar insumo', v.nombre, e1);
+        fallos.push(`${v.nombre}: ${e1.message}${e1.code ? ' (código ' + e1.code + ')' : ''}`);
+        continue;
+      }
       const { error: e2 } = await supabase.from('insumos_kardex').insert(alCrear({
         insumo_id: id, tipo: 'salida_consumo', cantidad: v.repuesto, nota
       }));

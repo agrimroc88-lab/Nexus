@@ -46,7 +46,7 @@ import {
 } from './informe-test-atd.js?v=9';
 import { montarGrupos, cargarGrupos, pintarGrupos } from './grupos.js?v=13';
 import { montarBotiquines, cargarBotiquines, pintarBotiquines }
-  from './botiquines.js?v=16';
+  from './botiquines.js?v=18';
 import { montarInstalaciones, cargarInstalaciones, pintarInstalaciones }
   from './instalaciones.js?v=20';
 import {
