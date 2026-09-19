@@ -75,21 +75,30 @@ function ajustarMarcoVideo() {
   const razonVideo = VIDEO_ANCHO / VIDEO_ALTO;
   const razonPantalla = vw / vh;
 
-  let ancho, alto;
+  let ancho, alto, left, top;
   if (razonPantalla > razonVideo) {
-    // Pantalla más "ancha" que el video: se recorta arriba/abajo
+    // Pantalla más "ancha" que el video: se recorta arriba/abajo.
+    // Se ancla ABAJO (igual que object-position: center bottom en
+    // el <video>) para proteger el escudo y "NEXUS", que viven en
+    // la parte baja del video — lo que se pierde es de la parte
+    // de arriba (paneles, ADN), que importa menos.
     ancho = vw;
     alto = vw / razonVideo;
+    left = 0;
+    top = vh - alto;
   } else {
-    // Pantalla más "alta" que el video: se recorta a los lados
+    // Pantalla más "alta" que el video: se recorta a los lados,
+    // parejo (no hay un lado más importante que el otro aquí)
     alto = vh;
     ancho = vh * razonVideo;
+    left = (vw - ancho) / 2;
+    top = 0;
   }
 
   $marco.style.width = `${ancho}px`;
   $marco.style.height = `${alto}px`;
-  $marco.style.left = `${(vw - ancho) / 2}px`;
-  $marco.style.top = `${(vh - alto) / 2}px`;
+  $marco.style.left = `${left}px`;
+  $marco.style.top = `${top}px`;
   $marco.style.setProperty('--escala-video', String(ancho / VIDEO_ANCHO));
 }
 
