@@ -33,6 +33,8 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center bottom; /* si hay que recortar arriba/abajo,
+    que se recorte por ARRIBA — el escudo y "NEXUS" viven abajo */
   z-index: 0;
 }
 
