@@ -10,36 +10,37 @@
 </head>
 <body class="pantalla-acceso">
 
-  <video id="video-fondo" class="acceso-video-fondo" autoplay muted loop playsinline aria-hidden="true"></video>
-  <div class="acceso-video-capa" aria-hidden="true"></div>
+  <div class="acceso-escena" id="acceso-escena">
 
-  <main class="acceso-tarjeta">
+    <video id="video-fondo" class="acceso-video-fondo" autoplay muted loop playsinline aria-hidden="true"></video>
+    <div class="acceso-video-capa" aria-hidden="true"></div>
 
-    <header class="acceso-encabezado">
-      <img class="acceso-logo" src="nexus-favicon.png" alt="Nexus">
-      <h1 class="acceso-marca">NEXUS</h1>
-      <p class="acceso-lema">Medicina Ocupacional y SG-SST</p>
-    </header>
+    <!-- Marco del tamaño real del video (1280×720), reescalado por
+         login.js para que calce exactamente con cómo el navegador
+         recorta el video (mismo criterio que "object-fit: cover").
+         Todo lo de aquí adentro usa % relativo a ESTE marco, así
+         que queda pegado al video sin importar el tamaño de
+         pantalla. -->
+    <div class="acceso-marco-video" id="marco-video">
 
-    <div class="acceso-campo">
-      <label class="acceso-etiqueta" for="correo">Cédula</label>
-      <input class="acceso-entrada" type="text" id="correo" autocomplete="username" placeholder="Número de cédula" required>
+      <div class="campo-flotante campo-cedula">
+        <label class="visualmente-oculto" for="correo">Cédula</label>
+        <input class="acceso-entrada" type="text" id="correo" autocomplete="username" placeholder="Cédula" required>
+      </div>
+
+      <div class="campo-flotante campo-clave">
+        <label class="visualmente-oculto" for="clave">Contraseña</label>
+        <input class="acceso-entrada" type="password" id="clave" autocomplete="current-password" placeholder="Contraseña" required>
+      </div>
+
+      <div class="campo-flotante campo-boton">
+        <button class="acceso-boton" id="btn-ingresar" type="button">Ingresar</button>
+      </div>
+
+      <p class="acceso-mensaje campo-flotante campo-mensaje" id="mensaje" role="alert" hidden></p>
+
     </div>
-
-    <div class="acceso-campo">
-      <label class="acceso-etiqueta" for="clave">Contraseña</label>
-      <input class="acceso-entrada" type="password" id="clave" autocomplete="current-password" required>
-    </div>
-
-    <p class="acceso-mensaje" id="mensaje" role="alert" hidden></p>
-
-    <button class="acceso-boton" id="btn-ingresar" type="button">Ingresar</button>
-
-    <footer class="acceso-pie">
-      <span>Acceso restringido · Información clínica protegida</span>
-    </footer>
-
-  </main>
+  </div>
 
   <script type="module" src="js/login.js"></script>
 </body>
