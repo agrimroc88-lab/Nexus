@@ -52,14 +52,16 @@ $video.load();
 /* ============================================
    Marco del video (ver login.css, .acceso-marco-video)
 
-   "object-fit: cover" en el <video> recorta el contenido según
-   la forma de la pantalla, pero no expone ese cálculo a nada
-   más — así que si uno posiciona los campos con % directamente
-   sobre la ventana, se desalinean del dibujo en cuanto cambia
-   el tamaño de pantalla. Esto reproduce el mismo cálculo que
-   hace "cover" por dentro, y lo aplica a un marco del tamaño
-   exacto del video (1280×720) para que los campos —puestos en
-   % sobre ESE marco— queden siempre pegados al mismo lugar.
+   "object-fit: contain" en el <video> muestra el cuadro
+   completo sin recortar nada (con margen a los lados o
+   arriba/abajo si la pantalla no tiene la misma proporción),
+   pero no expone ese cálculo a nada más — así que si uno
+   posiciona los campos con % directamente sobre la ventana, se
+   desalinean del dibujo en cuanto cambia el tamaño de pantalla.
+   Esto reproduce el mismo cálculo que hace "contain" por
+   dentro, y lo aplica a un marco del tamaño exacto del video
+   (1280×720) para que los campos —puestos en % sobre ESE
+   marco— queden siempre pegados al mismo lugar.
    ============================================ */
 
 const VIDEO_ANCHO = 1280;
@@ -75,13 +77,13 @@ function ajustarMarcoVideo() {
 
   let ancho, alto;
   if (razonPantalla > razonVideo) {
-    // Pantalla más "ancha" que el video: se recorta arriba/abajo
-    ancho = vw;
-    alto = vw / razonVideo;
-  } else {
-    // Pantalla más "alta" que el video: se recorta a los lados
+    // Pantalla más "ancha" que el video: queda margen a los lados
     alto = vh;
     ancho = vh * razonVideo;
+  } else {
+    // Pantalla más "alta" que el video: queda margen arriba/abajo
+    ancho = vw;
+    alto = vw / razonVideo;
   }
 
   $marco.style.width = `${ancho}px`;
