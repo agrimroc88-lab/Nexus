@@ -318,3 +318,21 @@
   width: 100%;
   min-width: 220px;
 }
+
+/* Celda de Motivo + botón de Farmacia: uno debajo del otro,
+   compactos, en la misma columna angosta. */
+.bt-celda-motivo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: flex-start;
+}
+
+.bt-farmacia-estado .bt-btn-farmacia {
+  padding: 0.2rem 0.55rem;
+  font-size: 0.78rem;
+}
+
+.bt-farmacia-estado .celda-tenue {
+  font-size: 0.78rem;
+}
