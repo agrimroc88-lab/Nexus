@@ -195,6 +195,7 @@ export async function cerrarSesion() {
   borrarSesion();
   limpiarEmpresaActiva();
   sessionStorage.removeItem(CLAVE_ACTIVIDAD);
+  sessionStorage.removeItem('nexus_vio_bienvenida');
   window.location.href = BASE + 'login.html';
 }
 
