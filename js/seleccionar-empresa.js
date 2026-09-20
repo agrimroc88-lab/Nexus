@@ -19,9 +19,15 @@ const BASE = '/Nexus/';
 
 const $video = document.getElementById('video-fondo');
 if ($video) {
+  const VIDEO_POR_DEFECTO = 'img/login-fondo.mp4';
+  $video.src = VIDEO_POR_DEFECTO;
+  $video.load();
+
   videoDeLogin().then((src) => {
-    $video.src = src;
-    $video.load();
+    if (src !== VIDEO_POR_DEFECTO) {
+      $video.src = src;
+      $video.load();
+    }
   });
 }
 

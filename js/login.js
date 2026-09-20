@@ -7,11 +7,22 @@ import { iniciarSesion, redirigirSiAutenticado } from './auth.js';
 import { videoDeLogin } from './tema-temporada.js';
 
 const BASE = '/Nexus/';
+const VIDEO_POR_DEFECTO = 'img/login-fondo.mp4';
 
+/* El video normal arranca YA, sin esperar nada — así la pantalla
+   nunca se queda en negro mientras se consulta la base. Si
+   resulta que hay un tema especial activo (Navidad, etc.), se
+   cambia sobre la marcha; en un día sin tema activo (casi todo
+   el año) esto no hace ningún cambio visible. */
 const $video = document.getElementById('video-fondo');
+$video.src = VIDEO_POR_DEFECTO;
+$video.load();
+
 videoDeLogin().then((src) => {
-  $video.src = src;
-  $video.load();
+  if (src !== VIDEO_POR_DEFECTO) {
+    $video.src = src;
+    $video.load();
+  }
 });
 
 /* ============================================

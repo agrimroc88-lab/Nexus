@@ -6,6 +6,7 @@
 import { videoDeBienvenida } from './tema-temporada.js';
 
 const BASE = '/Nexus/';
+const VIDEO_POR_DEFECTO = 'img/bienvenida.mp4';
 
 const $video = document.getElementById('video-bienvenida');
 
@@ -15,13 +16,21 @@ const $video = document.getElementById('video-bienvenida');
    tener un video de bienvenida para cada tema desde el día uno. */
 $video.addEventListener('error', () => {
   if ($video.src.endsWith('bienvenida.mp4')) return; // ya es el de respaldo, no hay más a qué caer
-  $video.src = 'img/bienvenida.mp4';
+  $video.src = VIDEO_POR_DEFECTO;
   $video.load();
 });
 
+/* El video normal arranca YA, sin esperar la consulta a la base
+   — así la bienvenida nunca se queda en negro. Si hay un tema
+   especial activo, se cambia sobre la marcha. */
+$video.src = VIDEO_POR_DEFECTO;
+$video.load();
+
 videoDeBienvenida().then((src) => {
-  $video.src = src;
-  $video.load();
+  if (src !== VIDEO_POR_DEFECTO) {
+    $video.src = src;
+    $video.load();
+  }
 });
 
 document.getElementById('pantalla-bienvenida').addEventListener('click', continuar);
