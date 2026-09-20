@@ -8,8 +8,8 @@
   margin: 0;
   min-height: 100vh;
   overflow: hidden;
-  background: #020412; /* medido del propio video, para que no
-    haya salto de color mientras carga */
+  background: #020815; /* medido de los bordes reales del video,
+    para que el margen se funda con la escena */
   cursor: pointer;
 }
 
