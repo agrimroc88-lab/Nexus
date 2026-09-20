@@ -5,6 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Acceso · NEXUS</title>
   <link rel="icon" href="nexus-favicon.png">
+
+  <!-- Esto tiene que ir ANTES que cualquier CSS o contenido del
+       body: es un script normal (no type="module", no defer), así
+       que el navegador lo corre de inmediato mientras va leyendo
+       el documento, antes de dibujar nada en pantalla. Si hace
+       falta mandar a la bienvenida, lo hace ahí mismo — por eso ya
+       no se alcanza a ver un instante del login antes de irse. -->
+  <script>
+    /* Diferencia entre "llegó aquí haciendo clic desde la
+       bienvenida" (nav.type === 'navigate', sí lo deja pasar) y
+       "le dio F5/recargó esta misma página" (nav.type ===
+       'reload', lo manda de vuelta a la bienvenida siempre,
+       aunque ya la hubiera visto antes en esta sesión). */
+    const nav = performance.getEntriesByType('navigation')[0];
+    const esRecarga = nav && nav.type === 'reload';
+    if (esRecarga || !sessionStorage.getItem('nexus_vio_bienvenida')) {
+      location.replace('/Nexus/index.html');
+    }
+  </script>
+
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/login.css">
 </head>
