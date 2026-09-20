@@ -27,6 +27,9 @@ async function iniciar() {
   await cargar();
   conectar();
   aplicarPrevia();
+
+  await cargarTemaVisual();
+  conectarTemaVisual();
 }
 
 async function cargar() {
@@ -115,6 +118,92 @@ function conectar() {
   document.getElementById('btn-restaurar').addEventListener('click', restaurar);
 
   conectarTirador();
+}
+
+/* ============================================
+   Tema de bienvenida y acceso (config_tema_visual)
+   ============================================ */
+
+const temaVisual = { cuando: 'ahora' };
+
+async function cargarTemaVisual() {
+  const { data, error } = await supabase
+    .from('config_tema_visual').select('*').eq('clave', 'global').maybeSingle();
+
+  if (error) {
+    console.warn('NEXUS · configuracion: no se pudo leer config_tema_visual '
+      + '(¿ya se corrió 044_config_tema_visual.sql?)', error.message);
+    return;
+  }
+  if (!data) return;
+
+  document.getElementById('cfg-tema-visual').value = data.tema || '';
+  document.getElementById('cfg-tema-desde').value = data.fecha_inicio || '';
+  document.getElementById('cfg-tema-hasta').value = data.fecha_fin || '';
+  temaVisual.cuando = (data.fecha_inicio || data.fecha_fin) ? 'programado' : 'ahora';
+
+  actualizarVisibilidadTemaVisual();
+  marcarCuando(temaVisual.cuando);
+}
+
+function marcarCuando(cuando) {
+  document.querySelectorAll('.cuando-btn').forEach((b) =>
+    b.classList.toggle('activa', b.dataset.cuando === cuando));
+  document.getElementById('cfg-tema-fechas').hidden = cuando !== 'programado';
+}
+
+/* Los controles de "¿cuándo aplica?" y las fechas no tienen
+   sentido si el tema es "Automático" — se ocultan en ese caso. */
+function actualizarVisibilidadTemaVisual() {
+  const hayTema = !!document.getElementById('cfg-tema-visual').value;
+  document.getElementById('cfg-tema-cuando-caja').hidden = !hayTema;
+  document.getElementById('cfg-tema-fechas').hidden = !hayTema || temaVisual.cuando !== 'programado';
+}
+
+function conectarTemaVisual() {
+  document.getElementById('cfg-tema-visual').addEventListener('change', actualizarVisibilidadTemaVisual);
+
+  document.querySelectorAll('.cuando-btn').forEach((b) =>
+    b.addEventListener('click', () => {
+      temaVisual.cuando = b.dataset.cuando;
+      marcarCuando(temaVisual.cuando);
+    }));
+
+  document.getElementById('btn-guardar-tema-visual').addEventListener('click', guardarTemaVisual);
+}
+
+async function guardarTemaVisual() {
+  const $alerta = document.getElementById('alerta-tema-visual');
+  const $guardado = document.getElementById('tema-visual-guardado');
+  $alerta.hidden = true;
+
+  const tema = document.getElementById('cfg-tema-visual').value || null;
+  const programado = tema && temaVisual.cuando === 'programado';
+  const desde = programado ? (document.getElementById('cfg-tema-desde').value || null) : null;
+  const hasta = programado ? (document.getElementById('cfg-tema-hasta').value || null) : null;
+
+  if (programado && desde && hasta && desde > hasta) {
+    $alerta.textContent = 'La fecha "Desde" no puede ser posterior a "Hasta".';
+    $alerta.hidden = false;
+    return;
+  }
+
+  const { error } = await supabase.from('config_tema_visual').update({
+    tema, fecha_inicio: desde, fecha_fin: hasta,
+    modificado_por: sesionActual()?.id || null,
+    modificado_en: new Date().toISOString()
+  }).eq('clave', 'global');
+
+  if (error) {
+    $alerta.textContent = 'No fue posible guardar: ' + error.message;
+    $alerta.hidden = false;
+    return;
+  }
+
+  $guardado.textContent = tema
+    ? 'Guardado. La bienvenida y el login ya están usando este tema.'
+    : 'Guardado. Bienvenida y login vuelven a elegir el tema solos, según la fecha.';
+  setTimeout(() => { $guardado.textContent = ''; }, 5000);
 }
 
 /* Arrastrar la esquina del logo para redimensionarlo,
