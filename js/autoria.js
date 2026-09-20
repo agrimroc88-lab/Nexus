@@ -29,7 +29,7 @@
      prueba ante una discrepancia laboral.
    ============================================ */
 
-import { sesionActual } from './auth.js?v=12';
+import { sesionActual } from './auth.js?v=13';
 
 const VERSION = 'v1';
 console.info('NEXUS · autoria', VERSION);
