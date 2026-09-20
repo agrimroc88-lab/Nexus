@@ -4,62 +4,15 @@
    ============================================ */
 
 import { iniciarSesion, redirigirSiAutenticado } from './auth.js';
+import { videoDeLogin } from './tema-temporada.js';
 
 const BASE = '/Nexus/';
 
-/* El video de bienvenida (index.html) es la puerta de entrada
-   por defecto: si alguien llega directo a login.html sin haber
-   pasado por ahí en esta sesión del navegador, se le manda
-   primero — así entre por el link que entre, siempre ve el
-   video antes del login. Una vez que lo ve, no se le repite
-   cada vez que recargue o vuelva a esta página en la misma
-   sesión (sessionStorage se borra al cerrar la pestaña/navegador,
-   así que la próxima vez que abra el navegador lo vuelve a ver). */
-if (!sessionStorage.getItem('nexus_vio_bienvenida')) {
-  window.location.href = BASE + 'index.html';
-}
-
-/* ============================================
-   Video de fondo según la temporada
-   Cada entrada es un rango de fechas (mes, día) y el archivo que
-   le corresponde. "hastaMD" puede ser menor que "desdeMD" (p. ej.
-   Navidad: del 15 dic al 6 ene) — fechaEnRango() lo entiende como
-   un rango que cruza el fin de año.
-
-   Para agregar una temporada nueva: sube el video a img/ y agrega
-   una línea aquí con sus fechas. Si dos rangos se llegaran a
-   traslapar, gana el primero que aparezca en la lista.
-   ============================================ */
-
-const TEMPORADAS = [
-  { nombre: 'Halloween',   desdeMD: [10, 20], hastaMD: [10, 31], archivo: 'img/login-fondo-halloween.mp4' },
-  { nombre: 'Navidad',     desdeMD: [12, 10], hastaMD: [12, 27], archivo: 'img/login-fondo-navidad.mp4' },
-  { nombre: 'Fin de año',  desdeMD: [12, 28], hastaMD: [1, 2],   archivo: 'img/login-fondo-finanio.mp4' },
-  { nombre: 'Reyes Magos', desdeMD: [1, 5],   hastaMD: [1, 6],   archivo: 'img/login-fondo-reyes.mp4' },
-];
-
-const VIDEO_POR_DEFECTO = 'img/login-fondo.mp4';
-
-function fechaEnRango(hoy, [mesDesde, diaDesde], [mesHasta, diaHasta]) {
-  const num = (mes, dia) => mes * 100 + dia; // "1225" = 25 de diciembre, fácil de comparar
-  const actual = num(hoy.getMonth() + 1, hoy.getDate());
-  const desde = num(mesDesde, diaDesde);
-  const hasta = num(mesHasta, diaHasta);
-
-  return desde <= hasta
-    ? (actual >= desde && actual <= hasta)      // rango normal, dentro del mismo año
-    : (actual >= desde || actual <= hasta);     // rango que cruza el 31 de diciembre
-}
-
-function elegirVideoDeTemporada() {
-  const hoy = new Date();
-  const activa = TEMPORADAS.find((t) => fechaEnRango(hoy, t.desdeMD, t.hastaMD));
-  return activa ? activa.archivo : VIDEO_POR_DEFECTO;
-}
-
 const $video = document.getElementById('video-fondo');
-$video.src = elegirVideoDeTemporada();
-$video.load();
+videoDeLogin().then((src) => {
+  $video.src = src;
+  $video.load();
+});
 
 /* ============================================
    Marco del video (ver login.css, .acceso-marco-video)
