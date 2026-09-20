@@ -100,6 +100,50 @@
         </section>
 
       </div>
+
+      <!-- Tema de bienvenida y acceso (video antes de iniciar sesión) -->
+      <section class="panel panel-tema-visual">
+        <h2 class="panel-titulo">Tema de bienvenida y acceso</h2>
+        <p class="ayuda">
+          Video que se muestra en la pantalla de bienvenida y en el login, antes de que
+          alguien inicie sesión — es el mismo para todas las empresas.
+        </p>
+
+        <div class="control">
+          <label class="etiqueta" for="cfg-tema-visual">Tema</label>
+          <select class="entrada" id="cfg-tema-visual">
+            <option value="">Automático (según la fecha de hoy)</option>
+            <option value="ninguno">Ninguno — video normal</option>
+            <option value="halloween">Halloween</option>
+            <option value="navidad">Navidad</option>
+            <option value="finanio">Fin de año</option>
+            <option value="reyes">Reyes Magos</option>
+          </select>
+        </div>
+
+        <div class="control" id="cfg-tema-cuando-caja" hidden>
+          <label class="etiqueta">¿Cuándo aplica?</label>
+          <div class="cuando-opciones">
+            <button class="cuando-btn activa" data-cuando="ahora" type="button">Aplicar ahora</button>
+            <button class="cuando-btn" data-cuando="programado" type="button">Programar fechas</button>
+          </div>
+        </div>
+
+        <div class="control" id="cfg-tema-fechas" hidden>
+          <label class="etiqueta" for="cfg-tema-desde">Desde</label>
+          <input type="date" class="entrada" id="cfg-tema-desde">
+          <label class="etiqueta" for="cfg-tema-hasta" style="margin-top:0.6rem;">Hasta</label>
+          <input type="date" class="entrada" id="cfg-tema-hasta">
+          <p class="ayuda">Fuera de este rango, vuelve solo a elegir el tema según la fecha.</p>
+        </div>
+
+        <div class="config-acciones">
+          <button class="boton-primario" id="btn-guardar-tema-visual" type="button">Guardar tema</button>
+          <span class="ayuda" id="tema-visual-guardado"></span>
+        </div>
+        <p class="alerta" id="alerta-tema-visual" role="alert" hidden></p>
+      </section>
+
       </section>
 
       <!-- ===== Vista: Sucursales y cargos ===== -->
