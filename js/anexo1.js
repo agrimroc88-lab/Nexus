@@ -208,7 +208,8 @@ function puedeEscribirEventos() {
   if (r === ROLES.ADMIN) return true;
   if (AMBITO === 'salud') return ESCRIBEN_SALUD.includes(r) && !esSoloLecturaSalud();
   if (AMBITO !== 'seguridad') return false;
-  return ['medico_ocupacional', 'enfermeria'].includes(r);
+  return ESCRIBEN_SEGURIDAD.includes(r)
+    || ['medico_ocupacional', 'enfermeria'].includes(r);
 }
 
 /**
