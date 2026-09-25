@@ -1270,21 +1270,30 @@ function pintarConsumos() {
       <button class="boton-quitar" type="button" data-quitar-med="${i}" aria-label="Quitar">×</button>
     `;
 
-    $lista.appendChild(fila);
+    /* Cada renglón viaja junto con sus avisos y se coloca ARRIBA
+       de los anteriores: el último medicamento agregado queda
+       primero en pantalla, justo debajo del botón "+ Añadir".
+       Solo cambia lo que se ve: estado.consumos conserva el orden
+       de ingreso, así que lo guardado, la receta y el descuento
+       de farmacia no se alteran. */
+    const grupo = document.createDocumentFragment();
+    grupo.appendChild(fila);
 
     if (!p.item_id && p.buscar) {
       const aviso = document.createElement('p');
       aviso.className = 'ayuda';
       aviso.textContent = 'Aún no ha elegido nada de la lista.';
-      $lista.appendChild(aviso);
+      grupo.appendChild(aviso);
     }
 
     if (insuficiente) {
       const aviso = document.createElement('p');
       aviso.className = 'aviso-stock';
       aviso.textContent = `Existencia disponible: ${item.stock_disponible}. Se registrará como no entregado.`;
-      $lista.appendChild(aviso);
+      grupo.appendChild(aviso);
     }
+
+    $lista.prepend(grupo);
   });
 
   /* Eventos */
