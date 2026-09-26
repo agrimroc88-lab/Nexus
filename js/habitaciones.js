@@ -20,7 +20,7 @@
 
 import { alCrear, alEditar } from './autoria.js?v=1';
 
-const VERSION = 'v3';
+const VERSION = 'v4';
 console.info('NEXUS · habitaciones', VERSION);
 
 const EDITORES = ['admin', 'trabajo_social'];
@@ -1245,6 +1245,7 @@ function herramientasHtml(sel) {
     ${btn('menos', '− Angosto', '', sel.ancho <= 1)}
     ${btn('mas', '+ Ancho', '', sel.ancho >= ANCHO_MAX)}
     ${hab ? btn('cama', '+ Cama o litera') : ''}
+    ${hab ? btn('quitar-cama', '− Cama o litera', '', camasDe(sel.id).length === 0) : ''}
     ${btn('editar', 'Nombre o tipo')}
     ${btn('quitar', 'Quitar', 'boton-critico')}
   </div>`;
@@ -1258,6 +1259,7 @@ function conectarHerramientas(sel) {
   h('menos')?.addEventListener('click', () => cambiarAncho(sel, -1));
   h('mas')?.addEventListener('click', () => cambiarAncho(sel, 1));
   h('cama')?.addEventListener('click', () => modalAgregarCama(sel));
+  h('quitar-cama')?.addEventListener('click', () => modalQuitarCamas(sel));
   h('editar')?.addEventListener('click', () => {
     const edif = porId(S.edificios, sel.edificio_id);
     modalEspacio(sel, { edif, planta: sel.planta, frente: sel.frente });
@@ -1622,7 +1624,8 @@ function abrirCama(camaEntrada, modo = 'detalle', motivoInicial = null) {
         ${a ? `<tr><td>Ocupa la cama desde</td><td>${fecha(a.fecha_ingreso)}</td></tr>` : ''}
         <tr><td>Colchón</td><td>${cama.colchon_tipo ? COLCHONES[cama.colchon_tipo] : 'Sin registrar'}${cama.colchon_por_cambiar ? ' · <strong>por cambiar</strong>' : ''}</td></tr>
         <tr><td>Entregado o cambiado</td><td>${fecha(cama.colchon_fecha)}</td></tr>
-      </table>`;
+      </table>
+      ${a && S.editor ? '<p class="ayuda">Para quitar esta cama de la habitación, primero libérela.</p>' : ''}`;
 
     const b = [['Historial', 'boton-secundario', () => ir('historial')]];
     if (S.editor) {
@@ -1822,9 +1825,7 @@ function abrirCama(camaEntrada, modo = 'detalle', motivoInicial = null) {
   }
 
   function quitar() {
-    const hermanas = cama.tipo === 'litera'
-      ? S.camas.filter((x) => x.espacio_id === cama.espacio_id && x.tipo === 'litera' && x.numero === cama.numero)
-      : [cama];
+    const hermanas = piezasDe(cama);
     const ocupada = hermanas.find((x) => asigDeCama(x.id));
     if (ocupada) {
       m.cuerpo.innerHTML = `<div class="hab-nota hab-nota--error">No se puede quitar la litera: el nivel ${esc(ocupada.nivel)} está ocupado. Libérelo primero.</div>`;
@@ -1837,15 +1838,82 @@ function abrirCama(camaEntrada, modo = 'detalle', motivoInicial = null) {
     m.botones([
       ['Volver', 'boton-secundario', () => ir('detalle')],
       ['Quitar', 'boton-primario boton-critico', (b) => conBoton(b, async () => {
-        const { error } = await S.sb.from('viv_camas')
-          .update(alEditar({ activo: false, retirada_en: hoy() })).in('id', hermanas.map((x) => x.id));
-        if (error) return m.error(mensajeError(error));
+        const error = await retirarCama(cama);
+        if (error) return m.error(error);
         m.cerrar();
         toast(cama.tipo === 'litera' ? `Litera ${cama.numero} quitada` : `Cama ${cama.numero} quitada`);
         await recargar();
       })]
     ]);
   }
+}
+
+/* ---------- Quitar camas ---------- */
+
+/** Una cama suelta, o los dos niveles de una litera. */
+function piezasDe(cama) {
+  return cama.tipo === 'litera'
+    ? S.camas.filter((x) => x.espacio_id === cama.espacio_id && x.tipo === 'litera' && x.numero === cama.numero)
+    : [cama];
+}
+
+/** Marca como retirada la cama (o la litera completa). El
+    historial se conserva y el número no se reutiliza. */
+async function retirarCama(cama) {
+  const piezas = piezasDe(cama);
+  if (piezas.some((x) => asigDeCama(x.id))) return 'Está ocupada. Libérela primero.';
+  const { error } = await S.sb.from('viv_camas')
+    .update(alEditar({ activo: false, retirada_en: hoy() })).in('id', piezas.map((x) => x.id));
+  return error ? mensajeError(error) : null;
+}
+
+/** Desde el modo edición: elegir qué cama o litera quitar. */
+function modalQuitarCamas(esp) {
+  const m = modal(`Quitar cama de la habitación ${esp.nombre}`);
+  const pintarLista = () => {
+    const camas = camasDe(esp.id);
+    const vistas = new Set();
+    const grupos = camas.filter((c) => {
+      if (c.tipo !== 'litera') return true;
+      if (vistas.has(c.numero)) return false;
+      vistas.add(c.numero);
+      return true;
+    });
+    if (grupos.length === 0) {
+      m.cuerpo.innerHTML = '<p class="ayuda">Esta habitación ya no tiene camas.</p>';
+      m.botones([['Cerrar', 'boton-primario', () => m.cerrar()]]);
+      return;
+    }
+    m.cuerpo.innerHTML = `<p class="ayuda">Solo se pueden quitar camas libres. Los códigos de las demás no cambian y el historial se conserva.</p>
+      <div class="hab-filas-lista" id="hqc-lista"></div>`;
+    const $l = m.cuerpo.querySelector('#hqc-lista');
+    grupos.forEach((c) => {
+      const piezas = piezasDe(c);
+      const ocupadas = piezas.filter((x) => asigDeCama(x.id));
+      const nombre = c.tipo === 'litera' ? `Litera ${c.numero} (inferior y superior)` : `Cama ${c.numero}`;
+      const quien = ocupadas.map((x) => {
+        const t = S.trab.get(asigDeCama(x.id).trabajador_id);
+        return `${x.tipo === 'litera' ? `${x.nivel}: ` : ''}#${t?.codigo ?? '—'} ${t?.nombre_completo || ''}`;
+      }).join(' · ');
+      const fila = document.createElement('div');
+      fila.innerHTML = `<span><b>${esc(nombre)}</b><br><span class="ayuda">${ocupadas.length
+        ? `Ocupada · ${esc(quien)}` : `Libre · colchón ${esc(COLCHONES[c.colchon_tipo]?.toLowerCase() || 'sin registrar')}`}</span></span>
+        ${ocupadas.length
+          ? '<button class="boton-secundario boton-compacto" type="button" data-a="ver">Liberar primero</button>'
+          : '<button class="boton-secundario boton-compacto boton-critico" type="button" data-a="quitar">Quitar</button>'}`;
+      fila.querySelector('[data-a="ver"]')?.addEventListener('click', () => abrirCama(ocupadas[0]));
+      fila.querySelector('[data-a="quitar"]')?.addEventListener('click', (e) => conBoton(e.currentTarget, async () => {
+        const error = await retirarCama(c);
+        if (error) return m.error(error);
+        toast(`${c.tipo === 'litera' ? `Litera ${c.numero}` : `Cama ${c.numero}`} quitada`);
+        await recargar();
+        pintarLista();
+      }));
+      $l.appendChild(fila);
+    });
+    m.botones([['Listo', 'boton-primario', () => m.cerrar()]]);
+  };
+  pintarLista();
 }
 
 /* ============================================
