@@ -118,9 +118,9 @@ export function mostrarCiePorDefecto() {
 /* ============================================
    Fechas
 
-   El oficio nombra los días, no un rango: «14 y 15 de julio
-   de 2026 (DOS DÍAS)». Es como lo lee quien lo recibe y como
-   se venía escribiendo a mano.
+   El oficio nombra un rango: «del 14 de julio de 2026 al 15
+   de julio de 2026 (DOS DÍAS)», tanto para el reposo como para
+   la rotación de área.
    ============================================ */
 
 /* Por si la fecha llega con hora u otro sufijo pegado (por
@@ -151,44 +151,12 @@ function fechaLarga(iso) {
 }
 
 export function rangoDias(inicio, dias) {
-  if (!dias || dias < 1) return '';
-
-  const cuantos = dias === 1 ? '(UN DÍA)'
-    : dias === 2 ? '(DOS DÍAS)'
-    : dias === 3 ? '(TRES DÍAS)'
-    : `(${dias} DÍAS)`;
-
-  /* Sin una fecha de inicio válida no se puede nombrar el rango,
-     pero sí se sabe cuántos días son — mejor mostrar solo eso
-     que mostrar una fecha inventada (NaN / undefined). */
-  const limpia = soloFecha(inicio);
-  if (!limpia) return cuantos;
-
-  const d0 = new Date(limpia + 'T00:00');
-  const fechas = [];
-  for (let i = 0; i < dias; i++) {
-    const d = new Date(d0);
-    d.setDate(d.getDate() + i);
-    fechas.push(d);
-  }
-
-  const ultimo = fechas[fechas.length - 1];
-  const mismoMes = fechas.every((d) =>
-    d.getMonth() === fechas[0].getMonth() && d.getFullYear() === fechas[0].getFullYear());
-
-  /* A caballo entre dos meses, cada fecha lleva el suyo: «30
-     de junio, 1 y 2 de julio» se lee bien; «30, 1 y 2 de
-     julio» no se entiende. */
-  if (!mismoMes) {
-    return fechas.map((d) => `${d.getDate()} de ${MESES[d.getMonth()]}`)
-      .join(', ') + ` de ${ultimo.getFullYear()} ${cuantos}`;
-  }
-
-  const nums = fechas.map((d) => d.getDate());
-  const lista = nums.length === 1 ? `${nums[0]}`
-    : `${nums.slice(0, -1).join(', ')} y ${nums[nums.length - 1]}`;
-
-  return `${lista} de ${MESES[ultimo.getMonth()]} de ${ultimo.getFullYear()} ${cuantos}`;
+  /* El reposo se redacta igual que la rotación: con el primer y
+     el último día, «del 14 de julio de 2026 al 18 de julio de
+     2026 (5 DÍAS)», en vez de nombrar cada fecha. Un solo día
+     sigue saliendo como «14 de julio de 2026 (UN DÍA)», y sin
+     fecha de inicio válida solo se muestra cuántos días son. */
+  return rangoRotacion(inicio, dias);
 }
 
 /* La rotación de área suele cubrir semanas o meses, no unos

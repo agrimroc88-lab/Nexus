@@ -25,7 +25,7 @@ import { sesionActual } from './auth.js?v=13';
 import {
   cargarDatosOficio, llenarDestinatarios, destinatarioPorId,
   mostrarCiePorDefecto, rangoRotacion, imprimirOficio, destinatariosLista
-} from './oficio-certificado.js?v=20';
+} from './oficio-certificado.js?v=21';
 import { alCrear, marcarAntesDeBorrar, autorId, alEditar } from './autoria.js?v=1';
 import {
   iniciarInformeAtenciones, cambiarTipoPeriodo, generarInformeAtenciones,
