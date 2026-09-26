@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="css/atenciones.css">
   <link rel="stylesheet" href="css/anexo1.css">
   <link rel="stylesheet" href="css/grupos.css">
+  <link rel="stylesheet" href="css/habitaciones.css?v=2">
 </head>
 <body class="app" data-ambito="seguridad" data-modulo="seguridad_ind">
 
@@ -48,6 +49,7 @@
           <button class="pestana" data-vista="capacitaciones" type="button">Capacitaciones</button>
           <button class="pestana" data-vista="eventos" type="button">Incidentes y accidentes</button>
           <button class="pestana" data-vista="grupos" type="button">Grupos prioritarios</button>
+          <button class="pestana" data-vista="habitaciones" type="button">Habitaciones</button>
           <button class="pestana" data-vista="ocupacionales" type="button">Atenciones ocupacionales</button>
         </nav>
 
@@ -429,6 +431,11 @@
 
 
               <!-- ============ Vista: Grupos prioritarios ============ -->
+        <!-- ============ Vista: Habitaciones y croquis (js/habitaciones.js) ============ -->
+        <section class="vista" id="vista-habitaciones" hidden>
+          <div id="hab-raiz"></div>
+        </section>
+
         <section class="vista" id="vista-grupos" hidden>
 
           <section class="resumen">
@@ -1307,6 +1314,6 @@
 
   <div class="if-impresion" id="infoev-impresion"></div>
 
-  <script type="module" src="js/anexo1.js?v=45"></script>
+  <script type="module" src="js/anexo1.js?v=46"></script>
 </body>
 </html>
