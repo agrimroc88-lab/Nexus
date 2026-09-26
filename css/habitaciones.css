@@ -269,6 +269,13 @@
   min-height: 96px;
 }
 .hab-esp--otro svg { width: 28px; height: 28px; }
+.hab-ab {
+  font-size: 0.7rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: var(--color-superficie);
+  border: 1px solid var(--hab-estructura);
+}
 .hab-esp--tenue { opacity: 0.35; }
 .hab-esp-cabeza {
   display: flex;
@@ -466,6 +473,113 @@
   display: flex; gap: 0.6rem; align-items: center; justify-content: space-between;
   padding: 0.55rem 0; border-bottom: 1px solid var(--color-borde); font-size: 0.9rem;
 }
+
+/* ---------- Croquis de la base ---------- */
+
+.hab-cq-zona { display: flex; flex-direction: column; gap: 0.6rem; }
+.hab-cq-marco { overflow-x: auto; padding-bottom: 4px; }
+.hab-cq {
+  position: relative;
+  width: 100%;
+  min-width: 640px;
+  aspect-ratio: 40 / 25;
+  background-color: #f3f5f1;
+  background-image:
+    linear-gradient(rgba(93, 107, 98, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(93, 107, 98, 0.12) 1px, transparent 1px);
+  background-size: calc(100% / 40) calc(100% / 25);
+  border: 2px solid var(--hab-muro);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.hab-cq-el {
+  position: absolute;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 2px;
+  text-align: center;
+  font-size: 0.74rem;
+  line-height: 1.2;
+  color: var(--hab-muro);
+  border: 1.5px dashed var(--hab-estructura);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.75);
+  overflow: hidden;
+  user-select: none;
+}
+.hab-cq-el svg { width: 20px; height: 20px; flex: 0 0 auto; }
+.hab-cq-nombre { font-weight: 700; overflow-wrap: anywhere; }
+
+/* Edificio visto desde arriba: techo a dos aguas */
+.hab-cq-el--edificio {
+  border: 2px solid var(--hab-muro);
+  border-style: solid;
+  background:
+    linear-gradient(180deg, transparent calc(50% - 1px), var(--hab-muro) calc(50% - 1px), var(--hab-muro) calc(50% + 1px), transparent calc(50% + 1px)),
+    linear-gradient(180deg, #b7c2ba, #9aa79e);
+  color: #1f2a23;
+  cursor: pointer;
+}
+.hab-cq-el--edificio .hab-cq-nombre {
+  background: rgba(255, 255, 255, 0.9);
+  padding: 0 0.35rem;
+  border-radius: 4px;
+}
+.hab-cq-el--edificio:hover { box-shadow: 0 0 0 3px var(--color-acento-suave); }
+.hab-cq-libres {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: #fff;
+}
+.hab-cq-libres--hay   { color: var(--hab-libre);  background: var(--hab-libre-f); }
+.hab-cq-libres--pocas { color: var(--hab-cambio); background: var(--hab-cambio-f); }
+.hab-cq-libres--lleno { color: var(--hab-salio);  background: var(--hab-salio-f); }
+
+/* Cancha: pasto con líneas blancas */
+.hab-cq-el--cancha { background: #7fb069; border: 2px solid #fff; color: #fff; outline: 1.5px solid #5d8a47; }
+.hab-cq-lineas {
+  position: absolute; inset: 10%;
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  pointer-events: none;
+}
+.hab-cq-lineas::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; border-left: 1.5px solid rgba(255, 255, 255, 0.85); }
+.hab-cq-lineas::after {
+  content: ""; position: absolute; left: 50%; top: 50%;
+  width: 22%; aspect-ratio: 1; transform: translate(-50%, -50%);
+  border: 1.5px solid rgba(255, 255, 255, 0.85); border-radius: 50%;
+}
+.hab-cq-el--cancha .hab-cq-nombre,
+.hab-cq-el--cancha svg { position: relative; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); }
+
+/* Estacionamiento: asfalto con franjas */
+.hab-cq-el--estacionamiento {
+  background: repeating-linear-gradient(90deg, #8b918d 0 18px, #f4f4f0 18px 20px);
+  border: 1.5px solid #5f6561;
+  color: #fff;
+}
+.hab-cq-el--estacionamiento .hab-cq-nombre { background: rgba(0, 0, 0, 0.45); padding: 0 0.35rem; border-radius: 4px; }
+.hab-cq-el--area_verde { background: #d6ead0; border-color: #7fb069; color: #3f6b30; }
+.hab-cq-el--punto_encuentro { background: #e6f4ea; border: 2px solid var(--hab-libre); color: var(--hab-libre); }
+
+/* Edición */
+.hab-cq--editando .hab-cq-el { cursor: grab; touch-action: none; }
+.hab-cq--editando .hab-cq-el:active { cursor: grabbing; }
+.hab-cq-el--sel { outline: 3px solid var(--color-acento); outline-offset: 1px; z-index: 3; }
+.hab-cq-asa {
+  position: absolute; right: 0; bottom: 0;
+  width: 14px; height: 14px;
+  background: var(--color-acento);
+  border-top-left-radius: 4px;
+  cursor: nwse-resize;
+  display: none;
+}
+.hab-cq--editando .hab-cq-el--sel .hab-cq-asa { display: block; }
 
 /* ---------- Mensaje flotante ---------- */
 
