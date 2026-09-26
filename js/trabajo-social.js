@@ -202,7 +202,7 @@ function cambiarVista(v) {
    Ficha, Registros y Atenciones siguen funcionando igual.
    ============================================ */
 
-const MOD_HABITACIONES = './habitaciones.js?v=4';
+const MOD_HABITACIONES = './habitaciones.js?v=5';
 let modHabitaciones = null;
 let habitacionesEmpresa = null;
 

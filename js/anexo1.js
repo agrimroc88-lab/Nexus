@@ -2310,7 +2310,7 @@ function cambiarVista(vista) {
     p.classList.toggle('activa', p.dataset.vista === vista);
   });
   ['cumplimiento', 'capacitaciones', 'eventos', 'ocupacionales',
-   'grupos', 'botiquines', 'instalaciones', 'evaluacion', 'atd'].forEach((v) => {
+   'grupos', 'botiquines', 'instalaciones', 'evaluacion', 'atd', 'habitaciones'].forEach((v) => {
     const $v = document.getElementById('vista-' + v);
     if ($v) $v.hidden = v !== vista;
   });
@@ -2323,6 +2323,7 @@ function cambiarVista(vista) {
     }
   }
   if (vista === 'grupos') pintarGrupos();
+  if (vista === 'habitaciones') abrirHabitaciones();
   if (vista === 'botiquines') pintarBotiquines();
   if (vista === 'instalaciones') pintarInstalaciones();
   if (vista === 'ocupacionales') {
@@ -2504,6 +2505,34 @@ async function cambiarAnio() {
 }
 
 /* ============================================
+   Habitaciones y croquis (js/habitaciones.js)
+   Solo en Seguridad Industrial. El técnico de seguridad
+   arma aquí bases, edificios, espacios y croquis; la
+   asignación de camas la hace Trabajo Social en su módulo.
+   Se carga solo al abrir la pestaña: si algo falla ahí, las
+   demás pestañas siguen igual.
+   ============================================ */
+
+let modHabitaciones = null;
+let habitacionesEmpresa = null;
+
+async function abrirHabitaciones() {
+  const $raiz = document.getElementById('hab-raiz');
+  if (!$raiz || !estado.empresaId || habitacionesEmpresa === estado.empresaId) return;
+  habitacionesEmpresa = estado.empresaId;
+  try {
+    modHabitaciones = modHabitaciones || await import('./habitaciones.js?v=5');
+    await modHabitaciones.montarHabitaciones({
+      supabase, perfil: estado.perfil, empresaId: estado.empresaId, contenedor: $raiz
+    });
+  } catch (e) {
+    console.error('NEXUS · habitaciones:', e);
+    habitacionesEmpresa = null;
+    $raiz.innerHTML = '<p class="aviso-inicial">No fue posible abrir Habitaciones. Recargue la página.</p>';
+  }
+}
+
+/* ============================================
    Empresa
    ============================================ */
 
@@ -2535,6 +2564,7 @@ async function seleccionarEmpresa(empresa) {
   if (estado.vista === 'botiquines') pintarBotiquines();
   if (estado.vista === 'instalaciones') pintarInstalaciones();
   if (estado.vista === 'ocupacionales') pintarOcupacionales();
+  if (estado.vista === 'habitaciones') abrirHabitaciones();
 }
 
 /* ============================================

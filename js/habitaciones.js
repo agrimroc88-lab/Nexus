@@ -20,10 +20,19 @@
 
 import { alCrear, alEditar } from './autoria.js?v=1';
 
-const VERSION = 'v4';
+const VERSION = 'v5';
 console.info('NEXUS · habitaciones', VERSION);
 
-const EDITORES = ['admin', 'trabajo_social'];
+/* Dos permisos distintos:
+   - ESTRUCTURA: bases, edificios, plantas, espacios, camas y
+     literas (agregar o quitar) y el croquis → admin y técnico
+     de seguridad (desde el módulo Seguridad Industrial).
+   - ASIGNACIÓN: asignar, trasladar y liberar camas, y los
+     colchones → admin y trabajo social.
+   Los demás roles que abren la pestaña solo consultan. */
+const ROLES_ESTRUCTURA = ['admin', 'tecnico_sst'];
+const ROLES_ASIGNACION = ['admin', 'trabajo_social'];
+const QUIEN_ESTRUCTURA = 'Las registra el técnico de seguridad o el administrador desde el módulo Seguridad Industrial.';
 
 const TIPOS_ESPACIO = {
   habitacion: 'Habitación',
@@ -58,7 +67,8 @@ function estadoInicial(supabase, perfil, empresaId, contenedor) {
     perfil,
     empresaId,
     raiz: contenedor,
-    editor: EDITORES.includes(perfil?.rol),
+    estructura: ROLES_ESTRUCTURA.includes(perfil?.rol),
+    asigna: ROLES_ASIGNACION.includes(perfil?.rol),
     sucursales: [],
     bases: [],
     edificios: [],
@@ -601,7 +611,7 @@ async function mostrarResultado(t) {
         <span class="hab-resultado-nombre">${esc(t.nombre_completo)}</span>
         <span class="hab-resultado-ruta">${meta}</span>
         ${avisoSalida}
-        <span>No tiene cama asignada.${S.editor && t.activo !== false ? ' Para asignarle una, toque una cama libre en el mapa.' : ''}</span>
+        <span>No tiene cama asignada.${S.asigna && t.activo !== false ? ' Para asignarle una, toque una cama libre en el mapa.' : ''}</span>
       </div></div>`;
     return;
   }
@@ -616,7 +626,7 @@ async function mostrarResultado(t) {
     </div>
     <div class="hab-resultado-acciones">
       <button class="boton-secundario" type="button" data-accion="ver">Ver en el mapa</button>
-      ${S.editor ? '<button class="boton-secundario boton-critico" type="button" data-accion="liberar">Liberar cama</button>' : ''}
+      ${S.asigna ? '<button class="boton-secundario boton-critico" type="button" data-accion="liberar">Liberar cama</button>' : ''}
     </div></div>`;
 
   $r.querySelector('[data-accion="ver"]').addEventListener('click', () => irACama(cama));
@@ -746,14 +756,14 @@ function vistaBases($v) {
   const bases = basesDe(suc.id);
   $v.innerHTML = `
     <div class="hab-cabeza"><h2 class="hab-titulo">${esc(suc.nombre)}</h2>
-      <div class="hab-cabeza-acciones">${S.editor ? '<button class="boton-primario" id="hab-nueva-base" type="button">+ Nueva base</button>' : ''}</div></div>
+      <div class="hab-cabeza-acciones">${S.estructura ? '<button class="boton-primario" id="hab-nueva-base" type="button">+ Nueva base</button>' : ''}</div></div>
     ${bases.length ? cifras(conteo(camasDeSucursal(suc.id))) : ''}
     <div class="hab-rejilla" id="hab-g"></div>`;
   document.getElementById('hab-nueva-base')?.addEventListener('click', () => modalBase(null));
 
   const $g = document.getElementById('hab-g');
   if (bases.length === 0) {
-    $g.outerHTML = `<div class="hab-vacio">Este centro aún no tiene bases.${S.editor ? '<br>Cree la primera con «+ Nueva base», por ejemplo «Base 2».' : ''}</div>`;
+    $g.outerHTML = `<div class="hab-vacio">Este centro aún no tiene bases.<br>${S.estructura ? 'Cree la primera con «+ Nueva base», por ejemplo «Base 2».' : QUIEN_ESTRUCTURA}</div>`;
     return;
   }
   bases.forEach((b) => {
@@ -778,7 +788,7 @@ function vistaBase($v) {
   const enCroquis = S.vistaBase === 'croquis';
   $v.innerHTML = `
     <div class="hab-cabeza"><h2 class="hab-titulo">${esc(base.nombre)} <small>código ${esc(base.codigo)}</small></h2>
-      <div class="hab-cabeza-acciones">${S.editor && !S.cq ? `
+      <div class="hab-cabeza-acciones">${S.estructura && !S.cq ? `
         <button class="boton-secundario" id="hab-editar-base" type="button">Editar base</button>
         <button class="boton-primario" id="hab-nuevo-edif" type="button">+ Nuevo edificio</button>` : ''}</div></div>
     ${eds.length ? cifras(conteo(camasDeBase(base.id))) : ''}
@@ -794,7 +804,7 @@ function vistaBase($v) {
   const $g = document.getElementById('hab-g');
   if (enCroquis) { vistaCroquis($g, base); return; }
   if (eds.length === 0) {
-    $g.outerHTML = `<div class="hab-vacio">Esta base aún no tiene edificios.${S.editor ? '<br>Agregue el primero con «+ Nuevo edificio».' : ''}</div>`;
+    $g.outerHTML = `<div class="hab-vacio">Esta base aún no tiene edificios.<br>${S.estructura ? 'Agregue el primero con «+ Nuevo edificio».' : QUIEN_ESTRUCTURA}</div>`;
     return;
   }
   eds.forEach((e) => {
@@ -820,7 +830,7 @@ function vistaEdificio($v) {
   $v.innerHTML = `
     <div class="hab-cabeza">
       <h2 class="hab-titulo">${esc(edif.nombre)} <small>código ${esc(edif.codigo)}</small></h2>
-      <div class="hab-cabeza-acciones">${S.editor ? `
+      <div class="hab-cabeza-acciones">${S.estructura ? `
         <button class="boton-secundario" id="hab-config-edif" type="button">Configurar edificio</button>
         <button class="${S.editando ? 'boton-primario' : 'boton-secundario'}" id="hab-modo" type="button" aria-pressed="${S.editando}">
           ${S.editando ? 'Terminar edición' : 'Editar plantas y espacios'}</button>` : ''}
@@ -879,7 +889,7 @@ function filaHtml(edif, planta, frente) {
   const espacios = filaDe(edif.id, planta, frente);
 
   if (espacios.length === 0 && !S.editando) {
-    fila.innerHTML = `<div class="hab-fila-vacia">Sin espacios registrados${S.editor ? '. Use «Editar plantas y espacios» para agregarlos.' : '.'}</div>`;
+    fila.innerHTML = `<div class="hab-fila-vacia">Sin espacios registrados${S.estructura ? '. Use «Editar plantas y espacios» para agregarlos.' : '.'}</div>`;
     return fila;
   }
 
@@ -914,7 +924,7 @@ function espacioHtml(esp) {
     const $camas = document.createElement('div');
     $camas.className = 'hab-camas';
     if (camas.length === 0) {
-      $camas.innerHTML = `<div class="hab-sin-camas">Sin camas${S.editor ? '. Agréguelas en modo edición.' : ''}</div>`;
+      $camas.innerHTML = `<div class="hab-sin-camas">Sin camas${S.estructura ? '. Agréguelas en modo edición.' : ''}</div>`;
     }
     const vistos = new Set();
     camas.forEach((cama) => {
@@ -968,7 +978,7 @@ function camaHtml(cama) {
       ${est === 'salio' ? '<span class="hab-cama-cargo"><b>Ya no labora</b></span>' : ''}
       ${cama.colchon_por_cambiar ? '<span class="hab-cama-cargo"><b>Colchón por cambiar</b></span>' : ''}`;
   } else {
-    b.setAttribute('aria-label', `${u?.codigo}: libre${S.editor ? ', toque para asignar' : ''}`);
+    b.setAttribute('aria-label', `${u?.codigo}: libre${S.asigna ? ', toque para asignar' : ''}`);
     b.innerHTML = `${svgCama(false)}
       <span class="hab-cama-fila"><span>${etiqueta}</span><span>Libre</span></span>
       <span class="hab-cama-linea" title="Colchón">${cama.colchon_tipo ? COLCHONES[cama.colchon_tipo] : 'Sin colchón'}</span>
@@ -1603,8 +1613,10 @@ function abrirCama(camaEntrada, modo = 'detalle', motivoInicial = null) {
   ir(PANTALLA_VALIDA(modo));
 
   function PANTALLA_VALIDA(p) {
-    if (!S.editor && p !== 'historial') return 'detalle';
-    return pantallas[p] ? p : 'detalle';
+    if (!pantallas[p]) return 'detalle';
+    if (['asignar', 'liberar', 'colchon'].includes(p) && !S.asigna) return 'detalle';
+    if (p === 'quitar' && !S.estructura) return 'detalle';
+    return p;
   }
 
   function detalle() {
@@ -1625,10 +1637,13 @@ function abrirCama(camaEntrada, modo = 'detalle', motivoInicial = null) {
         <tr><td>Colchón</td><td>${cama.colchon_tipo ? COLCHONES[cama.colchon_tipo] : 'Sin registrar'}${cama.colchon_por_cambiar ? ' · <strong>por cambiar</strong>' : ''}</td></tr>
         <tr><td>Entregado o cambiado</td><td>${fecha(cama.colchon_fecha)}</td></tr>
       </table>
-      ${a && S.editor ? '<p class="ayuda">Para quitar esta cama de la habitación, primero libérela.</p>' : ''}`;
+      ${a && S.estructura ? `<p class="ayuda">${S.asigna
+        ? 'Para quitar esta cama de la habitación, primero libérela.'
+        : 'Para quitar esta cama, Trabajo Social debe liberarla primero.'}</p>` : ''}`;
 
     const b = [['Historial', 'boton-secundario', () => ir('historial')]];
-    if (S.editor) {
+    if (S.estructura && !a) b.push(['Quitar cama', 'boton-secundario boton-critico', () => ir('quitar')]);
+    if (S.asigna) {
       b.push([cama.colchon_por_cambiar ? 'Quitar «por cambiar»' : 'Marcar por cambiar', 'boton-secundario', (btn) => conBoton(btn, async () => {
         const { error } = await S.sb.from('viv_camas').update(alEditar({ colchon_por_cambiar: !cama.colchon_por_cambiar })).eq('id', cama.id);
         if (error) return m.error(mensajeError(error));
@@ -1638,10 +1653,7 @@ function abrirCama(camaEntrada, modo = 'detalle', motivoInicial = null) {
       })]);
       b.push(['Cambiar colchón', 'boton-secundario', () => ir('colchon')]);
       if (a) b.push(['Liberar cama', 'boton-secundario boton-critico', () => ir('liberar')]);
-      else {
-        b.push(['Quitar cama', 'boton-secundario boton-critico', () => ir('quitar')]);
-        b.push(['Asignar trabajador', 'boton-primario', () => ir('asignar')]);
-      }
+      else b.push(['Asignar trabajador', 'boton-primario', () => ir('asignar')]);
     } else {
       b.push(['Cerrar', 'boton-primario', () => m.cerrar()]);
     }
@@ -1884,7 +1896,7 @@ function modalQuitarCamas(esp) {
       m.botones([['Cerrar', 'boton-primario', () => m.cerrar()]]);
       return;
     }
-    m.cuerpo.innerHTML = `<p class="ayuda">Solo se pueden quitar camas libres. Los códigos de las demás no cambian y el historial se conserva.</p>
+    m.cuerpo.innerHTML = `<p class="ayuda">Solo se pueden quitar camas libres${S.asigna ? '' : ' (las ocupadas las libera Trabajo Social)'}. Los códigos de las demás no cambian y el historial se conserva.</p>
       <div class="hab-filas-lista" id="hqc-lista"></div>`;
     const $l = m.cuerpo.querySelector('#hqc-lista');
     grupos.forEach((c) => {
@@ -1899,7 +1911,7 @@ function modalQuitarCamas(esp) {
       fila.innerHTML = `<span><b>${esc(nombre)}</b><br><span class="ayuda">${ocupadas.length
         ? `Ocupada · ${esc(quien)}` : `Libre · colchón ${esc(COLCHONES[c.colchon_tipo]?.toLowerCase() || 'sin registrar')}`}</span></span>
         ${ocupadas.length
-          ? '<button class="boton-secundario boton-compacto" type="button" data-a="ver">Liberar primero</button>'
+          ? `<button class="boton-secundario boton-compacto" type="button" data-a="ver">${S.asigna ? 'Liberar primero' : 'Ver cama'}</button>`
           : '<button class="boton-secundario boton-compacto boton-critico" type="button" data-a="quitar">Quitar</button>'}`;
       fila.querySelector('[data-a="ver"]')?.addEventListener('click', () => abrirCama(ocupadas[0]));
       fila.querySelector('[data-a="quitar"]')?.addEventListener('click', (e) => conBoton(e.currentTarget, async () => {
@@ -1933,7 +1945,7 @@ function modalSalieron() {
     fila.innerHTML = `<span><b>${esc(ubicar(cama)?.codigo)}</b><br>#${esc(t?.codigo ?? '—')} ${esc(t?.nombre_completo || '')}</span>
       <span style="display:flex;gap:.4rem;flex-wrap:wrap">
         <button class="boton-secundario boton-compacto" type="button" data-a="ver">Ver</button>
-        ${S.editor ? '<button class="boton-secundario boton-compacto boton-critico" type="button" data-a="liberar">Liberar</button>' : ''}
+        ${S.asigna ? '<button class="boton-secundario boton-compacto boton-critico" type="button" data-a="liberar">Liberar</button>' : ''}
       </span>`;
     fila.querySelector('[data-a="ver"]').addEventListener('click', () => { m.cerrar(); irACama(cama); });
     fila.querySelector('[data-a="liberar"]')?.addEventListener('click', () => abrirCama(cama, 'liberar', 'Salida de la empresa'));
@@ -2061,12 +2073,12 @@ function vistaCroquis($g, base) {
   const elems = editando ? S.cq.elems : elementosCroquis(base);
 
   if (elems.length === 0) {
-    $g.innerHTML = `<div class="hab-vacio">Esta base aún no tiene edificios.${S.editor ? '<br>Cree el primero con «+ Nuevo edificio» y luego ubíquelo en el croquis.' : ''}</div>`;
+    $g.innerHTML = `<div class="hab-vacio">Esta base aún no tiene edificios.<br>${S.estructura ? 'Cree el primero con «+ Nuevo edificio» y luego ubíquelo en el croquis.' : QUIEN_ESTRUCTURA}</div>`;
     return;
   }
 
   $g.innerHTML = `
-    ${editando ? herramientasCroquisHtml() : (S.editor ? `<div class="hab-cabeza">
+    ${editando ? herramientasCroquisHtml() : (S.estructura ? `<div class="hab-cabeza">
       <span class="ayuda">Toque un edificio para entrar a sus habitaciones.</span>
       <button class="boton-secundario" id="cq-editar" type="button">Editar croquis</button></div>`
       : '<span class="ayuda">Toque un edificio para entrar a sus habitaciones.</span>')}
