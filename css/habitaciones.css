@@ -1,0 +1,493 @@
+/* ============================================
+   NEXUS · habitaciones.css
+   Pestaña «Habitaciones» de Trabajo Social.
+   Todo va con el prefijo .hab- para no chocar con los
+   estilos que ya usan las otras pestañas.
+   ============================================ */
+
+.hab {
+  /* Estados de cama: fondo suave + color de trazo y texto */
+  --hab-libre: #1e7b34;      --hab-libre-f: #e6f4ea;
+  --hab-ocupada: #1d5fa8;    --hab-ocupada-f: #e4eefa;
+  --hab-cambio: #8a5300;     --hab-cambio-f: #fcefd6;
+  --hab-salio: #b3261e;      --hab-salio-f: #fbe7e5;
+  --hab-estructura: #8d9a91; /* patas, cabecera, paredes */
+  --hab-muro: #5d6b62;
+  --hab-ventana-on: #f3c14b;
+
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.hab > div:empty { display: none; }
+.hab button { font: inherit; }
+.hab button:focus-visible,
+.hab input:focus-visible,
+.hab select:focus-visible {
+  outline: 2px solid var(--color-acento);
+  outline-offset: 2px;
+}
+
+/* ---------- Buscador ---------- */
+
+.hab-buscador {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: flex-end;
+  padding: 0.9rem 1rem;
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+}
+.hab-buscador .campo { flex: 1 1 260px; position: relative; margin: 0; }
+
+.hab-resultado {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  align-items: center;
+  padding: 0.9rem 1rem;
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-left: 4px solid var(--hab-ocupada);
+  border-radius: 0;
+}
+.hab-resultado--sin { border-left-color: var(--hab-estructura); }
+.hab-resultado--salio { border-left-color: var(--hab-salio); }
+.hab-resultado-datos { flex: 1 1 260px; display: flex; flex-direction: column; gap: 0.2rem; }
+.hab-resultado-nombre { font-weight: 700; font-size: 1rem; }
+.hab-resultado-ruta { font-size: 0.9rem; color: var(--color-texto-tenue); }
+.hab-resultado-acciones { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+/* ---------- Aviso de personal que ya salió ---------- */
+
+.hab-alerta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: var(--hab-salio-f);
+  color: var(--hab-salio);
+  border: 1px solid #f1c3be;
+  border-radius: var(--radio);
+  font-size: 0.92rem;
+}
+
+/* ---------- Migas ---------- */
+
+.hab-migas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.92rem;
+  color: var(--color-texto-tenue);
+}
+.hab-miga {
+  background: none;
+  border: none;
+  padding: 0.15rem 0.1rem;
+  color: var(--color-acento);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.hab-miga-actual { color: var(--color-texto); font-weight: 700; }
+
+/* ---------- Encabezado de cada nivel ---------- */
+
+.hab-cabeza {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+}
+.hab-titulo { margin: 0; font-size: 1.25rem; color: var(--color-acento-oscuro); }
+.hab-titulo small { font-size: 0.85rem; font-weight: 400; color: var(--color-texto-tenue); margin-left: 0.4rem; }
+.hab-cabeza-acciones { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+.hab-cifras {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.6rem;
+}
+.hab-cifra {
+  padding: 0.7rem 0.9rem;
+  background: var(--color-superficie-alt);
+  border-radius: 8px;
+}
+.hab-cifra span { display: block; font-size: 0.8rem; color: var(--color-texto-tenue); }
+.hab-cifra strong { font-size: 1.45rem; line-height: 1.2; }
+.hab-cifra--libre strong { color: var(--hab-libre); }
+.hab-cifra--cambio strong { color: var(--hab-cambio); }
+
+/* ---------- Tarjetas de centros, bases y edificios ---------- */
+
+.hab-rejilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 0.8rem;
+}
+.hab-tarjeta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 1rem 0.9rem 0.9rem;
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  cursor: pointer;
+  text-align: center;
+  color: inherit;
+}
+.hab-tarjeta:hover { border-color: var(--color-acento); }
+.hab-tarjeta svg { width: 100%; max-width: 190px; height: auto; margin-bottom: 0.3rem; }
+.hab-tarjeta-nombre { font-weight: 700; font-size: 1rem; }
+.hab-tarjeta-sub { font-size: 0.82rem; color: var(--color-texto-tenue); }
+.hab-tarjeta-libres { font-size: 0.85rem; color: var(--color-texto-tenue); }
+.hab-tarjeta-libres b { color: var(--hab-libre); }
+.hab-barra {
+  width: 100%;
+  height: 6px;
+  margin-top: 0.35rem;
+  background: var(--color-superficie-alt);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.hab-barra i { display: block; height: 100%; background: var(--hab-ocupada); }
+
+.hab-tarjeta--nueva {
+  justify-content: center;
+  min-height: 170px;
+  border-style: dashed;
+  color: var(--color-texto-tenue);
+  background: transparent;
+}
+
+.hab-vacio {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--color-texto-tenue);
+  background: var(--color-superficie);
+  border: 1px dashed var(--color-borde);
+  border-radius: var(--radio);
+}
+
+/* ---------- Fachada del edificio ---------- */
+
+.hab-filtros { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+.hab-chip {
+  padding: 0.35rem 0.85rem;
+  border: 1px solid var(--color-borde);
+  border-radius: 999px;
+  background: var(--color-superficie);
+  font-size: 0.85rem;
+  cursor: pointer;
+  color: var(--color-texto);
+}
+.hab-chip[aria-pressed="true"] {
+  background: var(--color-acento-suave);
+  border-color: var(--color-acento);
+  color: var(--color-acento-oscuro);
+  font-weight: 700;
+}
+
+.hab-leyenda { display: flex; flex-wrap: wrap; gap: 0.9rem; font-size: 0.8rem; color: var(--color-texto-tenue); }
+.hab-leyenda span::before {
+  content: "";
+  display: inline-block;
+  width: 11px; height: 11px;
+  margin-right: 0.3rem;
+  vertical-align: -1px;
+  border-radius: 3px;
+  border: 1px solid var(--c);
+  background: var(--f);
+}
+
+.hab-fachada { display: flex; flex-direction: column; }
+.hab-techo { display: block; width: 100%; height: 34px; }
+.hab-planta {
+  border: 2px solid var(--hab-muro);
+  border-top-width: 0;
+  background: var(--color-superficie);
+  padding: 0.6rem 0.6rem 0.7rem;
+}
+.hab-planta:first-of-type { border-top-width: 2px; }
+.hab-planta-nombre {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--hab-muro);
+  margin-bottom: 0.4rem;
+}
+.hab-frente-nombre { font-size: 0.76rem; color: var(--color-texto-tenue); margin: 0.35rem 0 0.25rem; }
+.hab-suelo { height: 6px; background: var(--hab-muro); border-radius: 0 0 3px 3px; }
+
+.hab-fila {
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+.hab-fila-vacia {
+  flex: 1;
+  padding: 0.8rem;
+  font-size: 0.85rem;
+  color: var(--color-texto-tenue);
+  border: 1px dashed var(--color-borde);
+  text-align: center;
+}
+
+.hab-esp {
+  /* El tamaño elegido (1 a 6) reparte el ancho en proporción.
+     Si no alcanza el lugar, las habitaciones conservan lo que
+     necesitan sus camas y la fila se desplaza de lado. */
+  flex: var(--ancho, 1) 1 0;
+  min-width: 142px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.45rem;
+  border: 1px solid var(--hab-estructura);
+  margin-left: -1px;
+  background: var(--color-superficie);
+}
+.hab-esp:first-child { margin-left: 0; }
+.hab-esp--otro {
+  min-width: 70px;
+  align-items: center;
+  justify-content: center;
+  background: repeating-linear-gradient(135deg, #f4f5f3 0 8px, #eceeea 8px 16px);
+  color: var(--hab-muro);
+  font-size: 0.85rem;
+  text-align: center;
+  min-height: 96px;
+}
+.hab-esp--otro svg { width: 28px; height: 28px; }
+.hab-esp--tenue { opacity: 0.35; }
+.hab-esp-cabeza {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--color-texto-tenue);
+}
+.hab-esp-cabeza b { color: var(--color-texto); font-size: 0.86rem; }
+.hab-camas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  gap: 0.35rem;
+  align-items: start;
+}
+.hab-sin-camas { font-size: 0.8rem; color: var(--color-texto-tenue); padding: 0.4rem 0; }
+
+/* Edición de plantas */
+.hab-editando .hab-esp { cursor: pointer; }
+.hab-editando .hab-esp:hover { border-color: var(--color-acento); z-index: 1; }
+.hab-esp--sel { outline: 3px solid var(--color-acento); outline-offset: -3px; z-index: 2; }
+.hab-agregar-esp {
+  flex: 0 0 90px;
+  border: 1px dashed var(--color-acento);
+  background: var(--color-acento-suave);
+  color: var(--color-acento-oscuro);
+  font-size: 0.82rem;
+  cursor: pointer;
+  margin-left: 0.4rem;
+  border-radius: 8px;
+}
+.hab-herramientas {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+  padding: 0.6rem 0.75rem;
+  background: var(--color-acento-suave);
+  border: 1px solid var(--color-acento);
+  border-radius: var(--radio);
+  font-size: 0.88rem;
+}
+.hab-herramientas-nombre { margin-right: auto; font-weight: 700; color: var(--color-acento-oscuro); }
+
+/* ---------- Camas ---------- */
+
+.hab-cama {
+  --c: var(--hab-libre);
+  --f: var(--hab-libre-f);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+  padding: 0.3rem 0.4rem 0.35rem;
+  background: var(--f);
+  border: 1px solid var(--c);
+  border-radius: 8px;
+  color: var(--c);
+  font-size: 0.74rem;
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+  min-height: 92px;
+}
+.hab-cama svg { width: 100%; max-width: 76px; height: 30px; align-self: center; }
+.hab-cama--ocupada { --c: var(--hab-ocupada); --f: var(--hab-ocupada-f); }
+.hab-cama--cambio  { --c: var(--hab-cambio);  --f: var(--hab-cambio-f); }
+.hab-cama--salio   { --c: var(--hab-salio);   --f: var(--hab-salio-f); }
+.hab-cama:hover { filter: brightness(0.97); }
+.hab-cama--resaltada { outline: 3px solid var(--color-acento); outline-offset: 2px; }
+.hab-cama-fila { display: flex; justify-content: space-between; gap: 0.3rem; font-weight: 700; }
+.hab-cama-nombre,
+.hab-cama-cargo {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.hab-cama-nombre { font-weight: 700; font-size: 0.78rem; color: var(--color-texto); }
+.hab-cama-linea { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hab-cama-libre { text-align: center; font-weight: 700; }
+
+.hab-litera {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 3px;
+  border: 1px dashed var(--hab-estructura);
+  border-radius: 10px;
+}
+.hab-litera-nombre {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  color: var(--color-texto-tenue);
+  padding: 0 0.2rem;
+}
+.hab-litera-nombre svg { width: 16px; height: 16px; }
+.hab-litera .hab-cama { min-height: 0; }
+.hab-litera .hab-cama svg { display: none; }
+
+/* ---------- Ventanas modales ---------- */
+
+.hab-modal .modal-caja { max-width: 580px; }
+.hab-modal .modal-pie { flex-wrap: wrap; justify-content: flex-end; gap: 0.5rem; }
+.hab-modal-estado {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--c);
+  background: var(--f);
+  border: 1px solid var(--c);
+}
+.hab-ficha {
+  display: flex;
+  gap: 0.8rem;
+  align-items: center;
+  padding: 0.75rem;
+  border: 1px solid var(--color-borde);
+  border-radius: 10px;
+  margin: 0.6rem 0;
+}
+.hab-iniciales {
+  flex: 0 0 44px;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--hab-ocupada-f);
+  color: var(--hab-ocupada);
+  font-weight: 700;
+}
+.hab-datos { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin: 0.4rem 0; }
+.hab-datos td { padding: 0.3rem 0; border-bottom: 1px solid var(--color-borde); }
+.hab-datos td:first-child { color: var(--color-texto-tenue); width: 45%; }
+.hab-nota {
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  margin: 0.5rem 0;
+  background: var(--hab-cambio-f);
+  color: var(--hab-cambio);
+}
+.hab-nota--error { background: var(--hab-salio-f); color: var(--hab-salio); }
+.hab-nota--info { background: var(--color-acento-suave); color: var(--color-acento-oscuro); }
+.hab-form { display: flex; flex-direction: column; gap: 0.7rem; margin-top: 0.4rem; }
+.hab-form .campo { margin: 0; }
+.hab-form-fila { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.7rem; }
+.hab-opciones { display: flex; flex-direction: column; gap: 0.4rem; }
+.hab-opciones label { display: flex; gap: 0.45rem; align-items: center; font-size: 0.9rem; cursor: pointer; }
+.hab-lista-sug {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-borde);
+  border-radius: 8px;
+  overflow: hidden;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.hab-lista-sug button {
+  text-align: left;
+  padding: 0.5rem 0.7rem;
+  border: none;
+  border-bottom: 1px solid var(--color-borde);
+  background: var(--color-superficie);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.hab-lista-sug button:hover { background: var(--color-acento-suave); }
+.hab-lista-sug small { color: var(--color-texto-tenue); }
+.hab-historia { list-style: none; padding: 0; margin: 0.3rem 0 0; font-size: 0.88rem; }
+.hab-historia li { padding: 0.45rem 0 0.45rem 1rem; border-left: 2px solid var(--color-borde); position: relative; }
+.hab-historia li::before {
+  content: "";
+  position: absolute;
+  left: -5px; top: 0.75rem;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--color-acento);
+}
+.hab-historia time { display: block; font-size: 0.78rem; color: var(--color-texto-tenue); }
+.hab-subtitulo { margin: 1rem 0 0.3rem; font-size: 0.92rem; color: var(--color-acento-oscuro); }
+.hab-acciones-modal { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.8rem; }
+.hab-filas-lista { display: flex; flex-direction: column; }
+.hab-filas-lista > div {
+  display: flex; gap: 0.6rem; align-items: center; justify-content: space-between;
+  padding: 0.55rem 0; border-bottom: 1px solid var(--color-borde); font-size: 0.9rem;
+}
+
+/* ---------- Mensaje flotante ---------- */
+
+.hab-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 1.5rem;
+  transform: translateX(-50%);
+  z-index: 80;
+  padding: 0.65rem 1.1rem;
+  border-radius: 999px;
+  background: var(--color-acento-oscuro);
+  color: #fff;
+  font-size: 0.9rem;
+  box-shadow: 0 4px 14px rgba(0, 40, 10, 0.25);
+}
+
+@media (max-width: 640px) {
+  .hab-rejilla { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .hab-titulo { font-size: 1.1rem; }
+}
+
+@media print {
+  .hab-buscador, .hab-cabeza-acciones, .hab-herramientas, .hab-agregar-esp { display: none !important; }
+}
