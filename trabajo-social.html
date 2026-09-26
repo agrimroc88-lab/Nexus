@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="css/trabajadores.css">
   <link rel="stylesheet" href="css/atenciones.css">
   <link rel="stylesheet" href="css/psicologia.css?v=4">
+  <link rel="stylesheet" href="css/habitaciones.css?v=1">
   <style>
     .seccion-titulo {
       font-size: 0.95rem;
@@ -242,6 +243,7 @@
         <button class="pestana activa" data-vista="ficha" type="button">Ficha</button>
         <button class="pestana" data-vista="registros" type="button">Registros</button>
         <button class="pestana" data-vista="atenciones" type="button">Atenciones</button>
+        <button class="pestana" data-vista="habitaciones" type="button">Habitaciones</button>
       </div>
 
       <!-- ============ Vista: Ficha ============ -->
@@ -272,6 +274,7 @@
             <div class="trabajador-identidad">
               <h2 class="trabajador-nombre" id="p-nombre">—</h2>
               <p class="trabajador-meta" id="p-meta">—</p>
+              <p class="trabajador-meta" id="p-vive" hidden></p>
             </div>
             <div class="trabajador-acciones">
               <button class="boton-primario" id="btn-nueva-ficha" type="button">+ Nueva ficha</button>
@@ -375,6 +378,11 @@
           <p class="vacio" id="vacio-atenciones" hidden>Sin registros en el año seleccionado.</p>
           <p class="pista">Clic en un mes para registrar o editar sus atenciones.</p>
         </div>
+      </section>
+
+      <!-- ============ Vista: Habitaciones (js/habitaciones.js) ============ -->
+      <section class="vista" id="vista-habitaciones" hidden>
+        <div id="hab-raiz"></div>
       </section>
 
       <!-- Modal: editar un mes -->
@@ -660,6 +668,6 @@
   <!-- Zona de impresión (fuera de todo) -->
   <div id="zona-impresion" class="zona-impresion" aria-hidden="true"></div>
 
-  <script type="module" src="js/trabajo-social.js?v=19"></script>
+  <script type="module" src="js/trabajo-social.js?v=20"></script>
 </body>
 </html>
