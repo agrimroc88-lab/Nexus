@@ -189,8 +189,54 @@ function cambiarVista(v) {
   document.getElementById('vista-ficha').hidden = v !== 'ficha';
   document.getElementById('vista-registros').hidden = v !== 'registros';
   document.getElementById('vista-atenciones').hidden = v !== 'atenciones';
+  const $hab = document.getElementById('vista-habitaciones');
+  if ($hab) $hab.hidden = v !== 'habitaciones';
   if (v === 'registros') pintarRegistros();
   if (v === 'atenciones') pintarAtenciones();
+  if (v === 'habitaciones') abrirHabitaciones();
+}
+
+/* ============================================
+   Habitaciones (js/habitaciones.js)
+   Se carga solo al abrir la pestaña: si algo falla ahí,
+   Ficha, Registros y Atenciones siguen funcionando igual.
+   ============================================ */
+
+const MOD_HABITACIONES = './habitaciones.js?v=1';
+let modHabitaciones = null;
+let habitacionesEmpresa = null;
+
+async function abrirHabitaciones() {
+  const $raiz = document.getElementById('hab-raiz');
+  if (!$raiz || habitacionesEmpresa === estado.empresaId) return;
+  habitacionesEmpresa = estado.empresaId;
+  try {
+    modHabitaciones = modHabitaciones || await import(MOD_HABITACIONES);
+    await modHabitaciones.montarHabitaciones({
+      supabase, perfil: estado.perfil, empresaId: estado.empresaId, contenedor: $raiz
+    });
+  } catch (e) {
+    console.error('NEXUS · habitaciones:', e);
+    habitacionesEmpresa = null;
+    $raiz.innerHTML = '<p class="aviso-inicial">No fue posible abrir Habitaciones. Recargue la página.</p>';
+  }
+}
+
+/** «Vive en: …» en la tarjeta del trabajador buscado. */
+async function pintarViveEn(t) {
+  const $vive = document.getElementById('p-vive');
+  if (!$vive) return;
+  $vive.hidden = true;
+  try {
+    modHabitaciones = modHabitaciones || await import(MOD_HABITACIONES);
+    const texto = await modHabitaciones.ubicacionTrabajador(supabase, estado.empresaId, t.id);
+    if (texto && estado.paciente?.id === t.id) {
+      $vive.textContent = 'Vive en: ' + texto;
+      $vive.hidden = false;
+    }
+  } catch (e) {
+    console.warn('NEXUS · habitaciones (vive en):', e);
+  }
 }
 
 /* ============================================
@@ -253,6 +299,7 @@ function mostrarPaciente(t) {
   document.getElementById('p-meta').textContent =
     `Código ${t.codigo} · Cédula ${t.cedula || '—'} · ${t.edad != null ? t.edad + ' años' : ''} · ${textoOGuion(t.cargo)}`;
   document.getElementById('p-historial').hidden = true;
+  pintarViveEn(t);
 }
 
 function alternarHistorial() {
