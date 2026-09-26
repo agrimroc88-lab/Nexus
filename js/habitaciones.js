@@ -20,7 +20,7 @@
 
 import { alCrear, alEditar } from './autoria.js?v=1';
 
-const VERSION = 'v1';
+const VERSION = 'v2';
 console.info('NEXUS · habitaciones', VERSION);
 
 const EDITORES = ['admin', 'trabajo_social'];
@@ -33,9 +33,10 @@ const TIPOS_ESPACIO = {
   oficina: 'Oficina',
   banos: 'Baños',
   lavanderia: 'Lavandería',
+  escaleras: 'Escaleras',
   otro: 'Otro'
 };
-const ANCHO_INICIAL = { habitacion: 1, comedor: 3, bodega: 1, garita: 1, oficina: 1, banos: 1, lavanderia: 1, otro: 1 };
+const ANCHO_INICIAL = { habitacion: 1, comedor: 3, bodega: 1, garita: 1, oficina: 1, banos: 1, lavanderia: 1, escaleras: 1, otro: 1 };
 const ANCHO_MAX = 6;
 const TAMANOS = ['', 'Pequeño', 'Mediano', 'Grande', 'Muy grande', 'Extra grande', 'Máximo'];
 
@@ -261,6 +262,7 @@ const ICONOS = {
   oficina: 'M3 8h18v12H3zM9 8V5h6v3M3 13h18',
   banos: 'M5 4h14v16H5zM12 4v16M8 10h1M15 10h1',
   lavanderia: 'M4 3h16v18H4zM4 7h16M12 14m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0',
+  escaleras: 'M3 21h5v-5h5v-5h5V6h3M3 21V3',
   otro: 'M12 12m-8 0a8 8 0 1 0 16 0a8 8 0 1 0 -16 0M12 8v5M12 16v.5'
 };
 function svgIcono(tipo) {
@@ -1275,6 +1277,11 @@ function modalEspacio(esp, { edif, planta, frente }) {
     <div class="campo"><label class="etiqueta" for="hs-nombre" id="hs-nombre-etq"></label>
       <input class="entrada" id="hs-nombre" maxlength="30" value="${esc(esp?.nombre || '')}">
       <span class="ayuda" id="hs-nombre-ayuda"></span></div>
+    ${nuevo && edif.num_plantas > 1 ? `<div class="hab-opciones" id="hs-todas-bloque" hidden>
+      <label><input type="checkbox" id="hs-todas" checked>
+        Agregar también en las demás plantas${frente ? ` (frente ${frente})` : ''}</label>
+      <span class="ayuda">Quedan al final de cada fila. Luego muévalas con «← Mover» para alinearlas con las de esta planta.</span>
+    </div>` : ''}
     ${nuevo ? `<div id="hs-camas-bloque" class="hab-form-fila">
       <div class="campo"><label class="etiqueta" for="hs-camas">Camas iniciales</label>
         <select class="entrada" id="hs-camas">${[0, 1, 2, 3, 4].map((k) => `<option value="${k}" ${k === 1 ? 'selected' : ''}>${k}</option>`).join('')}</select></div>
@@ -1303,6 +1310,8 @@ function modalEspacio(esp, { edif, planta, frente }) {
     if ($bloque) { $bloque.hidden = !hab; m.cuerpo.querySelector('#hs-camas-ayuda').hidden = !hab; }
     const $aviso = m.cuerpo.querySelector('#hs-aviso-tipo');
     if ($aviso) $aviso.hidden = hab;
+    const $todas = m.cuerpo.querySelector('#hs-todas-bloque');
+    if ($todas) $todas.hidden = t !== 'escaleras';
   };
   $tipo.addEventListener('change', ajustar);
   ajustar();
@@ -1324,6 +1333,24 @@ function modalEspacio(esp, { edif, planta, frente }) {
       })).select().single();
       if (error) return m.error(mensajeError(error));
 
+      /* Escaleras: también en las demás plantas, mismo frente. */
+      if (tipo === 'escaleras' && m.cuerpo.querySelector('#hs-todas')?.checked) {
+        const otras = [];
+        for (let p = 1; p <= edif.num_plantas; p++) {
+          if (p === planta) continue;
+          const filaP = filaDe(edif.id, p, frente);
+          otras.push(alCrear({
+            empresa_id: S.empresaId, edificio_id: edif.id, planta: p, frente: frente || null,
+            orden: (filaP.length ? Math.max(...filaP.map((x) => x.orden)) : 0) + 10,
+            ancho: ANCHO_INICIAL.escaleras, tipo, nombre
+          }));
+        }
+        if (otras.length) {
+          const r = await S.sb.from('viv_espacios').insert(otras);
+          if (r.error) { m.error(mensajeError(r.error)); await recargar(); return; }
+        }
+      }
+
       const n = tipo === 'habitacion' ? parseInt(valor(m, 'hs-camas'), 10) || 0 : 0;
       if (n > 0) {
         const colchon = valor(m, 'hs-colchon') || null;
@@ -1332,7 +1359,7 @@ function modalEspacio(esp, { edif, planta, frente }) {
         if (err) { m.error(err); await recargar(); return; }
       }
       m.cerrar();
-      toast(`${TIPOS_ESPACIO[tipo]} ${tipo === 'habitacion' ? nombre + ' ' : ''}agregada`);
+      toast(tipo === 'habitacion' ? `Habitación ${nombre} agregada` : `${nombre} agregado`);
       await recargar();
       S.selEspacio = data.id;
       pintar();
