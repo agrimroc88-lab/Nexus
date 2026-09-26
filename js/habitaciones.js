@@ -20,7 +20,7 @@
 
 import { alCrear, alEditar } from './autoria.js?v=1';
 
-const VERSION = 'v2';
+const VERSION = 'v3';
 console.info('NEXUS · habitaciones', VERSION);
 
 const EDITORES = ['admin', 'trabajo_social'];
@@ -69,6 +69,10 @@ function estadoInicial(supabase, perfil, empresaId, contenedor) {
     nav: { sucursalId: null, baseId: null, edificioId: null },
     soloLibres: false,
     editando: false,
+    croquis: [],           // viv_croquis de la empresa
+    croquisFalta: false,   // true si aún no se ejecutó habitaciones_etapa2.sql
+    vistaBase: 'croquis',  // 'croquis' | 'edificios'
+    cq: null,              // edición del croquis en curso
     selEspacio: null,
     resaltar: null         // id de cama a resaltar tras una búsqueda
   };
@@ -161,8 +165,15 @@ const basesDe = (sucId) => S.bases.filter((b) => b.sucursal_id === sucId)
 const edificiosDe = (baseId) => S.edificios.filter((e) => e.base_id === baseId)
   .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { numeric: true }));
 const espaciosDe = (edifId) => S.espacios.filter((x) => x.edificio_id === edifId);
+/* Un espacio con frente 'AB' atraviesa el edificio: se ve en
+   la fila A y en la B. Para moverlo se usa la fila A. */
+function enFila(x, frente) {
+  const f = x.frente || null;
+  const pedida = frente === 'AB' ? 'A' : (frente || null);
+  return f === pedida || (f === 'AB' && (pedida === 'A' || pedida === 'B'));
+}
 const filaDe = (edifId, planta, frente) => espaciosDe(edifId)
-  .filter((x) => x.planta === planta && (x.frente || null) === (frente || null))
+  .filter((x) => x.planta === planta && enFila(x, frente))
   .sort((a, b) => a.orden - b.orden || a.creado_en.localeCompare(b.creado_en));
 const ordenNivel = { superior: 0, unico: 1, inferior: 2 };
 const camasDe = (espId) => S.camas.filter((c) => c.espacio_id === espId)
@@ -404,6 +415,21 @@ async function cargar() {
   S.asig = asig.filter((a) => idsCamas.has(a.cama_id));
 
   await cargarTrabajadores(S.asig.map((a) => a.trabajador_id));
+  await cargarCroquis();
+}
+
+/* Aparte: si falta el SQL de la etapa 2, el resto de la
+   pestaña sigue funcionando y solo el croquis lo avisa. */
+async function cargarCroquis() {
+  try {
+    S.croquis = await traerTodo(() => S.sb.from('viv_croquis').select('*')
+      .eq('empresa_id', S.empresaId).eq('activo', true).order('id'));
+    S.croquisFalta = false;
+  } catch (error) {
+    S.croquis = [];
+    S.croquisFalta = faltaSql(error);
+    if (!S.croquisFalta) console.warn('NEXUS · croquis:', error.message);
+  }
 }
 
 async function cargarTrabajadores(ids) {
@@ -629,6 +655,7 @@ function ir(nav) {
   S.editando = false;
   S.selEspacio = null;
   S.resaltar = null;
+  S.cq = null;
   pintar();
   document.getElementById('hab-migas')?.scrollIntoView({ block: 'nearest' });
 }
@@ -748,17 +775,24 @@ function vistaBases($v) {
 function vistaBase($v) {
   const base = porId(S.bases, S.nav.baseId);
   const eds = edificiosDe(base.id);
+  const enCroquis = S.vistaBase === 'croquis';
   $v.innerHTML = `
     <div class="hab-cabeza"><h2 class="hab-titulo">${esc(base.nombre)} <small>código ${esc(base.codigo)}</small></h2>
-      <div class="hab-cabeza-acciones">${S.editor ? `
+      <div class="hab-cabeza-acciones">${S.editor && !S.cq ? `
         <button class="boton-secundario" id="hab-editar-base" type="button">Editar base</button>
         <button class="boton-primario" id="hab-nuevo-edif" type="button">+ Nuevo edificio</button>` : ''}</div></div>
     ${eds.length ? cifras(conteo(camasDeBase(base.id))) : ''}
-    <div class="hab-rejilla" id="hab-g"></div>`;
+    <div class="hab-filtros" role="group" aria-label="Forma de ver la base">
+      <button class="hab-chip" type="button" data-vb="croquis" aria-pressed="${enCroquis}" ${S.cq ? 'disabled' : ''}>Croquis</button>
+      <button class="hab-chip" type="button" data-vb="edificios" aria-pressed="${!enCroquis}" ${S.cq ? 'disabled' : ''}>Edificios</button>
+    </div>
+    <div id="hab-g" class="hab-rejilla"></div>`;
   document.getElementById('hab-editar-base')?.addEventListener('click', () => modalBase(base));
   document.getElementById('hab-nuevo-edif')?.addEventListener('click', () => modalEdificio(null));
+  $v.querySelectorAll('[data-vb]').forEach((b) => b.addEventListener('click', () => { S.vistaBase = b.dataset.vb; pintar(); }));
 
   const $g = document.getElementById('hab-g');
+  if (enCroquis) { vistaCroquis($g, base); return; }
   if (eds.length === 0) {
     $g.outerHTML = `<div class="hab-vacio">Esta base aún no tiene edificios.${S.editor ? '<br>Agregue el primero con «+ Nuevo edificio».' : ''}</div>`;
     return;
@@ -869,14 +903,14 @@ function espacioHtml(esp) {
 
   if (esp.tipo !== 'habitacion') {
     d.className = 'hab-esp hab-esp--otro' + (seleccionado ? ' hab-esp--sel' : '');
-    d.innerHTML = `${svgIcono(esp.tipo)}<span>${esc(esp.nombre)}</span>`;
+    d.innerHTML = `${svgIcono(esp.tipo)}<span>${esc(esp.nombre)}</span>${esp.frente === 'AB' ? '<span class="hab-ab">Frentes A y B</span>' : ''}`;
   } else {
     const camas = camasDe(esp.id);
     const ocup = camas.filter((c) => asigDeCama(c.id)).length;
     const tenue = S.soloLibres && !S.editando && (camas.length === 0 || ocup === camas.length);
     d.className = 'hab-esp' + (tenue ? ' hab-esp--tenue' : '') + (seleccionado ? ' hab-esp--sel' : '');
     d.innerHTML = `<div class="hab-esp-cabeza"><b>Hab. ${esc(esp.nombre)}</b>
-      <span>${camas.length ? `${ocup}/${camas.length}` : ''}</span></div>`;
+      <span>${esp.frente === 'AB' ? 'A y B · ' : ''}${camas.length ? `${ocup}/${camas.length}` : ''}</span></div>`;
     const $camas = document.createElement('div');
     $camas.className = 'hab-camas';
     if (camas.length === 0) {
@@ -1139,7 +1173,7 @@ function modalEdificio(edif) {
     }
     if (edif.tiene_frentes && !frentes) {
       if (esps.some((x) => x.frente === 'B')) return m.error('El frente B todavía tiene espacios. Quítelos antes de desactivar los frentes.');
-      const { error } = await S.sb.from('viv_espacios').update(alEditar({ frente: null })).eq('edificio_id', edif.id).eq('frente', 'A');
+      const { error } = await S.sb.from('viv_espacios').update(alEditar({ frente: null })).eq('edificio_id', edif.id).in('frente', ['A', 'AB']);
       if (error) return m.error(mensajeError(error));
     }
     if (!edif.tiene_frentes && frentes) {
@@ -1277,6 +1311,11 @@ function modalEspacio(esp, { edif, planta, frente }) {
     <div class="campo"><label class="etiqueta" for="hs-nombre" id="hs-nombre-etq"></label>
       <input class="entrada" id="hs-nombre" maxlength="30" value="${esc(esp?.nombre || '')}">
       <span class="ayuda" id="hs-nombre-ayuda"></span></div>
+    ${edif.tiene_frentes ? `<div class="hab-opciones">
+      <label><input type="checkbox" id="hs-ab" ${esp?.frente === 'AB' ? 'checked' : ''}>
+        Ocupa ambos frentes (A y B)</label>
+      <span class="ayuda">Para un espacio que atraviesa el edificio, como un baño que da a los dos lados. Se registra una sola vez y se ve en las dos filas.</span>
+    </div>` : ''}
     ${nuevo && edif.num_plantas > 1 ? `<div class="hab-opciones" id="hs-todas-bloque" hidden>
       <label><input type="checkbox" id="hs-todas" checked>
         Agregar también en las demás plantas${frente ? ` (frente ${frente})` : ''}</label>
@@ -1324,11 +1363,14 @@ function modalEspacio(esp, { edif, planta, frente }) {
       return m.error('El número de habitación solo puede tener letras y números, sin espacios (hasta 12).');
     }
 
+    const ambos = !!m.cuerpo.querySelector('#hs-ab')?.checked;
     if (nuevo) {
-      const fila = filaDe(edif.id, planta, frente);
+      const fila = ambos
+        ? espaciosDe(edif.id).filter((x) => x.planta === planta)
+        : filaDe(edif.id, planta, frente);
       const orden = (fila.length ? Math.max(...fila.map((x) => x.orden)) : 0) + 10;
       const { data, error } = await S.sb.from('viv_espacios').insert(alCrear({
-        empresa_id: S.empresaId, edificio_id: edif.id, planta, frente: frente || null,
+        empresa_id: S.empresaId, edificio_id: edif.id, planta, frente: ambos ? 'AB' : (frente || null),
         orden, ancho: ANCHO_INICIAL[tipo], tipo, nombre
       })).select().single();
       if (error) return m.error(mensajeError(error));
@@ -1338,9 +1380,9 @@ function modalEspacio(esp, { edif, planta, frente }) {
         const otras = [];
         for (let p = 1; p <= edif.num_plantas; p++) {
           if (p === planta) continue;
-          const filaP = filaDe(edif.id, p, frente);
+          const filaP = filaDe(edif.id, p, ambos ? 'A' : frente);
           otras.push(alCrear({
-            empresa_id: S.empresaId, edificio_id: edif.id, planta: p, frente: frente || null,
+            empresa_id: S.empresaId, edificio_id: edif.id, planta: p, frente: ambos ? 'AB' : (frente || null),
             orden: (filaP.length ? Math.max(...filaP.map((x) => x.orden)) : 0) + 10,
             ancho: ANCHO_INICIAL.escaleras, tipo, nombre
           }));
@@ -1372,7 +1414,12 @@ function modalEspacio(esp, { edif, planta, frente }) {
       const r = await S.sb.from('viv_camas').update(alEditar({ activo: false, retirada_en: hoy() })).eq('espacio_id', esp.id).eq('activo', true);
       if (r.error) return m.error(mensajeError(r.error));
     }
-    const { error } = await S.sb.from('viv_espacios').update(alEditar({ tipo, nombre })).eq('id', esp.id);
+    const cambios = { tipo, nombre };
+    if (edif.tiene_frentes) {
+      if (ambos && esp.frente !== 'AB') cambios.frente = 'AB';
+      if (!ambos && esp.frente === 'AB') cambios.frente = 'A';
+    }
+    const { error } = await S.sb.from('viv_espacios').update(alEditar(cambios)).eq('id', esp.id);
     if (error) return m.error(mensajeError(error));
     m.cerrar();
     toast('Espacio actualizado');
@@ -1856,4 +1903,335 @@ export async function ubicacionTrabajador(supabase, empresaId, trabajadorId) {
   } catch {
     return null;
   }
+}
+
+/* ============================================
+   CROQUIS DE LA BASE (etapa 2)
+   Plano visto desde arriba, en una cuadrícula de 40 × 25.
+   - Normal: se toca un edificio para entrar.
+   - Edición (admin y trabajo social): se arrastra para mover,
+     la esquina para cambiar el tamaño; nada se guarda hasta
+     pulsar «Guardar croquis».
+   ============================================ */
+
+const CQ_COLS = 40;
+const CQ_FILAS = 25;
+const TIPOS_CROQUIS = {
+  cancha: 'Cancha',
+  estacionamiento: 'Estacionamiento',
+  punto_encuentro: 'Punto de encuentro',
+  comedor: 'Comedor',
+  garita: 'Garita',
+  entrada: 'Entrada',
+  area_verde: 'Área verde',
+  gimnasio: 'Gimnasio',
+  tanque_agua: 'Tanque de agua',
+  otro: 'Otro'
+};
+const TAM_CROQUIS = {
+  edificio: [8, 4], cancha: [8, 5], estacionamiento: [7, 4], punto_encuentro: [3, 3],
+  comedor: [6, 4], garita: [2, 2], entrada: [3, 2], area_verde: [6, 4], gimnasio: [5, 3],
+  tanque_agua: [2, 2], otro: [4, 3]
+};
+const ICONOS_CQ = {
+  cancha: 'M3 5h18v14H3zM12 5v14M12 12m-2.5 0a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0 -5 0',
+  estacionamiento: 'M4 3h16v18H4zM9 17V7h4a3 3 0 0 1 0 6H9',
+  punto_encuentro: 'M12 3v5M12 16v5M3 12h5M16 12h5M12 8l-2 2M12 8l2 2M12 16l-2-2M12 16l2-2M8 12l2-2M8 12l2 2M16 12l-2-2M16 12l-2 2',
+  comedor: ICONOS.comedor,
+  garita: ICONOS.garita,
+  entrada: 'M10 3h9v18h-9M3 12h11M10 8l4 4-4 4',
+  area_verde: 'M12 21v-6M7 15a5 5 0 1 1 10 0zM9 9a3 3 0 1 1 6 0',
+  gimnasio: 'M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10',
+  tanque_agua: 'M6 5c0-1.5 12-1.5 12 0v14c0 1.5-12 1.5-12 0zM6 5c0 1.5 12 1.5 12 0',
+  otro: ICONOS.otro
+};
+function svgIconoCq(tipo) {
+  return `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="${ICONOS_CQ[tipo] || ICONOS.otro}"/></svg>`;
+}
+
+const claveCq = (x) => x.id || x.tmp;
+let tmpSeq = 0;
+
+/** Elementos del croquis de una base. Los edificios que aún no
+    tienen lugar se acomodan solos en filas (sin guardar). */
+function elementosCroquis(base) {
+  const eds = edificiosDe(base.id);
+  const idsEds = new Set(eds.map((e) => e.id));
+  const lista = S.croquis
+    .filter((c) => c.base_id === base.id && (c.tipo !== 'edificio' || idsEds.has(c.edificio_id)))
+    .map((c) => ({ ...c }));
+  let x = 1, y = 1;
+  eds.forEach((e) => {
+    if (lista.some((c) => c.edificio_id === e.id)) return;
+    const [w, h] = TAM_CROQUIS.edificio;
+    while (lista.some((c) => choca({ x, y, w, h }, c))) {
+      x += w + 1;
+      if (x + w > CQ_COLS) { x = 1; y += h + 1; }
+      if (y + h > CQ_FILAS) { y = CQ_FILAS - h; break; }
+    }
+    lista.push({ tmp: `t${++tmpSeq}`, tipo: 'edificio', edificio_id: e.id, nombre: e.nombre, x, y, w, h, nuevo: true });
+    x += w + 1;
+    if (x + w > CQ_COLS) { x = 1; y += h + 1; }
+  });
+  return lista;
+}
+
+function choca(a, b) {
+  return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+}
+
+function vistaCroquis($g, base) {
+  $g.className = 'hab-cq-zona';
+  if (S.croquisFalta) {
+    $g.innerHTML = `<div class="hab-vacio"><strong>El croquis necesita preparar la base de datos.</strong><br>
+      El administrador debe ejecutar una vez <code>sql/habitaciones_etapa2.sql</code> en Supabase.
+      Mientras tanto puede usar la vista «Edificios».</div>`;
+    return;
+  }
+  if (!S.cq || S.cq.baseId !== base.id) S.cq = null;
+  const editando = !!S.cq;
+  const elems = editando ? S.cq.elems : elementosCroquis(base);
+
+  if (elems.length === 0) {
+    $g.innerHTML = `<div class="hab-vacio">Esta base aún no tiene edificios.${S.editor ? '<br>Cree el primero con «+ Nuevo edificio» y luego ubíquelo en el croquis.' : ''}</div>`;
+    return;
+  }
+
+  $g.innerHTML = `
+    ${editando ? herramientasCroquisHtml() : (S.editor ? `<div class="hab-cabeza">
+      <span class="ayuda">Toque un edificio para entrar a sus habitaciones.</span>
+      <button class="boton-secundario" id="cq-editar" type="button">Editar croquis</button></div>`
+      : '<span class="ayuda">Toque un edificio para entrar a sus habitaciones.</span>')}
+    <div class="hab-cq-marco">
+      <div class="hab-cq ${editando ? 'hab-cq--editando' : ''}" id="hab-cq" role="${editando ? 'application' : 'group'}"
+        aria-label="Croquis de ${esc(base.nombre)}"></div>
+    </div>`;
+
+  document.getElementById('cq-editar')?.addEventListener('click', () => {
+    S.cq = { baseId: base.id, elems: elementosCroquis(base), sel: null, quitados: [] };
+    pintar();
+  });
+
+  const $cq = document.getElementById('hab-cq');
+  elems.forEach((el) => $cq.appendChild(elementoCq(el, editando, $cq)));
+  if (editando) conectarHerramientasCroquis(base);
+}
+
+function posicionar(d, el) {
+  d.style.left = `${el.x / CQ_COLS * 100}%`;
+  d.style.top = `${el.y / CQ_FILAS * 100}%`;
+  d.style.width = `${el.w / CQ_COLS * 100}%`;
+  d.style.height = `${el.h / CQ_FILAS * 100}%`;
+}
+
+function elementoCq(el, editando, $cq) {
+  const d = document.createElement('div');
+  d.className = `hab-cq-el hab-cq-el--${el.tipo}`;
+  d.dataset.clave = claveCq(el);
+  posicionar(d, el);
+
+  if (el.tipo === 'edificio') {
+    const edif = porId(S.edificios, el.edificio_id);
+    const c = conteo(camasDeEdificio(el.edificio_id));
+    const tono = c.total === 0 ? '' : c.libres === 0 ? 'lleno' : c.libres / c.total < 0.15 ? 'pocas' : 'hay';
+    d.innerHTML = `<span class="hab-cq-nombre">${esc(edif?.nombre || el.nombre)}</span>
+      ${c.total ? `<span class="hab-cq-libres hab-cq-libres--${tono}">${c.libres === 0 ? 'Lleno' : `${c.libres} libres`}</span>` : ''}`;
+    d.setAttribute('aria-label', `${edif?.nombre}: ${c.total ? `${c.libres} camas libres de ${c.total}` : 'sin camas'}`);
+  } else {
+    d.innerHTML = `${el.tipo === 'cancha' ? '<span class="hab-cq-lineas" aria-hidden="true"></span>' : ''}
+      ${svgIconoCq(el.tipo)}<span class="hab-cq-nombre">${esc(el.nombre)}</span>`;
+    d.setAttribute('aria-label', el.nombre);
+  }
+
+  if (!editando) {
+    if (el.tipo === 'edificio') {
+      d.setAttribute('role', 'button');
+      d.tabIndex = 0;
+      const entrar = () => {
+        const base = porId(S.bases, S.nav.baseId);
+        ir({ sucursalId: base.sucursal_id, baseId: base.id, edificioId: el.edificio_id });
+      };
+      d.addEventListener('click', entrar);
+      d.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); entrar(); } });
+    }
+    return d;
+  }
+
+  /* ----- Edición: seleccionar, arrastrar, cambiar tamaño ----- */
+  d.tabIndex = 0;
+  d.setAttribute('role', 'button');
+  d.setAttribute('aria-pressed', String(S.cq.sel === claveCq(el)));
+  if (S.cq.sel === claveCq(el)) d.classList.add('hab-cq-el--sel');
+  d.insertAdjacentHTML('beforeend', '<span class="hab-cq-asa" aria-hidden="true"></span>');
+
+  let modo = null, ix, iy, ox, oy, ow, oh;
+  d.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    modo = e.target.classList.contains('hab-cq-asa') ? 'tam' : 'mover';
+    ix = e.clientX; iy = e.clientY; ox = el.x; oy = el.y; ow = el.w; oh = el.h;
+    d.setPointerCapture(e.pointerId);
+    if (S.cq.sel !== claveCq(el)) seleccionarCq(claveCq(el));
+  });
+  d.addEventListener('pointermove', (e) => {
+    if (!modo) return;
+    const r = $cq.getBoundingClientRect();
+    const dx = Math.round((e.clientX - ix) / r.width * CQ_COLS);
+    const dy = Math.round((e.clientY - iy) / r.height * CQ_FILAS);
+    if (modo === 'mover') {
+      el.x = Math.max(0, Math.min(CQ_COLS - el.w, ox + dx));
+      el.y = Math.max(0, Math.min(CQ_FILAS - el.h, oy + dy));
+    } else {
+      el.w = Math.max(1, Math.min(CQ_COLS - el.x, ow + dx));
+      el.h = Math.max(1, Math.min(CQ_FILAS - el.y, oh + dy));
+    }
+    posicionar(d, el);
+  });
+  const soltar = () => { if (modo) { modo = null; S.cq.cambios = true; } };
+  d.addEventListener('pointerup', soltar);
+  d.addEventListener('pointercancel', soltar);
+
+  /* Teclado: flechas mueven, Mayús + flechas cambian el tamaño. */
+  d.addEventListener('keydown', (e) => {
+    const k = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+    if (!k) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); seleccionarCq(claveCq(el)); } return; }
+    e.preventDefault();
+    if (e.shiftKey) {
+      el.w = Math.max(1, Math.min(CQ_COLS - el.x, el.w + k[0]));
+      el.h = Math.max(1, Math.min(CQ_FILAS - el.y, el.h + k[1]));
+    } else {
+      el.x = Math.max(0, Math.min(CQ_COLS - el.w, el.x + k[0]));
+      el.y = Math.max(0, Math.min(CQ_FILAS - el.h, el.y + k[1]));
+    }
+    S.cq.cambios = true;
+    posicionar(d, el);
+  });
+  return d;
+}
+
+function seleccionarCq(clave) {
+  S.cq.sel = clave;
+  document.querySelectorAll('.hab-cq-el').forEach((x) => {
+    const si = x.dataset.clave === clave;
+    x.classList.toggle('hab-cq-el--sel', si);
+    x.setAttribute('aria-pressed', String(si));
+  });
+  const $h = document.getElementById('cq-herr-sel');
+  if ($h) { $h.outerHTML = herramientasSelHtml(); conectarHerramientasSel(); }
+}
+
+function herramientasCroquisHtml() {
+  return `<div class="hab-herramientas" role="toolbar" aria-label="Edición del croquis">
+    <label class="etiqueta" for="cq-tipo" style="margin:0">Agregar</label>
+    <select class="entrada" id="cq-tipo" style="width:auto">
+      ${Object.entries(TIPOS_CROQUIS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}
+    </select>
+    <button class="boton-secundario boton-compacto" id="cq-agregar" type="button">+ Agregar</button>
+    ${herramientasSelHtml()}
+    <span style="flex:1 1 auto"></span>
+    <button class="boton-secundario boton-compacto" id="cq-cancelar" type="button">Cancelar</button>
+    <button class="boton-primario boton-compacto" id="cq-guardar" type="button">Guardar croquis</button>
+  </div>
+  <p class="ayuda">Arrastre para mover · arrastre la esquina inferior derecha para cambiar el tamaño · con el teclado: flechas para mover, Mayús + flechas para el tamaño.</p>`;
+}
+
+function herramientasSelHtml() {
+  const el = S.cq?.elems.find((x) => claveCq(x) === S.cq.sel);
+  if (!el) return '<span id="cq-herr-sel" class="ayuda">Toque un elemento para girarlo, renombrarlo o quitarlo.</span>';
+  const esEdif = el.tipo === 'edificio';
+  return `<span id="cq-herr-sel" style="display:inline-flex;gap:.4rem;flex-wrap:wrap;align-items:center">
+    <b style="color:var(--color-acento-oscuro)">${esc(esEdif ? porId(S.edificios, el.edificio_id)?.nombre : el.nombre)}</b>
+    <button class="boton-secundario boton-compacto" id="cq-girar" type="button">Girar</button>
+    ${esEdif ? '' : `<button class="boton-secundario boton-compacto" id="cq-renombrar" type="button">Renombrar</button>
+    <button class="boton-secundario boton-compacto boton-critico" id="cq-quitar" type="button">Quitar</button>`}
+  </span>`;
+}
+
+function conectarHerramientasSel() {
+  const el = S.cq?.elems.find((x) => claveCq(x) === S.cq.sel);
+  if (!el) return;
+  document.getElementById('cq-girar')?.addEventListener('click', () => {
+    const w = Math.min(el.h, CQ_COLS), h = Math.min(el.w, CQ_FILAS);
+    el.w = w; el.h = h;
+    el.x = Math.min(el.x, CQ_COLS - w); el.y = Math.min(el.y, CQ_FILAS - h);
+    S.cq.cambios = true;
+    pintar();
+  });
+  document.getElementById('cq-renombrar')?.addEventListener('click', () => {
+    const m = modal(`Renombrar ${el.nombre}`);
+    m.cuerpo.innerHTML = `<div class="hab-form"><div class="campo"><label class="etiqueta" for="cq-nombre">Nombre</label>
+      <input class="entrada" id="cq-nombre" maxlength="40" value="${esc(el.nombre)}"></div></div>`;
+    m.botones([['Cancelar', 'boton-secundario', () => m.cerrar()], ['Aplicar', 'boton-primario', () => {
+      const n = valor(m, 'cq-nombre');
+      if (!n) return m.error('Escriba un nombre.');
+      el.nombre = n; S.cq.cambios = true; m.cerrar(); pintar();
+    }]]);
+    m.enfocar();
+  });
+  document.getElementById('cq-quitar')?.addEventListener('click', () => {
+    S.cq.elems = S.cq.elems.filter((x) => x !== el);
+    if (el.id) S.cq.quitados.push(el.id);
+    S.cq.sel = null; S.cq.cambios = true;
+    pintar();
+  });
+}
+
+function conectarHerramientasCroquis(base) {
+  conectarHerramientasSel();
+  document.getElementById('cq-agregar').addEventListener('click', () => {
+    const tipo = document.getElementById('cq-tipo').value;
+    const [w, h] = TAM_CROQUIS[tipo];
+    let x = 0, y = 0, ok = false;
+    for (y = 0; y + h <= CQ_FILAS && !ok; y++) {
+      for (x = 0; x + w <= CQ_COLS; x++) {
+        if (!S.cq.elems.some((c) => choca({ x, y, w, h }, c))) { ok = true; break; }
+      }
+      if (ok) break;
+    }
+    if (!ok) { x = 0; y = 0; }
+    const iguales = S.cq.elems.filter((c) => c.tipo === tipo).length;
+    const el = { tmp: `t${++tmpSeq}`, tipo, nombre: iguales ? `${TIPOS_CROQUIS[tipo]} ${iguales + 1}` : TIPOS_CROQUIS[tipo], x, y, w, h, nuevo: true };
+    S.cq.elems.push(el);
+    S.cq.sel = claveCq(el);
+    S.cq.cambios = true;
+    pintar();
+    toast(`${el.nombre} agregado. Arrástrelo a su lugar.`);
+  });
+  document.getElementById('cq-cancelar').addEventListener('click', () => {
+    if (S.cq.cambios && !document.getElementById('cq-cancelar').dataset.confirmar) {
+      const b = document.getElementById('cq-cancelar');
+      b.dataset.confirmar = '1';
+      b.textContent = 'Descartar cambios';
+      return;
+    }
+    S.cq = null; pintar();
+  });
+  document.getElementById('cq-guardar').addEventListener('click', (e) => conBoton(e.currentTarget, () => guardarCroquis(base)));
+}
+
+async function guardarCroquis(base) {
+  const { elems, quitados } = S.cq;
+  const nuevos = elems.filter((x) => !x.id).map((x) => alCrear({
+    empresa_id: S.empresaId, base_id: base.id, tipo: x.tipo, edificio_id: x.edificio_id || null,
+    nombre: x.tipo === 'edificio' ? (porId(S.edificios, x.edificio_id)?.nombre || x.nombre) : x.nombre,
+    x: x.x, y: x.y, w: x.w, h: x.h
+  }));
+  const originales = new Map(S.croquis.map((c) => [c.id, c]));
+  const cambiados = elems.filter((x) => {
+    const o = x.id && originales.get(x.id);
+    return o && (o.x !== x.x || o.y !== x.y || o.w !== x.w || o.h !== x.h || o.nombre !== x.nombre);
+  });
+
+  const ops = [];
+  if (nuevos.length) ops.push(S.sb.from('viv_croquis').insert(nuevos));
+  cambiados.forEach((x) => ops.push(S.sb.from('viv_croquis')
+    .update(alEditar({ x: x.x, y: x.y, w: x.w, h: x.h, nombre: x.nombre })).eq('id', x.id)));
+  if (quitados.length) ops.push(S.sb.from('viv_croquis').update(alEditar({ activo: false })).in('id', quitados));
+
+  const res = await Promise.all(ops);
+  const fallo = res.find((r) => r.error);
+  if (fallo) { toast(mensajeError(fallo.error)); return; }
+  S.cq = null;
+  await cargarCroquis();
+  pintar();
+  toast('Croquis guardado');
 }
