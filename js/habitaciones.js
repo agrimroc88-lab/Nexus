@@ -20,7 +20,7 @@
 
 import { alCrear, alEditar } from './autoria.js?v=1';
 
-const VERSION = 'v6';
+const VERSION = 'v7';
 console.info('NEXUS · habitaciones', VERSION);
 
 /* Dos permisos distintos:
@@ -78,6 +78,7 @@ function estadoInicial(supabase, perfil, empresaId, contenedor) {
     trab: new Map(),       // trabajador_id → datos
     nav: { sucursalId: null, baseId: null, edificioId: null },
     soloLibres: false,
+    detalle: false,        // false = vista panorámica (camas pequeñas)
     editando: false,
     croquis: [],           // viv_croquis de la empresa
     croquisFalta: false,   // true si aún no se ejecutó habitaciones_etapa2.sql
@@ -845,17 +846,19 @@ function vistaEdificio($v) {
         <span style="--c:var(--hab-salio);--f:var(--hab-salio-f)">Ya no labora</span>
       </div>
       <div class="hab-filtros">
+        <button class="hab-chip" id="hab-detalle" type="button" aria-pressed="${S.detalle}">Ver camas en detalle</button>
         <button class="hab-chip" id="hab-libres" type="button" aria-pressed="${S.soloLibres}">Solo habitaciones con camas libres</button>
       </div>
     </div>
     ${S.editando ? herramientasHtml(sel) : ''}
-    <div class="hab-fachada ${S.editando ? 'hab-editando' : ''}" id="hab-fachada"></div>`;
+    <div class="hab-fachada ${S.editando ? 'hab-editando' : ''} ${S.detalle ? '' : 'hab-compacta'}" id="hab-fachada"></div>`;
 
   document.getElementById('hab-config-edif')?.addEventListener('click', () => modalEdificio(edif));
   document.getElementById('hab-modo')?.addEventListener('click', () => {
     S.editando = !S.editando; S.selEspacio = null; pintar();
   });
   document.getElementById('hab-libres').addEventListener('click', () => { S.soloLibres = !S.soloLibres; pintar(); });
+  document.getElementById('hab-detalle').addEventListener('click', () => { S.detalle = !S.detalle; pintar(); });
   if (S.editando) conectarHerramientas(sel);
 
   const $f = document.getElementById('hab-fachada');
@@ -1012,7 +1015,7 @@ function espacioHtml(esp) {
         const niveles = camas.filter((x) => x.tipo === 'litera' && x.numero === cama.numero);
         const grupo = document.createElement('div');
         grupo.className = 'hab-litera';
-        grupo.innerHTML = `<div class="hab-litera-nombre">${svgLiteraIcono()} Litera ${cama.numero}</div>`;
+        grupo.innerHTML = `<div class="hab-litera-nombre" title="Litera ${cama.numero}">${svgLiteraIcono()} ${S.detalle ? 'Litera ' : 'L'}${cama.numero}</div>`;
         niveles.forEach((n) => grupo.appendChild(camaHtml(n)));
         $camas.appendChild(grupo);
       } else {
@@ -1034,7 +1037,34 @@ function espacioHtml(esp) {
   return d;
 }
 
+/** Vista panorámica: casilla pequeña con el código; el detalle
+    va en la descripción emergente y al tocarla. */
+function camaMini(cama) {
+  const est = estadoCama(cama);
+  const a = asigDeCama(cama.id);
+  const t = a && S.trab.get(a.trabajador_id);
+  const u = ubicar(cama);
+  const etiqueta = cama.tipo === 'litera' ? (cama.nivel === 'superior' ? 'Sup' : 'Inf') : `C${cama.numero}`;
+  const texto = a
+    ? `${u?.codigo} · #${t?.codigo ?? '—'} ${t?.nombre_completo || ''}${t?.cargo ? ' · ' + t.cargo : ''}${t?.edad != null ? ' · ' + t.edad + ' años' : ''}${est === 'salio' ? ' · ya no labora' : ''}${cama.colchon_por_cambiar ? ' · colchón por cambiar' : ''}`
+    : `${u?.codigo} · libre${cama.colchon_tipo ? ' · colchón ' + COLCHONES[cama.colchon_tipo].toLowerCase() : ''}${cama.colchon_por_cambiar ? ' · colchón por cambiar' : ''}`;
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = `hab-cama hab-cama--mini hab-cama--${est}`;
+  b.dataset.cama = cama.id;
+  b.title = texto;
+  b.setAttribute('aria-label', texto);
+  b.innerHTML = `${svgCama(!!a)}<span>${etiqueta}</span>${a && t?.codigo != null ? `<span class="hab-mini-cod">#${esc(t.codigo)}</span>` : ''}`;
+  b.addEventListener('click', (e) => {
+    if (S.editando) return;
+    e.stopPropagation();
+    abrirCama(cama);
+  });
+  return b;
+}
+
 function camaHtml(cama) {
+  if (!S.detalle) return camaMini(cama);
   const est = estadoCama(cama);
   const a = asigDeCama(cama.id);
   const t = a && S.trab.get(a.trabajador_id);
@@ -2245,8 +2275,9 @@ function elementoCq(el, editando, $cq) {
     const edif = porId(S.edificios, el.edificio_id);
     const c = conteo(camasDeEdificio(el.edificio_id));
     const tono = c.total === 0 ? '' : c.libres === 0 ? 'lleno' : c.libres / c.total < 0.15 ? 'pocas' : 'hay';
-    d.innerHTML = `<span class="hab-cq-nombre">${esc(edif?.nombre || el.nombre)}</span>
-      ${c.total ? `<span class="hab-cq-libres hab-cq-libres--${tono}">${c.libres === 0 ? 'Lleno' : `${c.libres} libres`}</span>` : ''}`;
+    d.innerHTML = `${edif ? `<span class="hab-cq-fachada" aria-hidden="true">${svgFachada(edif)}</span>` : ''}
+      <span class="hab-cq-pie"><span class="hab-cq-nombre">${esc(edif?.nombre || el.nombre)}</span>
+      ${c.total ? `<span class="hab-cq-libres hab-cq-libres--${tono}">${c.libres === 0 ? 'Lleno' : `${c.libres} libres`}</span>` : ''}</span>`;
     d.setAttribute('aria-label', `${edif?.nombre}: ${c.total ? `${c.libres} camas libres de ${c.total}` : 'sin camas'}`);
   } else {
     d.innerHTML = `${el.tipo === 'cancha' ? '<span class="hab-cq-lineas" aria-hidden="true"></span>' : ''}
