@@ -20,7 +20,7 @@
 
 import { alCrear, alEditar } from './autoria.js?v=1';
 
-const VERSION = 'v8';
+const VERSION = 'v9';
 console.info('NEXUS · habitaciones', VERSION);
 
 /* Dos permisos distintos:
@@ -2602,11 +2602,49 @@ function alertaSeg(el) {
   return null;
 }
 
+/* Colores de señalética normalizada (ISO 7010 / INEN):
+   contra incendios = fondo rojo y símbolo blanco;
+   evacuación = fondo verde y símbolo blanco;
+   prohibición = círculo rojo con franja, dibujo negro;
+   advertencia = triángulo amarillo con borde negro;
+   botiquín = blanco con cruz roja. */
+const SEN_ROJO = '#c62828', SEN_VERDE = '#1b873f', SEN_AMARILLO = '#ffcc00';
+const ESTILO_SEG = {
+  extintor: 'rojo', detector_humo: 'rojo', alarma: 'rojo',
+  salida_emergencia: 'verde', ruta_evacuacion: 'verde', escaleras: 'verde',
+  botiquin: 'botiquin', no_fumar: 'prohibicion', riesgo_electrico: 'advertencia',
+  foco: 'luz', luz_emergencia: 'luz', otro: 'neutro'
+};
+
 function svgSeg(el) {
   const t = TIPOS_SEG[el.tipo] || TIPOS_SEG.otro;
   const giro = el.tipo === 'ruta_evacuacion' ? GIRO[el.datos?.direccion] || 0 : 0;
-  return `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-    ${giro ? `style="transform:rotate(${giro}deg)"` : ''}><path d="${t.i}"/></svg>`;
+  const trazo = (color, ancho = 2) =>
+    `fill="none" stroke="${color}" stroke-width="${ancho}" stroke-linecap="round" stroke-linejoin="round"`;
+  const icono = (color) => `<g transform="translate(4 4) scale(0.667)${giro ? ` rotate(${giro} 12 12)` : ''}"><path d="${t.i}" ${trazo(color, 2.6)}/></g>`;
+  let dentro;
+  switch (ESTILO_SEG[el.tipo] || 'neutro') {
+    case 'rojo':
+      dentro = `<rect x="1" y="1" width="22" height="22" rx="3" fill="${SEN_ROJO}"/>${icono('#fff')}`; break;
+    case 'verde':
+      dentro = `<rect x="1" y="1" width="22" height="22" rx="3" fill="${SEN_VERDE}"/>${icono('#fff')}`; break;
+    case 'botiquin':
+      dentro = `<rect x="1" y="1" width="22" height="22" rx="3" fill="#fff" stroke="#6b6b6b" stroke-width="1.2"/>
+        <rect x="9.5" y="4.5" width="5" height="15" fill="${SEN_ROJO}"/><rect x="4.5" y="9.5" width="15" height="5" fill="${SEN_ROJO}"/>`; break;
+    case 'prohibicion':
+      dentro = `<circle cx="12" cy="12" r="10.5" fill="#fff"/>
+        <rect x="5.5" y="11" width="10" height="3" fill="#111"/><rect x="16" y="11" width="2.5" height="3" fill="#111"/>
+        <path d="M17 9.5c0-1.5 1.5-1.5 1.5-3" ${trazo('#111', 1.2)}/>
+        <circle cx="12" cy="12" r="10.5" ${trazo(SEN_ROJO, 2.6)}/><line x1="4.6" y1="4.6" x2="19.4" y2="19.4" ${trazo(SEN_ROJO, 2.6)}/>`; break;
+    case 'advertencia':
+      dentro = `<path d="M12 2 L23 21.5 H1 Z" fill="${SEN_AMARILLO}" stroke="#111" stroke-width="1.6" stroke-linejoin="round"/>
+        <path d="M13 8l-3.2 5.2h3.4l-2.6 5" ${trazo('#111', 1.8)}/>`; break;
+    case 'luz':
+      dentro = `<rect x="1" y="1" width="22" height="22" rx="3" fill="#fff6dc" stroke="#b07a00" stroke-width="1.2"/>${icono('#8a5300')}`; break;
+    default:
+      dentro = `<rect x="1" y="1" width="22" height="22" rx="3" fill="#eef0ed" stroke="#5d6b62" stroke-width="1.2"/>${icono('#3f4a43')}`;
+  }
+  return `<svg viewBox="0 0 24 24" aria-hidden="true">${dentro}</svg>`;
 }
 
 function descripcionSeg(el) {
