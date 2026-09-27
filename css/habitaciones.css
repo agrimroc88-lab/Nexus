@@ -433,6 +433,82 @@
 .hab-compacta .hab-litera-nombre svg { width: 12px; height: 12px; }
 .hab-compacta .hab-litera .hab-cama svg { display: block; }
 
+/* ---------- Pasillos ---------- */
+
+.hab-planta { position: relative; }
+.hab-esp { position: relative; }
+.hab-pasillo {
+  position: relative;
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  padding: 0 0.6rem;
+  margin: 3px 0 3px;
+  background:
+    linear-gradient(90deg, transparent 0, transparent 50%) ,
+    repeating-linear-gradient(90deg, #c9d0cb 0 14px, transparent 14px 26px) center / 100% 2px no-repeat,
+    #eef1ee;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  color: #7b877f;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.hab-pasillo span { background: #eef1ee; padding: 0 0.35rem; }
+.hab-rejilla-frentes .hab-pasillo { margin: 3px 0; }
+.hab-rejilla-frentes .hab-esp--ab { z-index: 1; }
+
+/* ---------- Capa de seguridad ---------- */
+
+.hab-seg-barra { display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center; }
+.hab-chip--capa { font-size: 0.78rem; padding: 0.25rem 0.7rem; }
+.hab-seg-aviso {
+  border: 1px solid #f0c98a;
+  background: var(--hab-cambio-f);
+  color: var(--hab-cambio);
+  border-radius: 999px;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.hab-seg-aviso--mal { border-color: #f1c3be; background: var(--hab-salio-f); color: var(--hab-salio); }
+
+.hab-seg {
+  position: absolute;
+  z-index: 4;
+  transform: translate(-50%, -50%);
+  width: 28px;
+  height: 28px;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  border: 2px solid var(--c);
+  background: var(--f);
+  color: var(--c);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+}
+.hab-seg svg { width: 100%; height: 100%; }
+.hab-seg:hover { transform: translate(-50%, -50%) scale(1.15); }
+.hab-seg-punto {
+  position: absolute;
+  top: -5px; right: -5px;
+  width: 11px; height: 11px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: var(--hab-cambio);
+}
+.hab-seg--mal .hab-seg-punto { background: var(--hab-salio); }
+.hab-seg--suelto { outline: 2px dashed var(--hab-salio); outline-offset: 2px; }
+.hab-seg-editando .hab-seg { cursor: grab; touch-action: none; }
+.hab-seg--arrastrando { position: fixed; z-index: 90; cursor: grabbing; transform: translate(-50%, -50%) scale(1.2); }
+.hab-seg-colocando, .hab-seg-colocando * { cursor: crosshair !important; }
+.hab-seg-colocando .hab-esp:hover,
+.hab-seg-colocando .hab-pasillo:hover { outline: 2px solid var(--color-acento); outline-offset: -2px; }
+
 /* ---------- Ventanas modales ---------- */
 
 .hab-modal .modal-caja { max-width: 580px; }
