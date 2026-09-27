@@ -234,6 +234,30 @@
   overflow-x: auto;
   padding-bottom: 2px;
 }
+.hab-fila-scroll { overflow-x: auto; padding-bottom: 2px; }
+.hab-rejilla-frentes {
+  display: grid;
+  grid-template-rows: auto auto;
+  min-width: min-content;
+}
+.hab-frente-etq {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--hab-muro);
+  background: var(--color-superficie-alt);
+  border: 1px solid var(--hab-estructura);
+  margin-right: 4px;
+  border-radius: 4px 0 0 4px;
+}
+.hab-celda { display: flex; min-width: min-content; margin-top: -1px; }
+.hab-celda .hab-esp { flex: var(--ancho, 1) 1 0; }
+.hab-hueco { flex: 1; min-width: 60px; min-height: 60px; border: 1px dashed var(--color-borde); margin-left: -1px; }
+.hab-esp--ab { margin-left: -1px; margin-top: -1px; border-color: var(--hab-muro); }
+.hab-rejilla-frentes .hab-agregar-esp { min-height: 44px; margin: 2px 0 2px 0.4rem; }
 .hab-fila-vacia {
   flex: 1;
   padding: 0.8rem;
