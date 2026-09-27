@@ -20,7 +20,7 @@
 
 import { alCrear, alEditar } from './autoria.js?v=1';
 
-const VERSION = 'v5';
+const VERSION = 'v6';
 console.info('NEXUS · habitaciones', VERSION);
 
 /* Dos permisos distintos:
@@ -862,16 +862,12 @@ function vistaEdificio($v) {
   $f.insertAdjacentHTML('beforeend', `<svg class="hab-techo" viewBox="0 0 400 34" preserveAspectRatio="none" aria-hidden="true">
     <path d="M0 34 L200 2 L400 34 Z" fill="${C.techo}" stroke="${C.muro}" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`);
 
-  const frentes = edif.tiene_frentes ? ['A', 'B'] : [null];
   for (let p = edif.num_plantas; p >= 1; p--) {
     const planta = document.createElement('section');
     planta.className = 'hab-planta';
     planta.setAttribute('aria-label', nombrePlanta(p, edif.num_plantas));
     planta.innerHTML = `<div class="hab-planta-nombre">${nombrePlanta(p, edif.num_plantas)}</div>`;
-    frentes.forEach((fr) => {
-      if (fr) planta.insertAdjacentHTML('beforeend', `<div class="hab-frente-nombre">Frente ${fr}</div>`);
-      planta.appendChild(filaHtml(edif, p, fr));
-    });
+    planta.appendChild(edif.tiene_frentes ? plantaConFrentes(edif, p) : filaHtml(edif, p, null));
     $f.appendChild(planta);
   }
   $f.insertAdjacentHTML('beforeend', '<div class="hab-suelo" aria-hidden="true"></div>');
@@ -881,6 +877,88 @@ function vistaEdificio($v) {
     if (el) { el.classList.add('hab-cama--resaltada'); el.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
     S.resaltar = null;
   }
+}
+
+/* ---------- Plantas con frentes A y B ----------
+   Cuadrícula de dos filas (A arriba, B abajo). Un espacio de
+   ambos frentes ('AB') es una columna que ocupa las dos filas;
+   entre esas columnas quedan «tramos» donde cada frente acomoda
+   libremente sus propios espacios. */
+
+const porOrden = (a, b) => a.orden - b.orden || a.creado_en.localeCompare(b.creado_en);
+
+function tramosDe(edifId, planta) {
+  const todos = espaciosDe(edifId).filter((x) => x.planta === planta).sort(porOrden);
+  const res = [];
+  let tramo = { tipo: 'tramo', A: [], B: [] };
+  todos.forEach((x) => {
+    if (x.frente === 'AB') {
+      res.push(tramo, { tipo: 'ab', esp: x });
+      tramo = { tipo: 'tramo', A: [], B: [] };
+    } else {
+      tramo[x.frente === 'B' ? 'B' : 'A'].push(x);
+    }
+  });
+  res.push(tramo);
+  return res.filter((t) => t.tipo === 'ab' || t.A.length || t.B.length);
+}
+
+function plantaConFrentes(edif, planta) {
+  const scroll = document.createElement('div');
+  scroll.className = 'hab-fila-scroll';
+  const tramos = tramosDe(edif.id, planta);
+  if (tramos.length === 0 && !S.editando) {
+    scroll.innerHTML = `<div class="hab-fila-vacia">Sin espacios registrados${S.estructura ? '. Use «Editar plantas y espacios» para agregarlos.' : '.'}</div>`;
+    return scroll;
+  }
+
+  const rejilla = document.createElement('div');
+  rejilla.className = 'hab-rejilla-frentes';
+  const columnas = ['auto'];
+  rejilla.innerHTML = `<div class="hab-frente-etq" style="grid-row:1;grid-column:1" title="Frente A">A</div>
+    <div class="hab-frente-etq" style="grid-row:2;grid-column:1" title="Frente B">B</div>`;
+  let col = 2;
+  const suma = (l) => l.reduce((a, x) => a + x.ancho, 0);
+
+  tramos.forEach((t) => {
+    if (t.tipo === 'ab') {
+      columnas.push(`minmax(min-content, ${t.esp.ancho}fr)`);
+      const el = espacioHtml(t.esp);
+      el.classList.add('hab-esp--ab');
+      el.style.gridRow = '1 / 3';
+      el.style.gridColumn = String(col++);
+      rejilla.appendChild(el);
+      return;
+    }
+    columnas.push(`minmax(min-content, ${Math.max(suma(t.A), suma(t.B), 1)}fr)`);
+    ['A', 'B'].forEach((f, i) => {
+      const celda = document.createElement('div');
+      celda.className = 'hab-celda';
+      celda.style.gridRow = String(i + 1);
+      celda.style.gridColumn = String(col);
+      if (t[f].length) t[f].forEach((x) => celda.appendChild(espacioHtml(x)));
+      else celda.innerHTML = '<div class="hab-hueco" aria-hidden="true"></div>';
+      rejilla.appendChild(celda);
+    });
+    col++;
+  });
+
+  if (S.editando) {
+    columnas.push('auto');
+    ['A', 'B'].forEach((f, i) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'hab-agregar-esp';
+      b.textContent = '+ Espacio';
+      b.style.gridRow = String(i + 1);
+      b.style.gridColumn = String(col);
+      b.setAttribute('aria-label', `Agregar espacio en ${nombrePlanta(planta, edif.num_plantas)} frente ${f}`);
+      b.addEventListener('click', () => modalEspacio(null, { edif, planta, frente: f }));
+      rejilla.appendChild(b);
+    });
+  }
+  rejilla.style.gridTemplateColumns = columnas.join(' ');
+  scroll.appendChild(rejilla);
+  return scroll;
 }
 
 function filaHtml(edif, planta, frente) {
@@ -1244,14 +1322,13 @@ function herramientasHtml(sel) {
     </div>`;
   }
   const hab = sel.tipo === 'habitacion';
-  const fila = filaDe(sel.edificio_id, sel.planta, sel.frente);
-  const i = fila.findIndex((x) => x.id === sel.id);
+  const [puedeIzq, puedeDer] = limitesMover(sel);
   const btn = (h, texto, extra = '', des = false) =>
     `<button class="boton-secundario boton-compacto ${extra}" type="button" data-h="${h}" ${des ? 'disabled' : ''}>${texto}</button>`;
   return `<div class="hab-herramientas" role="toolbar" aria-label="Editar ${esc(sel.nombre)}">
     <span class="hab-herramientas-nombre">${hab ? 'Habitación ' : ''}${esc(sel.nombre)} · ${TAMANOS[sel.ancho]}</span>
-    ${btn('izq', '← Mover', '', i <= 0)}
-    ${btn('der', 'Mover →', '', i >= fila.length - 1)}
+    ${btn('izq', '← Mover', '', !puedeIzq)}
+    ${btn('der', 'Mover →', '', !puedeDer)}
     ${btn('menos', '− Angosto', '', sel.ancho <= 1)}
     ${btn('mas', '+ Ancho', '', sel.ancho >= ANCHO_MAX)}
     ${hab ? btn('cama', '+ Cama o litera') : ''}
@@ -1277,7 +1354,60 @@ function conectarHerramientas(sel) {
   h('quitar')?.addEventListener('click', () => modalQuitarEspacio(sel));
 }
 
+function limitesMover(esp) {
+  if (esp.frente === 'AB') {
+    const todos = espaciosDe(esp.edificio_id).filter((x) => x.planta === esp.planta).sort(porOrden);
+    const i = todos.indexOf(esp);
+    return [i > 0, i < todos.length - 1];
+  }
+  const fila = filaDe(esp.edificio_id, esp.planta, esp.frente);
+  const i = fila.findIndex((x) => x.id === esp.id);
+  return [i > 0, i < fila.length - 1];
+}
+
+/* Con frentes: un espacio de un frente cruza por delante del
+   baño de ambos frentes; el baño se mueve una columna entera
+   (el espacio vecino de cada frente pasa al otro lado). */
+async function moverEnFrentes(esp, dir) {
+  const todos = espaciosDe(esp.edificio_id).filter((x) => x.planta === esp.planta).sort(porOrden);
+  const nuevo = new Map(todos.map((x, k) => [x, (k + 1) * 10]));
+  const o = (x) => nuevo.get(x);
+
+  if (esp.frente !== 'AB') {
+    const fila = todos.filter((x) => x.frente === esp.frente || x.frente === 'AB');
+    const j = fila.indexOf(esp) + dir;
+    if (j < 0 || j >= fila.length) return;
+    const vecino = fila[j];
+    if (vecino.frente === 'AB') nuevo.set(esp, o(vecino) + dir * 5);
+    else { const t = o(esp); nuevo.set(esp, o(vecino)); nuevo.set(vecino, t); }
+  } else {
+    const i = todos.indexOf(esp);
+    const tramo = [];
+    for (let k = i + dir; k >= 0 && k < todos.length && todos[k].frente !== 'AB'; k += dir) tramo.push(todos[k]);
+    if (tramo.length === 0) {
+      const otro = todos[i + dir];
+      if (!otro) return;
+      const t = o(esp); nuevo.set(esp, o(otro)); nuevo.set(otro, t);
+    } else {
+      // el más cercano de cada frente pasa al otro lado
+      ['A', 'B'].forEach((f, n) => {
+        const x = tramo.find((y) => y.frente === f);
+        if (x) nuevo.set(x, o(esp) + (dir < 0 ? n + 1 : -(2 - n)));
+      });
+    }
+  }
+
+  const cambios = todos.filter((x) => o(x) !== x.orden);
+  const res = await Promise.all(cambios.map((x) =>
+    S.sb.from('viv_espacios').update(alEditar({ orden: o(x) })).eq('id', x.id)));
+  const fallo = res.find((r) => r.error);
+  if (fallo) { toast(mensajeError(fallo.error)); await recargar(); return; }
+  cambios.forEach((x) => { x.orden = o(x); });
+  pintar();
+}
+
 async function moverEspacio(esp, dir) {
+  if (porId(S.edificios, esp.edificio_id)?.tiene_frentes) return moverEnFrentes(esp, dir);
   const fila = filaDe(esp.edificio_id, esp.planta, esp.frente);
   const i = fila.findIndex((x) => x.id === esp.id);
   const j = i + dir;
@@ -1306,6 +1436,7 @@ async function cambiarAncho(esp, delta) {
 function nombrePorDefecto(tipo, edifId) {
   if (tipo === 'habitacion') return '';
   const iguales = espaciosDe(edifId).filter((x) => x.tipo === tipo).length;
+  if (tipo === 'banos') return `Baño ${iguales + 1}`;
   return iguales ? `${TIPOS_ESPACIO[tipo]} ${iguales + 1}` : TIPOS_ESPACIO[tipo];
 }
 
