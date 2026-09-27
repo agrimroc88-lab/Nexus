@@ -20,7 +20,7 @@
 
 import { alCrear, alEditar } from './autoria.js?v=1';
 
-const VERSION = 'v11';
+const VERSION = 'v12';
 console.info('NEXUS · habitaciones', VERSION);
 
 /* Dos permisos distintos:
@@ -44,9 +44,10 @@ const TIPOS_ESPACIO = {
   banos: 'Baños',
   lavanderia: 'Lavandería',
   escaleras: 'Escaleras',
+  sin_construir: 'Sin construcción (terreno abierto)',
   otro: 'Otro'
 };
-const ANCHO_INICIAL = { habitacion: 1, comedor: 3, bodega: 1, garita: 1, oficina: 1, banos: 1, lavanderia: 1, escaleras: 1, otro: 1 };
+const ANCHO_INICIAL = { habitacion: 1, comedor: 3, bodega: 1, garita: 1, oficina: 1, banos: 1, lavanderia: 1, escaleras: 1, sin_construir: 2, otro: 1 };
 const ANCHO_MAX = 6;
 const TAMANOS = ['', 'Pequeño', 'Mediano', 'Grande', 'Muy grande', 'Extra grande', 'Máximo'];
 
@@ -398,7 +399,12 @@ function svgFachada(edif) {
     let x = x0;
     fila.forEach((esp) => {
       const w = W * esp.ancho / total;
-      if (esp.tipo === 'habitacion') {
+      if (esp.tipo === 'sin_construir') {
+        s += `<rect x="${x}" y="${y - 1}" width="${w}" height="${H + 2}" fill="#f3f5f1"/>
+          <rect x="${x + 1}" y="${y + 1}" width="${w - 2}" height="${H - 2}" fill="none" stroke="${C.estructura}" stroke-dasharray="3 2" stroke-width="0.8"/>`;
+        x += w;
+        return;
+      } else if (esp.tipo === 'habitacion') {
         const camas = camasDe(esp.id);
         const nv = Math.max(1, Math.min(camas.length, Math.floor((w - 4) / 8)));
         const paso = (w - 4) / nv;
@@ -1048,7 +1054,10 @@ function espacioHtml(esp) {
   d.style.setProperty('--ancho', esp.ancho);
   const seleccionado = S.editando && S.selEspacio === esp.id;
 
-  if (esp.tipo !== 'habitacion') {
+  if (esp.tipo === 'sin_construir') {
+    d.className = 'hab-esp hab-esp--abierto' + (seleccionado ? ' hab-esp--sel' : '');
+    d.innerHTML = `<span>${esc(esp.nombre)}</span>`;
+  } else if (esp.tipo !== 'habitacion') {
     d.className = 'hab-esp hab-esp--otro' + (seleccionado ? ' hab-esp--sel' : '');
     d.innerHTML = `${svgIcono(esp.tipo)}<span>${esc(esp.nombre)}</span>${esp.frente === 'AB' ? '<span class="hab-ab">Frentes A y B</span>' : ''}`;
   } else {
@@ -1579,6 +1588,7 @@ function nombrePorDefecto(tipo, edifId) {
   if (tipo === 'habitacion') return '';
   const iguales = espaciosDe(edifId).filter((x) => x.tipo === tipo).length;
   if (tipo === 'banos') return `Baño ${iguales + 1}`;
+  if (tipo === 'sin_construir') return 'Sin construcción';
   return iguales ? `${TIPOS_ESPACIO[tipo]} ${iguales + 1}` : TIPOS_ESPACIO[tipo];
 }
 
@@ -2606,21 +2616,76 @@ const CAPAS_SEG = {
   luz: 'Iluminación',
   senal: 'Señalética'
 };
-const ROJO = ['#b3261e', '#fde7e5'], VERDE = ['#1e7b34', '#e6f4ea'], AMBAR = ['#8a5300', '#fcefd6'], AMARILLO = ['#6b5200', '#fff1b8'];
+/* Catálogo de señalética y equipos (ISO 7010 / INEN).
+   e = estilo del símbolo: rojo (contra incendios), verde
+   (evacuación y salvamento), advertencia (triángulo amarillo),
+   prohibicion (círculo rojo con franja), obligacion (círculo
+   azul), botiquin, luz (iluminación) o neutro.
+   g = grupo en el que aparece al elegirlo. i = pictograma.
+   Para agregar una señal nueva basta con sumarla aquí: la base
+   de datos acepta cualquier tipo (habitaciones_senales.sql). */
+const G_INC = 'Contra incendios', G_EVA = 'Evacuación y salvamento', G_AUX = 'Primeros auxilios',
+  G_LUZ = 'Iluminación', G_ADV = 'Advertencia (peligro)', G_PRO = 'Prohibición', G_OBL = 'Obligación';
+const LLAMA = 'M12 21c-4 0-6-3-6-6 0-4 4-6 3-11 3 2 5 5 5 8 1-1 1.5-2.5 1.5-4 2 2 2.5 4.5 2.5 7 0 3-2 6-6 6z';
 const TIPOS_SEG = {
-  extintor:          { n: 'Extintor', capa: 'incendio', col: ROJO, i: 'M9 8h6v13H9zM10 8V5h4M14 5l4-2M9 12h6' },
-  detector_humo:     { n: 'Detector de humo', capa: 'incendio', col: ROJO, i: 'M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0M6.5 7a7.5 7.5 0 0 0 0 10M17.5 7a7.5 7.5 0 0 1 0 10' },
-  alarma:            { n: 'Alarma', capa: 'incendio', col: ROJO, i: 'M6 17h12l-1.5-2v-4a4.5 4.5 0 0 0-9 0v4zM10 19.5a2 2 0 0 0 4 0' },
-  botiquin:          { n: 'Botiquín', capa: 'auxilios', col: VERDE, i: 'M4 8h16v12H4zM9 8V5h6v3M12 11v6M9 14h6' },
-  foco:              { n: 'Foco', capa: 'luz', col: AMBAR, i: 'M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z' },
-  luz_emergencia:    { n: 'Luz de emergencia', capa: 'luz', col: AMBAR, i: 'M3 10h18v6H3zM7 13h10M12 4v3M5 5.5l1.8 1.8M19 5.5l-1.8 1.8' },
-  salida_emergencia: { n: 'Salida de emergencia', capa: 'senal', col: VERDE, i: 'M13 4h6v16h-6M3 12h10M9 8l4 4-4 4' },
-  ruta_evacuacion:   { n: 'Ruta de evacuación', capa: 'senal', col: VERDE, i: 'M4 12h14M13 7l5 5-5 5' },
-  escaleras:         { n: 'Escaleras (señal)', capa: 'senal', col: VERDE, i: 'M3 21h5v-5h5v-5h5V6h3' },
-  no_fumar:          { n: 'No fumar', capa: 'senal', col: ROJO, i: 'M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0M5.6 5.6l12.8 12.8M7 13h8' },
-  riesgo_electrico:  { n: 'Riesgo eléctrico', capa: 'senal', col: AMARILLO, i: 'M12 3l10 18H2zM13 8l-3 5h4l-3 5' },
-  otro:              { n: 'Otro', capa: 'senal', col: ['#5d6b62', '#eef0ed'], i: ICONOS.otro }
+  // Contra incendios
+  extintor:            { n: 'Extintor', capa: 'incendio', g: G_INC, e: 'rojo', i: 'M9 8h6v13H9zM10 8V5h4M14 5l4-2M9 12h6' },
+  detector_humo:       { n: 'Detector de humo', capa: 'incendio', g: G_INC, e: 'rojo', i: 'M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0M6.5 7a7.5 7.5 0 0 0 0 10M17.5 7a7.5 7.5 0 0 1 0 10' },
+  alarma:              { n: 'Alarma o pulsador', capa: 'incendio', g: G_INC, e: 'rojo', i: 'M6 17h12l-1.5-2v-4a4.5 4.5 0 0 0-9 0v4zM10 19.5a2 2 0 0 0 4 0' },
+  gabinete_incendio:   { n: 'Gabinete o manguera contra incendios', capa: 'incendio', g: G_INC, e: 'rojo', i: 'M12 12m-6 0a6 6 0 1 0 12 0a6 6 0 1 0 -12 0M12 12m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0M17 16l3 4' },
+  telefono_emergencia: { n: 'Teléfono de emergencia', capa: 'incendio', g: G_INC, e: 'rojo', i: 'M6 4h4l2 5-3 2a11 11 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2A17 17 0 0 1 4 6a2 2 0 0 1 2-2z' },
+  // Evacuación y salvamento
+  salida_emergencia:   { n: 'Salida de emergencia', capa: 'senal', g: G_EVA, e: 'verde', i: 'M13 4h6v16h-6M3 12h10M9 8l4 4-4 4' },
+  ruta_evacuacion:     { n: 'Ruta de evacuación', capa: 'senal', g: G_EVA, e: 'verde', i: 'M4 12h14M13 7l5 5-5 5' },
+  escaleras:           { n: 'Escaleras de evacuación', capa: 'senal', g: G_EVA, e: 'verde', i: 'M3 21h5v-5h5v-5h5V6h3' },
+  ducha_emergencia:    { n: 'Ducha de emergencia', capa: 'auxilios', g: G_EVA, e: 'verde', i: 'M6 21V5h8v3M11 11l1 2M14 11v2M17 11l-1 2M12 17m-1.5 0a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0' },
+  lavaojos:            { n: 'Lavaojos', capa: 'auxilios', g: G_EVA, e: 'verde', i: 'M3 12s3-5 9-5 9 5 9 5-3 5-9 5-9-5-9-5zM12 12m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0' },
+  // Primeros auxilios
+  botiquin:            { n: 'Botiquín', capa: 'auxilios', g: G_AUX, e: 'botiquin', i: '' },
+  // Iluminación
+  foco:                { n: 'Foco', capa: 'luz', g: G_LUZ, e: 'luz', i: 'M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z' },
+  luz_emergencia:      { n: 'Luz de emergencia', capa: 'luz', g: G_LUZ, e: 'luz', i: 'M3 10h18v6H3zM7 13h10M12 4v3M5 5.5l1.8 1.8M19 5.5l-1.8 1.8' },
+  // Advertencia
+  peligro_intoxicacion:{ n: 'Peligro de intoxicación (sustancia tóxica)', capa: 'senal', g: G_ADV, e: 'advertencia', i: 'M7 11a5 5 0 1 1 10 0c0 2-1 3-2 3.5V17H9v-2.5C8 14 7 13 7 11zM10 11h.01M14 11h.01M5 20l14-3M5 17l14 3' },
+  peligro_derrumbe:    { n: 'Peligro de derrumbe o caída de rocas', capa: 'senal', g: G_ADV, e: 'advertencia', i: 'M3 21h18M5 21l4-6 4 6M13 8l3-2 2 3-3 2zM7 6l2-2 2 2-2 2zM17 14v2M20 12v2' },
+  inflamable:          { n: 'Material inflamable', capa: 'senal', g: G_ADV, e: 'advertencia', i: LLAMA },
+  gas_presion:         { n: 'Gas o cilindros a presión', capa: 'senal', g: G_ADV, e: 'advertencia', i: 'M9 9a3 3 0 0 1 6 0v12H9zM11 5h2M12 3v3' },
+  explosion:           { n: 'Riesgo de explosión', capa: 'senal', g: G_ADV, e: 'advertencia', i: 'M12 3l2 5 5-2-2 5 5 2-5 2 2 5-5-2-2 5-2-5-5 2 2-5-5-2 5-2-2-5 5 2z' },
+  riesgo_electrico:    { n: 'Riesgo eléctrico', capa: 'senal', g: G_ADV, e: 'advertencia', i: 'M13 3l-5 9h5l-3 9' },
+  corrosivo:           { n: 'Sustancia corrosiva', capa: 'senal', g: G_ADV, e: 'advertencia', i: 'M5 4l5 5M4 9h6l-2 3M8 14v2M10 13v3M13 18h8v3h-8zM16 14v2' },
+  riesgo_biologico:    { n: 'Riesgo biológico', capa: 'senal', g: G_ADV, e: 'advertencia', i: 'M12 7m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0M7.5 15m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0M16.5 15m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0' },
+  piso_resbaladizo:    { n: 'Piso resbaladizo', capa: 'senal', g: G_ADV, e: 'advertencia', i: 'M3 21c3-1 6 1 9 0s6-1 9 0M10 4m-1.5 0a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0M10 7l3 4-2 5M13 11l4-1M11 16l-5 1' },
+  caida_desnivel:      { n: 'Riesgo de caída o desnivel', capa: 'senal', g: G_ADV, e: 'advertencia', i: 'M3 12h8v9h10M15 4m-1.5 0a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0M15 7l-2 4 3 3M13 11l-3 1' },
+  superficie_caliente: { n: 'Superficie caliente', capa: 'senal', g: G_ADV, e: 'advertencia', i: 'M4 21h16M8 17c-1-2 1-3 0-5s1-3 0-5M12 17c-1-2 1-3 0-5s1-3 0-5M16 17c-1-2 1-3 0-5s1-3 0-5' },
+  transito_vehiculos:  { n: 'Tránsito de vehículos o maquinaria', capa: 'senal', g: G_ADV, e: 'advertencia', i: 'M3 16V9h9v7M12 11h4l3 3v2M3 16h16M7 18m-1.5 0a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0M16 18m-1.5 0a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0' },
+  ruido:               { n: 'Ruido', capa: 'senal', g: G_ADV, e: 'advertencia', i: 'M4 10h3l4-3v10l-4-3H4zM15 9a4 4 0 0 1 0 6M17.5 7a7 7 0 0 1 0 10' },
+  carga_suspendida:    { n: 'Carga suspendida', capa: 'senal', g: G_ADV, e: 'advertencia', i: 'M12 3v5M10 8a2 2 0 1 0 4 0M8 12h8l2 8H6z' },
+  espacio_confinado:   { n: 'Espacio confinado', capa: 'senal', g: G_ADV, e: 'advertencia', i: 'M4 17h16M7 17a5 2 0 0 1 10 0M12 4m-1.5 0a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0M12 7v5M9 10l3 2 3-2' },
+  excavacion:          { n: 'Excavación', capa: 'senal', g: G_ADV, e: 'advertencia', i: 'M3 13h6l3 6 3-6h6M5 5l6 6M9 3l2 2-4 4-2-2z' },
+  // Prohibición
+  no_fumar:            { n: 'No fumar', capa: 'senal', g: G_PRO, e: 'prohibicion', i: 'M4 13h12v3H4zM17 13h3v3h-3zM17 11c0-2 2-2 2-4' },
+  no_fuego:            { n: 'Prohibido encender fuego o llamas abiertas', capa: 'senal', g: G_PRO, e: 'prohibicion', i: LLAMA },
+  prohibido_paso:      { n: 'Prohibido el paso a personal no autorizado', capa: 'senal', g: G_PRO, e: 'prohibicion', i: 'M12 4m-1.5 0a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0M12 7v6l-3 7M12 13l3 7M8 10h8' },
+  no_ascensor:         { n: 'No usar el ascensor en caso de incendio', capa: 'senal', g: G_PRO, e: 'prohibicion', i: 'M6 3h12v18H6zM9 9l3-3 3 3M9 15l3 3 3-3' },
+  no_celular:          { n: 'Prohibido el uso del celular', capa: 'senal', g: G_PRO, e: 'prohibicion', i: 'M8 3h8v18H8zM11 18h2' },
+  no_alimentos:        { n: 'Prohibido el ingreso con alimentos', capa: 'senal', g: G_PRO, e: 'prohibicion', i: 'M7 3v8M5 3v4a2 2 0 0 0 4 0V3M7 11v10M16 3c-2 0-3 3-3 6s1 4 3 4v8' },
+  no_alcohol:          { n: 'Prohibidas las bebidas alcohólicas', capa: 'senal', g: G_PRO, e: 'prohibicion', i: 'M9 3h2v4l2 3v11H7V10l2-3zM16 9h4l-1 5h-2zM18 14v5M16.5 19h3' },
+  // Obligación
+  usar_casco:          { n: 'Uso obligatorio de casco', capa: 'senal', g: G_OBL, e: 'obligacion', i: 'M4 16h16M5 16a7 7 0 0 1 14 0M12 9V7M9 16v-4M15 16v-4' },
+  usar_calzado:        { n: 'Uso obligatorio de calzado de seguridad', capa: 'senal', g: G_OBL, e: 'obligacion', i: 'M6 5v10h13v-2c0-2-4-3-6-3l-2-5zM6 15v3h13v-3' },
+  usar_guantes:        { n: 'Uso obligatorio de guantes', capa: 'senal', g: G_OBL, e: 'obligacion', i: 'M8 21v-7l-3-3 1-1 3 2V6a1 1 0 0 1 2 0v5V5a1 1 0 0 1 2 0v6V6a1 1 0 0 1 2 0v6V8a1 1 0 0 1 2 0v7l-2 6z' },
+  usar_gafas:          { n: 'Uso obligatorio de protección para los ojos', capa: 'senal', g: G_OBL, e: 'obligacion', i: 'M3 11h18M4 11a3.5 3.5 0 1 0 7 0M13 11a3.5 3.5 0 1 0 7 0' },
+  usar_mascarilla:     { n: 'Uso obligatorio de mascarilla', capa: 'senal', g: G_OBL, e: 'obligacion', i: 'M5 10c3-2 11-2 14 0v3c-2 4-12 4-14 0zM5 11H3M19 11h2M9 12h6' },
+  usar_auditiva:       { n: 'Uso obligatorio de protección auditiva', capa: 'senal', g: G_OBL, e: 'obligacion', i: 'M5 13a7 7 0 0 1 14 0M4 13h3v6H4zM17 13h3v6h-3z' },
+  usar_chaleco:        { n: 'Uso obligatorio de chaleco reflectivo', capa: 'senal', g: G_OBL, e: 'obligacion', i: 'M8 3L4 6v14h16V6l-4-3-2 4h-4zM4 12h16M12 7v13' },
+  lavar_manos:         { n: 'Lavado obligatorio de manos', capa: 'senal', g: G_OBL, e: 'obligacion', i: 'M4 11h8a2 2 0 0 1 0 4H9M4 15h6l4 3H4zM17 4c0 2-2 3-2 5a2 2 0 0 0 4 0c0-2-2-3-2-5z' },
+  // Cualquier otra
+  otra_senal:          { n: 'Otra señal (escriba cuál)', capa: 'senal', g: 'Otra', e: 'advertencia', i: 'M12 6v8M12 17.5v.5' },
+  otro:                { n: 'Otro elemento', capa: 'senal', g: 'Otra', e: 'neutro', i: ICONOS.otro }
 };
+/* «Otra señal»: el grupo elegido define su forma y color. */
+const GRUPOS_OTRA = { 'Advertencia': 'advertencia', 'Prohibición': 'prohibicion', 'Obligación': 'obligacion',
+  'Contra incendios': 'rojo', 'Evacuación y salvamento': 'verde' };
 const ESTADOS_SENAL = ['Buena', 'Deteriorada', 'Faltante'];
 const CAMPOS_SEG = {
   extintor:       { control: 'Última recarga', vence: 'Próxima recarga', estados: ['Operativo', 'Descargado', 'Faltante'],
@@ -2630,7 +2695,8 @@ const CAMPOS_SEG = {
   alarma:         { control: 'Última prueba', vence: 'Próxima prueba', estados: ['Funciona', 'Dañada'] },
   luz_emergencia: { control: 'Última prueba', vence: 'Próxima prueba', estados: ['Funciona', 'Dañada'] },
   foco:           { control: 'Fecha del último reporte', estados: ['Funciona', 'Dañado'] },
-  ruta_evacuacion:{ estados: ESTADOS_SENAL, extra: [['direccion', 'Dirección de la flecha', ['→', '←', '↑', '↓']]] }
+  ruta_evacuacion:{ estados: ESTADOS_SENAL, extra: [['direccion', 'Dirección de la flecha', ['→', '←', '↑', '↓']]] },
+  otra_senal:     { estados: ESTADOS_SENAL, extra: [['categoria', 'Grupo de la señal', Object.keys(GRUPOS_OTRA)], ['texto', 'Qué dice la señal', null]] }
 };
 const ESTADOS_MALOS = ['Descargado', 'Faltante', 'Incompleto', 'Batería baja', 'Sin batería', 'Dañado', 'Dañada', 'Deteriorada'];
 const GIRO = { '→': 0, '↓': 90, '←': 180, '↑': 270 };
@@ -2654,13 +2720,7 @@ function alertaSeg(el) {
    prohibición = círculo rojo con franja, dibujo negro;
    advertencia = triángulo amarillo con borde negro;
    botiquín = blanco con cruz roja. */
-const SEN_ROJO = '#c62828', SEN_VERDE = '#1b873f', SEN_AMARILLO = '#ffcc00';
-const ESTILO_SEG = {
-  extintor: 'rojo', detector_humo: 'rojo', alarma: 'rojo',
-  salida_emergencia: 'verde', ruta_evacuacion: 'verde', escaleras: 'verde',
-  botiquin: 'botiquin', no_fumar: 'prohibicion', riesgo_electrico: 'advertencia',
-  foco: 'luz', luz_emergencia: 'luz', otro: 'neutro'
-};
+const SEN_ROJO = '#c62828', SEN_VERDE = '#1b873f', SEN_AMARILLO = '#ffcc00', SEN_AZUL = '#1565c0';
 
 function svgSeg(el) {
   const t = TIPOS_SEG[el.tipo] || TIPOS_SEG.otro;
@@ -2668,8 +2728,10 @@ function svgSeg(el) {
   const trazo = (color, ancho = 2) =>
     `fill="none" stroke="${color}" stroke-width="${ancho}" stroke-linecap="round" stroke-linejoin="round"`;
   const icono = (color) => `<g transform="translate(4 4) scale(0.667)${giro ? ` rotate(${giro} 12 12)` : ''}"><path d="${t.i}" ${trazo(color, 2.6)}/></g>`;
+  const glifo = (color, escala, dx, dy) => `<g transform="translate(${dx} ${dy}) scale(${escala})"><path d="${t.i}" ${trazo(color, 2.4 / escala * 0.6)}/></g>`;
+  const estilo = el.tipo === 'otra_senal' ? (GRUPOS_OTRA[el.datos?.categoria] || 'advertencia') : t.e;
   let dentro;
-  switch (ESTILO_SEG[el.tipo] || 'neutro') {
+  switch (estilo) {
     case 'rojo':
       dentro = `<rect x="1" y="1" width="22" height="22" rx="3" fill="${SEN_ROJO}"/>${icono('#fff')}`; break;
     case 'verde':
@@ -2678,13 +2740,12 @@ function svgSeg(el) {
       dentro = `<rect x="1" y="1" width="22" height="22" rx="3" fill="#fff" stroke="#6b6b6b" stroke-width="1.2"/>
         <rect x="9.5" y="4.5" width="5" height="15" fill="${SEN_ROJO}"/><rect x="4.5" y="9.5" width="15" height="5" fill="${SEN_ROJO}"/>`; break;
     case 'prohibicion':
-      dentro = `<circle cx="12" cy="12" r="10.5" fill="#fff"/>
-        <rect x="5.5" y="11" width="10" height="3" fill="#111"/><rect x="16" y="11" width="2.5" height="3" fill="#111"/>
-        <path d="M17 9.5c0-1.5 1.5-1.5 1.5-3" ${trazo('#111', 1.2)}/>
+      dentro = `<circle cx="12" cy="12" r="10.5" fill="#fff"/>${glifo('#111', 0.55, 5.4, 5.4)}
         <circle cx="12" cy="12" r="10.5" ${trazo(SEN_ROJO, 2.6)}/><line x1="4.6" y1="4.6" x2="19.4" y2="19.4" ${trazo(SEN_ROJO, 2.6)}/>`; break;
     case 'advertencia':
-      dentro = `<path d="M12 2 L23 21.5 H1 Z" fill="${SEN_AMARILLO}" stroke="#111" stroke-width="1.6" stroke-linejoin="round"/>
-        <path d="M13 8l-3.2 5.2h3.4l-2.6 5" ${trazo('#111', 1.8)}/>`; break;
+      dentro = `<path d="M12 2 L23 21.5 H1 Z" fill="${SEN_AMARILLO}" stroke="#111" stroke-width="1.6" stroke-linejoin="round"/>${glifo('#111', 0.54, 5.5, 8)}`; break;
+    case 'obligacion':
+      dentro = `<circle cx="12" cy="12" r="11" fill="${SEN_AZUL}"/>${glifo('#fff', 0.6, 4.8, 4.8)}`; break;
     case 'luz':
       dentro = `<rect x="1" y="1" width="22" height="22" rx="3" fill="#fff6dc" stroke="#b07a00" stroke-width="1.2"/>${icono('#8a5300')}`; break;
     default:
@@ -2695,7 +2756,8 @@ function svgSeg(el) {
 
 function descripcionSeg(el) {
   const t = TIPOS_SEG[el.tipo] || TIPOS_SEG.otro;
-  const partes = [el.codigo, t.n, el.datos?.agente, el.datos?.capacidad, el.estado].filter(Boolean);
+  const nombre = el.tipo === 'otra_senal' && el.datos?.texto ? el.datos.texto : t.n;
+  const partes = [el.codigo, nombre, el.datos?.agente, el.datos?.capacidad, el.estado].filter(Boolean);
   const a = alertaSeg(el);
   if (a) partes.push(a.texto);
   else if (el.fecha_vence) partes.push(`vence ${fecha(el.fecha_vence)}`);
@@ -2738,8 +2800,8 @@ function barraSeguridadHtml(edif) {
   ${S.segEdit ? `<div class="hab-herramientas" role="toolbar" aria-label="Colocar elementos de seguridad">
     <label class="etiqueta" for="seg-tipo" style="margin:0">Elemento</label>
     <select class="entrada" id="seg-tipo" style="width:auto">
-      ${Object.entries(CAPAS_SEG).map(([c, cn]) => `<optgroup label="${cn}">${Object.entries(TIPOS_SEG)
-        .filter(([, t]) => t.capa === c).map(([k, t]) => `<option value="${k}" ${S.segColocar === k ? 'selected' : ''}>${t.n}</option>`).join('')}</optgroup>`).join('')}
+      ${[...new Set(Object.values(TIPOS_SEG).map((t) => t.g))].map((g) => `<optgroup label="${g}">${Object.entries(TIPOS_SEG)
+        .filter(([, t]) => t.g === g).map(([k, t]) => `<option value="${k}" ${S.segColocar === k ? 'selected' : ''}>${t.n}</option>`).join('')}</optgroup>`).join('')}
     </select>
     <button class="${S.segColocar ? 'boton-primario' : 'boton-secundario'} boton-compacto" id="seg-colocar" type="button">
       ${S.segColocar ? 'Toque el plano… (cancelar)' : 'Colocar en el plano'}</button>
@@ -2801,8 +2863,6 @@ function pintarSeguridad($f, edif) {
     b.dataset.seg = el.id;
     b.style.left = `${el.x}%`;
     b.style.top = `${el.y}%`;
-    b.style.setProperty('--c', t.col[0]);
-    b.style.setProperty('--f', t.col[1]);
     const texto = descripcionSeg(el) + (suelto ? ' · su cuarto ya no existe: reubíquelo' : '');
     b.title = texto;
     b.setAttribute('aria-label', texto);
@@ -2888,7 +2948,7 @@ function conectarColocar($f, edif) {
     const fila = alCrear({
       empresa_id: S.empresaId, edificio_id: edif.id, tipo, ...destino,
       codigo: prefijo ? `${prefijo}-${String(iguales + 1).padStart(2, '0')}` : null,
-      datos: tipo === 'ruta_evacuacion' ? { direccion: '→' } : {}
+      datos: tipo === 'ruta_evacuacion' ? { direccion: '→' } : tipo === 'otra_senal' ? { categoria: 'Advertencia' } : {}
     });
     const { data, error } = await S.sb.from('viv_seguridad').insert(fila).select().single();
     if (error) { toast(mensajeError(error)); return; }
@@ -2904,7 +2964,7 @@ function conectarColocar($f, edif) {
 function modalSeguridad(el, recienCreado = false) {
   const t = TIPOS_SEG[el.tipo] || TIPOS_SEG.otro;
   const c = camposSeg(el.tipo);
-  const m = modal(`${t.n}${el.codigo ? ' · ' + el.codigo : ''}`);
+  const m = modal(`${el.tipo === 'otra_senal' && el.datos?.texto ? el.datos.texto : t.n}${el.codigo ? ' · ' + el.codigo : ''}`);
   const esp = el.ancla_espacio && porId(S.espacios, el.ancla_espacio);
   const edif = porId(S.edificios, el.edificio_id);
   const lugar = [nombrePlanta(el.planta, edif?.num_plantas || 1),
@@ -2968,6 +3028,7 @@ function modalSeguridad(el, recienCreado = false) {
       if (control && vence && vence < control) return m.error('La fecha de vencimiento no puede ser anterior a la del último control.');
       const datos = { ...(el.datos || {}) };
       (c.extra || []).forEach(([k]) => { datos[k] = valor(m, `sg-x-${k}`) || null; });
+      if (el.tipo === 'otra_senal' && !datos.texto) return m.error('Escriba qué dice la señal (por ejemplo, «Riesgo de explosión»).');
       const cambios = {
         codigo: valor(m, 'sg-codigo') || null,
         estado: c.estados ? (valor(m, 'sg-estado') || null) : null,
