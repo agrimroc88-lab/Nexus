@@ -20,7 +20,7 @@
 
 import { alCrear, alEditar } from './autoria.js?v=1';
 
-const VERSION = 'v7';
+const VERSION = 'v8';
 console.info('NEXUS · habitaciones', VERSION);
 
 /* Dos permisos distintos:
@@ -32,6 +32,7 @@ console.info('NEXUS · habitaciones', VERSION);
    Los demás roles que abren la pestaña solo consultan. */
 const ROLES_ESTRUCTURA = ['admin', 'tecnico_sst'];
 const ROLES_ASIGNACION = ['admin', 'trabajo_social'];
+const EDITORES_SEG = ['admin', 'tecnico_sst'];
 const QUIEN_ESTRUCTURA = 'Las registra el técnico de seguridad o el administrador desde el módulo Seguridad Industrial.';
 
 const TIPOS_ESPACIO = {
@@ -83,6 +84,12 @@ function estadoInicial(supabase, perfil, empresaId, contenedor) {
     croquis: [],           // viv_croquis de la empresa
     croquisFalta: false,   // true si aún no se ejecutó habitaciones_etapa2.sql
     vistaBase: 'croquis',  // 'croquis' | 'edificios'
+    seguridad: [],         // viv_seguridad de la empresa
+    seguridadFalta: false, // true si aún no se ejecutó habitaciones_etapa3.sql
+    segVisible: EDITORES_SEG.includes(perfil?.rol),
+    segOcultas: new Set(),
+    segEdit: false,
+    segColocar: null,
     cq: null,              // edición del croquis en curso
     selEspacio: null,
     resaltar: null         // id de cama a resaltar tras una búsqueda
@@ -203,6 +210,26 @@ function conteo(camas) {
   const ocupadas = camas.filter((c) => asigDeCama(c.id)).length;
   const cambio = camas.filter((c) => c.colchon_por_cambiar).length;
   return { total: camas.length, ocupadas, libres: camas.length - ocupadas, cambio };
+}
+
+const PASILLOS = {
+  central: 'En medio (entre el frente A y el B)',
+  frente: 'Al frente de cada lado (A y B espalda con espalda)',
+  lado: 'Delante de la fila de cuartos',
+  ninguno: 'Sin pasillo interior'
+};
+function pasilloDe(edif) {
+  const p = edif.pasillo || (edif.tiene_frentes ? 'central' : 'lado');
+  if (!edif.tiene_frentes && (p === 'central' || p === 'frente')) return 'lado';
+  if (edif.tiene_frentes && p === 'lado') return 'central';
+  return p;
+}
+function pasilloHtml(clave, texto = 'Pasillo') {
+  const d = document.createElement('div');
+  d.className = 'hab-pasillo';
+  d.dataset.pasillo = clave;
+  d.innerHTML = `<span>${texto}</span>`;
+  return d;
 }
 
 function nombrePlanta(n, total) {
@@ -427,6 +454,7 @@ async function cargar() {
 
   await cargarTrabajadores(S.asig.map((a) => a.trabajador_id));
   await cargarCroquis();
+  await cargarSeguridad();
 }
 
 /* Aparte: si falta el SQL de la etapa 2, el resto de la
@@ -667,6 +695,8 @@ function ir(nav) {
   S.selEspacio = null;
   S.resaltar = null;
   S.cq = null;
+  S.segEdit = false;
+  S.segColocar = null;
   pintar();
   document.getElementById('hab-migas')?.scrollIntoView({ block: 'nearest' });
 }
@@ -850,16 +880,20 @@ function vistaEdificio($v) {
         <button class="hab-chip" id="hab-libres" type="button" aria-pressed="${S.soloLibres}">Solo habitaciones con camas libres</button>
       </div>
     </div>
+    ${barraSeguridadHtml(edif)}
     ${S.editando ? herramientasHtml(sel) : ''}
     <div class="hab-fachada ${S.editando ? 'hab-editando' : ''} ${S.detalle ? '' : 'hab-compacta'}" id="hab-fachada"></div>`;
 
   document.getElementById('hab-config-edif')?.addEventListener('click', () => modalEdificio(edif));
   document.getElementById('hab-modo')?.addEventListener('click', () => {
-    S.editando = !S.editando; S.selEspacio = null; pintar();
+    S.editando = !S.editando; S.selEspacio = null;
+    if (S.editando) { S.segEdit = false; S.segColocar = null; }
+    pintar();
   });
   document.getElementById('hab-libres').addEventListener('click', () => { S.soloLibres = !S.soloLibres; pintar(); });
   document.getElementById('hab-detalle').addEventListener('click', () => { S.detalle = !S.detalle; pintar(); });
   if (S.editando) conectarHerramientas(sel);
+  conectarBarraSeguridad(edif);
 
   const $f = document.getElementById('hab-fachada');
   $f.insertAdjacentHTML('beforeend', `<svg class="hab-techo" viewBox="0 0 400 34" preserveAspectRatio="none" aria-hidden="true">
@@ -868,12 +902,16 @@ function vistaEdificio($v) {
   for (let p = edif.num_plantas; p >= 1; p--) {
     const planta = document.createElement('section');
     planta.className = 'hab-planta';
+    planta.dataset.planta = p;
     planta.setAttribute('aria-label', nombrePlanta(p, edif.num_plantas));
     planta.innerHTML = `<div class="hab-planta-nombre">${nombrePlanta(p, edif.num_plantas)}</div>`;
     planta.appendChild(edif.tiene_frentes ? plantaConFrentes(edif, p) : filaHtml(edif, p, null));
+    if (!edif.tiene_frentes && pasilloDe(edif) === 'lado') planta.appendChild(pasilloHtml('lado'));
     $f.appendChild(planta);
   }
   $f.insertAdjacentHTML('beforeend', '<div class="hab-suelo" aria-hidden="true"></div>');
+  pintarSeguridad($f, edif);
+  conectarColocar($f, edif);
 
   if (S.resaltar) {
     const el = $f.querySelector(`[data-cama="${S.resaltar}"]`);
@@ -918,8 +956,14 @@ function plantaConFrentes(edif, planta) {
   const rejilla = document.createElement('div');
   rejilla.className = 'hab-rejilla-frentes';
   const columnas = ['auto'];
-  rejilla.innerHTML = `<div class="hab-frente-etq" style="grid-row:1;grid-column:1" title="Frente A">A</div>
-    <div class="hab-frente-etq" style="grid-row:2;grid-column:1" title="Frente B">B</div>`;
+  /* Filas según el pasillo: central → A, pasillo, B;
+     frente → pasillo A, A, B, pasillo B; ninguno → A, B. */
+  const tipoPasillo = pasilloDe(edif);
+  const FILA = tipoPasillo === 'central' ? { A: 1, B: 3 } : tipoPasillo === 'frente' ? { A: 2, B: 3 } : { A: 1, B: 2 };
+  const pasillos = tipoPasillo === 'central' ? [['central', 2, 'Pasillo']]
+    : tipoPasillo === 'frente' ? [['A', 1, 'Pasillo frente A'], ['B', 4, 'Pasillo frente B']] : [];
+  rejilla.innerHTML = `<div class="hab-frente-etq" style="grid-row:${FILA.A};grid-column:1" title="Frente A">A</div>
+    <div class="hab-frente-etq" style="grid-row:${FILA.B};grid-column:1" title="Frente B">B</div>`;
   let col = 2;
   const suma = (l) => l.reduce((a, x) => a + x.ancho, 0);
 
@@ -928,7 +972,7 @@ function plantaConFrentes(edif, planta) {
       columnas.push(`minmax(min-content, ${t.esp.ancho}fr)`);
       const el = espacioHtml(t.esp);
       el.classList.add('hab-esp--ab');
-      el.style.gridRow = '1 / 3';
+      el.style.gridRow = `${FILA.A} / ${FILA.B + 1}`;
       el.style.gridColumn = String(col++);
       rejilla.appendChild(el);
       return;
@@ -937,7 +981,7 @@ function plantaConFrentes(edif, planta) {
     ['A', 'B'].forEach((f, i) => {
       const celda = document.createElement('div');
       celda.className = 'hab-celda';
-      celda.style.gridRow = String(i + 1);
+      celda.style.gridRow = String(FILA[f]);
       celda.style.gridColumn = String(col);
       if (t[f].length) t[f].forEach((x) => celda.appendChild(espacioHtml(x)));
       else celda.innerHTML = '<div class="hab-hueco" aria-hidden="true"></div>';
@@ -952,7 +996,7 @@ function plantaConFrentes(edif, planta) {
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'hab-agregar-esp';
       b.textContent = '+ Espacio';
-      b.style.gridRow = String(i + 1);
+      b.style.gridRow = String(FILA[f]);
       b.style.gridColumn = String(col);
       b.setAttribute('aria-label', `Agregar espacio en ${nombrePlanta(planta, edif.num_plantas)} frente ${f}`);
       b.addEventListener('click', () => modalEspacio(null, { edif, planta, frente: f }));
@@ -960,6 +1004,12 @@ function plantaConFrentes(edif, planta) {
     });
   }
   rejilla.style.gridTemplateColumns = columnas.join(' ');
+  pasillos.forEach(([clave, fila, texto]) => {
+    const band = pasilloHtml(clave, texto);
+    band.style.gridRow = String(fila);
+    band.style.gridColumn = `2 / ${col + (S.editando ? 1 : 0)}`;
+    rejilla.appendChild(band);
+  });
   scroll.appendChild(rejilla);
   return scroll;
 }
@@ -989,6 +1039,7 @@ function filaHtml(edif, planta, frente) {
 
 function espacioHtml(esp) {
   const d = document.createElement('div');
+  d.dataset.esp = esp.id;
   d.style.setProperty('--ancho', esp.ancho);
   const seleccionado = S.editando && S.selEspacio === esp.id;
 
@@ -1056,7 +1107,7 @@ function camaMini(cama) {
   b.setAttribute('aria-label', texto);
   b.innerHTML = `${svgCama(!!a)}<span>${etiqueta}</span>${a && t?.codigo != null ? `<span class="hab-mini-cod">#${esc(t.codigo)}</span>` : ''}`;
   b.addEventListener('click', (e) => {
-    if (S.editando) return;
+    if (S.editando || S.segEdit) return;
     e.stopPropagation();
     abrirCama(cama);
   });
@@ -1094,7 +1145,7 @@ function camaHtml(cama) {
   }
 
   b.addEventListener('click', (e) => {
-    if (S.editando) return; // en edición el clic selecciona el espacio
+    if (S.editando || S.segEdit) return; // en edición el clic selecciona el espacio o coloca
     e.stopPropagation();
     abrirCama(cama);
   });
@@ -1259,8 +1310,21 @@ function modalEdificio(edif) {
       <label><input type="checkbox" id="he-frentes" ${edif?.tiene_frentes ? 'checked' : ''}>
         Tiene habitaciones en ambos frentes (A y B)</label>
     </div>
+    <div class="campo"><label class="etiqueta" for="he-pasillo">Pasillo</label>
+      <select class="entrada" id="he-pasillo"></select>
+      <span class="ayuda">Se dibuja en el plano de cada planta; ahí se pueden ubicar extintores, luces y señalética.</span></div>
     <span class="ayuda">Luego, con «Editar plantas y espacios», agrega en cada planta sus habitaciones, comedor, bodegas, garita, etc.</span>
   </div>`;
+  const $fr = m.cuerpo.querySelector('#he-frentes');
+  const $pa = m.cuerpo.querySelector('#he-pasillo');
+  const opcionesPasillo = () => {
+    const conFrentes = $fr.checked;
+    const claves = conFrentes ? ['central', 'frente', 'ninguno'] : ['lado', 'ninguno'];
+    const actual = pasilloDe({ tiene_frentes: conFrentes, pasillo: $pa.value || edif?.pasillo });
+    $pa.innerHTML = claves.map((k) => `<option value="${k}" ${k === actual ? 'selected' : ''}>${PASILLOS[k]}</option>`).join('');
+  };
+  $fr.addEventListener('change', opcionesPasillo);
+  opcionesPasillo();
 
   const guardar = (b) => conBoton(b, async () => {
     const nombre = valor(m, 'he-nombre');
@@ -1272,7 +1336,8 @@ function modalEdificio(edif) {
 
     if (nuevo) {
       const { data, error } = await S.sb.from('viv_edificios').insert(alCrear({
-        empresa_id: S.empresaId, base_id: S.nav.baseId, nombre, codigo, num_plantas: plantas, tiene_frentes: frentes
+        empresa_id: S.empresaId, base_id: S.nav.baseId, nombre, codigo, num_plantas: plantas, tiene_frentes: frentes,
+        ...(S.seguridadFalta ? {} : { pasillo: valor(m, 'he-pasillo') })
       })).select().single();
       if (error) return m.error(mensajeError(error));
       m.cerrar();
@@ -1299,7 +1364,8 @@ function modalEdificio(edif) {
       if (error) return m.error(mensajeError(error));
     }
     const { error } = await S.sb.from('viv_edificios')
-      .update(alEditar({ nombre, codigo, num_plantas: plantas, tiene_frentes: frentes })).eq('id', edif.id);
+      .update(alEditar({ nombre, codigo, num_plantas: plantas, tiene_frentes: frentes,
+        ...(S.seguridadFalta ? {} : { pasillo: valor(m, 'he-pasillo') }) })).eq('id', edif.id);
     if (error) return m.error(mensajeError(error));
     m.cerrar();
     toast('Edificio actualizado');
@@ -2476,4 +2542,379 @@ async function guardarCroquis(base) {
   await cargarCroquis();
   pintar();
   toast('Croquis guardado');
+}
+
+/* ============================================
+   SEGURIDAD DEL EDIFICIO (etapa 3)
+   Extintores, botiquines, detectores, luces y señalética,
+   ubicados en el plano de cada planta. Cada elemento se ancla
+   al espacio o pasillo donde se colocó (posición en % dentro
+   de él), así acompaña a su cuarto si este se mueve.
+   Lo coloca y edita: admin y técnico de seguridad.
+   Lo ven todos; los avisos marcan lo vencido o por vencer.
+   ============================================ */
+
+const CAPAS_SEG = {
+  incendio: 'Contra incendios',
+  auxilios: 'Primeros auxilios',
+  luz: 'Iluminación',
+  senal: 'Señalética'
+};
+const ROJO = ['#b3261e', '#fde7e5'], VERDE = ['#1e7b34', '#e6f4ea'], AMBAR = ['#8a5300', '#fcefd6'], AMARILLO = ['#6b5200', '#fff1b8'];
+const TIPOS_SEG = {
+  extintor:          { n: 'Extintor', capa: 'incendio', col: ROJO, i: 'M9 8h6v13H9zM10 8V5h4M14 5l4-2M9 12h6' },
+  detector_humo:     { n: 'Detector de humo', capa: 'incendio', col: ROJO, i: 'M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0M6.5 7a7.5 7.5 0 0 0 0 10M17.5 7a7.5 7.5 0 0 1 0 10' },
+  alarma:            { n: 'Alarma', capa: 'incendio', col: ROJO, i: 'M6 17h12l-1.5-2v-4a4.5 4.5 0 0 0-9 0v4zM10 19.5a2 2 0 0 0 4 0' },
+  botiquin:          { n: 'Botiquín', capa: 'auxilios', col: VERDE, i: 'M4 8h16v12H4zM9 8V5h6v3M12 11v6M9 14h6' },
+  foco:              { n: 'Foco', capa: 'luz', col: AMBAR, i: 'M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z' },
+  luz_emergencia:    { n: 'Luz de emergencia', capa: 'luz', col: AMBAR, i: 'M3 10h18v6H3zM7 13h10M12 4v3M5 5.5l1.8 1.8M19 5.5l-1.8 1.8' },
+  salida_emergencia: { n: 'Salida de emergencia', capa: 'senal', col: VERDE, i: 'M13 4h6v16h-6M3 12h10M9 8l4 4-4 4' },
+  ruta_evacuacion:   { n: 'Ruta de evacuación', capa: 'senal', col: VERDE, i: 'M4 12h14M13 7l5 5-5 5' },
+  escaleras:         { n: 'Escaleras (señal)', capa: 'senal', col: VERDE, i: 'M3 21h5v-5h5v-5h5V6h3' },
+  no_fumar:          { n: 'No fumar', capa: 'senal', col: ROJO, i: 'M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0M5.6 5.6l12.8 12.8M7 13h8' },
+  riesgo_electrico:  { n: 'Riesgo eléctrico', capa: 'senal', col: AMARILLO, i: 'M12 3l10 18H2zM13 8l-3 5h4l-3 5' },
+  otro:              { n: 'Otro', capa: 'senal', col: ['#5d6b62', '#eef0ed'], i: ICONOS.otro }
+};
+const ESTADOS_SENAL = ['Buena', 'Deteriorada', 'Faltante'];
+const CAMPOS_SEG = {
+  extintor:       { control: 'Última recarga', vence: 'Próxima recarga', estados: ['Operativo', 'Descargado', 'Faltante'],
+                    extra: [['agente', 'Agente', ['PQS', 'CO₂', 'Agua', 'Espuma', 'Clase K']], ['capacidad', 'Capacidad (ej. 10 lb)', null]] },
+  botiquin:       { control: 'Última revisión', vence: 'Caducidad más próxima de sus insumos', estados: ['Completo', 'Incompleto'] },
+  detector_humo:  { control: 'Última prueba', vence: 'Próxima prueba', estados: ['Batería OK', 'Batería baja', 'Sin batería', 'Dañado'] },
+  alarma:         { control: 'Última prueba', vence: 'Próxima prueba', estados: ['Funciona', 'Dañada'] },
+  luz_emergencia: { control: 'Última prueba', vence: 'Próxima prueba', estados: ['Funciona', 'Dañada'] },
+  foco:           { control: 'Fecha del último reporte', estados: ['Funciona', 'Dañado'] },
+  ruta_evacuacion:{ estados: ESTADOS_SENAL, extra: [['direccion', 'Dirección de la flecha', ['→', '←', '↑', '↓']]] }
+};
+const ESTADOS_MALOS = ['Descargado', 'Faltante', 'Incompleto', 'Batería baja', 'Sin batería', 'Dañado', 'Dañada', 'Deteriorada'];
+const GIRO = { '→': 0, '↓': 90, '←': 180, '↑': 270 };
+const DIAS_AVISO = 30;
+
+function camposSeg(tipo) { return CAMPOS_SEG[tipo] || { estados: ESTADOS_SENAL }; }
+
+function alertaSeg(el) {
+  if (el.estado && ESTADOS_MALOS.includes(el.estado)) return { nivel: 'mal', texto: el.estado };
+  if (el.fecha_vence) {
+    const dias = Math.floor((new Date(el.fecha_vence + 'T00:00:00') - new Date(hoy() + 'T00:00:00')) / 86400000);
+    if (dias < 0) return { nivel: 'mal', texto: `Vencido el ${fecha(el.fecha_vence)}` };
+    if (dias <= DIAS_AVISO) return { nivel: 'pronto', texto: `Vence el ${fecha(el.fecha_vence)} (en ${dias} ${dias === 1 ? 'día' : 'días'})` };
+  }
+  return null;
+}
+
+function svgSeg(el) {
+  const t = TIPOS_SEG[el.tipo] || TIPOS_SEG.otro;
+  const giro = el.tipo === 'ruta_evacuacion' ? GIRO[el.datos?.direccion] || 0 : 0;
+  return `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+    ${giro ? `style="transform:rotate(${giro}deg)"` : ''}><path d="${t.i}"/></svg>`;
+}
+
+function descripcionSeg(el) {
+  const t = TIPOS_SEG[el.tipo] || TIPOS_SEG.otro;
+  const partes = [el.codigo, t.n, el.datos?.agente, el.datos?.capacidad, el.estado].filter(Boolean);
+  const a = alertaSeg(el);
+  if (a) partes.push(a.texto);
+  else if (el.fecha_vence) partes.push(`vence ${fecha(el.fecha_vence)}`);
+  return partes.join(' · ');
+}
+
+async function cargarSeguridad() {
+  try {
+    S.seguridad = await traerTodo(() => S.sb.from('viv_seguridad').select('*')
+      .eq('empresa_id', S.empresaId).eq('activo', true).order('id'));
+    S.seguridadFalta = false;
+  } catch (error) {
+    S.seguridad = [];
+    S.seguridadFalta = faltaSql(error);
+    if (!S.seguridadFalta) console.warn('NEXUS · seguridad:', error.message);
+  }
+}
+
+const seguridadDe = (edifId) => S.seguridad.filter((x) => x.edificio_id === edifId);
+
+/* ---------- Encabezado de la capa (va en la vista del edificio) ---------- */
+
+function barraSeguridadHtml(edif) {
+  if (S.seguridadFalta) {
+    return S.estructura ? `<p class="ayuda">Para ubicar extintores y señalética, el administrador debe ejecutar <code>sql/habitaciones_etapa3.sql</code> en Supabase.</p>` : '';
+  }
+  const lista = seguridadDe(edif.id);
+  const alertas = lista.map(alertaSeg).filter(Boolean);
+  const mal = alertas.filter((a) => a.nivel === 'mal').length;
+  const pronto = alertas.length - mal;
+  return `<div class="hab-seg-barra">
+    <button class="hab-chip" id="seg-ver" type="button" aria-pressed="${S.segVisible}">Mostrar seguridad${lista.length ? ` (${lista.length})` : ''}</button>
+    ${S.segVisible ? Object.entries(CAPAS_SEG).map(([k, v]) =>
+      `<button class="hab-chip hab-chip--capa" type="button" data-capa="${k}" aria-pressed="${!S.segOcultas.has(k)}">${v}</button>`).join('') : ''}
+    ${alertas.length ? `<button class="hab-seg-aviso ${mal ? 'hab-seg-aviso--mal' : ''}" id="seg-avisos" type="button">
+      ${mal ? `${mal} vencido${mal > 1 ? 's' : ''} o con problema` : ''}${mal && pronto ? ' · ' : ''}${pronto ? `${pronto} por vencer` : ''}</button>` : ''}
+    ${S.estructura && !S.editando ? `<button class="${S.segEdit ? 'boton-primario' : 'boton-secundario'} boton-compacto" id="seg-editar" type="button" aria-pressed="${S.segEdit}">
+      ${S.segEdit ? 'Terminar seguridad' : 'Editar seguridad'}</button>` : ''}
+  </div>
+  ${S.segEdit ? `<div class="hab-herramientas" role="toolbar" aria-label="Colocar elementos de seguridad">
+    <label class="etiqueta" for="seg-tipo" style="margin:0">Elemento</label>
+    <select class="entrada" id="seg-tipo" style="width:auto">
+      ${Object.entries(CAPAS_SEG).map(([c, cn]) => `<optgroup label="${cn}">${Object.entries(TIPOS_SEG)
+        .filter(([, t]) => t.capa === c).map(([k, t]) => `<option value="${k}" ${S.segColocar === k ? 'selected' : ''}>${t.n}</option>`).join('')}</optgroup>`).join('')}
+    </select>
+    <button class="${S.segColocar ? 'boton-primario' : 'boton-secundario'} boton-compacto" id="seg-colocar" type="button">
+      ${S.segColocar ? 'Toque el plano… (cancelar)' : 'Colocar en el plano'}</button>
+    <span class="hab-herramientas-nombre" style="font-weight:400">${S.segColocar
+      ? `Toque el cuarto o pasillo donde está el ${esc(TIPOS_SEG[S.segColocar].n.toLowerCase())}.`
+      : 'Arrastre un símbolo para reubicarlo · tóquelo para ver o editar sus datos.'}</span>
+  </div>` : ''}`;
+}
+
+function conectarBarraSeguridad(edif) {
+  document.getElementById('seg-ver')?.addEventListener('click', () => { S.segVisible = !S.segVisible; if (!S.segVisible) { S.segEdit = false; S.segColocar = null; } pintar(); });
+  document.querySelectorAll('[data-capa]').forEach((b) => b.addEventListener('click', () => {
+    const k = b.dataset.capa;
+    if (S.segOcultas.has(k)) S.segOcultas.delete(k); else S.segOcultas.add(k);
+    pintar();
+  }));
+  document.getElementById('seg-avisos')?.addEventListener('click', () => modalAvisosSeg(edif));
+  document.getElementById('seg-editar')?.addEventListener('click', () => {
+    S.segEdit = !S.segEdit; S.segColocar = null;
+    if (S.segEdit) { S.segVisible = true; S.segOcultas.clear(); }
+    pintar();
+  });
+  document.getElementById('seg-colocar')?.addEventListener('click', () => {
+    S.segColocar = S.segColocar ? null : document.getElementById('seg-tipo').value;
+    pintar();
+  });
+  document.getElementById('seg-tipo')?.addEventListener('change', (e) => { if (S.segColocar) { S.segColocar = e.target.value; pintar(); } });
+}
+
+/* ---------- Dibujar los símbolos sobre el plano ---------- */
+
+function anclaDe($f, el) {
+  const planta = $f.querySelector(`.hab-planta[data-planta="${el.planta}"]`);
+  if (!planta) return { nodo: null, suelto: true };
+  if (el.ancla_tipo === 'espacio' && el.ancla_espacio) {
+    const n = planta.querySelector(`.hab-esp[data-esp="${el.ancla_espacio}"]`);
+    if (n) return { nodo: n, suelto: false };
+  }
+  if (el.ancla_tipo === 'pasillo' && el.ancla_pasillo) {
+    const n = planta.querySelector(`.hab-pasillo[data-pasillo="${el.ancla_pasillo}"]`);
+    if (n) return { nodo: n, suelto: false };
+  }
+  return { nodo: planta, suelto: el.ancla_tipo !== 'planta' };
+}
+
+function pintarSeguridad($f, edif) {
+  if (S.seguridadFalta || !S.segVisible) return;
+  if (S.segEdit) $f.classList.add('hab-seg-editando');
+  if (S.segColocar) $f.classList.add('hab-seg-colocando');
+  seguridadDe(edif.id).forEach((el) => {
+    const t = TIPOS_SEG[el.tipo] || TIPOS_SEG.otro;
+    if (S.segOcultas.has(t.capa)) return;
+    const { nodo, suelto } = anclaDe($f, el);
+    if (!nodo) return;
+    const a = alertaSeg(el);
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'hab-seg' + (a ? ` hab-seg--${a.nivel}` : '') + (suelto ? ' hab-seg--suelto' : '');
+    b.dataset.seg = el.id;
+    b.style.left = `${el.x}%`;
+    b.style.top = `${el.y}%`;
+    b.style.setProperty('--c', t.col[0]);
+    b.style.setProperty('--f', t.col[1]);
+    const texto = descripcionSeg(el) + (suelto ? ' · su cuarto ya no existe: reubíquelo' : '');
+    b.title = texto;
+    b.setAttribute('aria-label', texto);
+    b.innerHTML = svgSeg(el) + (a ? '<span class="hab-seg-punto" aria-hidden="true"></span>' : '');
+    conectarSimbolo(b, el);
+    nodo.appendChild(b);
+  });
+}
+
+/** Qué cuarto, pasillo o planta hay bajo un punto de la pantalla. */
+function anclaEnPunto(x, y) {
+  const pila = document.elementsFromPoint(x, y);
+  let nodo = null;
+  for (const n of pila) {
+    if (n.classList?.contains('hab-seg')) continue;
+    nodo = n.closest?.('.hab-esp[data-esp], .hab-pasillo, .hab-planta');
+    if (nodo) break;
+  }
+  if (!nodo) return null;
+  const planta = nodo.closest('.hab-planta') || nodo;
+  const r = nodo.getBoundingClientRect();
+  const px = Math.max(3, Math.min(97, ((x - r.left) / r.width) * 100));
+  const py = Math.max(5, Math.min(95, ((y - r.top) / r.height) * 100));
+  const base = { planta: parseInt(planta.dataset.planta, 10), x: +px.toFixed(2), y: +py.toFixed(2) };
+  if (nodo.matches('.hab-esp')) return { ...base, ancla_tipo: 'espacio', ancla_espacio: nodo.dataset.esp, ancla_pasillo: null };
+  if (nodo.matches('.hab-pasillo')) return { ...base, ancla_tipo: 'pasillo', ancla_espacio: null, ancla_pasillo: nodo.dataset.pasillo };
+  return { ...base, ancla_tipo: 'planta', ancla_espacio: null, ancla_pasillo: null };
+}
+
+function conectarSimbolo(b, el) {
+  if (!S.segEdit) {
+    b.addEventListener('click', (e) => { e.stopPropagation(); modalSeguridad(el); });
+    return;
+  }
+  let inicio = null, movido = false;
+  b.addEventListener('pointerdown', (e) => {
+    if (S.segColocar) return;
+    e.preventDefault(); e.stopPropagation();
+    inicio = { x: e.clientX, y: e.clientY };
+    movido = false;
+    b.setPointerCapture(e.pointerId);
+  });
+  b.addEventListener('pointermove', (e) => {
+    if (!inicio) return;
+    if (!movido && Math.hypot(e.clientX - inicio.x, e.clientY - inicio.y) < 5) return;
+    if (!movido) {
+      movido = true;
+      // Se queda en su lugar del documento (si se moviera, el
+      // navegador soltaría el puntero); solo pasa a posición fija.
+      b.classList.add('hab-seg--arrastrando');
+    }
+    b.style.left = `${e.clientX}px`;
+    b.style.top = `${e.clientY}px`;
+  });
+  b.addEventListener('pointerup', async (e) => {
+    if (!inicio) return;
+    inicio = null;
+    if (!movido) { modalSeguridad(el); return; }
+    b.style.visibility = 'hidden';
+    const destino = anclaEnPunto(e.clientX, e.clientY);
+    if (!destino || !Number.isInteger(destino.planta)) { pintar(); return; }
+    const { error } = await S.sb.from('viv_seguridad').update(alEditar(destino)).eq('id', el.id);
+    if (error) toast(mensajeError(error));
+    else Object.assign(el, destino);
+    pintar();
+  });
+  b.addEventListener('pointercancel', () => { if (inicio) { inicio = null; pintar(); } });
+  b.addEventListener('click', (e) => e.stopPropagation());
+}
+
+/** Modo «colocar»: el siguiente toque en el plano crea el elemento. */
+function conectarColocar($f, edif) {
+  if (!S.segColocar) return;
+  $f.addEventListener('click', async (e) => {
+    if (!S.segColocar) return;
+    if (e.target.closest('.hab-seg')) return;
+    e.preventDefault(); e.stopPropagation();
+    const destino = anclaEnPunto(e.clientX, e.clientY);
+    if (!destino) return;
+    const tipo = S.segColocar;
+    const iguales = seguridadDe(edif.id).filter((x) => x.tipo === tipo).length;
+    const prefijo = { extintor: 'EXT', botiquin: 'BOT', detector_humo: 'DET', alarma: 'ALM', luz_emergencia: 'LE', foco: 'FOC' }[tipo];
+    const fila = alCrear({
+      empresa_id: S.empresaId, edificio_id: edif.id, tipo, ...destino,
+      codigo: prefijo ? `${prefijo}-${String(iguales + 1).padStart(2, '0')}` : null,
+      datos: tipo === 'ruta_evacuacion' ? { direccion: '→' } : {}
+    });
+    const { data, error } = await S.sb.from('viv_seguridad').insert(fila).select().single();
+    if (error) { toast(mensajeError(error)); return; }
+    S.seguridad.push(data);
+    S.segColocar = null;
+    pintar();
+    modalSeguridad(data, true);
+  }, true);
+}
+
+/* ---------- Ficha de un elemento ---------- */
+
+function modalSeguridad(el, recienCreado = false) {
+  const t = TIPOS_SEG[el.tipo] || TIPOS_SEG.otro;
+  const c = camposSeg(el.tipo);
+  const m = modal(`${t.n}${el.codigo ? ' · ' + el.codigo : ''}`);
+  const esp = el.ancla_espacio && porId(S.espacios, el.ancla_espacio);
+  const edif = porId(S.edificios, el.edificio_id);
+  const lugar = [nombrePlanta(el.planta, edif?.num_plantas || 1),
+    esp ? (esp.tipo === 'habitacion' ? `Habitación ${esp.nombre}` : esp.nombre)
+      : el.ancla_tipo === 'pasillo' ? (el.ancla_pasillo === 'central' || el.ancla_pasillo === 'lado' ? 'Pasillo' : `Pasillo frente ${el.ancla_pasillo}`) : null
+  ].filter(Boolean).join(' · ');
+  const a = alertaSeg(el);
+
+  if (!S.estructura) {
+    m.cuerpo.innerHTML = `<p class="ayuda">${esc(lugar)}</p>
+      ${a ? `<div class="hab-nota ${a.nivel === 'mal' ? 'hab-nota--error' : ''}">${esc(a.texto)}</div>` : ''}
+      <table class="hab-datos">
+        ${c.estados ? `<tr><td>Estado</td><td>${esc(el.estado || '—')}</td></tr>` : ''}
+        ${(c.extra || []).map(([k, n]) => `<tr><td>${esc(n)}</td><td>${esc(el.datos?.[k] || '—')}</td></tr>`).join('')}
+        ${c.control ? `<tr><td>${esc(c.control)}</td><td>${fecha(el.fecha_control)}</td></tr>` : ''}
+        ${c.vence ? `<tr><td>${esc(c.vence)}</td><td>${fecha(el.fecha_vence)}</td></tr>` : ''}
+        ${el.nota ? `<tr><td>Nota</td><td>${esc(el.nota)}</td></tr>` : ''}
+      </table>`;
+    m.botones([['Cerrar', 'boton-primario', () => m.cerrar()]]);
+    return;
+  }
+
+  const opciones = (lista, actual) => `<option value="">—</option>` + lista.map((x) => `<option ${x === actual ? 'selected' : ''}>${esc(x)}</option>`).join('');
+  m.cuerpo.innerHTML = `<p class="ayuda">${esc(lugar)}${recienCreado ? ' · complete sus datos (puede hacerlo después)' : ''}</p>
+    ${a ? `<div class="hab-nota ${a.nivel === 'mal' ? 'hab-nota--error' : ''}">${esc(a.texto)}</div>` : ''}
+    <div class="hab-form">
+      <div class="hab-form-fila">
+        <div class="campo"><label class="etiqueta" for="sg-codigo">Código</label>
+          <input class="entrada" id="sg-codigo" maxlength="20" value="${esc(el.codigo || '')}" placeholder="Ej. EXT-01"></div>
+        ${c.estados ? `<div class="campo"><label class="etiqueta" for="sg-estado">Estado</label>
+          <select class="entrada" id="sg-estado">${opciones(c.estados, el.estado)}</select></div>` : ''}
+      </div>
+      ${(c.extra || []).length ? `<div class="hab-form-fila">${c.extra.map(([k, n, lista]) => `<div class="campo">
+        <label class="etiqueta" for="sg-x-${k}">${esc(n)}</label>
+        ${lista ? `<select class="entrada" id="sg-x-${k}">${opciones(lista, el.datos?.[k])}</select>`
+                : `<input class="entrada" id="sg-x-${k}" maxlength="30" value="${esc(el.datos?.[k] || '')}">`}</div>`).join('')}</div>` : ''}
+      ${c.control || c.vence ? `<div class="hab-form-fila">
+        ${c.control ? `<div class="campo"><label class="etiqueta" for="sg-control">${esc(c.control)}</label>
+          <input class="entrada" id="sg-control" type="date" value="${el.fecha_control || ''}"></div>` : ''}
+        ${c.vence ? `<div class="campo"><label class="etiqueta" for="sg-vence">${esc(c.vence)}</label>
+          <input class="entrada" id="sg-vence" type="date" value="${el.fecha_vence || ''}"></div>` : ''}
+      </div>${c.vence ? `<span class="ayuda">El sistema avisará ${DIAS_AVISO} días antes de esta fecha.</span>` : ''}` : ''}
+      <div class="campo"><label class="etiqueta" for="sg-nota">Nota</label>
+        <input class="entrada" id="sg-nota" maxlength="200" value="${esc(el.nota || '')}"></div>
+    </div>`;
+
+  m.botones([
+    ['Eliminar', 'boton-secundario boton-critico', (b) => {
+      if (b.dataset.confirmar !== '1') { b.dataset.confirmar = '1'; b.textContent = 'Confirmar eliminación'; return; }
+      conBoton(b, async () => {
+        const { error } = await S.sb.from('viv_seguridad').update(alEditar({ activo: false })).eq('id', el.id);
+        if (error) return m.error(mensajeError(error));
+        S.seguridad = S.seguridad.filter((x) => x.id !== el.id);
+        m.cerrar(); toast(`${t.n} eliminado`); pintar();
+      });
+    }],
+    ['Cancelar', 'boton-secundario', () => m.cerrar()],
+    ['Guardar', 'boton-primario', (b) => conBoton(b, async () => {
+      const control = valor(m, 'sg-control') || null;
+      const vence = valor(m, 'sg-vence') || null;
+      if (control && vence && vence < control) return m.error('La fecha de vencimiento no puede ser anterior a la del último control.');
+      const datos = { ...(el.datos || {}) };
+      (c.extra || []).forEach(([k]) => { datos[k] = valor(m, `sg-x-${k}`) || null; });
+      const cambios = {
+        codigo: valor(m, 'sg-codigo') || null,
+        estado: c.estados ? (valor(m, 'sg-estado') || null) : null,
+        fecha_control: c.control ? control : null,
+        fecha_vence: c.vence ? vence : null,
+        datos, nota: valor(m, 'sg-nota') || null
+      };
+      const { error } = await S.sb.from('viv_seguridad').update(alEditar(cambios)).eq('id', el.id);
+      if (error) return m.error(mensajeError(error));
+      Object.assign(el, cambios);
+      m.cerrar(); toast('Datos guardados'); pintar();
+    })]
+  ]);
+  m.enfocar();
+}
+
+function modalAvisosSeg(edif) {
+  const m = modal(`Controles de seguridad · ${edif.nombre}`);
+  const filas = seguridadDe(edif.id).map((el) => ({ el, a: alertaSeg(el) })).filter((x) => x.a)
+    .sort((x, y) => (x.a.nivel === 'mal' ? 0 : 1) - (y.a.nivel === 'mal' ? 0 : 1));
+  m.cuerpo.innerHTML = `<p class="ayuda">Vencidos o con problema primero; luego lo que vence en los próximos ${DIAS_AVISO} días.</p>
+    <div class="hab-filas-lista" id="sa-lista"></div>`;
+  const $l = m.cuerpo.querySelector('#sa-lista');
+  filas.forEach(({ el, a }) => {
+    const t = TIPOS_SEG[el.tipo] || TIPOS_SEG.otro;
+    const d = document.createElement('div');
+    d.innerHTML = `<span><b>${esc(el.codigo || t.n)}</b> · ${esc(t.n)} · ${esc(nombrePlanta(el.planta, edif.num_plantas))}<br>
+      <span class="ayuda" style="color:${a.nivel === 'mal' ? 'var(--hab-salio)' : 'var(--hab-cambio)'}">${esc(a.texto)}</span></span>
+      <button class="boton-secundario boton-compacto" type="button">Ver</button>`;
+    d.querySelector('button').addEventListener('click', () => modalSeguridad(el));
+    $l.appendChild(d);
+  });
+  m.botones([['Cerrar', 'boton-primario', () => m.cerrar()]]);
 }
