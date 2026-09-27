@@ -20,7 +20,7 @@
 
 import { alCrear, alEditar } from './autoria.js?v=1';
 
-const VERSION = 'v9';
+const VERSION = 'v11';
 console.info('NEXUS · habitaciones', VERSION);
 
 /* Dos permisos distintos:
@@ -125,7 +125,7 @@ function porId(lista, id) { return lista.find((x) => x.id === id) || null; }
 
 function faltaSql(error) {
   const m = `${error?.code || ''} ${error?.message || ''}`;
-  return /42P01|PGRST205|PGRST202|does not exist|Could not find the (table|function)/i.test(m);
+  return /42P01|42703|PGRST204|PGRST205|PGRST202|does not exist|Could not find the (table|function|'.+' column)/i.test(m);
 }
 
 /** Traduce los errores de la base a algo que se entienda. */
@@ -959,9 +959,14 @@ function plantaConFrentes(edif, planta) {
   /* Filas según el pasillo: central → A, pasillo, B;
      frente → pasillo A, A, B, pasillo B; ninguno → A, B. */
   const tipoPasillo = pasilloDe(edif);
-  const FILA = tipoPasillo === 'central' ? { A: 1, B: 3 } : tipoPasillo === 'frente' ? { A: 2, B: 3 } : { A: 1, B: 2 };
+  /* El frente de arriba es A, salvo que el edificio indique
+     «B arriba y A abajo». */
+  const [arriba, abajo] = edif.frentes_invertidos ? ['B', 'A'] : ['A', 'B'];
+  const FILA = tipoPasillo === 'central' ? { [arriba]: 1, [abajo]: 3 }
+    : tipoPasillo === 'frente' ? { [arriba]: 2, [abajo]: 3 } : { [arriba]: 1, [abajo]: 2 };
   const pasillos = tipoPasillo === 'central' ? [['central', 2, 'Pasillo']]
-    : tipoPasillo === 'frente' ? [['A', 1, 'Pasillo frente A'], ['B', 4, 'Pasillo frente B']] : [];
+    : tipoPasillo === 'frente' ? [[arriba, 1, `Pasillo frente ${arriba}`], [abajo, 4, `Pasillo frente ${abajo}`]] : [];
+  const filaArriba = Math.min(FILA.A, FILA.B), filaAbajo = Math.max(FILA.A, FILA.B);
   rejilla.innerHTML = `<div class="hab-frente-etq" style="grid-row:${FILA.A};grid-column:1" title="Frente A">A</div>
     <div class="hab-frente-etq" style="grid-row:${FILA.B};grid-column:1" title="Frente B">B</div>`;
   let col = 2;
@@ -972,13 +977,13 @@ function plantaConFrentes(edif, planta) {
       columnas.push(`minmax(min-content, ${t.esp.ancho}fr)`);
       const el = espacioHtml(t.esp);
       el.classList.add('hab-esp--ab');
-      el.style.gridRow = `${FILA.A} / ${FILA.B + 1}`;
+      el.style.gridRow = `${filaArriba} / ${filaAbajo + 1}`;
       el.style.gridColumn = String(col++);
       rejilla.appendChild(el);
       return;
     }
     columnas.push(`minmax(min-content, ${Math.max(suma(t.A), suma(t.B), 1)}fr)`);
-    ['A', 'B'].forEach((f, i) => {
+    [arriba, abajo].forEach((f) => {
       const celda = document.createElement('div');
       celda.className = 'hab-celda';
       celda.style.gridRow = String(FILA[f]);
@@ -992,7 +997,7 @@ function plantaConFrentes(edif, planta) {
 
   if (S.editando) {
     columnas.push('auto');
-    ['A', 'B'].forEach((f, i) => {
+    [arriba, abajo].forEach((f) => {
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'hab-agregar-esp';
       b.textContent = '+ Espacio';
@@ -1310,6 +1315,11 @@ function modalEdificio(edif) {
       <label><input type="checkbox" id="he-frentes" ${edif?.tiene_frentes ? 'checked' : ''}>
         Tiene habitaciones en ambos frentes (A y B)</label>
     </div>
+    <div class="campo" id="he-orden-campo"><label class="etiqueta" for="he-orden">Orden de los frentes en el plano</label>
+      <select class="entrada" id="he-orden">
+        <option value="0" ${edif?.frentes_invertidos ? '' : 'selected'}>A arriba y B abajo</option>
+        <option value="1" ${edif?.frentes_invertidos ? 'selected' : ''}>B arriba y A abajo</option>
+      </select></div>
     <div class="campo"><label class="etiqueta" for="he-pasillo">Pasillo</label>
       <select class="entrada" id="he-pasillo"></select>
       <span class="ayuda">Se dibuja en el plano de cada planta; ahí se pueden ubicar extintores, luces y señalética.</span></div>
@@ -1323,8 +1333,16 @@ function modalEdificio(edif) {
     const actual = pasilloDe({ tiene_frentes: conFrentes, pasillo: $pa.value || edif?.pasillo });
     $pa.innerHTML = claves.map((k) => `<option value="${k}" ${k === actual ? 'selected' : ''}>${PASILLOS[k]}</option>`).join('');
   };
-  $fr.addEventListener('change', opcionesPasillo);
+  const ordenCampo = () => { m.cuerpo.querySelector('#he-orden-campo').hidden = !$fr.checked; };
+  $fr.addEventListener('change', () => { opcionesPasillo(); ordenCampo(); });
   opcionesPasillo();
+  ordenCampo();
+  /* La columna existe solo si se ejecutó habitaciones_frentes.sql
+     (o la versión nueva de habitaciones_etapa3.sql). */
+  const hayOrden = S.edificios.length === 0 || S.edificios.some((x) => 'frentes_invertidos' in x);
+  if (!hayOrden) m.cuerpo.querySelector('#he-orden-campo').remove();
+  const extraOrden = () => (hayOrden && m.cuerpo.querySelector('#he-orden')
+    ? { frentes_invertidos: m.cuerpo.querySelector('#he-orden').value === '1' } : {});
 
   const guardar = (b) => conBoton(b, async () => {
     const nombre = valor(m, 'he-nombre');
@@ -1337,7 +1355,7 @@ function modalEdificio(edif) {
     if (nuevo) {
       const { data, error } = await S.sb.from('viv_edificios').insert(alCrear({
         empresa_id: S.empresaId, base_id: S.nav.baseId, nombre, codigo, num_plantas: plantas, tiene_frentes: frentes,
-        ...(S.seguridadFalta ? {} : { pasillo: valor(m, 'he-pasillo') })
+        ...(S.seguridadFalta ? {} : { pasillo: valor(m, 'he-pasillo') }), ...extraOrden()
       })).select().single();
       if (error) return m.error(mensajeError(error));
       m.cerrar();
@@ -1365,7 +1383,7 @@ function modalEdificio(edif) {
     }
     const { error } = await S.sb.from('viv_edificios')
       .update(alEditar({ nombre, codigo, num_plantas: plantas, tiene_frentes: frentes,
-        ...(S.seguridadFalta ? {} : { pasillo: valor(m, 'he-pasillo') }) })).eq('id', edif.id);
+        ...(S.seguridadFalta ? {} : { pasillo: valor(m, 'he-pasillo') }), ...extraOrden() })).eq('id', edif.id);
     if (error) return m.error(mensajeError(error));
     m.cerrar();
     toast('Edificio actualizado');
@@ -1374,9 +1392,37 @@ function modalEdificio(edif) {
 
   const botones = [['Cancelar', 'boton-secundario', () => m.cerrar()]];
   if (!nuevo) botones.push(['Eliminar edificio', 'boton-secundario boton-critico', (b) => eliminarEdificio(m, edif, b)]);
+  if (!nuevo && edif.tiene_frentes) botones.push(['Intercambiar letras A ↔ B', 'boton-secundario', (b) => intercambiarFrentes(m, edif, b)]);
   botones.push([nuevo ? 'Crear edificio' : 'Guardar', 'boton-primario', guardar]);
   m.botones(botones);
   m.enfocar();
+}
+
+/** Lo que era frente A pasa a llamarse B y viceversa, sin
+    mover nada de lugar en el plano (función viv_intercambiar_frentes). */
+async function intercambiarFrentes(m, edif, boton) {
+  if (boton.dataset.confirmar !== '1') {
+    boton.dataset.confirmar = '1';
+    boton.textContent = 'Confirmar intercambio';
+    const ejemplo = camasDeEdificio(edif.id).map((c) => ubicar(c)).find((u) => u?.esp.frente === 'A' || u?.esp.frente === 'B');
+    m.error(null);
+    m.cuerpo.insertAdjacentHTML('afterbegin', `<div class="hab-nota" id="he-aviso-letras">
+      Lo que hoy es frente A pasará a llamarse B y viceversa. Nada se mueve de lugar en el plano, pero
+      <strong>cambian los códigos de las camas</strong>${ejemplo ? ` (por ejemplo, ${esc(ejemplo.codigo)} pasará a ${esc(ejemplo.codigo.replace(/-(A|B)-/, (x, l) => `-${l === 'A' ? 'B' : 'A'}-`))})` : ''}.
+      Las personas siguen en sus mismas camas. Pulse «Confirmar intercambio» para continuar.</div>`);
+    return;
+  }
+  await conBoton(boton, async () => {
+    const { error } = await S.sb.rpc('viv_intercambiar_frentes', { p_edificio: edif.id, p_autor: S.perfil?.id ?? null });
+    if (error) {
+      return m.error(faltaSql(error)
+        ? 'Para esta opción, el administrador debe ejecutar de nuevo sql/habitaciones_frentes.sql en Supabase.'
+        : mensajeError(error));
+    }
+    m.cerrar();
+    toast('Letras de los frentes intercambiadas');
+    await recargar();
+  });
 }
 
 async function eliminarEdificio(m, edif, boton) {
