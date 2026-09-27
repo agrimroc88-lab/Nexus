@@ -301,6 +301,20 @@
   border: 1px solid var(--hab-estructura);
 }
 .hab-esp--tenue { opacity: 0.35; }
+/* Terreno sin construir: sin paredes ni relleno */
+.hab-esp--abierto {
+  align-items: center;
+  justify-content: center;
+  min-width: 70px;
+  min-height: 60px;
+  background: transparent;
+  border: 1.5px dashed #b9c2bc;
+  color: #7b877f;
+  font-size: 0.78rem;
+  font-style: italic;
+  text-align: center;
+}
+.hab-compacta .hab-esp--abierto { min-width: 56px; }
 .hab-esp-cabeza {
   display: flex;
   justify-content: space-between;
@@ -478,8 +492,8 @@
   position: absolute;
   z-index: 4;
   transform: translate(-50%, -50%);
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   display: flex;
   align-items: center;
