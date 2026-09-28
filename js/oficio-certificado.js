@@ -357,7 +357,9 @@ function hojaJustificacion(d) {
 
       ${pagados ? `<p class="of-dato">
         <b>JUSTIFICABLE DÍA PAGADO:</b> ${escapar(pagados)}
-      </p>` : ''}
+      </p>` : `<p class="of-dato">
+        <b>REPOSO:</b> NO AMERITA
+      </p>`}
 
       <p class="of-dato">
         <b>ROTACIÓN DE ÁREA:</b> ${escapar(d.rotacion || 'AL MOMENTO NO AMERITA')}

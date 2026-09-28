@@ -14,7 +14,7 @@ import { sesionActual } from './auth.js';
 import {
   cargarDatosOficio, llenarDestinatarios, destinatarioPorId,
   mostrarCiePorDefecto, imprimirOficio, rangoRotacion
-} from './oficio-certificado.js?v=21';
+} from './oficio-certificado.js?v=22';
 import { alCrear } from './autoria.js?v=1';
 
 /* Roles que pueden registrar. El técnico solo lee. */
@@ -780,9 +780,12 @@ function abrirOficio() {
 
   document.getElementById('modal-ver-cert').hidden = true;
 
-  const sinReposo = !c.reposo_dias || c.reposo_dias === 0;
-  document.getElementById('of_clase').value =
-    (sinReposo && c.amerita_reubicacion) ? 'restricciones' : 'justificacion';
+  /* Siempre abre con la justificación: muestra el reposo (o
+     «no amerita») y la rotación de área. Antes, si no había
+     reposo pero sí rotación, abría con «Restricciones
+     laborales» y parecía que no dejaba imprimir el justificativo.
+     Ese modelo sigue disponible en el selector. */
+  document.getElementById('of_clase').value = 'justificacion';
 
   document.getElementById('of_motivo').value = c.observacion || '';
   document.getElementById('of_cie').checked = mostrarCiePorDefecto();

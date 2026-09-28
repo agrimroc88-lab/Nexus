@@ -25,7 +25,7 @@ import { sesionActual } from './auth.js?v=13';
 import {
   cargarDatosOficio, llenarDestinatarios, destinatarioPorId,
   mostrarCiePorDefecto, rangoRotacion, imprimirOficio, destinatariosLista
-} from './oficio-certificado.js?v=21';
+} from './oficio-certificado.js?v=22';
 import { alCrear, marcarAntesDeBorrar, autorId, alEditar } from './autoria.js?v=1';
 import {
   iniciarInformeAtenciones, cambiarTipoPeriodo, generarInformeAtenciones,
@@ -2381,13 +2381,20 @@ async function emitirCertificadoPost() {
 
   const inicio = document.getElementById('det-cert-inicio').value;
   const dias = parseInt(document.getElementById('det-cert-dias').value, 10) || 0;
-  if (!inicio) return alert('Indique la fecha de inicio del reposo.');
-  if (dias <= 0) return alert('Indique el número de días de reposo.');
 
   const rota = document.getElementById('det-cert-rotacion').checked;
   const rotInicio = document.getElementById('det-cert-rot-inicio').value || null;
   const rotDias = rota
     ? (parseInt(document.getElementById('det-cert-rot-dias').value, 10) || 0) : 0;
+
+  /* Una lesión leve puede no necesitar reposo pero sí rotación
+     de área: el certificado se emite con cualquiera de los dos. */
+  if (dias > 0 && !inicio) return alert('Indique la fecha de inicio del reposo.');
+  if (rota && rotDias < 1) return alert('Indique los días de rotación de área.');
+  if (dias <= 0 && !rota) {
+    return alert('Indique los días de reposo o, si no necesita reposo, marque la rotación de área con sus días.');
+  }
+  const inicioRotacion = rotInicio || inicio || a.fecha;
   const rotDetalle = document.getElementById('det-cert-rot-detalle').value.trim() || null;
   const motivo = document.getElementById('det-cert-motivo').value.trim() || null;
 
@@ -2408,10 +2415,10 @@ async function emitirCertificadoPost() {
     fecha_emision: a.fecha,
     codigo_cie10: dx.codigo_cie10 || null,
     diagnostico: dx.cie10?.descripcion || dx.observacion || null,
-    reposo_inicio: inicio,
+    reposo_inicio: dias > 0 ? inicio : null,
     reposo_dias: dias,
     amerita_reubicacion: rota,
-    rotacion_inicio: rota && rotDias > 0 ? (rotInicio || inicio) : null,
+    rotacion_inicio: rota && rotDias > 0 ? inicioRotacion : null,
     rotacion_dias: rotDias,
     rotacion_detalle: rotDetalle,
     medico_emisor: firmante || null,
@@ -2424,7 +2431,7 @@ async function emitirCertificadoPost() {
   if (error) return alert('No se pudo emitir el certificado: ' + error.message);
 
   const rotacion = rota
-    ? (rangoRotacion(rotInicio || inicio, rotDias) || rotDetalle || '')
+    ? (rangoRotacion(inicioRotacion, rotDias) || rotDetalle || '')
     : '';
 
   await imprimirOficio({
@@ -2438,7 +2445,7 @@ async function emitirCertificadoPost() {
     cie10: dx.codigo_cie10 || '',
     mostrarCie: mostrarCiePorDefecto(),
     motivo: motivo || '',
-    reposoInicio: inicio,
+    reposoInicio: dias > 0 ? inicio : null,
     reposoDias: dias,
     rotacion
   });
