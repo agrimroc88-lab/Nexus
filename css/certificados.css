@@ -364,14 +364,17 @@
     flex-shrink: 0;
   }
 
-  /* Linea de corte vertical, de arriba abajo, con su propio
-     espacio a los lados en vez de depender de que el resto
-     encaje justo en un ancho total calculado. */
+  /* Linea de corte vertical, de arriba abajo, con el MISMO
+     espacio a cada lado (12,5 mm). Así el conjunto es simétrico
+     y, al centrarse en la hoja, la línea cae exactamente en la
+     mitad: se corta sin doblar la hoja.
+     Total: 125 + 12,5 + 12,5 + 125 = 275 mm → cabe en A4 (297)
+     y en Carta apaisada (279,4). */
   .of-corte {
     width: 0;
     height: 190mm;
     border-left: 0.4pt dashed #999;
-    margin: 0 5mm;
+    margin: 0 12.5mm;
     flex-shrink: 0;
   }
 
@@ -385,8 +388,12 @@
      amontona a la izquierda—. Se reduce a 10mm: sigue dejando
      espacio de sobra para cortar con tijera, pero ahora el total
      cabe cómodo incluso con "Predeterminados" en el diálogo. */
+  /* Antes llevaba 20 mm extra solo a su izquierda: eso volvía
+     asimétrico el conjunto y corría la línea de corte ~1 cm a
+     la izquierda del centro de la hoja. El espacio para cortar
+     ahora lo da la línea, igual a ambos lados. */
   .of-copia-derecha {
-    margin-left: 20mm;
+    margin-left: 0;
   }
 
   /* --- Contenido ---
