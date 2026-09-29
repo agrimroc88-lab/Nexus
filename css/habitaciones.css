@@ -839,6 +839,45 @@
 .hab-imp-ley-seg svg { width: 16px; height: 16px; }
 .hab-imp-cq { min-width: 0; width: 100%; max-height: 165mm; aspect-ratio: 40 / 25; }
 
+/* Señales en el papel: ~5 × 5 mm (el tamaño lo fija la
+   impresión según la ampliación de cada plano). */
+.hab-imp .hab-seg {
+  width: var(--hab-seg-imp, 19px);
+  height: var(--hab-seg-imp, 19px);
+  filter: drop-shadow(0 0.5px 0.8px rgba(0, 0, 0, 0.35));
+}
+.hab-imp .hab-seg-punto {
+  width: 38%; height: 38%;
+  top: -14%; right: -14%;
+  border-width: 1px;
+}
+
+/* Camas en el papel: dibujitos pequeños (~7 × 4 mm) con su
+   color de estado y su número; sin datos de las personas. */
+.hab-imp .hab-camas {
+  grid-template-columns: repeat(auto-fill, calc(var(--hab-cama-imp, 26px) + 4px));
+  gap: 3px;
+  justify-content: start;
+}
+.hab-imp .hab-cama--mini {
+  width: calc(var(--hab-cama-imp, 26px) + 4px);
+  padding: 1px 2px 0;
+  gap: 0;
+  border-width: 1px;
+  border-radius: 3px;
+  font-size: calc(var(--hab-cama-imp, 26px) * 0.3);
+  line-height: 1.15;
+  font-weight: 700;
+}
+.hab-imp .hab-cama--mini svg { width: var(--hab-cama-imp, 26px); max-width: none; height: calc(var(--hab-cama-imp, 26px) * 0.45); }
+.hab-imp .hab-mini-cod { display: none; }
+.hab-imp .hab-litera { padding: 1px; gap: 1px; border-radius: 4px; }
+.hab-imp .hab-litera-nombre { font-size: calc(var(--hab-cama-imp, 26px) * 0.28); }
+.hab-imp .hab-litera-nombre svg { width: 9px; height: 9px; }
+.hab-imp .hab-esp { padding: 0.3rem; gap: 0.2rem; }
+.hab-imp .hab-esp-cabeza { font-size: 0.7rem; }
+.hab-imp .hab-esp-cabeza b { font-size: 0.74rem; }
+
 /* Portada: centrada; tamaño intermedio para que quepa entera
    aunque el edificio tenga 3 plantas («safe» evita que se
    recorte por arriba si algo no cupiera). */
