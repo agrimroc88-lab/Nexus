@@ -764,6 +764,7 @@
    ============================================ */
 
 @page hab-plano { size: A4 landscape; margin: 9mm; }
+@page hab-plano-v { size: A4 portrait; margin: 9mm; }
 
 #hab-impresion { display: none; }
 #hab-impresion.hab-imp-midiendo {
@@ -771,8 +772,14 @@
   position: absolute;
   left: -30000px;
   top: 0;
-  width: 1047px;
+  width: 1047px;          /* ancho útil de A4 horizontal */
 }
+#hab-impresion.hab-imp-midiendo.hab-imp--vertical { width: 726px; }
+.hab-imp--vertical .hab-imp-hoja { page: hab-plano-v; }
+.hab-imp--vertical .hab-imp-cq { max-height: none; }
+.hab-imp-plano { align-self: center; }
+/* El plano queda centrado en el alto libre; la leyenda, al pie */
+.hab-imp-hoja > .hab-imp-plano { margin-top: auto; margin-bottom: auto; }
 .hab-imp { display: block; color: #1f2a23; background: #fff; }
 .hab-imp-hoja {
   page: hab-plano;
@@ -823,15 +830,17 @@
 .hab-imp-ley-seg svg { width: 16px; height: 16px; }
 .hab-imp-cq { min-width: 0; width: 100%; max-height: 165mm; aspect-ratio: 40 / 25; }
 
-/* Portada */
-.hab-imp-portada { align-items: center; justify-content: center; text-align: center; gap: 10px; padding-top: 10mm; }
-.hab-imp-logo-grande { height: 70px; width: auto; max-width: 220px; object-fit: contain; }
-.hab-imp-portada h1 { margin: 4px 0 0; font-size: 28px; color: #1b5e20; }
-.hab-imp-sub { margin: 0; font-size: 15px; color: #3f4a43; }
-.hab-imp-fachada { width: 360px; max-width: 80%; }
+/* Portada: grande y centrada en la hoja */
+.hab-imp-portada { align-items: center; justify-content: center; text-align: center; gap: 14px; }
+.hab-imp-logo-grande { height: 120px; width: auto; max-width: 320px; object-fit: contain; }
+.hab-imp-portada h1 { margin: 6px 0 0; font-size: 46px; line-height: 1.1; color: #1b5e20; }
+.hab-imp-sub { margin: 0; font-size: 21px; color: #3f4a43; }
+.hab-imp-fachada { width: 560px; max-width: 88%; }
 .hab-imp-fachada svg { width: 100%; height: auto; }
-.hab-imp-resumen { max-width: 560px; font-size: 12px; text-align: left; }
-.hab-imp-nota { font-size: 10px; color: #6b766f; margin-top: 6px; }
+.hab-imp-resumen { width: 640px; max-width: 92%; font-size: 15px; text-align: left; }
+.hab-imp-resumen td { padding: 0.45rem 0; }
+.hab-imp-nota { font-size: 12px; color: #6b766f; margin-top: 8px; }
+.hab-imp--vertical .hab-imp-portada h1 { font-size: 42px; }
 
 @media print {
   body.hab-imprimiendo > *:not(#hab-impresion) { display: none !important; }
@@ -843,6 +852,9 @@
      el navegador estira las filas de la cuadrícula y una planta
      ocupa varias hojas. */
   .hab-imp-hoja { height: 186mm; overflow: hidden; break-inside: avoid; }
+  /* Vertical */
+  body.hab-imprimiendo-v, body.hab-imprimiendo-v #hab-impresion { page: hab-plano-v; }
+  .hab-imp--vertical .hab-imp-hoja { height: 272mm; }
   body.hab-imprimiendo { background: #fff; }
   #hab-impresion, #hab-impresion * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
