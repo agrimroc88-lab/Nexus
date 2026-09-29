@@ -19,8 +19,9 @@
    ============================================ */
 
 import { alCrear, alEditar } from './autoria.js?v=1';
+import { esperarImagenes } from './impresion.js?v=11';
 
-const VERSION = 'v12';
+const VERSION = 'v13';
 console.info('NEXUS · habitaciones', VERSION);
 
 /* Dos permisos distintos:
@@ -867,7 +868,9 @@ function vistaEdificio($v) {
   $v.innerHTML = `
     <div class="hab-cabeza">
       <h2 class="hab-titulo">${esc(edif.nombre)} <small>código ${esc(edif.codigo)}</small></h2>
-      <div class="hab-cabeza-acciones">${S.estructura ? `
+      <div class="hab-cabeza-acciones">
+        ${!S.editando && !S.segEdit ? '<button class="boton-secundario" id="hab-imprimir" type="button">Imprimir planos</button>' : ''}
+        ${S.estructura ? `
         <button class="boton-secundario" id="hab-config-edif" type="button">Configurar edificio</button>
         <button class="${S.editando ? 'boton-primario' : 'boton-secundario'}" id="hab-modo" type="button" aria-pressed="${S.editando}">
           ${S.editando ? 'Terminar edición' : 'Editar plantas y espacios'}</button>` : ''}
@@ -891,6 +894,7 @@ function vistaEdificio($v) {
     <div class="hab-fachada ${S.editando ? 'hab-editando' : ''} ${S.detalle ? '' : 'hab-compacta'}" id="hab-fachada"></div>`;
 
   document.getElementById('hab-config-edif')?.addEventListener('click', () => modalEdificio(edif));
+  document.getElementById('hab-imprimir')?.addEventListener('click', () => modalImprimir(edif));
   document.getElementById('hab-modo')?.addEventListener('click', () => {
     S.editando = !S.editando; S.selEspacio = null;
     if (S.editando) { S.segEdit = false; S.segColocar = null; }
@@ -3000,7 +3004,7 @@ function modalSeguridad(el, recienCreado = false) {
       ${(c.extra || []).length ? `<div class="hab-form-fila">${c.extra.map(([k, n, lista]) => `<div class="campo">
         <label class="etiqueta" for="sg-x-${k}">${esc(n)}</label>
         ${lista ? `<select class="entrada" id="sg-x-${k}">${opciones(lista, el.datos?.[k])}</select>`
-                : `<input class="entrada" id="sg-x-${k}" maxlength="30" value="${esc(el.datos?.[k] || '')}">`}</div>`).join('')}</div>` : ''}
+                : `<input class="entrada" id="sg-x-${k}" maxlength="${k === 'texto' ? 80 : 30}" value="${esc(el.datos?.[k] || '')}">`}</div>`).join('')}</div>` : ''}
       ${c.control || c.vence ? `<div class="hab-form-fila">
         ${c.control ? `<div class="campo"><label class="etiqueta" for="sg-control">${esc(c.control)}</label>
           <input class="entrada" id="sg-control" type="date" value="${el.fecha_control || ''}"></div>` : ''}
@@ -3062,4 +3066,192 @@ function modalAvisosSeg(edif) {
     $l.appendChild(d);
   });
   m.botones([['Cerrar', 'boton-primario', () => m.cerrar()]]);
+}
+
+
+/* ============================================
+   IMPRIMIR PLANOS DEL EDIFICIO
+   Portada + una hoja horizontal por planta (con su leyenda)
+   + el croquis de la base, opcional. Se arma aparte, en
+   #hab-impresion, y solo eso sale en la hoja. Desde la ventana
+   de impresión se puede guardar como PDF.
+   ============================================ */
+
+function modalImprimir(edif) {
+  const m = modal(`Imprimir planos · ${edif.nombre}`);
+  const plantas = Array.from({ length: edif.num_plantas }, (_, k) => k + 1);
+  const hayCroquis = !S.croquisFalta;
+  const haySeg = !S.seguridadFalta && seguridadDe(edif.id).length > 0;
+  m.cuerpo.innerHTML = `<div class="hab-form">
+    <div><p class="etiqueta">Plantas</p><div class="hab-opciones">
+      ${plantas.map((p) => `<label><input type="checkbox" name="imp-planta" value="${p}" checked> ${nombrePlanta(p, edif.num_plantas)}</label>`).join('')}
+    </div></div>
+    <div><p class="etiqueta">Camas</p><div class="hab-opciones">
+      <label><input type="radio" name="imp-camas" value="codigo" checked> Solo código y estado (libre u ocupada)</label>
+      <label><input type="radio" name="imp-camas" value="nombres"> Con nombre, cargo y edad de quien duerme ahí</label>
+      <span class="ayuda">Los nombres son datos personales: inclúyalos solo si el plano es para uso interno.</span>
+    </div></div>
+    ${haySeg ? `<div><p class="etiqueta">Seguridad</p><div class="hab-opciones">
+      ${Object.entries(CAPAS_SEG).map(([k, v]) => `<label><input type="checkbox" name="imp-capa" value="${k}" checked> ${v}</label>`).join('')}
+    </div></div>` : ''}
+    ${hayCroquis ? `<div class="hab-opciones"><label><input type="checkbox" id="imp-croquis" checked> Incluir el croquis de la base</label></div>` : ''}
+    <span class="ayuda">En la ventana de impresión puede elegir «Guardar como PDF». Se imprime en hoja A4 horizontal.</span>
+  </div>`;
+  m.botones([
+    ['Cancelar', 'boton-secundario', () => m.cerrar()],
+    ['Imprimir', 'boton-primario', (b) => conBoton(b, async () => {
+      const elegidas = [...m.cuerpo.querySelectorAll('input[name="imp-planta"]:checked')].map((x) => parseInt(x.value, 10));
+      if (elegidas.length === 0) return m.error('Elija al menos una planta.');
+      const opciones = {
+        plantas: elegidas.sort((a, b) => b - a),
+        nombres: m.cuerpo.querySelector('input[name="imp-camas"]:checked').value === 'nombres',
+        capas: new Set([...m.cuerpo.querySelectorAll('input[name="imp-capa"]:checked')].map((x) => x.value)),
+        croquis: !!m.cuerpo.querySelector('#imp-croquis')?.checked,
+        seguridad: haySeg
+      };
+      m.cerrar();
+      await imprimirPlanos(edif, opciones);
+    })]
+  ]);
+}
+
+async function datosEmpresa() {
+  try {
+    const { data } = await S.sb.from('empresas').select('razon_social, logo_url').eq('id', S.empresaId).maybeSingle();
+    return { nombre: data?.razon_social || '', logo: data?.logo_url || 'logo.png' };
+  } catch {
+    return { nombre: '', logo: 'logo.png' };
+  }
+}
+
+function leyendaHtml(planta, conSeguridad) {
+  const estados = `<span class="hab-imp-ley-cama" style="--c:var(--hab-libre);--f:var(--hab-libre-f)">Cama libre</span>
+    <span class="hab-imp-ley-cama" style="--c:var(--hab-ocupada);--f:var(--hab-ocupada-f)">Cama ocupada</span>
+    <span class="hab-imp-ley-cama" style="--c:var(--hab-cambio);--f:var(--hab-cambio-f)">Colchón por cambiar</span>
+    <span class="hab-imp-ley-cama" style="--c:var(--hab-salio);--f:var(--hab-salio-f)">Ocupante ya no labora</span>`;
+  let simbolos = '';
+  if (conSeguridad) {
+    const vistos = new Map();
+    planta.querySelectorAll('.hab-seg').forEach((b) => {
+      const el = porId(S.seguridad, b.dataset.seg);
+      if (!el) return;
+      const clave = el.tipo === 'otra_senal' ? `otra:${el.datos?.texto}` : el.tipo;
+      if (!vistos.has(clave)) vistos.set(clave, el);
+    });
+    simbolos = [...vistos.values()].map((el) => {
+      const t = TIPOS_SEG[el.tipo] || TIPOS_SEG.otro;
+      const nombre = el.tipo === 'otra_senal' && el.datos?.texto ? el.datos.texto : t.n;
+      return `<span class="hab-imp-ley-seg">${svgSeg(el)}${esc(nombre)}</span>`;
+    }).join('');
+  }
+  return `<div class="hab-imp-leyenda">${estados}${simbolos}</div>`;
+}
+
+async function imprimirPlanos(edif, op) {
+  const base = porId(S.bases, edif.base_id);
+  const suc = base && porId(S.sucursales, base.sucursal_id);
+  const empresa = await datosEmpresa();
+  const quien = [S.perfil?.nombres, S.perfil?.apellidos].filter(Boolean).join(' ');
+  const fechaHoy = new Date().toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' });
+
+  /* Se dibuja con los mismos componentes de la pantalla, en modo
+     consulta; al terminar se devuelve todo como estaba. */
+  const antes = { detalle: S.detalle, editando: S.editando, segEdit: S.segEdit, segColocar: S.segColocar,
+    segVisible: S.segVisible, segOcultas: S.segOcultas, soloLibres: S.soloLibres, resaltar: S.resaltar };
+  Object.assign(S, { detalle: op.nombres, editando: false, segEdit: false, segColocar: null, soloLibres: false, resaltar: null,
+    segVisible: op.seguridad && op.capas.size > 0,
+    segOcultas: new Set(Object.keys(CAPAS_SEG).filter((k) => !op.capas.has(k))) });
+
+  document.getElementById('hab-impresion')?.remove();
+  const $imp = document.createElement('div');
+  $imp.id = 'hab-impresion';
+  $imp.className = 'hab hab-imp';
+
+  const encabezado = (titulo) => `<header class="hab-imp-cab">
+      <img src="${esc(empresa.logo)}" alt="" class="hab-imp-logo">
+      <div><strong>${esc(empresa.nombre)}</strong><span>${esc([suc?.nombre, base?.nombre, edif.nombre].filter(Boolean).join(' · '))}</span></div>
+      <div class="hab-imp-cab-der"><strong>${esc(titulo)}</strong><span>${esc(fechaHoy)}</span></div>
+    </header>`;
+
+  try {
+    // Portada
+    const c = conteo(camasDeEdificio(edif.id));
+    const segs = op.seguridad ? seguridadDe(edif.id) : [];
+    const avisos = segs.map(alertaSeg).filter(Boolean).length;
+    $imp.insertAdjacentHTML('beforeend', `<section class="hab-imp-hoja hab-imp-portada">
+      <img src="${esc(empresa.logo)}" alt="" class="hab-imp-logo-grande">
+      <h1>${esc(edif.nombre)}</h1>
+      <p class="hab-imp-sub">${esc([suc?.nombre, base?.nombre].filter(Boolean).join(' · '))}</p>
+      <div class="hab-imp-fachada">${svgFachada(edif)}</div>
+      <table class="hab-datos hab-imp-resumen">
+        <tr><td>Plantas incluidas</td><td>${op.plantas.slice().reverse().map((p) => esc(nombrePlanta(p, edif.num_plantas))).join(', ')}</td></tr>
+        <tr><td>Camas</td><td>${c.total} en total · ${c.ocupadas} ocupadas · ${c.libres} libres</td></tr>
+        ${op.seguridad ? `<tr><td>Elementos de seguridad</td><td>${segs.length}${avisos ? ` · ${avisos} vencidos, por vencer o con problema` : ''}</td></tr>` : ''}
+        <tr><td>Camas</td><td>${op.nombres ? 'Con nombre de los ocupantes (uso interno)' : 'Solo código y estado'}</td></tr>
+        <tr><td>Impreso por</td><td>${esc(quien || '—')} · ${esc(fechaHoy)}</td></tr>
+      </table>
+      <p class="hab-imp-nota">Esquema proporcional elaborado en NEXUS, no es un plano a escala.</p>
+    </section>`);
+
+    // Una hoja por planta (de la baja a la más alta)
+    op.plantas.slice().reverse().forEach((p) => {
+      const hoja = document.createElement('section');
+      hoja.className = 'hab-imp-hoja';
+      hoja.innerHTML = encabezado(nombrePlanta(p, edif.num_plantas));
+      const $f = document.createElement('div');
+      $f.className = `hab-fachada hab-imp-plano ${S.detalle ? '' : 'hab-compacta'}`;
+      const planta = document.createElement('section');
+      planta.className = 'hab-planta';
+      planta.dataset.planta = p;
+      planta.appendChild(edif.tiene_frentes ? plantaConFrentes(edif, p) : filaHtml(edif, p, null));
+      if (!edif.tiene_frentes && pasilloDe(edif) === 'lado') planta.appendChild(pasilloHtml('lado'));
+      $f.appendChild(planta);
+      pintarSeguridad($f, edif);
+      hoja.appendChild($f);
+      hoja.insertAdjacentHTML('beforeend', leyendaHtml(planta, S.segVisible));
+      $imp.appendChild(hoja);
+    });
+
+    // Croquis de la base
+    if (op.croquis && base) {
+      const hoja = document.createElement('section');
+      hoja.className = 'hab-imp-hoja';
+      hoja.innerHTML = encabezado(`Croquis de ${base.nombre}`);
+      const $cq = document.createElement('div');
+      $cq.className = 'hab-cq hab-imp-cq';
+      elementosCroquis(base).forEach((el) => $cq.appendChild(elementoCq(el, false, $cq)));
+      hoja.appendChild($cq);
+      $imp.appendChild(hoja);
+    }
+  } finally {
+    Object.assign(S, antes);
+  }
+
+  // Los botones del plano no hacen nada en papel
+  $imp.querySelectorAll('button').forEach((b) => { b.tabIndex = -1; b.disabled = true; });
+  document.body.appendChild($imp);
+
+  /* Cada plano se reduce lo necesario para caber en la hoja
+     A4 horizontal (se mide con la hoja ya armada). */
+  $imp.classList.add('hab-imp-midiendo');
+  $imp.querySelectorAll('.hab-imp-plano').forEach(($p) => {
+    const ancho = $p.scrollWidth, alto = $p.scrollHeight;
+    const escala = Math.min(1, 1030 / ancho, 540 / alto);
+    if (escala < 1) $p.style.zoom = escala.toFixed(3);
+  });
+  $imp.classList.remove('hab-imp-midiendo');
+
+  await esperarImagenes($imp);
+  const titulo = document.title;
+  document.title = `Planos · ${base?.nombre || ''} · ${edif.nombre}`;
+  document.body.classList.add('hab-imprimiendo');
+  const limpiar = () => {
+    document.body.classList.remove('hab-imprimiendo');
+    document.title = titulo;
+    $imp.remove();
+    window.removeEventListener('afterprint', limpiar);
+  };
+  window.addEventListener('afterprint', limpiar);
+  window.print();
+  setTimeout(() => { if ($imp.isConnected && !matchMedia('print').matches) limpiar(); }, 1500);
 }
