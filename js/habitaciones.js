@@ -21,7 +21,7 @@
 import { alCrear, alEditar } from './autoria.js?v=1';
 import { esperarImagenes } from './impresion.js?v=11';
 
-const VERSION = 'v16';
+const VERSION = 'v18';
 console.info('NEXUS · habitaciones', VERSION);
 
 /* Dos permisos distintos:
@@ -3086,11 +3086,7 @@ function modalImprimir(edif) {
     <div><p class="etiqueta">Plantas</p><div class="hab-opciones">
       ${plantas.map((p) => `<label><input type="checkbox" name="imp-planta" value="${p}" checked> ${nombrePlanta(p, edif.num_plantas)}</label>`).join('')}
     </div></div>
-    <div><p class="etiqueta">Camas</p><div class="hab-opciones">
-      <label><input type="radio" name="imp-camas" value="codigo" checked> Solo código y estado (libre u ocupada)</label>
-      <label><input type="radio" name="imp-camas" value="nombres"> Con nombre, cargo y edad de quien duerme ahí</label>
-      <span class="ayuda">Los nombres son datos personales: inclúyalos solo si el plano es para uso interno.</span>
-    </div></div>
+    <p class="ayuda">Las camas se dibujan pequeñas, con su número y su color de estado (libre u ocupada); los planos no muestran datos de las personas.</p>
     ${haySeg ? `<div><p class="etiqueta">Seguridad</p><div class="hab-opciones">
       ${Object.entries(CAPAS_SEG).map(([k, v]) => `<label><input type="checkbox" name="imp-capa" value="${k}" checked> ${v}</label>`).join('')}
     </div></div>` : ''}
@@ -3108,7 +3104,7 @@ function modalImprimir(edif) {
       if (elegidas.length === 0) return m.error('Elija al menos una planta.');
       const opciones = {
         plantas: elegidas.sort((a, b) => b - a),
-        nombres: m.cuerpo.querySelector('input[name="imp-camas"]:checked').value === 'nombres',
+        nombres: false,
         capas: new Set([...m.cuerpo.querySelectorAll('input[name="imp-capa"]:checked')].map((x) => x.value)),
         croquis: !!m.cuerpo.querySelector('#imp-croquis')?.checked,
         vertical: m.cuerpo.querySelector('input[name="imp-orientacion"]:checked')?.value === 'v',
@@ -3192,7 +3188,6 @@ async function imprimirPlanos(edif, op) {
         <tr><td>Plantas incluidas</td><td>${op.plantas.slice().reverse().map((p) => esc(nombrePlanta(p, edif.num_plantas))).join(', ')}</td></tr>
         <tr><td>Camas</td><td>${c.total} en total · ${c.ocupadas} ocupadas · ${c.libres} libres</td></tr>
         ${op.seguridad ? `<tr><td>Elementos de seguridad</td><td>${segs.length}${avisos ? ` · ${avisos} vencidos, por vencer o con problema` : ''}</td></tr>` : ''}
-        <tr><td>Camas</td><td>${op.nombres ? 'Con nombre de los ocupantes (uso interno)' : 'Solo código y estado'}</td></tr>
         <tr><td>Impreso por</td><td>${esc(quien || '—')} · ${esc(fechaHoy)}</td></tr>
       </table>
       <p class="hab-imp-nota">Esquema proporcional elaborado en NEXUS, no es un plano a escala.</p>
@@ -3249,8 +3244,15 @@ async function imprimirPlanos(edif, op) {
     const $p = area.querySelector('.hab-imp-plano');
     const anchoUtil = area.clientWidth - 4;
     const altoUtil = area.clientHeight - 4;
-    const escala = Math.min(anchoUtil / $p.scrollWidth, altoUtil / $p.scrollHeight, 2.5);
+    // Máximo 1,35: más allá, los títulos de cuartos y pasillos
+    // quedan desproporcionados frente a las camas pequeñas.
+    const escala = Math.min(anchoUtil / $p.scrollWidth, altoUtil / $p.scrollHeight, 1.35);
     $p.style.zoom = escala.toFixed(3);
+    /* Las señales miden ~5 mm en el papel (19 px a 96 ppp),
+       sin importar cuánto se amplió o redujo el plano. */
+    $p.style.setProperty('--hab-seg-imp', `${(19 / escala).toFixed(1)}px`);
+    // Camas: ~7 × 4 mm en el papel
+    $p.style.setProperty('--hab-cama-imp', `${(26 / escala).toFixed(1)}px`);
     if (anchoUtil / $p.scrollWidth > escala + 0.01) {
       // Limitado por el alto: el plano se estira a lo ancho
       $p.style.width = `${Math.floor(anchoUtil / escala)}px`;
