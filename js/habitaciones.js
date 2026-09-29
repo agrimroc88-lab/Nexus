@@ -21,7 +21,7 @@
 import { alCrear, alEditar } from './autoria.js?v=1';
 import { esperarImagenes } from './impresion.js?v=11';
 
-const VERSION = 'v13';
+const VERSION = 'v15';
 console.info('NEXUS · habitaciones', VERSION);
 
 /* Dos permisos distintos:
@@ -3095,7 +3095,11 @@ function modalImprimir(edif) {
       ${Object.entries(CAPAS_SEG).map(([k, v]) => `<label><input type="checkbox" name="imp-capa" value="${k}" checked> ${v}</label>`).join('')}
     </div></div>` : ''}
     ${hayCroquis ? `<div class="hab-opciones"><label><input type="checkbox" id="imp-croquis" checked> Incluir el croquis de la base</label></div>` : ''}
-    <span class="ayuda">En la ventana de impresión puede elegir «Guardar como PDF». Se imprime en hoja A4 horizontal.</span>
+    <div><p class="etiqueta">Orientación de la hoja</p><div class="hab-opciones">
+      <label><input type="radio" name="imp-orientacion" value="h" checked> Horizontal (recomendada para edificios anchos)</label>
+      <label><input type="radio" name="imp-orientacion" value="v"> Vertical</label>
+    </div></div>
+    <span class="ayuda">En la ventana de impresión puede elegir «Guardar como PDF». Se imprime en hoja A4; cada plano se amplía para ocupar toda la hoja.</span>
   </div>`;
   m.botones([
     ['Cancelar', 'boton-secundario', () => m.cerrar()],
@@ -3107,6 +3111,7 @@ function modalImprimir(edif) {
         nombres: m.cuerpo.querySelector('input[name="imp-camas"]:checked').value === 'nombres',
         capas: new Set([...m.cuerpo.querySelectorAll('input[name="imp-capa"]:checked')].map((x) => x.value)),
         croquis: !!m.cuerpo.querySelector('#imp-croquis')?.checked,
+        vertical: m.cuerpo.querySelector('input[name="imp-orientacion"]:checked')?.value === 'v',
         seguridad: haySeg
       };
       m.cerrar();
@@ -3165,7 +3170,7 @@ async function imprimirPlanos(edif, op) {
   document.getElementById('hab-impresion')?.remove();
   const $imp = document.createElement('div');
   $imp.id = 'hab-impresion';
-  $imp.className = 'hab hab-imp';
+  $imp.className = 'hab hab-imp' + (op.vertical ? ' hab-imp--vertical' : '');
 
   const encabezado = (titulo) => `<header class="hab-imp-cab">
       <img src="${esc(empresa.logo)}" alt="" class="hab-imp-logo">
@@ -3231,13 +3236,21 @@ async function imprimirPlanos(edif, op) {
   $imp.querySelectorAll('button').forEach((b) => { b.tabIndex = -1; b.disabled = true; });
   document.body.appendChild($imp);
 
-  /* Cada plano se reduce lo necesario para caber en la hoja
-     A4 horizontal (se mide con la hoja ya armada). */
+  /* Cada plano se AMPLÍA (o reduce, si no cabe) hasta ocupar
+     todo el espacio libre de la hoja: su alto menos el
+     encabezado y la leyenda. Se mide con la hoja ya armada. */
   $imp.classList.add('hab-imp-midiendo');
-  $imp.querySelectorAll('.hab-imp-plano').forEach(($p) => {
-    const ancho = $p.scrollWidth, alto = $p.scrollHeight;
-    const escala = Math.min(1, 1030 / ancho, 540 / alto);
-    if (escala < 1) $p.style.zoom = escala.toFixed(3);
+  const MM = 96 / 25.4;
+  const anchoUtil = (op.vertical ? 190 : 277) * MM;
+  const altoHoja = (op.vertical ? 272 : 186) * MM;
+  $imp.querySelectorAll('.hab-imp-hoja').forEach(($h) => {
+    const $p = $h.querySelector('.hab-imp-plano');
+    if (!$p) return;
+    const cab = $h.querySelector('.hab-imp-cab')?.offsetHeight || 0;
+    const ley = $h.querySelector('.hab-imp-leyenda')?.offsetHeight || 0;
+    const altoUtil = altoHoja - cab - ley - 36;   // 36 px de separaciones
+    const escala = Math.min(anchoUtil / $p.scrollWidth, altoUtil / $p.scrollHeight, 2.5);
+    $p.style.zoom = escala.toFixed(3);
   });
   $imp.classList.remove('hab-imp-midiendo');
 
@@ -3245,8 +3258,9 @@ async function imprimirPlanos(edif, op) {
   const titulo = document.title;
   document.title = `Planos · ${base?.nombre || ''} · ${edif.nombre}`;
   document.body.classList.add('hab-imprimiendo');
+  if (op.vertical) document.body.classList.add('hab-imprimiendo-v');
   const limpiar = () => {
-    document.body.classList.remove('hab-imprimiendo');
+    document.body.classList.remove('hab-imprimiendo', 'hab-imprimiendo-v');
     document.title = titulo;
     $imp.remove();
     window.removeEventListener('afterprint', limpiar);

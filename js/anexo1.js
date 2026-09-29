@@ -2521,7 +2521,7 @@ async function abrirHabitaciones() {
   if (!$raiz || !estado.empresaId || habitacionesEmpresa === estado.empresaId) return;
   habitacionesEmpresa = estado.empresaId;
   try {
-    modHabitaciones = modHabitaciones || await import('./habitaciones.js?v=13');
+    modHabitaciones = modHabitaciones || await import('./habitaciones.js?v=15');
     await modHabitaciones.montarHabitaciones({
       supabase, perfil: estado.perfil, empresaId: estado.empresaId, contenedor: $raiz
     });
