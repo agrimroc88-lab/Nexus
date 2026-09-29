@@ -21,7 +21,7 @@
 import { alCrear, alEditar } from './autoria.js?v=1';
 import { esperarImagenes } from './impresion.js?v=11';
 
-const VERSION = 'v15';
+const VERSION = 'v16';
 console.info('NEXUS · habitaciones', VERSION);
 
 /* Dos permisos distintos:
@@ -3212,7 +3212,10 @@ async function imprimirPlanos(edif, op) {
       if (!edif.tiene_frentes && pasilloDe(edif) === 'lado') planta.appendChild(pasilloHtml('lado'));
       $f.appendChild(planta);
       pintarSeguridad($f, edif);
-      hoja.appendChild($f);
+      const area = document.createElement('div');
+      area.className = 'hab-imp-area';
+      area.appendChild($f);
+      hoja.appendChild(area);
       hoja.insertAdjacentHTML('beforeend', leyendaHtml(planta, S.segVisible));
       $imp.appendChild(hoja);
     });
@@ -3236,21 +3239,22 @@ async function imprimirPlanos(edif, op) {
   $imp.querySelectorAll('button').forEach((b) => { b.tabIndex = -1; b.disabled = true; });
   document.body.appendChild($imp);
 
-  /* Cada plano se AMPLÍA (o reduce, si no cabe) hasta ocupar
-     todo el espacio libre de la hoja: su alto menos el
-     encabezado y la leyenda. Se mide con la hoja ya armada. */
+  /* Cada plano se ajusta al área libre de su hoja (lo que queda
+     entre el encabezado y la leyenda, que nunca se recortan):
+     se amplía o reduce sin deformarse y, si lo limita el alto,
+     se ensancha hasta ocupar todo el ancho de la hoja. Se mide
+     con las hojas ya armadas y con su alto real. */
   $imp.classList.add('hab-imp-midiendo');
-  const MM = 96 / 25.4;
-  const anchoUtil = (op.vertical ? 190 : 277) * MM;
-  const altoHoja = (op.vertical ? 272 : 186) * MM;
-  $imp.querySelectorAll('.hab-imp-hoja').forEach(($h) => {
-    const $p = $h.querySelector('.hab-imp-plano');
-    if (!$p) return;
-    const cab = $h.querySelector('.hab-imp-cab')?.offsetHeight || 0;
-    const ley = $h.querySelector('.hab-imp-leyenda')?.offsetHeight || 0;
-    const altoUtil = altoHoja - cab - ley - 36;   // 36 px de separaciones
+  $imp.querySelectorAll('.hab-imp-area').forEach((area) => {
+    const $p = area.querySelector('.hab-imp-plano');
+    const anchoUtil = area.clientWidth - 4;
+    const altoUtil = area.clientHeight - 4;
     const escala = Math.min(anchoUtil / $p.scrollWidth, altoUtil / $p.scrollHeight, 2.5);
     $p.style.zoom = escala.toFixed(3);
+    if (anchoUtil / $p.scrollWidth > escala + 0.01) {
+      // Limitado por el alto: el plano se estira a lo ancho
+      $p.style.width = `${Math.floor(anchoUtil / escala)}px`;
+    }
   });
   $imp.classList.remove('hab-imp-midiendo');
 
