@@ -777,9 +777,18 @@
 #hab-impresion.hab-imp-midiendo.hab-imp--vertical { width: 726px; }
 .hab-imp--vertical .hab-imp-hoja { page: hab-plano-v; }
 .hab-imp--vertical .hab-imp-cq { max-height: none; }
-.hab-imp-plano { align-self: center; }
-/* El plano queda centrado en el alto libre; la leyenda, al pie */
-.hab-imp-hoja > .hab-imp-plano { margin-top: auto; margin-bottom: auto; }
+.hab-imp-cab, .hab-imp-leyenda { flex-shrink: 0; }
+.hab-imp-area {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+/* Al medir, las hojas toman su alto real de impresión */
+#hab-impresion.hab-imp-midiendo .hab-imp-hoja { height: 186mm; }
+#hab-impresion.hab-imp-midiendo.hab-imp--vertical .hab-imp-hoja { height: 272mm; }
 .hab-imp { display: block; color: #1f2a23; background: #fff; }
 .hab-imp-hoja {
   page: hab-plano;
@@ -830,17 +839,19 @@
 .hab-imp-ley-seg svg { width: 16px; height: 16px; }
 .hab-imp-cq { min-width: 0; width: 100%; max-height: 165mm; aspect-ratio: 40 / 25; }
 
-/* Portada: grande y centrada en la hoja */
-.hab-imp-portada { align-items: center; justify-content: center; text-align: center; gap: 14px; }
-.hab-imp-logo-grande { height: 120px; width: auto; max-width: 320px; object-fit: contain; }
-.hab-imp-portada h1 { margin: 6px 0 0; font-size: 46px; line-height: 1.1; color: #1b5e20; }
-.hab-imp-sub { margin: 0; font-size: 21px; color: #3f4a43; }
-.hab-imp-fachada { width: 560px; max-width: 88%; }
-.hab-imp-fachada svg { width: 100%; height: auto; }
-.hab-imp-resumen { width: 640px; max-width: 92%; font-size: 15px; text-align: left; }
-.hab-imp-resumen td { padding: 0.45rem 0; }
-.hab-imp-nota { font-size: 12px; color: #6b766f; margin-top: 8px; }
-.hab-imp--vertical .hab-imp-portada h1 { font-size: 42px; }
+/* Portada: centrada; tamaño intermedio para que quepa entera
+   aunque el edificio tenga 3 plantas («safe» evita que se
+   recorte por arriba si algo no cupiera). */
+.hab-imp-portada { align-items: center; justify-content: safe center; text-align: center; gap: 10px; }
+.hab-imp-logo-grande { height: 84px; width: auto; max-width: 240px; object-fit: contain; flex-shrink: 0; }
+.hab-imp-portada h1 { margin: 4px 0 0; font-size: 34px; line-height: 1.1; color: #1b5e20; }
+.hab-imp-sub { margin: 0; font-size: 17px; color: #3f4a43; }
+.hab-imp-fachada { width: 430px; max-width: 80%; }
+.hab-imp-fachada svg { width: 100%; height: auto; max-height: 62mm; }
+.hab-imp-resumen { width: 560px; max-width: 90%; font-size: 13px; text-align: left; }
+.hab-imp-resumen td { padding: 0.35rem 0; }
+.hab-imp-nota { font-size: 11px; color: #6b766f; margin-top: 6px; }
+.hab-imp--vertical .hab-imp-fachada svg { max-height: 80mm; }
 
 @media print {
   body.hab-imprimiendo > *:not(#hab-impresion) { display: none !important; }
