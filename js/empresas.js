@@ -94,6 +94,27 @@ async function guardarEmpresa() {
 
   bloquearGuardado(true);
 
+  /* Antes de insertar, se busca el RUC en TODAS las empresas
+     (incluidas las desactivadas, que la tabla oculta por defecto).
+     Así, si de verdad existe, se dice cuál es; y si no existe, un
+     error 23505 posterior ya no se confunde con un RUC repetido. */
+  if (!estado.editandoId) {
+    const { data: previa } = await supabase
+      .from('empresas')
+      .select('razon_social, activo')
+      .eq('ruc', datos.ruc)
+      .maybeSingle();
+
+    if (previa) {
+      bloquearGuardado(false);
+      mostrarAlerta(
+        `El RUC ${datos.ruc} ya pertenece a «${previa.razon_social}»` +
+        (previa.activo ? '.' : ' (empresa DESACTIVADA: marque «Ver inactivas» para reactivarla).')
+      );
+      return;
+    }
+  }
+
   const { error } = estado.editandoId
     ? await supabase.from('empresas').update(datos).eq('id', estado.editandoId)
     : await supabase.from('empresas').insert(datos);
@@ -237,6 +258,10 @@ function recolectarFormulario() {
     datos[campo] = valor === '' ? null : valor;
   });
 
+  /* El RUC se guarda solo con dígitos: un espacio o guion pegado
+     desde otro documento lo volvería "otro" RUC distinto. */
+  if (datos.ruc) datos.ruc = datos.ruc.replace(/\D/g, '');
+
   datos.num_trabajadores = parseInt(datos.num_trabajadores, 10) || 0;
   datos.riesgo_ciiu = datos.riesgo_ciiu ? parseInt(datos.riesgo_ciiu, 10) : null;
 
@@ -311,7 +336,17 @@ function bloquearGuardado(estadoBloqueo) {
 }
 
 function traducirErrorBd(error) {
-  if (error.code === '23505') return 'Ya existe una empresa registrada con ese RUC';
+  console.error('NEXUS · empresas · error al guardar:', error);
+  if (error.code === '23505') {
+    /* 23505 = "valor duplicado" en CUALQUIER restricción única,
+       no solo la del RUC. Se muestra cuál fue para no adivinar. */
+    const texto = `${error.message || ''} ${error.details || ''}`;
+    if (/\(ruc\)|empresas_ruc/i.test(texto)) {
+      return 'Ya existe una empresa registrada con ese RUC';
+    }
+    return 'Dato duplicado en la base de datos (no es el RUC): ' +
+           (error.details || error.message);
+  }
   if (error.code === '42501') return 'No tiene permisos para realizar esta acción';
   return 'Error al guardar: ' + error.message;
 }
