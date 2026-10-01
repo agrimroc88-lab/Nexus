@@ -45,6 +45,22 @@ export const supabase = globalThis[CLAVE] ??= createClient(
       persistSession: false,
       autoRefreshToken: false,
       detectSessionInUrl: false
-    }
+    },
+    /* Cada consulta a la base lleva el pase de sesión que entregó
+       el login (ver auth.js → iniciarSesion). La base lo revisa en
+       verificar_sesion() y, sin un pase válido, no responde nada:
+       tener la clave anon ya no basta para leer los datos.
+       Solo se agrega a las consultas de datos (/rest/v1/); Storage
+       y Edge Functions no lo necesitan. */
+    global: { fetch: fetchConSesion }
   }
 );
+
+/* Mismo nombre que usa auth.js para guardar el pase de sesión. */
+function fetchConSesion(url, opciones = {}) {
+  const token = sessionStorage.getItem('nexus_token');
+  if (!token || !String(url).includes('/rest/v1/')) return fetch(url, opciones);
+  const headers = new Headers(opciones.headers);
+  headers.set('x-sesion', token);
+  return fetch(url, { ...opciones, headers });
+}

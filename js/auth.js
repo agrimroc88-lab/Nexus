@@ -1,8 +1,9 @@
 /* ============================================
    NEXUS · auth.js
    Sesión, roles y guardia de acceso.
-   MÉTODO SIMPLE: login con cédula + contraseña
-   comparadas contra la tabla usuarios_app.
+   Login con cédula + contraseña, verificadas DENTRO de la base
+   (función iniciar_sesion · sql/050). La base devuelve un pase de
+   sesión que acompaña a cada consulta; sin él no entrega datos.
    La sesión se guarda en sessionStorage: dura mientras esa
    pestaña/ventana del navegador esté abierta. Al cerrarla, se
    pierde sola —sin necesidad de que nadie presione "Salir"—,
@@ -29,6 +30,9 @@ export const ROLES = {
 const BASE = '/Nexus/';
 const CLAVE_SESION = 'nexus_sesion';
 const CLAVE_EMPRESA = 'nexus_empresa_activa';
+/* Pase de sesión emitido por la base al iniciar sesión.
+   supabase.js lo adjunta a cada consulta. */
+const CLAVE_TOKEN = 'nexus_token';
 
 /* ============================================
    Sesión (sessionStorage)
@@ -50,6 +54,7 @@ function guardarSesion(perfil) {
 
 function borrarSesion() {
   sessionStorage.removeItem(CLAVE_SESION);
+  sessionStorage.removeItem(CLAVE_TOKEN);
 }
 
 /* ============================================
@@ -159,7 +164,10 @@ export function puedeVerModulo(rol, modulo) {
    ============================================ */
 
 /**
- * Inicia sesión comparando cédula + contraseña contra usuarios_app.
+ * Inicia sesión. La comparación de la contraseña ya NO se hace
+ * aquí: la hace la base (función iniciar_sesion), que guarda las
+ * contraseñas cifradas, limita los intentos fallidos y entrega un
+ * pase de sesión. El navegador nunca ve una contraseña guardada.
  * @param {string} cedula
  * @param {string} clave
  * @returns {Promise<{ok: boolean, mensaje: string}>}
@@ -167,24 +175,21 @@ export function puedeVerModulo(rol, modulo) {
 export async function iniciarSesion(cedula, clave) {
   const ced = String(cedula).replace(/\D/g, '');
 
+  borrarSesion(); // un pase viejo no debe acompañar al nuevo intento
+
   const { data, error } = await supabase
-    .from('usuarios_app')
-    .select('id, cedula, nombres, apellidos, rol, activo, registro_msp, titulo, cargo')
-    .eq('cedula', ced)
-    .eq('pass', clave)
-    .maybeSingle();
+    .rpc('iniciar_sesion', { p_cedula: ced, p_clave: clave });
 
   if (error) {
+    console.error('NEXUS · login:', error);
     return { ok: false, mensaje: 'Error de conexión. Intente de nuevo.' };
   }
-  if (!data) {
-    return { ok: false, mensaje: 'Cédula o contraseña incorrectas' };
-  }
-  if (!data.activo) {
-    return { ok: false, mensaje: 'Usuario desactivado. Contacte al administrador.' };
+  if (!data?.ok) {
+    return { ok: false, mensaje: data?.mensaje || 'Cédula o contraseña incorrectas' };
   }
 
-  guardarSesion(data);
+  sessionStorage.setItem(CLAVE_TOKEN, data.token);
+  guardarSesion(data.perfil);
   marcarActividad();
   limpiarEmpresaActiva(); // sesión nueva: se vuelve a elegir la empresa
   return { ok: true, mensaje: 'Sesión iniciada' };
@@ -192,6 +197,8 @@ export async function iniciarSesion(cedula, clave) {
 
 /** Cierra la sesión y vuelve al login. */
 export async function cerrarSesion() {
+  // Anular el pase también en la base, no solo en este navegador.
+  try { await supabase.rpc('cerrar_sesion_app'); } catch { /* se sale igual */ }
   borrarSesion();
   limpiarEmpresaActiva();
   sessionStorage.removeItem(CLAVE_ACTIVIDAD);
@@ -280,12 +287,9 @@ export async function protegerPagina(rolesPermitidos = []) {
     return null;
   }
 
-  // Revalidar contra la base: si lo desactivaron, sacarlo.
-  const { data } = await supabase
-    .from('usuarios_app')
-    .select('id, cedula, nombres, apellidos, rol, activo, registro_msp, titulo, cargo')
-    .eq('id', perfil.id)
-    .maybeSingle();
+  // Revalidar contra la base: si lo desactivaron o su pase de
+  // sesión venció (12 horas), sacarlo.
+  const { data } = await supabase.rpc('mi_perfil');
 
   if (!data || data.activo === false) {
     borrarSesion();
