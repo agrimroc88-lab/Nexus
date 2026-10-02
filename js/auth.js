@@ -206,6 +206,21 @@ export async function cerrarSesion() {
   window.location.href = BASE + 'login.html';
 }
 
+/**
+ * Cierre AUTOMÁTICO de sesión (inactividad, pase vencido, usuario
+ * desactivado o sin sesión): vuelve a la pantalla de bienvenida,
+ * no al login. Se borra la marca de "ya vio la bienvenida" para
+ * que login.html no se salte el video la próxima vez. El motivo
+ * viaja por la URL y bienvenida.js se lo pasa al login para que
+ * siga mostrando el aviso de inactividad.
+ * @param {string} [motivo] - ej. 'inactividad'
+ */
+function irABienvenida(motivo = '') {
+  sessionStorage.removeItem('nexus_vio_bienvenida');
+  const query = motivo ? '?motivo=' + encodeURIComponent(motivo) : '';
+  window.location.href = BASE + 'index.html' + query;
+}
+
 /* ============================================
    Inactividad (1 hora)
    Se guarda "cuándo fue la última vez que alguien tocó algo"
@@ -257,7 +272,7 @@ function iniciarVigilanciaInactividad() {
     if (llevaMuchoInactivo()) {
       borrarSesion();
       limpiarEmpresaActiva();
-      window.location.href = BASE + 'login.html?motivo=inactividad';
+      irABienvenida('inactividad');
     }
   }, 60 * 1000);
 }
@@ -267,7 +282,7 @@ function iniciarVigilanciaInactividad() {
    ============================================ */
 
 /**
- * Protege una página. Sin sesión → login.
+ * Protege una página. Sin sesión → bienvenida.
  * Con roles indicados, valida el rol.
  * @param {string[]} rolesPermitidos - vacío = cualquiera con sesión
  * @returns {Promise<object|null>} perfil
@@ -276,14 +291,14 @@ export async function protegerPagina(rolesPermitidos = []) {
   const perfil = sesionActual();
 
   if (!perfil) {
-    window.location.href = BASE + 'login.html';
+    irABienvenida();
     return null;
   }
 
   if (llevaMuchoInactivo()) {
     borrarSesion();
     limpiarEmpresaActiva();
-    window.location.href = BASE + 'login.html?motivo=inactividad';
+    irABienvenida('inactividad');
     return null;
   }
 
@@ -293,7 +308,7 @@ export async function protegerPagina(rolesPermitidos = []) {
 
   if (!data || data.activo === false) {
     borrarSesion();
-    window.location.href = BASE + 'login.html';
+    irABienvenida();
     return null;
   }
 

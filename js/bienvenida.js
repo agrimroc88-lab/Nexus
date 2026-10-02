@@ -37,5 +37,7 @@ document.getElementById('pantalla-bienvenida').addEventListener('click', continu
 
 function continuar() {
   sessionStorage.setItem('nexus_vio_bienvenida', '1');
-  window.location.href = BASE + 'login.html';
+  // Si llegó aquí por un cierre automático (ej. ?motivo=inactividad),
+  // se le pasa el motivo al login para que muestre el aviso.
+  window.location.href = BASE + 'login.html' + window.location.search;
 }
