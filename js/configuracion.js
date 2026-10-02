@@ -920,10 +920,19 @@ async function iniciarBitacora() {
    bitácora, no con una lista fija de módulos y usuarios.
    Ofrecer un filtro que siempre devuelve vacío es peor que no
    ofrecerlo. */
+/* Solo los movimientos de la empresa activa, más los generales
+   del sistema (usuarios), que no pertenecen a una sola empresa.
+   La empresa de cada movimiento la deduce la base (sql/060). */
+function filtroEmpresaBitacora(q) {
+  const id = empresaActivaId();
+  if (!id) return q;
+  return q.or(`empresa_id.eq.${id},and(empresa_id.is.null,tabla.eq.usuarios_app)`);
+}
+
 async function llenarFiltrosBitacora() {
-  const { data } = await supabase
+  const { data } = await filtroEmpresaBitacora(supabase
     .from('v_bitacora')
-    .select('modulo, usuario, usuario_id')
+    .select('modulo, usuario, usuario_id'))
     .order('creado_en', { ascending: false })
     .limit(1000);
 
@@ -957,7 +966,7 @@ async function cargarBitacora() {
 
   const inicio = bit.pagina * POR_PAGINA;
 
-  let q = supabase.from('v_bitacora').select('*')
+  let q = filtroEmpresaBitacora(supabase.from('v_bitacora').select('*'))
     .order('creado_en', { ascending: false })
     .range(inicio, inicio + POR_PAGINA - 1);
 
