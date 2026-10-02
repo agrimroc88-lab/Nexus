@@ -328,18 +328,68 @@ async function initCargos() {
   document.getElementById('btn-add-cargo').addEventListener('click', addCargo);
 }
 
+/* ============================================
+   Empresa de trabajo de las pestañas por empresa
+   Sucursales y cargos, Módulos y Logo y color ya no ofrecen
+   elegir empresa: trabajan siempre sobre la empresa ACTIVA (la
+   elegida al ingresar), igual que el resto de los módulos. Para
+   configurar otra, se usa «Salir de empresa» y se entra en ella.
+   El <select> original se conserva oculto con esa única empresa,
+   así toda la lógica que ya dependía de él sigue igual.
+   ============================================ */
+
+let empresaActivaCache = null;
+
+async function datosEmpresaActivaConfig() {
+  if (empresaActivaCache) return empresaActivaCache;
+  const id = empresaActivaId();
+  if (!id) return null;
+  const { data } = await supabase
+    .from('empresas').select('id, razon_social').eq('id', id).maybeSingle();
+  empresaActivaCache = data || null;
+  return empresaActivaCache;
+}
+
+async function fijarEmpresaEnSelector(idSelect) {
+  const $s = document.getElementById(idSelect);
+  const empresa = await datosEmpresaActivaConfig();
+  const $seccion = $s.closest('.selector-empresa');
+
+  // Sustituye el desplegable por el nombre fijo de la empresa.
+  $s.hidden = true;
+  let $fijo = $seccion.querySelector('.empresa-activa-nombre');
+  if (!$fijo) {
+    $fijo = document.createElement('span');
+    $fijo.className = 'empresa-activa-nombre';
+    $s.after($fijo);
+    const $ayuda = document.createElement('p');
+    $ayuda.className = 'ayuda';
+    $ayuda.textContent = 'Para configurar otra empresa, use «Salir de empresa» e ingrese en ella.';
+    $fijo.after($ayuda);
+  }
+  const $etiqueta = $seccion.querySelector('label');
+  if ($etiqueta) $etiqueta.textContent = 'Empresa activa';
+
+  if (!empresa) {
+    $fijo.textContent = 'No hay una empresa activa. Use «Salir de empresa» y elija una.';
+    return;
+  }
+
+  $fijo.textContent = empresa.razon_social;
+  $s.innerHTML = '';
+  const o = document.createElement('option');
+  o.value = empresa.id;
+  o.textContent = empresa.razon_social;
+  $s.appendChild(o);
+  $s.value = empresa.id;
+  $s.dispatchEvent(new Event('change'));   // carga la configuración de esa empresa
+}
+
 let empresasCargadasCargos = false;
 async function cargarEmpresasCargos() {
   if (empresasCargadasCargos) return;
-  const perfil = sesionActual() || { rol: 'admin' };
-  const data = await empresasPermitidas(perfil);
-  const $s = document.getElementById('cfg-empresa');
-  (data || []).forEach((e) => {
-    const o = document.createElement('option');
-    o.value = e.id; o.textContent = e.razon_social;
-    $s.appendChild(o);
-  });
   empresasCargadasCargos = true;
+  await fijarEmpresaEnSelector('cfg-empresa');
 }
 
 /* ============================================
@@ -349,15 +399,8 @@ async function cargarEmpresasCargos() {
 let empresasCargadasModulos = false;
 async function cargarEmpresasModulos() {
   if (empresasCargadasModulos) return;
-  const perfil = sesionActual() || { rol: 'admin' };
-  const data = await empresasPermitidas(perfil);
-  const $s = document.getElementById('mod-empresa');
-  (data || []).forEach((e) => {
-    const o = document.createElement('option');
-    o.value = e.id; o.textContent = e.razon_social;
-    $s.appendChild(o);
-  });
   empresasCargadasModulos = true;
+  await fijarEmpresaEnSelector('mod-empresa');
 }
 
 async function pintarModulos(empresaId) {
@@ -411,15 +454,8 @@ const logoEstado = { empresaId: null, logoRecortadoDataUrl: null };
 let empresasCargadasLogo = false;
 async function cargarEmpresasLogo() {
   if (empresasCargadasLogo) return;
-  const perfil = sesionActual() || { rol: 'admin' };
-  const data = await empresasPermitidas(perfil);
-  const $s = document.getElementById('logo-empresa');
-  (data || []).forEach((e) => {
-    const o = document.createElement('option');
-    o.value = e.id; o.textContent = e.razon_social;
-    $s.appendChild(o);
-  });
   empresasCargadasLogo = true;
+  await fijarEmpresaEnSelector('logo-empresa');
 }
 
 /* Trae el logo y color ya guardados de la empresa elegida, para
