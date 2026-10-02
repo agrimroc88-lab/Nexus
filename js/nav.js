@@ -39,7 +39,11 @@ export const MODULOS = [
   { id: 'usuarios',      texto: 'Usuarios',             archivo: 'usuarios.html',             listo: true,
     roles: ['admin'] },
   { id: 'configuracion', texto: 'Configuración',        archivo: 'configuracion.html',        listo: true,
-    roles: ['admin'], abajo: true }
+    roles: ['admin'] }
+  /* Configuración va justo debajo de Usuarios (antes llevaba
+     `abajo: true` y se iba al fondo del menú, obligando a bajar
+     mucho para encontrarla). Para mandar un módulo al fondo,
+     basta volver a ponerle `abajo: true`. */
 ];
 
 /**
