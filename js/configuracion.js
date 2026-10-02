@@ -8,7 +8,7 @@
 import { supabase } from './supabase.js';
 import { protegerPagina } from './auth.js';
 import { montarNavegacion, MODULOS } from './nav.js';
-import { empresasPermitidas, sesionActual, MODULOS_OPCIONALES, modulosActivosEmpresa, fijarModuloEmpresa } from './auth.js';
+import { empresasPermitidas, sesionActual, MODULOS_OPCIONALES, modulosActivosEmpresa, fijarModuloEmpresa, empresaActivaId } from './auth.js';
 import { escapar } from './utils.js';
 
 const estado = {
@@ -27,6 +27,7 @@ async function iniciar() {
   await cargar();
   conectar();
   aplicarPrevia();
+  await pintarPreviaEmpresa();
 
   await cargarTemaVisual();
   conectarTemaVisual();
@@ -51,6 +52,32 @@ async function cargar() {
 function marcarPos(pos) {
   document.querySelectorAll('.pos-btn').forEach((b) =>
     b.classList.toggle('activa', b.dataset.pos === pos));
+}
+
+/* La vista previa muestra la empresa ACTIVA (la que se eligió al
+   ingresar): su logo, su nombre y su color, igual que el menú y la
+   cabecera reales. Antes estaba fija con el logo y el nombre de
+   Agrimroc, así que no reflejaba en qué empresa se estaba.
+   Si la empresa aún no tiene logo propio, se usa el de siempre,
+   el mismo criterio que aplica nav.js. */
+async function pintarPreviaEmpresa() {
+  const id = empresaActivaId();
+  if (!id) return;
+
+  const { data } = await supabase
+    .from('empresas')
+    .select('razon_social, logo_url, color_marca')
+    .eq('id', id)
+    .maybeSingle();
+  if (!data) return;
+
+  const $logo = document.getElementById('previa-logo');
+  $logo.src = data.logo_url || 'logo.png';
+  $logo.alt = data.razon_social || 'Logo';
+
+  const $nombre = document.getElementById('previa-nombre');
+  $nombre.textContent = data.razon_social || '';
+  $nombre.style.color = data.color_marca || '';
 }
 
 function aplicarPrevia() {
@@ -683,6 +710,10 @@ async function guardarLogo() {
     return;
   }
 
+  // Si se cambió el logo de la empresa activa, la vista previa
+  // de la pestaña Apariencia se actualiza en el acto.
+  if (logoEstado.empresaId === empresaActivaId()) await pintarPreviaEmpresa();
+
   $guardado.textContent = 'Logo guardado ✓';
   setTimeout(() => { $guardado.textContent = ''; }, 3000);
 }
@@ -702,6 +733,8 @@ async function guardarColor() {
     alert('No se pudo guardar el color: ' + error.message);
     return;
   }
+
+  if (logoEstado.empresaId === empresaActivaId()) await pintarPreviaEmpresa();
 
   $guardado.textContent = 'Color guardado ✓';
   setTimeout(() => { $guardado.textContent = ''; }, 3000);
