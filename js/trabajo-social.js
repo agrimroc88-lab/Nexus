@@ -35,6 +35,7 @@ const estado = {
   paciente: null,
   verId: null,
   editandoId: null,  // id de la ficha que se está editando (null = ficha nueva)
+  cargasAntiguas: null,  // cargas marcadas a mano en fichas del formato anterior
   vista: 'ficha'
 };
 
@@ -166,8 +167,10 @@ function conectarEventos() {
     await eliminarFicha(estado.verId);
     document.getElementById('modal-ver').hidden = true;
   });
-  document.getElementById('ts_parentesco_opciones')
-    ?.addEventListener('change', sincronizarParentescoCargas);
+  // Recalcular cargas mientras se escribe en la tabla de familiares
+  const $fam = document.getElementById('cuerpo-familiares');
+  $fam.addEventListener('input', actualizarResumenCargas);
+  $fam.addEventListener('change', actualizarResumenCargas);
 
   document.getElementById('at-anio')?.addEventListener('change', pintarAtenciones);
   document.getElementById('btn-guardar-manual')?.addEventListener('click', guardarManual);
@@ -358,7 +361,7 @@ function agregarFilaFamiliar(f) {
   const tr = document.createElement('tr');
   tr.innerHTML = `
     <td><input type="text" class="fam-nombre" value="${f.nombre ? escapar(f.nombre) : ''}"></td>
-    <td><input type="text" class="fam-parentesco" value="${f.parentesco ? escapar(f.parentesco) : ''}"></td>
+    <td><input type="text" class="fam-parentesco" list="lista-parentescos" value="${f.parentesco ? escapar(f.parentesco) : ''}"></td>
     <td><select class="fam-sexo"><option value=""></option><option ${f.sexo==='H'?'selected':''}>H</option><option ${f.sexo==='M'?'selected':''}>M</option></select></td>
     <td><input type="text" class="fam-edad" value="${f.edad ? escapar(f.edad) : ''}" style="width:40px"></td>
     <td><select class="fam-estudia"><option value=""></option><option ${f.estudia==='Sí'?'selected':''}>Sí</option><option ${f.estudia==='No'?'selected':''}>No</option></select></td>
@@ -366,8 +369,9 @@ function agregarFilaFamiliar(f) {
     <td><input type="text" class="fam-grado" value="${f.grado ? escapar(f.grado) : ''}"></td>
     <td><select class="fam-trabaja"><option value=""></option><option ${f.trabaja==='Sí'?'selected':''}>Sí</option><option ${f.trabaja==='No'?'selected':''}>No</option></select></td>
     <td><button type="button" class="boton-icono-critico fam-quitar">×</button></td>`;
-  tr.querySelector('.fam-quitar').addEventListener('click', () => tr.remove());
+  tr.querySelector('.fam-quitar').addEventListener('click', () => { tr.remove(); actualizarResumenCargas(); });
   document.getElementById('cuerpo-familiares').appendChild(tr);
+  actualizarResumenCargas();
 }
 
 function leerFamiliares() {
@@ -435,19 +439,112 @@ function valor(id) {
   return v === '' ? null : v;
 }
 
-/** Lee el radio marcado de un grupo (ej. "ts_cargas": Sí/No). */
-function valorRadio(nombre) {
-  const el = document.querySelector(`input[name="${nombre}"]:checked`);
-  return el ? el.value : null;
+/* ============================================
+   Cargas familiares (dato derivado)
+
+   Ya no se preguntan aparte: TODOS los familiares registrados en
+   la tabla "Datos familiares" cuentan como carga. De ahí salen
+   el Sí/No, el N° y las casillas de parentesco del Registro de
+   Personal. Se siguen guardando en las mismas columnas de siempre
+   (rp_cargas_familiares, rp_num_cargas, rp_parentesco_cargas)
+   para que reportes y fichas antiguas no cambien.
+   ============================================ */
+
+/** Casillas que trae impresas el Registro de Personal, en orden. */
+const CASILLAS_CARGAS = ['Esposa', 'Hijo', 'Hija', 'Papá', 'Mamá', 'Abuelo', 'Abuela'];
+
+function normalizarTexto(t) {
+  return String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 }
 
-/** Las casillas de parentesco de cargas familiares se guardan
-    como texto separado por comas —mismo campo de siempre
-    (rp_parentesco_cargas)—, solo que ahora se arma solo. */
-function sincronizarParentescoCargas() {
-  const marcados = [...document.querySelectorAll('#ts_parentesco_opciones input:checked')]
-    .map((c) => c.value);
-  document.getElementById('ts_parentesco_cargas').value = marcados.join(', ');
+/** Traduce el parentesco escrito a una casilla del formato impreso.
+    Devuelve null si no tiene casilla (hermano, sobrino…): igual
+    cuenta en el N°, solo que no se marca ninguna X. */
+function casillaParentesco(parentesco, sexo) {
+  const p = normalizarTexto(parentesco);
+  if (!p) return null;
+  if (/^(espos|conyug|convivient|pareja|union libre)/.test(p)) return 'Esposa';
+  if (/^(padre|papa|papi)\b/.test(p)) return 'Papá';
+  if (/^(madre|mama|mami)\b/.test(p)) return 'Mamá';
+  if (/^abuelo\b/.test(p)) return 'Abuelo';
+  if (/^abuela\b/.test(p)) return 'Abuela';
+  if (/^hij/.test(p)) {
+    const palabra = p.split(/[\s/(@]/)[0];           // "hijo/a" → "hijo"
+    const ambiguo = /[/(@]/.test(p);                   // "hijo/a", "hijo(a)", "hij@"
+    if (ambiguo) return sexo === 'M' ? 'Hija' : sexo === 'H' ? 'Hijo' : null;
+    if (palabra.endsWith('a')) return 'Hija';          // hija, hijastra
+    if (palabra.endsWith('o')) return 'Hijo';          // hijo, hijastro
+    return sexo === 'M' ? 'Hija' : sexo === 'H' ? 'Hijo' : null;
+  }
+  return null;
+}
+
+/** De la lista de familiares saca las tres respuestas del Registro. */
+function calcularCargas(familiares) {
+  const lista = (Array.isArray(familiares) ? familiares : []).filter((f) => f && f.nombre);
+  const marcadas = new Set();
+  const sinCasilla = [];
+  lista.forEach((f) => {
+    const c = casillaParentesco(f.parentesco, f.sexo);
+    if (c) marcadas.add(c); else sinCasilla.push(f.parentesco || 'sin parentesco');
+  });
+  const parentescos = CASILLAS_CARGAS.filter((c) => marcadas.has(c));
+  return {
+    tiene: lista.length > 0 ? 'Sí' : 'No',
+    num: String(lista.length),
+    parentescos,
+    texto: parentescos.join(', '),
+    sinCasilla
+  };
+}
+
+/** Cargas a usar para una ficha ya guardada (al imprimir).
+    Si la ficha tiene familiares, manda la tabla. Si es una ficha
+    antigua sin tabla, se respeta lo que se marcó a mano en su día. */
+function cargasDeFicha(f) {
+  const tieneTabla = Array.isArray(f.familiares) && f.familiares.some((x) => x && x.nombre);
+  if (tieneTabla) return calcularCargas(f.familiares);
+  const texto = f.rp_parentesco_cargas || '';
+  const guardadas = texto.split(',').map((x) => x.trim());
+  return {
+    tiene: f.rp_cargas_familiares || null,
+    num: f.rp_num_cargas || null,
+    parentescos: CASILLAS_CARGAS.filter((c) => guardadas.includes(c)),
+    texto,
+    sinCasilla: []
+  };
+}
+
+/** ¿La ficha que se está editando trae cargas marcadas a mano
+    (formato anterior) que todavía no están en la tabla? */
+function hayCargasAntiguas() {
+  const a = estado.cargasAntiguas;
+  return !!(a && (a.rp_cargas_familiares || a.rp_num_cargas || a.rp_parentesco_cargas));
+}
+
+/** Recuadro informativo dentro del formulario. */
+function actualizarResumenCargas() {
+  const $r = document.getElementById('ts_cargas_resumen');
+  if (!$r) return;
+  const familiares = leerFamiliares();
+  const c = calcularCargas(familiares);
+
+  if (familiares.length === 0 && hayCargasAntiguas()) {
+    const a = estado.cargasAntiguas;
+    $r.innerHTML = `<strong>Cargas familiares:</strong> ${escapar(a.rp_cargas_familiares || '—')}`
+      + (a.rp_num_cargas ? ` · N° ${escapar(a.rp_num_cargas)}` : '')
+      + (a.rp_parentesco_cargas ? ` (${escapar(a.rp_parentesco_cargas)})` : '')
+      + `<span class="ts-cargas-aviso">Esta ficha se llenó con el formato anterior. Se conservarán estos datos hasta que registre a los familiares en la tabla "Datos familiares".</span>`;
+    return;
+  }
+
+  $r.innerHTML = `<strong>Cargas familiares:</strong> ${c.tiene}`
+    + (c.num !== '0' ? ` · N° ${c.num}` : '')
+    + (c.texto ? ` (${escapar(c.texto)})` : '')
+    + `<span class="ts-cargas-nota">Se calcula solo con la tabla "Datos familiares": todos los registrados cuentan como carga.</span>`
+    + (c.sinCasilla.length
+      ? `<span class="ts-cargas-aviso">Cuentan en el N° pero no tienen casilla en el Registro impreso: ${escapar(c.sinCasilla.join(', '))}.</span>`
+      : '');
 }
 
 /* Mismo orden de campos que usa guardarFicha() —se reutiliza
@@ -478,8 +575,7 @@ const MAPA_CAMPOS_FICHA_TS = [
   ['ts_fam2_cel', 'rp_familiar2_celular'],
   ['ts_contacto_nombre', 'rp_contacto_nombre'], ['ts_contacto_correo', 'rp_contacto_correo'],
   ['ts_contacto_cel', 'rp_contacto_celular'],
-  ['ts_num_cargas', 'rp_num_cargas'],
-  ['ts_parentesco_cargas', 'rp_parentesco_cargas'], ['ts_sueldo', 'rp_sueldo'],
+  ['ts_sueldo', 'rp_sueldo'],
   ['ts_exp_empresa', 'rp_exp_empresa'], ['ts_exp_cargo', 'rp_exp_cargo']
 ];
 
@@ -505,20 +601,19 @@ async function editarFicha() {
   document.getElementById('ts_viv_agua').checked = !!f.vivienda_agua;
   document.getElementById('ts_viv_alcantarillado').checked = !!f.vivienda_alcantarillado;
 
-  const radioCargas = document.querySelector(`input[name="ts_cargas"][value="${f.rp_cargas_familiares}"]`);
-  if (radioCargas) radioCargas.checked = true;
-
-  const parentescosGuardados = (f.rp_parentesco_cargas || '').split(',').map((s) => s.trim());
-  document.querySelectorAll('#ts_parentesco_opciones input').forEach((c) => {
-    c.checked = parentescosGuardados.includes(c.value);
-  });
-  sincronizarParentescoCargas();
+  // Por si es una ficha del formato anterior (cargas marcadas a mano)
+  estado.cargasAntiguas = {
+    rp_cargas_familiares: f.rp_cargas_familiares ?? null,
+    rp_num_cargas: f.rp_num_cargas ?? null,
+    rp_parentesco_cargas: f.rp_parentesco_cargas ?? null
+  };
 
   document.getElementById('cuerpo-discapacidades').innerHTML = '';
   (Array.isArray(f.discapacidades) ? f.discapacidades : []).forEach((d) => agregarFilaDiscapacidad(d));
 
   document.getElementById('cuerpo-familiares').innerHTML = '';
   (Array.isArray(f.familiares) ? f.familiares : []).forEach((fam) => agregarFilaFamiliar(fam));
+  actualizarResumenCargas();
 
   const { data: t } = await supabase
     .from('v_trabajadores').select('*')
@@ -536,6 +631,14 @@ async function editarFicha() {
 async function guardarFicha() {
   const $alerta = document.getElementById('alerta-ficha');
   if (!estado.paciente) { $alerta.textContent = 'Primero busque un trabajador.'; $alerta.hidden = false; return; }
+
+  const familiares = leerFamiliares();
+  const cargas = (familiares.length === 0 && hayCargasAntiguas())
+    ? estado.cargasAntiguas                       // ficha antigua sin tabla: no perder lo marcado
+    : (() => {
+        const c = calcularCargas(familiares);
+        return { rp_cargas_familiares: c.tiene, rp_num_cargas: c.num, rp_parentesco_cargas: c.texto || null };
+      })();
 
   const fila = {
     empresa_id: estado.empresaId,
@@ -570,7 +673,7 @@ async function guardarFicha() {
     mapa_sitios: valor('ts_mapa_sitios'),
     domicilio_descripcion: valor('ts_dom_descripcion'),
     domicilio_referencias: valor('ts_dom_referencias'),
-    familiares: leerFamiliares(),
+    familiares,
     vivienda_tenencia: valor('ts_viv_tenencia'),
     vivienda_construccion: valor('ts_viv_construccion'),
     vivienda_luz: document.getElementById('ts_viv_luz').checked,
@@ -590,9 +693,9 @@ async function guardarFicha() {
     rp_contacto_nombre: valor('ts_contacto_nombre'),
     rp_contacto_correo: valor('ts_contacto_correo'),
     rp_contacto_celular: valor('ts_contacto_cel'),
-    rp_cargas_familiares: valorRadio('ts_cargas'),
-    rp_num_cargas: valor('ts_num_cargas'),
-    rp_parentesco_cargas: valor('ts_parentesco_cargas'),
+    rp_cargas_familiares: cargas.rp_cargas_familiares,
+    rp_num_cargas: cargas.rp_num_cargas,
+    rp_parentesco_cargas: cargas.rp_parentesco_cargas,
     rp_sueldo: valor('ts_sueldo'),
     rp_fecha_salida: document.getElementById('ts_fecha_salida').value || null,
     rp_exp_empresa: valor('ts_exp_empresa'),
@@ -639,6 +742,8 @@ function limpiarFormulario() {
   document.getElementById('cuerpo-familiares').innerHTML = '';
   document.getElementById('cuerpo-discapacidades').innerHTML = '';
   document.getElementById('alerta-ficha').hidden = true;
+  estado.cargasAntiguas = null;
+  actualizarResumenCargas();
 }
 
 /* ============================================
@@ -1199,6 +1304,7 @@ function htmlFichaSocial(f) {
   </div>`;
 }
 function htmlRegistroPersonal(f) {
+  const cargas = cargasDeFicha(f);   // de la tabla de familiares
   return `
   <div class="doc-hoja doc-registro">
     <div class="doc-encabezado">
@@ -1245,9 +1351,9 @@ function htmlRegistroPersonal(f) {
         <td class="doc-lbl doc-centro">Nº</td>
       </tr>
       <tr>
-        <td class="doc-centro">${MARCA(f.rp_cargas_familiares, 'Sí')}</td>
-        <td class="doc-centro">${MARCA(f.rp_cargas_familiares, 'No')}</td>
-        <td class="doc-centro">${V(f.rp_num_cargas)}</td>
+        <td class="doc-centro">${MARCA(cargas.tiene, 'Sí')}</td>
+        <td class="doc-centro">${MARCA(cargas.tiene, 'No')}</td>
+        <td class="doc-centro">${V(cargas.num)}</td>
       </tr>
     </table>
     <table class="doc-tabla doc-tabla-chica">
@@ -1259,13 +1365,13 @@ function htmlRegistroPersonal(f) {
         <td class="doc-lbl doc-centro">Abuela</td>
       </tr>
       <tr>
-        <td class="doc-centro">${(f.rp_parentesco_cargas || '').includes('Esposa') ? 'X' : ''}</td>
-        <td class="doc-centro">${(f.rp_parentesco_cargas || '').includes('Hijo') ? 'X' : ''}</td>
-        <td class="doc-centro">${(f.rp_parentesco_cargas || '').includes('Hija') ? 'X' : ''}</td>
-        <td class="doc-centro">${(f.rp_parentesco_cargas || '').includes('Papá') ? 'X' : ''}</td>
-        <td class="doc-centro">${(f.rp_parentesco_cargas || '').includes('Mamá') ? 'X' : ''}</td>
-        <td class="doc-centro">${(f.rp_parentesco_cargas || '').includes('Abuelo') ? 'X' : ''}</td>
-        <td class="doc-centro">${(f.rp_parentesco_cargas || '').includes('Abuela') ? 'X' : ''}</td>
+        <td class="doc-centro">${cargas.parentescos.includes('Esposa') ? 'X' : ''}</td>
+        <td class="doc-centro">${cargas.parentescos.includes('Hijo') ? 'X' : ''}</td>
+        <td class="doc-centro">${cargas.parentescos.includes('Hija') ? 'X' : ''}</td>
+        <td class="doc-centro">${cargas.parentescos.includes('Papá') ? 'X' : ''}</td>
+        <td class="doc-centro">${cargas.parentescos.includes('Mamá') ? 'X' : ''}</td>
+        <td class="doc-centro">${cargas.parentescos.includes('Abuelo') ? 'X' : ''}</td>
+        <td class="doc-centro">${cargas.parentescos.includes('Abuela') ? 'X' : ''}</td>
       </tr>
     </table>
 
