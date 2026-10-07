@@ -1109,7 +1109,10 @@ function htmlFichaSocial(f) {
      trabajador (f.disc_tipo_sanguineo), no de cada discapacidad. */
   const discs = Array.isArray(f.discapacidades) ? f.discapacidades : [];
   const disc = discs[0] || {};
-  const discsExtra = discs.slice(1);
+  /* Antes: discs.slice(1) — el primer familiar solo salía en la
+     cuadrícula pequeña y en la impresión parecía no estar. Ahora
+     la tabla muestra a todos, empezando por el primero. */
+  const discsExtra = discs;
   const filasDiscExtra = discsExtra.length ? `
     <table class="doc-tabla doc-tabla-chica" style="margin-top:0.1rem;">
       <tr><td class="doc-lbl">Familiar con Discapacidad</td><td class="doc-lbl">Código</td><td class="doc-lbl">Tipo de Discapacidad</td><td class="doc-lbl">Porcentaje</td><td class="doc-lbl">Teléfono</td><td class="doc-lbl">Convencional</td></tr>
