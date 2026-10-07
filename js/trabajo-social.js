@@ -176,6 +176,10 @@ function conectarEventos() {
   GRUPOS_FAMILIAR.forEach((g) => {
     document.getElementById(g.sel)?.addEventListener('change', () => alElegirFamiliar(g));
   });
+  document.getElementById('sel-dom-resp')?.addEventListener('change', aplicarDomicilioResp);
+  PARES_DOMICILIO.forEach(([origen]) => {
+    document.getElementById(origen)?.addEventListener('input', aplicarDomicilioResp);
+  });
 
   document.getElementById('at-anio')?.addEventListener('change', pintarAtenciones);
   document.getElementById('btn-guardar-manual')?.addEventListener('click', guardarManual);
@@ -522,6 +526,41 @@ function vincularGruposPorNombre() {
   });
 }
 
+/* ============================================
+   Domicilio: se escribe una vez en Mapa de Ubicación y la
+   Persona Responsable puede elegir "Mismo domicilio…".
+   Solo copia dentro de la ficha abierta: nunca trae datos de
+   otra ficha ni de otro trabajador.
+   ============================================ */
+const PARES_DOMICILIO = [
+  ['ts_mapa_lugar', 'ts_resp_lugar'],
+  ['ts_mapa_descripcion', 'ts_dom_descripcion'],
+  ['ts_mapa_sitios', 'ts_dom_referencias']
+];
+
+function aplicarDomicilioResp() {
+  const $s = document.getElementById('sel-dom-resp');
+  const igual = !!$s && $s.value === 'mapa';
+  PARES_DOMICILIO.forEach(([origen, destino]) => {
+    const $o = document.getElementById(origen), $d = document.getElementById(destino);
+    if (!$o || !$d) return;
+    if (igual) $d.value = $o.value;
+    $d.readOnly = igual;
+  });
+}
+
+/** Al editar: si el domicilio guardado es idéntico al del Mapa,
+    se deja elegida la opción "Mismo domicilio". */
+function vincularDomicilioResp() {
+  const $s = document.getElementById('sel-dom-resp');
+  if (!$s) return;
+  const val = (id) => (document.getElementById(id)?.value || '').trim();
+  const iguales = PARES_DOMICILIO.every(([o, d]) => val(o) === val(d));
+  const algo = PARES_DOMICILIO.some(([o]) => val(o) !== '');
+  $s.value = (iguales && algo) ? 'mapa' : '';
+  aplicarDomicilioResp();
+}
+
 /** Igual que los familiares en general, pero para el bloque de
     "familiares con discapacidad" —se puede agregar más de uno,
     en vez del campo único de antes. */
@@ -744,6 +783,7 @@ async function editarFicha() {
   (Array.isArray(f.familiares) ? f.familiares : []).forEach((fam) => agregarFilaFamiliar(fam));
   actualizarResumenCargas();
   vincularGruposPorNombre();
+  vincularDomicilioResp();
 
   const { data: t } = await supabase
     .from('v_trabajadores').select('*')
@@ -875,6 +915,7 @@ function limpiarFormulario() {
   estado.cargasAntiguas = null;
   actualizarResumenCargas();
   refrescarSelectoresFamiliares();
+  aplicarDomicilioResp();
 }
 
 /* ============================================
