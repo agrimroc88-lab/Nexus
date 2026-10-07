@@ -42,6 +42,7 @@
     .ts-cargas-resumen .ts-cargas-aviso { display: block; margin-top: 0.25rem; font-size: 0.82rem; color: #b9770e; }
     .familiar-tabla { width: 100%; border-collapse: collapse; margin: 0.5rem 0; font-size: 0.85rem; }
     .familiar-tabla th, .familiar-tabla td { border: 1px solid var(--color-borde, #e2e8e2); padding: 3px; }
+    .entrada[readonly] { background: #eef3ee; color: #333; cursor: default; }
     .familiar-tabla input, .familiar-tabla select { width: 100%; border: none; font-size: 0.85rem; padding: 2px; }
 
     /* ===== Impresión: común a ambos documentos ===== */
@@ -497,26 +498,8 @@
             <input class="entrada" id="ts_disc_sangre" type="text">
           </div>
 
-          <h3 class="seccion-titulo">Mapa de Ubicación de Domicilio</h3>
-          <div class="rejilla">
-            <div class="campo"><label class="etiqueta" for="ts_mapa_nombre">Nombre del Familiar</label><input class="entrada" id="ts_mapa_nombre" type="text"></div>
-            <div class="campo"><label class="etiqueta" for="ts_mapa_parentesco">Parentesco</label><input class="entrada" id="ts_mapa_parentesco" type="text"></div>
-            <div class="campo"><label class="etiqueta" for="ts_mapa_telefono2">Teléfono 2</label><input class="entrada" id="ts_mapa_telefono2" type="text"></div>
-          </div>
-          <div class="campo campo-ancho"><label class="etiqueta" for="ts_mapa_lugar">Lugar de Domicilio / Vivienda</label><input class="entrada" id="ts_mapa_lugar" type="text"></div>
-          <div class="campo campo-ancho"><label class="etiqueta" for="ts_mapa_descripcion">Descripción de Domicilio / Vivienda</label><textarea class="entrada area" id="ts_mapa_descripcion" rows="2"></textarea></div>
-          <div class="campo campo-ancho"><label class="etiqueta" for="ts_mapa_sitios">Sitios de Referencia de Domicilio / Vivienda</label><textarea class="entrada area" id="ts_mapa_sitios" rows="2"></textarea></div>
-
-          <div class="rejilla" style="margin-top:0.75rem;">
-            <div class="campo"><label class="etiqueta" for="ts_resp_nombre">Persona Responsable</label><input class="entrada" id="ts_resp_nombre" type="text"></div>
-            <div class="campo"><label class="etiqueta" for="ts_resp_parentesco">Parentesco</label><input class="entrada" id="ts_resp_parentesco" type="text"></div>
-            <div class="campo"><label class="etiqueta" for="ts_resp_telefono">Teléfono 1</label><input class="entrada" id="ts_resp_telefono" type="text"></div>
-          </div>
-          <div class="campo campo-ancho"><label class="etiqueta" for="ts_resp_lugar">Lugar de Domicilio / Vivienda</label><input class="entrada" id="ts_resp_lugar" type="text"></div>
-          <div class="campo campo-ancho"><label class="etiqueta" for="ts_dom_descripcion">Descripción de Domicilio / Vivienda</label><textarea class="entrada area" id="ts_dom_descripcion" rows="2"></textarea></div>
-          <div class="campo campo-ancho"><label class="etiqueta" for="ts_dom_referencias">Sitios de Referencia de Domicilio / Vivienda</label><textarea class="entrada area" id="ts_dom_referencias" rows="2"></textarea></div>
-
           <h3 class="seccion-titulo">Datos familiares</h3>
+          <p class="ayuda">Registre aquí a cada familiar una sola vez, con su teléfono. Más abajo solo se elige de esta lista y sus datos se llenan solos.</p>
           <table class="familiar-tabla" id="tabla-familiares">
             <thead>
               <tr>
@@ -528,6 +511,8 @@
                 <th>Nivel</th>
                 <th>Grado</th>
                 <th>Trabaja</th>
+                <th>Celular</th>
+                <th>Convencional</th>
                 <th></th>
               </tr>
             </thead>
@@ -542,6 +527,28 @@
             <option value="Abuelo"></option><option value="Abuela"></option>
             <option value="Hermano"></option><option value="Hermana"></option>
           </datalist>
+
+          <h3 class="seccion-titulo">Mapa de Ubicación de Domicilio</h3>
+          <div class="rejilla">
+            <div class="campo campo-ancho"><label class="etiqueta" for="sel-mapa">Familiar (elegir de Datos familiares)</label><select class="entrada sel-familiar" id="sel-mapa"></select></div>
+            <div class="campo"><label class="etiqueta" for="ts_mapa_nombre">Nombre del Familiar</label><input class="entrada" id="ts_mapa_nombre" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_mapa_parentesco">Parentesco</label><input class="entrada" id="ts_mapa_parentesco" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_mapa_telefono2">Teléfono 2</label><input class="entrada" id="ts_mapa_telefono2" type="text"></div>
+          </div>
+          <div class="campo campo-ancho"><label class="etiqueta" for="ts_mapa_lugar">Lugar de Domicilio / Vivienda</label><input class="entrada" id="ts_mapa_lugar" type="text"></div>
+          <div class="campo campo-ancho"><label class="etiqueta" for="ts_mapa_descripcion">Descripción de Domicilio / Vivienda</label><textarea class="entrada area" id="ts_mapa_descripcion" rows="2"></textarea></div>
+          <div class="campo campo-ancho"><label class="etiqueta" for="ts_mapa_sitios">Sitios de Referencia de Domicilio / Vivienda</label><textarea class="entrada area" id="ts_mapa_sitios" rows="2"></textarea></div>
+
+          <div class="rejilla" style="margin-top:0.75rem;">
+            <div class="campo campo-ancho"><label class="etiqueta" for="sel-resp">Persona responsable (elegir de Datos familiares)</label><select class="entrada sel-familiar" id="sel-resp"></select></div>
+            <div class="campo"><label class="etiqueta" for="ts_resp_nombre">Persona Responsable</label><input class="entrada" id="ts_resp_nombre" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_resp_parentesco">Parentesco</label><input class="entrada" id="ts_resp_parentesco" type="text"></div>
+            <div class="campo"><label class="etiqueta" for="ts_resp_telefono">Teléfono 1</label><input class="entrada" id="ts_resp_telefono" type="text"></div>
+          </div>
+          <div class="campo campo-ancho"><label class="etiqueta" for="ts_resp_lugar">Lugar de Domicilio / Vivienda</label><input class="entrada" id="ts_resp_lugar" type="text"></div>
+          <div class="campo campo-ancho"><label class="etiqueta" for="ts_dom_descripcion">Descripción de Domicilio / Vivienda</label><textarea class="entrada area" id="ts_dom_descripcion" rows="2"></textarea></div>
+          <div class="campo campo-ancho"><label class="etiqueta" for="ts_dom_referencias">Sitios de Referencia de Domicilio / Vivienda</label><textarea class="entrada area" id="ts_dom_referencias" rows="2"></textarea></div>
+
 
           <h3 class="seccion-titulo">Datos de la vivienda</h3>
           <div class="rejilla">
@@ -574,12 +581,15 @@
 
           <h3 class="seccion-titulo">Registro de personal · contactos</h3>
           <div class="rejilla">
+            <div class="campo campo-ancho"><label class="etiqueta" for="sel-fam1">Familiar cercano 1 (elegir de Datos familiares)</label><select class="entrada sel-familiar" id="sel-fam1"></select></div>
             <div class="campo"><label class="etiqueta" for="ts_fam1_nombre">Familiar cercano 1 · nombre</label><input class="entrada" id="ts_fam1_nombre" type="text"></div>
             <div class="campo"><label class="etiqueta" for="ts_fam1_conv">Convencional</label><input class="entrada" id="ts_fam1_conv" type="text"></div>
             <div class="campo"><label class="etiqueta" for="ts_fam1_cel">Celular</label><input class="entrada" id="ts_fam1_cel" type="text"></div>
+            <div class="campo campo-ancho"><label class="etiqueta" for="sel-fam2">Familiar cercano 2 (elegir de Datos familiares)</label><select class="entrada sel-familiar" id="sel-fam2"></select></div>
             <div class="campo"><label class="etiqueta" for="ts_fam2_nombre">Familiar cercano 2 · nombre</label><input class="entrada" id="ts_fam2_nombre" type="text"></div>
             <div class="campo"><label class="etiqueta" for="ts_fam2_conv">Convencional</label><input class="entrada" id="ts_fam2_conv" type="text"></div>
             <div class="campo"><label class="etiqueta" for="ts_fam2_cel">Celular</label><input class="entrada" id="ts_fam2_cel" type="text"></div>
+            <div class="campo campo-ancho"><label class="etiqueta" for="sel-contacto">Contacto (elegir de Datos familiares)</label><select class="entrada sel-familiar" id="sel-contacto"></select></div>
             <div class="campo"><label class="etiqueta" for="ts_contacto_nombre">Contacto · nombre</label><input class="entrada" id="ts_contacto_nombre" type="text"></div>
             <div class="campo"><label class="etiqueta" for="ts_contacto_correo">Contacto · correo</label><input class="entrada" id="ts_contacto_correo" type="text"></div>
             <div class="campo"><label class="etiqueta" for="ts_contacto_cel">Contacto · celular</label><input class="entrada" id="ts_contacto_cel" type="text"></div>
