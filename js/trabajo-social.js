@@ -1293,13 +1293,14 @@ function htmlFichaSocial(f) {
 
     <div class="doc-seccion-h doc-social-con-texto">SITUACIÓN ECONÓMICA</div>
     <table class="doc-tabla">
+      <colgroup><col style="width:62%"><col span="3"></colgroup>
       <tr><td class="doc-lbl">INGRESO MENSUALES FAMILIAR</td><td colspan="3">${V(f.ingreso_mensual)}</td></tr>
       <tr><td class="doc-lbl">OTROS INGRESOS :</td><td colspan="3">${V(f.otros_ingresos)}</td></tr>
       <tr><td class="doc-lbl">COMO SE MOVILIZA PARA LLEGAR A SU LUGAR DE TRABAJO:</td><td colspan="3">${V(f.movilizacion)}</td></tr>
     </table>
     <div class="doc-campo-largo"><strong>OBSERVACION:</strong><p>${V(f.observacion)}</p></div>
 
-    <div class="doc-social-firma-linea"></div>
+    <div class="doc-social-firma-linea" style="margin-top:5rem;"></div>
     <div class="doc-social-firma-roles">
       <span>${V(f.cargo) || 'Trabajador'}</span>
       <span>TRABAJADOR SOCIAL</span>
