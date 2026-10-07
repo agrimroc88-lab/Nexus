@@ -1256,17 +1256,17 @@ function htmlFichaSocial(f) {
     <table class="doc-tabla">
       <tr><td class="doc-lbl">Nombre del Familiar</td><td>${V(f.mapa_nombre)}</td><td class="doc-lbl">Patentezco</td><td>${V(f.mapa_parentesco)}</td><td class="doc-lbl">Telefono 2</td><td>${V(f.mapa_telefono2)}</td></tr>
     </table>
-    <div class="doc-campo-largo"><strong>Lugar de Domicilio / Vivienda:</strong><p>${V(f.mapa_lugar)}</p></div>
-    <div class="doc-campo-largo"><strong>Descripcion de Domicilio / Vivienda:</strong><p>${V(f.mapa_descripcion)}</p></div>
-    <div class="doc-campo-largo"><strong>Sitios de Refenrencia de Domicilio / Vivienda:</strong><p>${V(f.mapa_sitios)}</p></div>
+    <div class="doc-campo-largo"><strong style="display:inline;">Lugar de Domicilio / Vivienda:</strong> <p style="display:inline;min-height:0;">${V(f.mapa_lugar)}</p></div>
+    <div class="doc-campo-largo"><strong style="display:inline;">Descripcion de Domicilio / Vivienda:</strong> <p style="display:inline;min-height:0;">${V(f.mapa_descripcion)}</p></div>
+    <div class="doc-campo-largo"><strong style="display:inline;">Sitios de Refenrencia de Domicilio / Vivienda:</strong> <p style="display:inline;min-height:0;">${V(f.mapa_sitios)}</p></div>
 
     <div class="doc-social-banda"></div>
     <table class="doc-tabla" style="margin-top:0.3rem;">
       <tr><td class="doc-lbl">Persona Responsable</td><td>${V(f.resp_nombre)}</td><td class="doc-lbl">Parentezco:</td><td>${V(f.resp_parentesco)}</td><td class="doc-lbl">Telefono 1:</td><td>${V(f.resp_telefono)}</td></tr>
     </table>
-    <div class="doc-campo-largo"><strong>Lugar de Domicilio / Vivienda:</strong><p>${V(f.resp_lugar)}</p></div>
-    <div class="doc-campo-largo"><strong>Descripcion de Domicilio / Vivienda:</strong><p>${V(f.domicilio_descripcion)}</p></div>
-    <div class="doc-campo-largo"><strong>Sitios de Refenrencia de Domicilio / Vivienda:</strong><p>${V(f.domicilio_referencias)}</p></div>
+    <div class="doc-campo-largo"><strong style="display:inline;">Lugar de Domicilio / Vivienda:</strong> <p style="display:inline;min-height:0;">${V(f.resp_lugar)}</p></div>
+    <div class="doc-campo-largo"><strong style="display:inline;">Descripcion de Domicilio / Vivienda:</strong> <p style="display:inline;min-height:0;">${V(f.domicilio_descripcion)}</p></div>
+    <div class="doc-campo-largo"><strong style="display:inline;">Sitios de Refenrencia de Domicilio / Vivienda:</strong> <p style="display:inline;min-height:0;">${V(f.domicilio_referencias)}</p></div>
 
     <div class="doc-seccion-h">DATOS FAMILIARES</div>
     <div class="doc-social-banda"></div>
@@ -1317,7 +1317,7 @@ function htmlFichaSocial(f) {
       <tr><td class="doc-lbl">OTROS INGRESOS :</td><td colspan="3">${V(f.otros_ingresos)}</td></tr>
       <tr><td class="doc-lbl">COMO SE MOVILIZA PARA LLEGAR A SU LUGAR DE TRABAJO:</td><td colspan="3">${V(f.movilizacion)}</td></tr>
     </table>
-    <div class="doc-campo-largo"><strong>OBSERVACION:</strong><p>${V(f.observacion)}</p></div>
+    <div class="doc-campo-largo"><strong style="display:inline;">OBSERVACION:</strong> <p style="display:inline;min-height:0;">${V(f.observacion)}</p></div>
 
     <div class="doc-social-firma-linea" style="margin-top:5rem;"></div>
     <div class="doc-social-firma-roles">
