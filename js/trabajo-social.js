@@ -171,6 +171,11 @@ function conectarEventos() {
   const $fam = document.getElementById('cuerpo-familiares');
   $fam.addEventListener('input', actualizarResumenCargas);
   $fam.addEventListener('change', actualizarResumenCargas);
+  $fam.addEventListener('input', refrescarSelectoresFamiliares);
+  $fam.addEventListener('change', refrescarSelectoresFamiliares);
+  GRUPOS_FAMILIAR.forEach((g) => {
+    document.getElementById(g.sel)?.addEventListener('change', () => alElegirFamiliar(g));
+  });
 
   document.getElementById('at-anio')?.addEventListener('change', pintarAtenciones);
   document.getElementById('btn-guardar-manual')?.addEventListener('click', guardarManual);
@@ -356,9 +361,12 @@ function mostrarFichaTrabajador(t) {
    Familiares (tabla dinámica)
    ============================================ */
 
+let uidFamiliar = 0;
+
 function agregarFilaFamiliar(f) {
   f = f || {};
   const tr = document.createElement('tr');
+  tr.dataset.uid = String(++uidFamiliar);
   tr.innerHTML = `
     <td><input type="text" class="fam-nombre" value="${f.nombre ? escapar(f.nombre) : ''}"></td>
     <td><input type="text" class="fam-parentesco" list="lista-parentescos" value="${f.parentesco ? escapar(f.parentesco) : ''}"></td>
@@ -368,10 +376,15 @@ function agregarFilaFamiliar(f) {
     <td><input type="text" class="fam-nivel" value="${f.nivel ? escapar(f.nivel) : ''}"></td>
     <td><input type="text" class="fam-grado" value="${f.grado ? escapar(f.grado) : ''}"></td>
     <td><select class="fam-trabaja"><option value=""></option><option ${f.trabaja==='Sí'?'selected':''}>Sí</option><option ${f.trabaja==='No'?'selected':''}>No</option></select></td>
+    <td><input type="text" class="fam-celular" value="${f.celular ? escapar(f.celular) : ''}"></td>
+    <td><input type="text" class="fam-convencional" value="${f.convencional ? escapar(f.convencional) : ''}"></td>
     <td><button type="button" class="boton-icono-critico fam-quitar">×</button></td>`;
-  tr.querySelector('.fam-quitar').addEventListener('click', () => { tr.remove(); actualizarResumenCargas(); });
+  tr.querySelector('.fam-quitar').addEventListener('click', () => {
+    tr.remove(); actualizarResumenCargas(); refrescarSelectoresFamiliares();
+  });
   document.getElementById('cuerpo-familiares').appendChild(tr);
   actualizarResumenCargas();
+  refrescarSelectoresFamiliares();
 }
 
 function leerFamiliares() {
@@ -387,10 +400,126 @@ function leerFamiliares() {
       estudia: tr.querySelector('.fam-estudia').value,
       nivel: tr.querySelector('.fam-nivel').value.trim(),
       grado: tr.querySelector('.fam-grado').value.trim(),
-      trabaja: tr.querySelector('.fam-trabaja').value
+      trabaja: tr.querySelector('.fam-trabaja').value,
+      celular: tr.querySelector('.fam-celular').value.trim(),
+      convencional: tr.querySelector('.fam-convencional').value.trim()
     });
   });
   return filas;
+}
+
+/* ============================================
+   Elegir familiar de la tabla "Datos familiares"
+
+   El familiar se escribe una sola vez (nombre, parentesco y
+   teléfonos) en la tabla. Mapa de Ubicación, Persona Responsable,
+   Familiar cercano 1 y 2 y Contacto solo lo eligen de una lista:
+   al elegirlo se llenan de una vez todos sus datos, y quedan
+   bloqueados para no escribirlos dos veces. Si luego se corrige
+   el familiar en la tabla, la corrección se refleja sola.
+   Se sigue guardando en las mismas columnas de siempre
+   (mapa_nombre, resp_telefono, rp_familiar1_…), así que las
+   impresiones y las fichas antiguas no cambian.
+   Con "Escribir a mano" el campo vuelve a ser libre.
+   ============================================ */
+
+const TEL = (x) => x.celular || x.convencional || '';
+const GRUPOS_FAMILIAR = [
+  { sel: 'sel-mapa', campos: { ts_mapa_nombre: (x) => x.nombre, ts_mapa_parentesco: (x) => x.parentesco, ts_mapa_telefono2: TEL } },
+  { sel: 'sel-resp', campos: { ts_resp_nombre: (x) => x.nombre, ts_resp_parentesco: (x) => x.parentesco, ts_resp_telefono: TEL } },
+  { sel: 'sel-fam1', campos: { ts_fam1_nombre: (x) => x.nombre, ts_fam1_cel: (x) => x.celular, ts_fam1_conv: (x) => x.convencional } },
+  { sel: 'sel-fam2', campos: { ts_fam2_nombre: (x) => x.nombre, ts_fam2_cel: (x) => x.celular, ts_fam2_conv: (x) => x.convencional } },
+  { sel: 'sel-contacto', campos: { ts_contacto_nombre: (x) => x.nombre, ts_contacto_cel: (x) => x.celular } }
+];
+
+/** Familiares de la tabla con su identificador de fila. */
+function familiaresConUid() {
+  const lista = [];
+  document.querySelectorAll('#cuerpo-familiares tr').forEach((tr) => {
+    const nombre = tr.querySelector('.fam-nombre').value.trim();
+    if (!nombre) return;
+    lista.push({
+      uid: tr.dataset.uid,
+      nombre,
+      parentesco: tr.querySelector('.fam-parentesco').value.trim(),
+      celular: tr.querySelector('.fam-celular').value.trim(),
+      convencional: tr.querySelector('.fam-convencional').value.trim()
+    });
+  });
+  return lista;
+}
+
+/** Copia los datos del familiar elegido a los campos del grupo.
+    Un dato vacío en la tabla no borra lo que ya había (fichas
+    antiguas que tenían el teléfono escrito a mano). */
+function llenarGrupo(g, fam) {
+  Object.entries(g.campos).forEach(([id, sacar]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const v = sacar(fam) || '';
+    if (v) el.value = v;
+  });
+}
+
+function bloquearGrupo(g, bloquear) {
+  Object.keys(g.campos).forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.readOnly = bloquear;
+  });
+}
+
+/** Rehace las listas con los familiares actuales de la tabla y
+    vuelve a copiar los datos del que esté elegido en cada una. */
+function refrescarSelectoresFamiliares() {
+  const lista = familiaresConUid();
+  GRUPOS_FAMILIAR.forEach((g) => {
+    const $s = document.getElementById(g.sel);
+    if (!$s) return;
+    const actual = $s.value;
+    $s.innerHTML = '<option value="">— Escribir a mano —</option>'
+      + lista.map((x) => `<option value="${escapar(x.uid)}">${escapar(x.nombre)}${x.parentesco ? ' · ' + escapar(x.parentesco) : ''}</option>`).join('');
+    const sigue = lista.find((x) => x.uid === actual);
+    if (sigue) {
+      $s.value = actual;
+      llenarGrupo(g, sigue);
+    } else {
+      if (actual) Object.keys(g.campos).forEach((id) => {   // se quitó ese familiar
+        const el = document.getElementById(id); if (el) el.value = '';
+      });
+      $s.value = '';
+    }
+    bloquearGrupo(g, !!$s.value);
+  });
+}
+
+/** Al elegir en una lista. */
+function alElegirFamiliar(g) {
+  const $s = document.getElementById(g.sel);
+  const fam = familiaresConUid().find((x) => x.uid === $s.value);
+  if (fam) {
+    Object.keys(g.campos).forEach((id) => {                 // datos completos del nuevo familiar
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
+    llenarGrupo(g, fam);
+  }
+  bloquearGrupo(g, !!fam);
+}
+
+/** Al editar una ficha guardada: si el nombre escrito en un grupo
+    coincide con un familiar de la tabla, se deja elegido. */
+function vincularGruposPorNombre() {
+  const lista = familiaresConUid();
+  const norm = (t) => String(t || '').trim().toLowerCase();
+  GRUPOS_FAMILIAR.forEach((g) => {
+    const $s = document.getElementById(g.sel);
+    if (!$s) return;
+    const idNombre = Object.keys(g.campos)[0];
+    const nombre = norm(document.getElementById(idNombre)?.value);
+    const fam = nombre && lista.find((x) => norm(x.nombre) === nombre);
+    $s.value = fam ? fam.uid : '';
+    if (fam) llenarGrupo(g, fam);
+    bloquearGrupo(g, !!fam);
+  });
 }
 
 /** Igual que los familiares en general, pero para el bloque de
@@ -614,6 +743,7 @@ async function editarFicha() {
   document.getElementById('cuerpo-familiares').innerHTML = '';
   (Array.isArray(f.familiares) ? f.familiares : []).forEach((fam) => agregarFilaFamiliar(fam));
   actualizarResumenCargas();
+  vincularGruposPorNombre();
 
   const { data: t } = await supabase
     .from('v_trabajadores').select('*')
@@ -744,6 +874,7 @@ function limpiarFormulario() {
   document.getElementById('alerta-ficha').hidden = true;
   estado.cargasAntiguas = null;
   actualizarResumenCargas();
+  refrescarSelectoresFamiliares();
 }
 
 /* ============================================
