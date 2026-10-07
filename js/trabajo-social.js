@@ -581,7 +581,7 @@ const MAPA_CAMPOS_FICHA_TS = [
 
 /** Reabrir una ficha ya guardada para corregirla. */
 async function editarFicha() {
-  const f = estado.fichas.find((x) => x.id === estado.verId);
+  const f = await fichaCompleta(estado.verId);
   if (!f) return;
 
   estado.editandoId = f.id;
@@ -1072,8 +1072,27 @@ function verFicha(id) {
    Impresión de los dos documentos
    ============================================ */
 
-function imprimirDocumento(cual) {
-  const f = estado.fichas.find((x) => x.id === estado.verId);
+/* La lista de fichas sale de la vista v_fichas_sociales. Una vista
+   creada con "SELECT f.*" congela las columnas que existían en ese
+   momento: las que se agregaron después a fichas_sociales (p. ej.
+   Mapa de Ubicación: mapa_nombre, mapa_parentesco…) no llegan por
+   la vista. Por eso, al imprimir o editar, se lee también la fila
+   directamente de la tabla y se completan las columnas que falten. */
+async function fichaCompleta(id) {
+  const f = estado.fichas.find((x) => x.id === id);
+  if (!f) return null;
+  const { data: fila, error } = await supabase
+    .from('fichas_sociales').select('*').eq('id', id).maybeSingle();
+  if (error || !fila) return f;
+  const completa = { ...f };
+  Object.keys(fila).forEach((k) => {
+    if (completa[k] === undefined || completa[k] === null) completa[k] = fila[k];
+  });
+  return completa;
+}
+
+async function imprimirDocumento(cual) {
+  const f = await fichaCompleta(estado.verId);
   if (!f) return;
   const $zona = document.getElementById('zona-impresion');
   $zona.innerHTML = cual === 'social' ? htmlFichaSocial(f) : htmlRegistroPersonal(f);
