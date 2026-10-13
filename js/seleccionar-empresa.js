@@ -9,11 +9,18 @@
     · 1 empresa asignada   → se fija sola, ni se muestra
       esta pantalla (rebote inmediato al Panel).
     · 2+ empresas          → el usuario elige una tarjeta.
+
+   Nexus Learning: si la persona es administradora o docente
+   en Nexus Learning (lo responde el puente), a la izquierda
+   aparece su cuadro, y la pantalla se muestra aunque tenga
+   una sola empresa. Si Nexus Learning no responde, todo sigue
+   funcionando como antes.
    ============================================ */
 
 import { protegerPagina, empresasPermitidas, elegirEmpresaActiva, cerrarSesion }
   from './auth.js';
 import { videoDeLogin } from './tema-temporada.js';
+import { papelEnLearning, paseDeEntrada, irALearning } from './puente-learning.js';
 
 const BASE = '/Nexus/';
 
@@ -43,16 +50,22 @@ async function iniciar() {
   const perfil = await protegerPagina();
   if (!perfil) return;
 
-  const permitidas = await empresasPermitidas(perfil);
+  // Las dos consultas a la vez: empresas de NEXUS y papel en Nexus Learning
+  const [permitidas, papel] = await Promise.all([
+    empresasPermitidas(perfil),
+    papelEnLearning()
+  ]);
+
+  if (papel) mostrarLearning(papel);
 
   if (permitidas.length === 0) {
-    mostrarMensaje(
-      'Tu usuario no tiene ninguna empresa asignada. Contacta al administrador.'
-    );
+    mostrarMensaje(papel
+      ? 'No tienes empresas asignadas en NEXUS, pero puedes entrar a Nexus Learning.'
+      : 'Tu usuario no tiene ninguna empresa asignada. Contacta al administrador.');
     return;
   }
 
-  if (permitidas.length === 1) {
+  if (permitidas.length === 1 && !papel) {
     // Nada que elegir: se fija sola y sigue derecho al Panel.
     elegirEmpresaActiva(permitidas[0].id);
     window.location.href = BASE + 'dashboard.html';
@@ -60,6 +73,31 @@ async function iniciar() {
   }
 
   pintarOpciones(permitidas);
+}
+
+function mostrarLearning(papel) {
+  document.getElementById('tarjeta').classList.add('acceso-tarjeta-doble');
+  const $lema = document.querySelector('.acceso-lema');
+  if ($lema) $lema.textContent = '¿Dónde vas a trabajar hoy?';
+  document.getElementById('sel-learning').hidden = false;
+  document.getElementById('sel-emp-titulo').hidden = false;
+  document.getElementById('sel-learning-papel').textContent =
+    papel === 'admin' ? 'Administración de capacitaciones' : 'Mis programas como docente';
+
+  const $btn = document.getElementById('btn-learning');
+  const $entrar = document.getElementById('sel-learning-entrar');
+  $btn.addEventListener('click', async () => {
+    $btn.disabled = true;
+    $entrar.textContent = 'Conectando…';
+    const r = await paseDeEntrada();
+    if (r.error || !r.token_hash) {
+      $btn.disabled = false;
+      $entrar.textContent = 'Entrar →';
+      mostrarMensaje(r.error || 'No fue posible entrar a Nexus Learning.');
+      return;
+    }
+    irALearning(r.token_hash, r.rol);
+  });
 }
 
 function pintarOpciones(empresas) {

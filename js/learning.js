@@ -13,9 +13,9 @@
    · No copia la nómina a Nexus Learning ni lee datos clínicos.
    · No escribe nada en NEXUS.
 
-   Nexus Learning es otro proyecto de Supabase, con su propio
-   inicio de sesión. Por eso este módulo tiene un segundo cliente,
-   separado del cliente único de NEXUS (supabase.js).
+   Nexus Learning es otro proyecto de Supabase. La sesión se abre
+   SIN contraseña mediante el puente (ver puente-learning.js), y
+   solo para administradores de Nexus Learning.
    ============================================ */
 
 import { supabase } from './supabase.js';
@@ -23,22 +23,13 @@ import { protegerPagina, empresasPermitidas, resolverEmpresaActiva } from './aut
 import { montarNavegacion } from './nav.js';
 import { escapar, formatearFecha } from './utils.js';
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import { LEARNING, paseDeEntrada, irALearning } from './puente-learning.js';
 
-/* --- Conexión a Nexus Learning ---
-   URL y clave publicable: públicas por diseño. La seguridad la
-   impone RLS en Nexus Learning: solo sus administradores leen. */
-const LEARNING = {
-  url: 'https://yfmefiytswvxsqmnmrvg.supabase.co',
-  clave: 'sb_publishable_F3cIyhfFGoPurU4D0sNVWQ_jLugMPCO',
-  panel: 'https://agrimroc88-lab.github.io/nexus-learning/empresas.html'
-};
-
-/* Cliente anclado al ámbito global (mismo motivo que supabase.js).
-   · storageKey propio: no choca con nada de NEXUS.
-   · sessionStorage: la conexión muere al cerrar la pestaña.
-   · Sin refresco automático en segundo plano: evita el
-     congelamiento descrito en supabase.js. El pase se renueva a
-     mano en sesionLearning() cuando está por vencer. */
+/* Cliente de Nexus Learning, anclado al ámbito global (mismo motivo que supabase.js).
+   · storageKey propio y sessionStorage: muere al cerrar la pestaña.
+   · Sin refresco automático en segundo plano (evita el congelamiento
+     descrito en supabase.js). Si el pase vence, se pide otro al puente.
+   · La sesión se abre con el pase del puente: sin contraseña. */
 const learning = globalThis.__nexus_learning__ ??= createClient(LEARNING.url, LEARNING.clave, {
   auth: {
     storageKey: 'nexus_learning_sesion',
@@ -90,11 +81,7 @@ async function iniciar() {
   if (!ok) return;
 
   conectarEventos();
-  $('btn-abrir-learning').href = LEARNING.panel;
-
-  const sesion = await sesionLearning();
-  if (sesion) await alConectar(sesion);
-  else mostrarLogin();
+  await conectar();
 }
 
 /* ============================================
@@ -144,57 +131,52 @@ async function sesionLearning() {
   const { data } = await learning.auth.getSession();
   const sesion = data?.session;
   if (!sesion) return null;
-
-  // Renovar si vence en menos de 2 minutos
-  const restante = sesion.expires_at * 1000 - Date.now();
-  if (restante < 120000) {
-    const r = await learning.auth.refreshSession();
-    return r.data?.session || null;
-  }
+  // Si vence en menos de 2 minutos, se considera vencida (se pide otro pase)
+  if (sesion.expires_at * 1000 - Date.now() < 120000) return null;
   return sesion;
 }
 
-function mostrarLogin() {
+/* Conecta con Nexus Learning usando el puente (sin contraseña) */
+async function conectar() {
+  const actual = await sesionLearning();
+  if (actual) return alConectar(actual);
+
+  mostrarConexion('Conectando con Nexus Learning…', 'Usamos su sesión de NEXUS; no necesita otra contraseña.', false);
+
+  const r = await paseDeEntrada();
+  if (r.error || !r.token_hash) {
+    return mostrarConexion('No fue posible conectar', r.error || 'Intente de nuevo.', !r.sin_acceso);
+  }
+  if (r.rol !== 'admin') {
+    return mostrarConexion('Solo para administradores',
+      'Este módulo muestra datos de todas las empresas y es solo para administradores de Nexus Learning. Como docente, entre desde la pantalla de elegir empresa.', false);
+  }
+
+  let v = await learning.auth.verifyOtp({ token_hash: r.token_hash, type: 'email' });
+  if (v.error) v = await learning.auth.verifyOtp({ token_hash: r.token_hash, type: 'magiclink' });
+  if (v.error || !v.data?.session) {
+    console.error(v.error);
+    return mostrarConexion('No fue posible conectar', 'El pase de entrada no fue aceptado. Intente de nuevo.', true);
+  }
+  await alConectar(v.data.session);
+}
+
+function mostrarConexion(titulo, texto, reintentar) {
   $('aviso-inicial').hidden = true;
   $('area-trabajo').hidden = true;
-  $('panel-login').hidden = false;
-  $('lrn-correo').focus();
+  $('panel-conexion').hidden = false;
+  $('conexion-titulo').textContent = titulo;
+  $('conexion-texto').textContent = texto;
+  $('btn-reintentar').hidden = !reintentar;
 }
 
-async function conectar() {
-  const correo = $('lrn-correo').value.trim();
-  const clave = $('lrn-clave').value;
-  const $alerta = $('alerta-login');
-  $alerta.hidden = true;
-
-  if (!correo || !clave) {
-    $alerta.textContent = 'Escriba su correo y contraseña de Nexus Learning.';
-    $alerta.hidden = false;
-    return;
-  }
-
-  const $btn = $('btn-conectar');
+async function abrirPanel() {
+  const $btn = $('btn-abrir-learning');
   $btn.disabled = true;
-  $btn.textContent = 'Conectando…';
-  const { data, error } = await learning.auth.signInWithPassword({ email: correo, password: clave });
+  const r = await paseDeEntrada();
   $btn.disabled = false;
-  $btn.textContent = 'Conectar';
-
-  if (error || !data?.session) {
-    $alerta.textContent = error?.status === 429
-      ? 'Demasiados intentos. Espere unos minutos.'
-      : 'Correo o contraseña incorrectos.';
-    $alerta.hidden = false;
-    return;
-  }
-
-  $('lrn-clave').value = '';
-  await alConectar(data.session);
-}
-
-async function desconectar() {
-  await learning.auth.signOut();
-  mostrarLogin();
+  if (r.error || !r.token_hash) { mostrarGlobal(r.error || 'No fue posible abrir Nexus Learning.'); return; }
+  irALearning(r.token_hash, r.rol);
 }
 
 async function alConectar(sesion) {
@@ -206,23 +188,17 @@ async function alConectar(sesion) {
     .maybeSingle();
 
   if (error) {
-    mostrarLogin();
-    $('alerta-login').textContent = 'No fue posible verificar la cuenta en Nexus Learning. Revise su conexión e intente de nuevo.';
-    $('alerta-login').hidden = false;
-    return;
+    return mostrarConexion('No fue posible conectar', 'No se pudo verificar la cuenta en Nexus Learning. Revise su conexión.', true);
   }
   if (!admin) {
     await learning.auth.signOut();
-    mostrarLogin();
-    $('alerta-login').textContent = 'Esa cuenta no es administradora de Nexus Learning.';
-    $('alerta-login').hidden = false;
-    return;
+    return mostrarConexion('Solo para administradores', 'Su cuenta no es administradora de Nexus Learning.', false);
   }
 
-  $('panel-login').hidden = true;
+  $('panel-conexion').hidden = true;
   $('aviso-inicial').hidden = true;
   $('area-trabajo').hidden = false;
-  $('lrn-conectado').textContent = 'Conectado a Nexus Learning como ' + sesion.user.email;
+  $('lrn-conectado').textContent = 'Conectado a Nexus Learning como administrador';
   await cargarLearning();
 }
 
@@ -234,7 +210,7 @@ async function cargarLearning() {
   ocultarGlobal();
   $('panel-detalle').hidden = true;
 
-  if (!(await sesionLearning())) { mostrarLogin(); return; }
+  if (!(await sesionLearning())) { await conectar(); return; }
 
   const ruc = (estado.empresa.ruc || '').replace(/\D/g, '');
   const { data: lEmp, error } = await learning
@@ -304,7 +280,7 @@ async function cargarLearning() {
 }
 
 async function registrarEmpresa() {
-  if (!(await sesionLearning())) { mostrarLogin(); return; }
+  if (!(await sesionLearning())) { await conectar(); return; }
   const $btn = $('btn-registrar-empresa');
   $btn.disabled = true;
 
@@ -326,7 +302,7 @@ async function registrarEmpresa() {
 }
 
 async function actualizarNumero() {
-  if (!(await sesionLearning())) { mostrarLogin(); return; }
+  if (!(await sesionLearning())) { await conectar(); return; }
   const { error } = await learning.from('cap_empresas')
     .update({ num_trabajadores: estado.activos })
     .eq('id', estado.lEmpresa.id);
@@ -544,9 +520,8 @@ function exportar() {
    ============================================ */
 
 function conectarEventos() {
-  $('btn-conectar').addEventListener('click', conectar);
-  $('lrn-clave').addEventListener('keydown', (e) => { if (e.key === 'Enter') conectar(); });
-  $('btn-desconectar').addEventListener('click', desconectar);
+  $('btn-reintentar').addEventListener('click', conectar);
+  $('btn-abrir-learning').addEventListener('click', abrirPanel);
   $('btn-registrar-empresa').addEventListener('click', registrarEmpresa);
   $('btn-actualizar-numero').addEventListener('click', actualizarNumero);
   $('btn-cerrar-detalle').addEventListener('click', cerrarDetalle);
