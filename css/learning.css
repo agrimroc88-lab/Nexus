@@ -1,0 +1,145 @@
+/* ============================================
+   NEXUS · learning.css
+   Estilos exclusivos de learning.html (puente con Nexus Learning).
+   Complementa empresas.css (tabla, botones, campos, alertas).
+   ============================================ */
+
+/* --- Selector de empresa --- */
+.selector-empresa {
+  display: flex;
+  flex-direction: column;
+  max-width: 380px;
+  margin-bottom: 1.25rem;
+}
+
+/* --- Resumen (mismo patrón que trabajadores) --- */
+.resumen {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.85rem;
+  margin-bottom: 1.25rem;
+}
+.resumen-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.9rem 1rem;
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-left: 3px solid var(--color-borde);
+  border-radius: var(--radio);
+}
+.resumen-ok        { border-left-color: var(--color-acento); }
+.resumen-aviso     { border-left-color: #f5d76e; }
+.resumen-critico   { border-left-color: #f57373; }
+.resumen-destacado { border-color: var(--color-acento); }
+.resumen-destacado .resumen-valor { color: var(--color-acento); }
+.resumen-etiqueta {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-texto-tenue);
+}
+.resumen-valor { font-size: 1.5rem; font-weight: 700; }
+
+/* --- Conexión --- */
+.lrn-conexion, .lrn-registro, .lrn-detalle { padding: 1.25rem 1.4rem; }
+.lrn-conexion { max-width: 640px; }
+.lrn-titulo {
+  margin: 0 0 0.6rem;
+  font-size: 1.1rem;
+  color: var(--color-acento-oscuro);
+}
+.lrn-acciones { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 1rem; }
+
+.lrn-barra {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  padding: 0.7rem 1rem;
+  background: var(--color-acento-suave);
+  border-radius: var(--radio);
+}
+.lrn-conectado { font-size: 0.9rem; color: var(--color-acento-oscuro); font-weight: 600; }
+.lrn-barra-botones { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.lrn-barra-botones a { text-decoration: none; display: inline-flex; align-items: center; }
+
+.lrn-registro { max-width: 720px; }
+
+.lrn-desfase {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding: 0.7rem 1rem;
+  border-left: 3px solid #f5d76e;
+  background: var(--color-superficie);
+  border-radius: var(--radio);
+}
+.boton-mini { padding: 0.35rem 0.75rem; font-size: 0.82rem; }
+
+/* --- Tarjetas de capacitación --- */
+.lrn-lista { display: grid; gap: 0.9rem; }
+.lrn-tarjeta {
+  padding: 1.1rem 1.2rem;
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  box-shadow: var(--sombra-tarjeta);
+}
+.lrn-tarjeta h3 { margin: 0 0 0.5rem; font-size: 1.05rem; }
+.lrn-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.lrn-chip {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  background: var(--color-superficie-alt);
+  color: var(--color-texto-tenue);
+}
+
+.lrn-avance { margin: 0.9rem 0 0.4rem; }
+.lrn-avance-texto { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.4rem; }
+.lrn-avance-texto strong { font-size: 1.6rem; color: var(--color-acento); }
+.lrn-avance-texto span { font-size: 0.88rem; color: var(--color-texto-tenue); }
+.lrn-barra-progreso {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-superficie-alt);
+  overflow: hidden;
+}
+.lrn-barra-progreso span { display: block; height: 100%; background: var(--color-acento); }
+
+.lrn-codigos { margin: 0.6rem 0 0; font-size: 0.85rem; color: var(--color-texto-tenue); }
+.lrn-codigos strong { color: var(--color-texto); letter-spacing: 0.04em; }
+
+/* --- Detalle --- */
+.lrn-detalle-cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.lrn-pestanas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid var(--color-borde);
+}
+.lrn-pestana {
+  margin-bottom: -1px;
+  padding: 0.6rem 0.9rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--color-texto-tenue);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.lrn-pestana.activa { color: var(--color-acento); border-bottom-color: var(--color-acento); }
