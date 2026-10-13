@@ -38,23 +38,12 @@
 
       <p class="alerta" id="alerta-global" role="alert" hidden></p>
 
-      <!-- ===== Conexión con Nexus Learning ===== -->
-      <section class="panel lrn-conexion" id="panel-login" hidden>
-        <h2 class="lrn-titulo">Conectar con Nexus Learning</h2>
-        <p class="nota">Ingrese con su cuenta de administrador de Nexus Learning (correo y contraseña). Es una cuenta distinta a la de NEXUS. La conexión dura mientras esté abierta esta pestaña.</p>
-        <div class="rejilla">
-          <div class="campo">
-            <label class="etiqueta" for="lrn-correo">Correo</label>
-            <input class="entrada" id="lrn-correo" type="email" autocomplete="username">
-          </div>
-          <div class="campo">
-            <label class="etiqueta" for="lrn-clave">Contraseña</label>
-            <input class="entrada" id="lrn-clave" type="password" autocomplete="current-password">
-          </div>
-        </div>
-        <p class="alerta" id="alerta-login" role="alert" hidden></p>
+      <!-- ===== Conexión con Nexus Learning (automática, por el puente) ===== -->
+      <section class="panel lrn-conexion" id="panel-conexion" hidden>
+        <h2 class="lrn-titulo" id="conexion-titulo">Conectando con Nexus Learning…</h2>
+        <p class="nota" id="conexion-texto">Usamos su sesión de NEXUS; no necesita otra contraseña.</p>
         <div class="lrn-acciones">
-          <button class="boton-primario" id="btn-conectar" type="button">Conectar</button>
+          <button class="boton-primario" id="btn-reintentar" type="button" hidden>Reintentar</button>
         </div>
       </section>
 
@@ -63,8 +52,7 @@
         <section class="lrn-barra">
           <span class="lrn-conectado" id="lrn-conectado">—</span>
           <div class="lrn-barra-botones">
-            <a class="boton-secundario" id="btn-abrir-learning" href="#" target="_blank" rel="noopener">Abrir panel de Nexus Learning</a>
-            <button class="boton-secundario" id="btn-desconectar" type="button">Desconectar</button>
+            <button class="boton-secundario" id="btn-abrir-learning" type="button">Abrir panel de Nexus Learning</button>
           </div>
         </section>
 
@@ -164,6 +152,6 @@
     </main>
   </div>
 
-  <script type="module" src="js/learning.js?v=1"></script>
+  <script type="module" src="js/learning.js?v=2"></script>
 </body>
 </html>

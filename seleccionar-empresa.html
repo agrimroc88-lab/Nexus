@@ -18,7 +18,7 @@
 
   <button type="button" id="btn-cerrar-sesion" class="btn-cerrar-sesion-flotante">Cerrar sesión</button>
 
-  <main class="acceso-tarjeta acceso-tarjeta-ancha">
+  <main class="acceso-tarjeta acceso-tarjeta-ancha" id="tarjeta">
 
     <header class="acceso-encabezado">
       <h1 class="acceso-marca">NEXUS</h1>
@@ -27,8 +27,28 @@
 
     <p class="acceso-mensaje" id="mensaje" role="alert" hidden></p>
 
-    <div class="sel-emp-lista" id="sel-emp-lista">
-      <!-- Tarjetas de empresa insertadas por JS -->
+    <div class="sel-emp-columnas" id="sel-emp-columnas">
+
+      <!-- Nexus Learning: solo para administradores y docentes (lo decide el puente) -->
+      <section class="sel-learning" id="sel-learning" hidden>
+        <button type="button" class="sel-learning-boton" id="btn-learning">
+          <svg class="sel-learning-logo" width="56" height="56" viewBox="0 0 30 30" aria-hidden="true">
+            <circle cx="8" cy="15" r="6" fill="#F2C14E"/>
+            <circle cx="22" cy="15" r="6" fill="none" stroke="#F2C14E" stroke-width="3"/>
+            <rect x="12" y="13.5" width="6" height="3" fill="#F2C14E"/>
+          </svg>
+          <span class="sel-learning-nombre">Nexus Learning</span>
+          <span class="sel-learning-papel" id="sel-learning-papel"></span>
+          <span class="sel-learning-entrar" id="sel-learning-entrar">Entrar →</span>
+        </button>
+      </section>
+
+      <div class="sel-emp-columna">
+        <p class="sel-emp-titulo" id="sel-emp-titulo" hidden>Empresas en NEXUS</p>
+        <div class="sel-emp-lista" id="sel-emp-lista">
+          <!-- Tarjetas de empresa insertadas por JS -->
+        </div>
+      </div>
     </div>
 
     <footer class="acceso-pie">
