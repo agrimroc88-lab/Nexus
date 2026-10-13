@@ -37,6 +37,7 @@
       </section>
 
       <p class="alerta" id="alerta-global" role="alert" hidden></p>
+      <p class="nota lrn-ok" id="aviso-ok" role="status" hidden></p>
 
       <!-- ===== Conexión con Nexus Learning (automática, por el puente) ===== -->
       <section class="panel lrn-conexion" id="panel-conexion" hidden>
@@ -152,6 +153,62 @@
     </main>
   </div>
 
-  <script type="module" src="js/learning.js?v=2"></script>
+  <!-- ============ Modal: registrar en Seguridad o Salud ============ -->
+  <div class="modal" id="modal-registro" hidden>
+    <div class="modal-caja modal-estrecho" role="dialog" aria-modal="true">
+
+      <header class="modal-cabecera">
+        <h2 class="modal-titulo" id="r-titulo">Registrar en NEXUS</h2>
+        <button class="modal-cerrar" data-cierra="modal-registro" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-cuerpo">
+        <p class="nota" id="r-curso">—</p>
+
+        <div class="rejilla">
+          <div class="campo">
+            <label class="etiqueta" for="r-ambito">Pestaña</label>
+            <select class="entrada" id="r-ambito">
+              <option value="salud">Salud ocupacional</option>
+              <option value="seguridad">Seguridad industrial</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label class="etiqueta" for="r-anio">Año</label>
+            <input class="entrada" id="r-anio" type="number" min="2020" max="2100">
+          </div>
+        </div>
+
+        <div class="campo">
+          <label class="etiqueta" for="r-tema">Tema de capacitación</label>
+          <select class="entrada" id="r-tema"></select>
+          <span class="ayuda" id="r-tema-ayuda"></span>
+        </div>
+
+        <div class="lrn-resumen-registro" id="r-datos"></div>
+
+        <div class="campo">
+          <label class="etiqueta" for="r-facilitador">Facilitador</label>
+          <input class="entrada" id="r-facilitador" type="text">
+        </div>
+
+        <div class="campo">
+          <label class="etiqueta" for="r-url">Registro de asistencia (carpeta de Drive)</label>
+          <input class="entrada" id="r-url" type="url" placeholder="https://drive.google.com/…" autocomplete="off">
+          <span class="ayuda">Si ya tiene un enlace, se conserva. Alimenta GTH-09 del cumplimiento.</span>
+        </div>
+
+        <p class="nota lrn-aviso-reemplazo" id="r-reemplazo" hidden></p>
+        <p class="alerta" id="alerta-registro" role="alert" hidden></p>
+      </div>
+
+      <footer class="modal-pie">
+        <button class="boton-secundario" data-cierra="modal-registro" type="button">Cancelar</button>
+        <button class="boton-primario" id="btn-guardar-registro" type="button">Registrar</button>
+      </footer>
+    </div>
+  </div>
+
+  <script type="module" src="js/learning.js?v=3"></script>
 </body>
 </html>
