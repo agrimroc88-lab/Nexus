@@ -40,6 +40,16 @@ const learning = globalThis.__nexus_learning__ ??= createClient(LEARNING.url, LE
   }
 });
 
+/* --- Formato del Registro de asistencia (control documental) ---
+   Para cambiar el código o la versión del formato, edite solo aquí. */
+const FORMATO = {
+  codigo: 'SST-REG-001',
+  version: '01',
+  rucProveedor: '0791865156001',      // VitalWork S.A.S. (logo del pie, desde NEXUS)
+  nombreProveedor: 'VitalWork S.A.S.',
+  firmas: ['Facilitador', 'Responsable de Seguridad y Salud']
+};
+
 const estado = {
   perfil: null,
   empresa: null,          // NEXUS: { id, ruc, razon_social }
@@ -51,7 +61,15 @@ const estado = {
   inscripciones: [],
   certificados: [],
   detalle: null,          // { conv, grupos }
-  grupo: 'faltan'
+  grupo: 'faltan',
+  vinculos: new Map(),    // id convocatoria → fila de NEXUS (capacitaciones)
+  proveedor: null,        // { razon_social, logo_url } de VitalWork en NEXUS
+  leccionesPorCurso: new Map(),
+  demografia: new Map(),  // cédula → { sexo, fecha_nacimiento } desde la ficha de NEXUS
+  registroDisponible: true,
+  docentesPorCurso: new Map(),
+  registroConv: null,
+  filaDestino: null
 };
 
 const $ = (id) => document.getElementById(id);
@@ -91,7 +109,7 @@ async function iniciar() {
 async function cargarNexus(empresaId) {
   const { data: emp, error } = await supabase
     .from('empresas')
-    .select('id, ruc, razon_social')
+    .select('id, ruc, razon_social, logo_url, color_marca')
     .eq('id', empresaId)
     .single();
 
@@ -101,6 +119,11 @@ async function cargarNexus(empresaId) {
     return false;
   }
   estado.empresa = emp;
+
+  // Proveedor del servicio (logo del pie del registro)
+  const prov = await supabase.from('empresas').select('razon_social, logo_url')
+    .eq('ruc', FORMATO.rucProveedor).maybeSingle();
+  estado.proveedor = prov.data || null;
 
   // Nómina: solo los campos necesarios para comparar. Nada clínico.
   const nomina = await traerTodo((desde, hasta) => supabase
@@ -120,6 +143,16 @@ async function cargarNexus(empresaId) {
   estado.porCedula = new Map();
   estado.nomina.forEach((t) => { if (t.cedula) estado.porCedula.set(normalizar(t.cedula), t); });
   estado.activos = estado.nomina.filter((t) => t.activo).length;
+
+  // Sexo y fecha de nacimiento de la ficha del trabajador: solo como respaldo
+  // para quienes se registraron antes de que Learning los pidiera.
+  const demo = await traerTodo((desde, hasta) => supabase
+    .from('trabajadores')
+    .select('cedula, sexo, fecha_nacimiento')
+    .eq('empresa_id', empresaId)
+    .range(desde, hasta));
+  estado.demografia = new Map();
+  if (!demo.error) demo.data.forEach((t) => { if (t.cedula) estado.demografia.set(normalizar(t.cedula), t); });
   return true;
 }
 
@@ -246,8 +279,8 @@ async function cargarLearning() {
   // Capacitaciones, inscritos y certificados
   const conv = await learning
     .from('cap_convocatorias')
-    .select('id, modalidad, evaluacion_presencial, horas, fecha_capacitacion, observaciones, creado_en, ' +
-            'cap_cursos(titulo, horas), cap_accesos(tipo, codigo, valido_desde, valido_hasta, anulado)')
+    .select('id, curso_id, modalidad, evaluacion_presencial, horas, fecha_capacitacion, observaciones, creado_en, ' +
+            'cap_cursos(titulo, horas, subtemas), cap_accesos(tipo, codigo, valido_desde, valido_hasta, anulado)')
     .eq('empresa_id', lEmp.id)
     .order('creado_en', { ascending: false });
 
@@ -258,10 +291,10 @@ async function cargarLearning() {
   if (ids.length > 0) {
     const [insc, cert] = await Promise.all([
       traerTodo((d, h) => learning.from('cap_inscripciones')
-        .select('convocatoria_id, cedula, nombres, modalidad, creado_en')
+        .select('convocatoria_id, cedula, nombres, modalidad, creado_en, sexo, fecha_nacimiento, etnia')
         .in('convocatoria_id', ids).order('creado_en').range(d, h)),
       traerTodo((d, h) => learning.from('cap_certificados')
-        .select('convocatoria_id, cedula, nombres, codigo, tipo, nota, emitido_en')
+        .select('convocatoria_id, cedula, nombres, codigo, tipo, nota, modalidad, emitido_en')
         .in('convocatoria_id', ids).order('emitido_en').range(d, h))
     ]);
     if (insc.error || cert.error) {
@@ -275,6 +308,7 @@ async function cargarLearning() {
     estado.certificados = [];
   }
 
+  await Promise.all([cargarVinculos(ids), cargarDocentes(), cargarLecciones()]);
   pintarResumen();
   pintarConvocatorias();
 }
@@ -399,6 +433,7 @@ function pintarConvocatorias() {
     ver.textContent = 'Ver quién falta';
     ver.addEventListener('click', () => abrirDetalle(c));
     tarjeta.querySelector('.lrn-acciones').appendChild(ver);
+    tarjeta.appendChild(seccionRegistro(c));
 
     $lista.appendChild(tarjeta);
   });
@@ -529,6 +564,499 @@ function conectarEventos() {
   $('d-buscar').addEventListener('input', pintarFilas);
   document.querySelectorAll('.lrn-pestana').forEach((b) =>
     b.addEventListener('click', () => elegirGrupo(b.dataset.grupo)));
+
+  // Registro en Seguridad / Salud
+  document.querySelectorAll('[data-cierra]').forEach((b) =>
+    b.addEventListener('click', () => { $(b.dataset.cierra).hidden = true; }));
+  $('r-ambito').addEventListener('change', cargarTemas);
+  $('r-anio').addEventListener('change', revisarFila);
+  $('r-tema').addEventListener('change', revisarFila);
+  $('btn-guardar-registro').addEventListener('click', guardarRegistro);
+}
+
+/* ============================================
+   Registro en Seguridad industrial / Salud ocupacional
+   Llena la fila de la pestaña Capacitaciones (empresa + tema + año)
+   con los datos de Nexus Learning y la deja vinculada.
+   ============================================ */
+
+const AMBITOS = { salud: 'Salud ocupacional', seguridad: 'Seguridad industrial' };
+
+async function cargarVinculos(ids) {
+  estado.vinculos = new Map();
+  estado.registroDisponible = true;
+  if (ids.length === 0) return;
+
+  const { data, error } = await supabase
+    .from('capacitaciones')
+    .select('id, anio, tema_id, asistentes, fecha_inicio, fecha_fin, url_registro, facilitador, observacion, learning_convocatoria_id')
+    .eq('empresa_id', estado.empresa.id)
+    .in('learning_convocatoria_id', ids);
+
+  if (error) {
+    // Lo más probable: falta ejecutar sql/070 en NEXUS
+    console.warn('NEXUS · learning: sin vínculos', error);
+    estado.registroDisponible = false;
+    return;
+  }
+
+  const temaIds = [...new Set(data.map((d) => d.tema_id))];
+  let temas = [];
+  if (temaIds.length) {
+    const t = await supabase.from('capacitacion_temas').select('id, nombre, ambito').in('id', temaIds);
+    temas = t.data || [];
+  }
+  data.forEach((d) => estado.vinculos.set(d.learning_convocatoria_id,
+    { ...d, tema: temas.find((t) => t.id === d.tema_id) || null }));
+}
+
+async function cargarDocentes() {
+  estado.docentesPorCurso = new Map();
+  const cursos = [...new Set(estado.convocatorias.map((c) => c.curso_id))];
+  if (cursos.length === 0) return;
+  const { data } = await learning
+    .from('cap_docente_cursos')
+    .select('curso_id, cap_docentes(nombres, activo)')
+    .in('curso_id', cursos);
+  (data || []).forEach((r) => {
+    if (!r.cap_docentes || !r.cap_docentes.activo) return;
+    const lista = estado.docentesPorCurso.get(r.curso_id) || [];
+    lista.push(r.cap_docentes.nombres);
+    estado.docentesPorCurso.set(r.curso_id, lista);
+  });
+}
+
+/* Títulos de lecciones: subtemas por defecto si el programa no los define */
+async function cargarLecciones() {
+  estado.leccionesPorCurso = new Map();
+  const cursos = [...new Set(estado.convocatorias.map((c) => c.curso_id))];
+  if (cursos.length === 0) return;
+  const { data } = await learning.from('cap_lecciones')
+    .select('curso_id, titulo, orden').in('curso_id', cursos).order('orden');
+  (data || []).forEach((l) => {
+    const lista = estado.leccionesPorCurso.get(l.curso_id) || [];
+    lista.push(l.titulo);
+    estado.leccionesPorCurso.set(l.curso_id, lista);
+  });
+}
+
+function subtemasDe(conv) {
+  const propios = conv.cap_cursos.subtemas || [];
+  return propios.length ? propios : (estado.leccionesPorCurso.get(conv.curso_id) || []);
+}
+
+/* Datos que se llevan a NEXUS: todos los certificados (presencial y virtual) */
+function datosRegistro(conv) {
+  const certs = estado.certificados.filter((c) => c.convocatoria_id === conv.id);
+  const fechas = certs.map((c) => fechaLocal(c.emitido_en)).sort();
+  // Inicio: lo más temprano entre la fecha de la charla y el primer certificado
+  const inicio = [conv.fecha_capacitacion, fechas[0]].filter(Boolean).sort()[0] || null;
+  const ultimo = fechas[fechas.length - 1] || null;
+  const fin = ultimo && inicio && ultimo > inicio ? ultimo : null;
+  const presencial = certs.filter((c) => c.modalidad === 'presencial').length;
+  const virtual = certs.length - presencial;
+  const claves = (conv.cap_accesos || []).map((a) => a.codigo).join(', ');
+  return {
+    certs, inicio, fin, asistentes: certs.length, presencial, virtual, claves,
+    facilitador: (estado.docentesPorCurso.get(conv.curso_id) || []).join(', '),
+    observacion: 'Nexus Learning: ' + certs.length + ' certificados (' + presencial + ' presencial, ' +
+      virtual + ' virtual)' + (claves ? ' · claves ' + claves : '')
+  };
+}
+
+/* Conserva lo que haya escrito el usuario y reemplaza solo la parte de Nexus Learning */
+function combinarObservacion(previa, nueva) {
+  const partes = String(previa || '').split(' | ').filter((p) => p && !p.startsWith('Nexus Learning:'));
+  partes.push(nueva);
+  return partes.join(' | ');
+}
+
+function seccionRegistro(conv) {
+  const div = document.createElement('div');
+  div.className = 'lrn-registro-nexus';
+
+  if (!estado.registroDisponible) {
+    div.innerHTML = '<span>Para registrar en Seguridad o Salud, primero ejecute el archivo <strong>070</strong> en el SQL Editor de NEXUS.</span>';
+    return div;
+  }
+
+  const v = estado.vinculos.get(conv.id);
+  const $texto = document.createElement('span');
+  const $botones = document.createElement('div');
+  $botones.className = 'lrn-registro-botones';
+
+  if (v) {
+    div.classList.add('vinculada');
+    $texto.innerHTML = '✓ Registrada en <strong>' + escapar(AMBITOS[v.tema?.ambito] || 'NEXUS') + '</strong> · ' +
+      escapar(v.tema?.nombre || 'Tema') + ' · ' + v.anio + ' · ' + (v.asistentes ?? 0) + ' asistentes' +
+      (v.url_registro ? '' : ' · <em>falta el enlace de Drive</em>');
+    $botones.append(
+      botonPequeno('Actualizar', () => actualizarRegistro(conv, v)),
+      botonPequeno('Registro de asistencia (PDF)', () => imprimirAsistencia(conv))
+    );
+  } else {
+    $texto.textContent = 'Aún no está registrada en Seguridad industrial ni en Salud ocupacional.';
+    $botones.append(
+      botonPequeno('Registrar en Seguridad o Salud', () => abrirRegistro(conv), true),
+      botonPequeno('Registro de asistencia (PDF)', () => imprimirAsistencia(conv))
+    );
+  }
+  div.append($texto, $botones);
+  return div;
+}
+
+function botonPequeno(texto, accion, primario) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = (primario ? 'boton-primario' : 'boton-secundario') + ' boton-mini';
+  b.textContent = texto;
+  b.addEventListener('click', accion);
+  return b;
+}
+
+async function abrirRegistro(conv) {
+  ocultarGlobal();
+  const d = datosRegistro(conv);
+  if (d.asistentes === 0) {
+    mostrarGlobal('Esta capacitación todavía no tiene certificados emitidos. Regístrela cuando haya participantes.');
+    return;
+  }
+  estado.registroConv = conv;
+  estado.filaDestino = null;
+
+  $('r-curso').textContent = conv.cap_cursos.titulo + ' · ' + estado.empresa.razon_social;
+  $('r-anio').value = (d.inicio || fechaLocal(new Date().toISOString())).slice(0, 4);
+  $('r-facilitador').value = d.facilitador ||
+    [estado.perfil.nombres, estado.perfil.apellidos].filter(Boolean).join(' ');
+  $('r-url').value = '';
+  $('alerta-registro').hidden = true;
+  $('r-reemplazo').hidden = true;
+  $('r-datos').innerHTML =
+    '<div><span>Fecha de realización</span><strong>' + escapar(d.inicio ? formatearFecha(d.inicio) : '—') + '</strong></div>' +
+    '<div><span>Fecha de cierre</span><strong>' + escapar(d.fin ? formatearFecha(d.fin) : '—') + '</strong></div>' +
+    '<div><span>Asistentes</span><strong>' + d.asistentes + ' (' + d.presencial + ' presencial, ' + d.virtual + ' virtual)</strong></div>' +
+    '<div><span>Claves</span><strong>' + escapar(d.claves || '—') + '</strong></div>';
+
+  $('modal-registro').hidden = false;
+  await cargarTemas();
+}
+
+async function cargarTemas() {
+  const ambito = $('r-ambito').value;
+  const $tema = $('r-tema');
+  $tema.innerHTML = '<option value="">Cargando…</option>';
+
+  const { data, error } = await supabase
+    .from('capacitacion_temas')
+    .select('id, nombre, orden')
+    .eq('ambito', ambito)
+    .eq('activo', true)
+    .order('orden');
+
+  if (error) { return alertaRegistro('No fue posible leer los temas: ' + error.message); }
+  const temas = data || [];
+  $tema.innerHTML = '';
+  if (temas.length === 0) {
+    $tema.innerHTML = '<option value="">No hay temas en esta pestaña</option>';
+    $('r-tema-ayuda').textContent = 'Cree primero el tema en la pestaña Capacitaciones de ' + AMBITOS[ambito] + '.';
+    return;
+  }
+  $('r-tema-ayuda').textContent = '¿No está el tema? Créelo en la pestaña Capacitaciones de ' + AMBITOS[ambito] + '.';
+
+  // Preseleccionar el tema más parecido al nombre del curso
+  const curso = simplificar(estado.registroConv.cap_cursos.titulo);
+  let mejor = '';
+  temas.forEach((t) => {
+    const o = document.createElement('option');
+    o.value = t.id;
+    o.textContent = t.nombre;
+    $tema.appendChild(o);
+    const nombre = simplificar(t.nombre);
+    if (!mejor && (curso.includes(nombre) || nombre.includes(curso.split(' ').slice(0, 2).join(' ')))) mejor = t.id;
+  });
+  if (mejor) $tema.value = mejor;
+  await revisarFila();
+}
+
+/* Revisa si la fila destino (empresa + tema + año) ya tiene datos */
+async function revisarFila() {
+  const tema = $('r-tema').value;
+  const anio = parseInt($('r-anio').value, 10);
+  const $aviso = $('r-reemplazo');
+  $aviso.hidden = true;
+  $('btn-guardar-registro').disabled = false;
+  estado.filaDestino = null;
+  if (!tema || !anio) return;
+
+  const { data } = await supabase
+    .from('capacitaciones')
+    .select('id, fecha_inicio, asistentes, url_registro, facilitador, observacion, learning_convocatoria_id')
+    .eq('empresa_id', estado.empresa.id)
+    .eq('tema_id', tema)
+    .eq('anio', anio)
+    .maybeSingle();
+
+  estado.filaDestino = data || null;
+  if (!data) return;
+
+  if (data.learning_convocatoria_id && data.learning_convocatoria_id !== estado.registroConv.id) {
+    $aviso.textContent = 'Ese tema y año ya están vinculados a otra capacitación de Nexus Learning. Elija otro tema o año.';
+    $aviso.hidden = false;
+    $('btn-guardar-registro').disabled = true;
+    return;
+  }
+  if (data.url_registro) $('r-url').placeholder = 'Se conserva: ' + data.url_registro;
+  if (data.fecha_inicio) {
+    $aviso.textContent = 'Este tema ya tiene un registro en ' + anio + ' (' + formatearFecha(data.fecha_inicio) + ', ' +
+      (data.asistentes ?? 0) + ' asistentes). Al registrar se reemplazarán la fecha y los asistentes con los de Nexus Learning. ' +
+      'El enlace de Drive y su observación se conservan.';
+    $aviso.hidden = false;
+  }
+}
+
+async function guardarRegistro() {
+  const conv = estado.registroConv;
+  const tema = $('r-tema').value;
+  const anio = parseInt($('r-anio').value, 10);
+  const url = $('r-url').value.trim();
+  if (!tema) return alertaRegistro('Elija el tema de capacitación.');
+  if (!(anio >= 2020 && anio <= 2100)) return alertaRegistro('Revise el año.');
+  if (url && !/^https?:\/\//i.test(url)) return alertaRegistro('El enlace debe comenzar con http:// o https://');
+
+  const $btn = $('btn-guardar-registro');
+  $btn.disabled = true;
+
+  // 1. Asegurar la fila (empresa + tema + año)
+  let fila = estado.filaDestino;
+  if (!fila) {
+    const ins = await supabase.from('capacitaciones')
+      .insert({ empresa_id: estado.empresa.id, tema_id: tema, anio })
+      .select('id, url_registro, observacion').single();
+    if (ins.error) {
+      const otra = await supabase.from('capacitaciones').select('id, url_registro, observacion')
+        .eq('empresa_id', estado.empresa.id).eq('tema_id', tema).eq('anio', anio).maybeSingle();
+      if (!otra.data) { $btn.disabled = false; return alertaRegistro('No fue posible abrir el tema en ' + anio + ': ' + ins.error.message); }
+      fila = otra.data;
+    } else {
+      fila = ins.data;
+    }
+  }
+
+  // 2. Llenar con los datos de Nexus Learning
+  const d = datosRegistro(conv);
+  const { error } = await supabase.from('capacitaciones').update({
+    fecha_inicio: d.inicio,
+    fecha_fin: d.fin,
+    asistentes: d.asistentes,
+    facilitador: $('r-facilitador').value.trim() || null,
+    url_registro: url || fila.url_registro || null,
+    observacion: combinarObservacion(fila.observacion, d.observacion),
+    learning_convocatoria_id: conv.id
+  }).eq('id', fila.id);
+
+  $btn.disabled = false;
+  if (error) return alertaRegistro('No fue posible registrar: ' + error.message);
+
+  $('modal-registro').hidden = true;
+  await cargarVinculos(estado.convocatorias.map((c) => c.id));
+  pintarConvocatorias();
+  avisoOk('Registrada en ' + AMBITOS[$('r-ambito').value] + ': ' + d.asistentes + ' asistentes.' +
+    (url || fila.url_registro ? '' : ' Recuerde agregar el enlace de Drive en la pestaña Capacitaciones.'));
+}
+
+async function actualizarRegistro(conv, v) {
+  ocultarGlobal();
+  const d = datosRegistro(conv);
+  const { error } = await supabase.from('capacitaciones').update({
+    fecha_inicio: d.inicio,
+    fecha_fin: d.fin,
+    asistentes: d.asistentes,
+    observacion: combinarObservacion(v.observacion, d.observacion)
+  }).eq('id', v.id);
+  if (error) { mostrarGlobal('No fue posible actualizar: ' + error.message); return; }
+  await cargarVinculos(estado.convocatorias.map((c) => c.id));
+  pintarConvocatorias();
+  avisoOk('Actualizada: ' + d.asistentes + ' asistentes.');
+}
+
+function alertaRegistro(texto) {
+  $('alerta-registro').textContent = texto;
+  $('alerta-registro').hidden = false;
+}
+
+function avisoOk(texto) {
+  const $a = $('aviso-ok');
+  $a.textContent = texto;
+  $a.hidden = false;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  clearTimeout(avisoOk.t);
+  avisoOk.t = setTimeout(() => { $a.hidden = true; }, 7000);
+}
+
+/* Registro de asistencia: formato fijo (control documental).
+   Cambian solo los datos de la empresa y de la capacitación.
+   Se abre en una ventana lista para imprimir o "Guardar como PDF". */
+function imprimirAsistencia(conv) {
+  const d = datosRegistro(conv);
+  if (d.asistentes === 0) { mostrarGlobal('Esta capacitación todavía no tiene certificados emitidos.'); return; }
+
+  const e = estado.empresa;
+  const v = estado.vinculos.get(conv.id);
+  const horas = Number(conv.horas || conv.cap_cursos.horas);
+  const color = /^#[0-9a-f]{6}$/i.test(e.color_marca || '') ? e.color_marca : '#1c5c5d';
+  const subtemas = subtemasDe(conv);
+  const verificar = 'agrimroc88-lab.github.io/nexus-learning/verificar.html';
+  const modalidad = d.presencial && d.virtual ? 'Mixta (' + d.presencial + ' presencial, ' + d.virtual + ' virtual)'
+    : d.presencial ? 'Presencial' : 'Virtual';
+
+  const logoEmpresa = urlSegura(e.logo_url)
+    ? '<img src="' + escapar(e.logo_url) + '" alt="Logo de ' + escapar(e.razon_social) + '">'
+    : '<span class="sin-logo">' + escapar(e.razon_social) + '</span>';
+  const logoProveedor = estado.proveedor && urlSegura(estado.proveedor.logo_url)
+    ? '<img src="' + escapar(estado.proveedor.logo_url) + '" alt="' + escapar(FORMATO.nombreProveedor) + '">'
+    : '';
+
+  // Una fila por persona certificada, con sus datos de registro
+  const personas = d.certs
+    .slice()
+    .sort((a, b) => String(a.nombres).localeCompare(String(b.nombres), 'es'))
+    .map((c) => {
+      const insc = estado.inscripciones.find((i) => i.convocatoria_id === conv.id && normalizar(i.cedula) === normalizar(c.cedula));
+      const ficha = estado.demografia.get(normalizar(c.cedula));
+      const registro = insc ? insc.creado_en : c.emitido_en;
+      const sexo = (insc && insc.sexo) || (ficha && ficha.sexo) || '';
+      const nacimiento = (insc && insc.fecha_nacimiento) || (ficha && ficha.fecha_nacimiento) || null;
+      return {
+        nombres: String(c.nombres).toUpperCase(), cedula: c.cedula, codigo: c.codigo,
+        modalidad: c.modalidad === 'presencial' ? 'Presencial' : 'Virtual',
+        registro: fechaLocal(registro),
+        sexo: sexo === 'M' || sexo === 'F' ? sexo : '',
+        edad: nacimiento ? edadEn(nacimiento, fechaLocal(registro)) : null,
+        etnia: insc && insc.etnia ? insc.etnia : ''
+      };
+    });
+
+  const filas = personas.map((x, i) => '<tr><td class="c">' + (i + 1) + '</td><td>' + escapar(x.nombres) +
+    '</td><td class="m">' + escapar(x.cedula) + '</td><td class="c">' + (x.sexo || '—') +
+    '</td><td class="c">' + (x.edad ?? '—') + '</td><td>' + escapar(ETNIAS[x.etnia] || '—') +
+    '</td><td class="m">' + escapar(formatearFecha(x.registro)) + '</td><td>' + x.modalidad +
+    '</td><td class="m">' + escapar(x.codigo) + '</td></tr>').join('');
+
+  // Resumen: sexo, edad y etnia
+  const hombres = personas.filter((x) => x.sexo === 'M').length;
+  const mujeres = personas.filter((x) => x.sexo === 'F').length;
+  const edades = personas.map((x) => x.edad).filter((e) => e != null);
+  const promedio = edades.length ? Math.round(edades.reduce((a, b) => a + b, 0) / edades.length) : null;
+  const porEtnia = {};
+  personas.forEach((x) => { const k = ETNIAS[x.etnia] || 'Sin dato'; porEtnia[k] = (porEtnia[k] || 0) + 1; });
+  const resumen = '<div class="resumen"><b>Resumen:</b> ' + personas.length + ' participantes · Hombres: ' + hombres +
+    ' · Mujeres: ' + mujeres + (personas.length - hombres - mujeres ? ' · Sin dato de sexo: ' + (personas.length - hombres - mujeres) : '') +
+    ' · Edad promedio: ' + (promedio ?? '—') + (edades.length ? ' (de ' + Math.min(...edades) + ' a ' + Math.max(...edades) + ' años)' : '') +
+    '<br><b>Autoidentificación étnica:</b> ' +
+    Object.keys(porEtnia).map((k) => escapar(k) + ': ' + porEtnia[k]).join(' · ') + '</div>';
+
+  const dato = (etiqueta, valor) => '<div><span>' + etiqueta + ':</span> ' + valor + '</div>';
+
+  const html = '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">' +
+    '<title>Registro de asistencia · ' + escapar(conv.cap_cursos.titulo) + '</title><style>' +
+    '@page{size:A4;margin:12mm}' +
+    'body{font-family:Arial,Helvetica,sans-serif;color:#1f2937;margin:0;font-size:11px}' +
+    '.cab{display:grid;grid-template-columns:34mm 1fr 46mm;border:1px solid #8c97a3}' +
+    '.cab>div{padding:6px 8px;border-right:1px solid #8c97a3;display:flex;flex-direction:column;justify-content:center}' +
+    '.cab>div:last-child{border-right:0}' +
+    '.logo{align-items:center;text-align:center}.logo img{max-width:100%;max-height:22mm;object-fit:contain}' +
+    '.sin-logo{font-weight:700;font-size:10px}' +
+    '.tit{text-align:center;gap:2px}.tit b{font-size:14px;letter-spacing:.02em}' +
+    '.ctl div{padding:2px 0;border-bottom:1px solid #d6dce2;font-size:10px}.ctl div:last-child{border:0}' +
+    '.franja{height:5px;background:' + color + ';margin:6px 0 8px;border-radius:2px;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+    '.datos{display:grid;grid-template-columns:1fr 1fr;border:1px solid #8c97a3;margin-bottom:8px}' +
+    '.datos div{padding:4px 8px;border-bottom:1px solid #d6dce2}.datos span{color:#56655f}' +
+    '.sub{grid-column:1/-1}.sub ul{margin:3px 0 0 18px;padding:0;columns:2;column-gap:24px}' +
+    'table{width:100%;border-collapse:collapse;font-size:10px}' +
+    'th,td{border:1px solid #8c97a3;padding:3px 4px;text-align:left;vertical-align:middle}' +
+    'th{background:#eef2f1;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+    'thead{display:table-header-group}tr{page-break-inside:avoid}' +
+    '.c{text-align:center;width:8mm}.m{font-family:"Courier New",monospace;white-space:nowrap}' +
+    '.resumen{margin-top:6px;padding:6px 8px;border:1px solid #8c97a3;font-size:10px;line-height:1.5;page-break-inside:avoid}' +
+    '.firmas{display:grid;grid-template-columns:1fr 1fr;gap:20mm;margin:20mm 6mm 0;text-align:center;page-break-inside:avoid}' +
+    '.firmas div{border-top:1px solid #1f2937;padding-top:4px}' +
+    '.pie{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10mm;font-size:9px;color:#56655f}' +
+    '.pie img{max-height:10mm;max-width:40mm;object-fit:contain}' +
+    '</style></head><body>' +
+
+    '<div class="cab">' +
+      '<div class="logo">' + logoEmpresa + '</div>' +
+      '<div class="tit"><b>REGISTRO DE ASISTENCIA A CAPACITACIÓN</b><span>' + escapar(e.razon_social) +
+        '</span><span>RUC ' + escapar(e.ruc || '—') + '</span></div>' +
+      '<div class="ctl"><div>Código: <b>' + escapar(FORMATO.codigo) + '</b></div><div>Versión: <b>' +
+        escapar(FORMATO.version) + '</b></div><div>Fecha de emisión: ' +
+        escapar(formatearFecha(fechaLocal(new Date().toISOString()))) + '</div></div>' +
+    '</div>' +
+    '<div class="franja"></div>' +
+
+    '<div class="datos">' +
+      dato('Tema', '<b>' + escapar(conv.cap_cursos.titulo) + '</b>') +
+      dato('Ámbito', escapar(v && v.tema ? AMBITOS[v.tema.ambito] || '—' : '—')) +
+      dato('Fecha', escapar(d.inicio ? formatearFecha(d.inicio) : '—') + (d.fin ? ' al ' + escapar(formatearFecha(d.fin)) : '')) +
+      dato('Duración', horas === 1 ? '1 hora' : escapar(horas.toLocaleString('es-EC')) + ' horas') +
+      dato('Modalidad', escapar(modalidad)) +
+      dato('Facilitador', escapar((v && v.facilitador) || d.facilitador || '—')) +
+      (subtemas.length
+        ? '<div class="sub"><span>Subtemas:</span><ul>' + subtemas.map((t) => '<li>' + escapar(t) + '</li>').join('') + '</ul></div>'
+        : '') +
+    '</div>' +
+
+    '<table><thead><tr><th class="c">N.º</th><th>Nombres y apellidos</th><th>Cédula</th><th class="c">Sexo</th>' +
+    '<th class="c">Edad</th><th>Etnia</th><th>Fecha de registro</th><th>Modalidad</th><th>Código de certificado</th></tr></thead>' +
+    '<tbody>' + filas + '</tbody></table>' + resumen +
+
+    '<div class="firmas">' + FORMATO.firmas.map((f) => '<div>' + escapar(f) + '</div>').join('') + '</div>' +
+
+    '<div class="pie"><span>Total de participantes: ' + d.asistentes + '. Registro generado electrónicamente desde Nexus Learning el ' +
+      escapar(fechaHora(new Date().toISOString())) + '. Cada certificado puede verificarse en ' + verificar + '</span>' +
+      logoProveedor + '</div>' +
+
+    '<script>(function(){' +
+      // Esperar a que carguen los logos (máx. 8 s) antes de imprimir
+      'var imgs=[].slice.call(document.images);' +
+      'var listas=imgs.map(function(i){return i.complete?Promise.resolve():new Promise(function(r){i.onload=i.onerror=r;})});' +
+      'var tope=new Promise(function(r){setTimeout(r,8000)});' +
+      'Promise.race([Promise.all(listas),tope]).then(function(){setTimeout(function(){window.print()},300)});' +
+    '})()<\/script></body></html>';
+
+  const ventana = window.open('', '_blank');
+  if (!ventana) { mostrarGlobal('El navegador bloqueó la ventana. Permita ventanas emergentes para este sitio.'); return; }
+  ventana.document.open();
+  ventana.document.write(html);
+  ventana.document.close();
+}
+
+/* Mismas opciones que el test ATD de NEXUS, más "Prefiero no responder" */
+const ETNIAS = {
+  mestizo: 'Mestizo', blanco: 'Blanco', indigena: 'Indígena', montubio: 'Montubio',
+  afroecuatoriano: 'Afroecuatoriano', otro: 'Otro', no_responde: 'No declara'
+};
+
+/* Edad cumplida en una fecha (ambas en formato AAAA-MM-DD) */
+function edadEn(nacimiento, fecha) {
+  const [an, mn, dn] = String(nacimiento).slice(0, 10).split('-').map(Number);
+  const [af, mf, df] = String(fecha).slice(0, 10).split('-').map(Number);
+  let edad = af - an;
+  if (mf < mn || (mf === mn && df < dn)) edad--;
+  return edad >= 0 && edad < 120 ? edad : null;
+}
+
+/* Solo enlaces http(s) para imágenes */
+function urlSegura(url) {
+  return /^https?:\/\/[^\s"'<>]+$/i.test(String(url || ''));
+}
+
+function fechaLocal(iso) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Guayaquil' }).format(new Date(iso));
+}
+
+function simplificar(texto) {
+  return String(texto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 /* ============================================
