@@ -36,6 +36,8 @@ export const MODULOS = [
     roles: ['admin', 'enfermeria'], opcional: true },
   { id: 'certificados',  texto: 'Certificados médicos', archivo: 'certificados.html',         listo: true,
     opcional: true },
+  { id: 'learning',      texto: 'Nexus Learning',       archivo: 'learning.html',             listo: true,
+    roles: ['admin', 'tecnico_sst'] },
   { id: 'usuarios',      texto: 'Usuarios',             archivo: 'usuarios.html',             listo: true,
     roles: ['admin'] },
   { id: 'configuracion', texto: 'Configuración',        archivo: 'configuracion.html',        listo: true,
