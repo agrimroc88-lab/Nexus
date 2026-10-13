@@ -50,6 +50,16 @@
   font-size: 1.1rem;
   color: var(--color-acento-oscuro);
 }
+.lrn-recordar {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+  font-size: 0.88rem;
+  color: var(--color-texto-tenue);
+  cursor: pointer;
+}
+.lrn-recordar input { margin-top: 0.15rem; accent-color: var(--color-acento); }
 .lrn-acciones { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 1rem; }
 
 .lrn-barra {
@@ -143,3 +153,48 @@
   cursor: pointer;
 }
 .lrn-pestana.activa { color: var(--color-acento); border-bottom-color: var(--color-acento); }
+
+/* --- Registro en Seguridad industrial / Salud ocupacional --- */
+.lrn-registro-nexus {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.9rem;
+  padding: 0.65rem 0.9rem;
+  border-radius: var(--radio);
+  background: var(--color-superficie-alt);
+  font-size: 0.88rem;
+}
+.lrn-registro-nexus.vinculada { background: var(--color-acento-suave); }
+.lrn-registro-nexus strong { color: var(--color-acento-oscuro); }
+.lrn-registro-botones { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+.lrn-resumen-registro {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem 1rem;
+  margin: 0.6rem 0 0.9rem;
+  padding: 0.8rem 1rem;
+  border-radius: var(--radio);
+  background: var(--color-superficie-alt);
+  font-size: 0.88rem;
+}
+.lrn-resumen-registro span { color: var(--color-texto-tenue); }
+.lrn-resumen-registro strong { display: block; color: var(--color-texto); }
+.lrn-aviso-reemplazo {
+  padding: 0.6rem 0.8rem;
+  border-left: 3px solid #f5d76e;
+  background: var(--color-superficie-alt);
+  border-radius: var(--radio);
+}
+
+.lrn-ok {
+  padding: 0.65rem 1rem;
+  border-left: 3px solid var(--color-acento);
+  background: var(--color-acento-suave);
+  border-radius: var(--radio);
+  color: var(--color-acento-oscuro);
+  font-weight: 600;
+}
