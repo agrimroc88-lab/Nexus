@@ -15,7 +15,7 @@
    ============================================ */
 
 import { supabase } from './supabase.js?v=11';
-import { protegerPagina, puedeVerClinica, empresasPermitidas, resolverEmpresaActiva, modulosActivosEmpresa } from './auth.js?v=13';
+import { protegerPagina, puedeVerClinica, tienePoderAdmin, empresasPermitidas, resolverEmpresaActiva, modulosActivosEmpresa } from './auth.js?v=13';
 import { montarNavegacion } from './nav.js?v=11';
 import { escapar, textoOGuion, retrasar, formatearFecha, resumenReposo, validarCedula }
   from './utils.js?v=12';
@@ -88,7 +88,7 @@ async function iniciar() {
   }
 
   estado.perfil = perfil;
-  estado.esAdmin = perfil.rol === 'admin';
+  estado.esAdmin = tienePoderAdmin(perfil.rol);
   montarNavegacion(perfil, 'atenciones');
 
   prepararAnios();

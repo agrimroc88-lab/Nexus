@@ -11,7 +11,7 @@
    ============================================ */
 
 import { supabase } from './supabase.js?v=11';
-import { protegerPagina, puedeVerClinica, sesionActual, empresasPermitidas, resolverEmpresaActiva, modulosActivosEmpresa } from './auth.js?v=13';
+import { protegerPagina, puedeVerClinica, tienePoderAdmin, sesionActual, empresasPermitidas, resolverEmpresaActiva, modulosActivosEmpresa } from './auth.js?v=13';
 import { montarNavegacion } from './nav.js?v=11';
 import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=11';
 import { alCrear, alEditar, autorId } from './autoria.js?v=1';
@@ -79,7 +79,7 @@ async function iniciar() {
   }
 
   estado.perfil = perfil;
-  estado.esAdmin = perfil.rol === 'admin';
+  estado.esAdmin = tienePoderAdmin(perfil.rol);
   montarNavegacion(perfil, 'farmacia');
 
   const permitidas = await empresasPermitidas(perfil);
@@ -962,7 +962,7 @@ let insumoActual = null;
 
 function rolEscribeFarmacia() {
   const rol = estado.perfil ? estado.perfil.rol : '';
-  return ['admin', 'enfermeria', 'medico_ocupacional'].includes(rol);
+  return ['admin', 'supervisor', 'enfermeria', 'medico_ocupacional'].includes(rol);
 }
 
 function pintarInsumos() {

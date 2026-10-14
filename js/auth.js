@@ -24,7 +24,11 @@ export const ROLES = {
   ENFERMERIA: 'enfermeria',
   PSICOLOGO: 'psicologo',
   TRABAJO_SOCIAL: 'trabajo_social',
-  PSICO_SOCIAL: 'psico_social'
+  PSICO_SOCIAL: 'psico_social',
+  /* Supervisor: trabaja en todos los módulos, como el administrador,
+     pero solo en las empresas que tiene asignadas y sin acceso a
+     Configuración, Usuarios ni Empresas. */
+  SUPERVISOR: 'supervisor'
 };
 
 const BASE = '/Nexus/';
@@ -134,24 +138,34 @@ export async function obtenerPerfil() {
    Permisos (idénticos a antes)
    ============================================ */
 
+/**
+ * Permisos de administrador DENTRO de los módulos de trabajo
+ * (salud, seguridad, psicología, trabajo social, atenciones,
+ * farmacia, certificados, trabajadores): admin y supervisor.
+ * Configuración, Usuarios y Empresas siguen siendo solo del admin
+ * (esAdministrador). El supervisor solo ve sus empresas asignadas.
+ */
+export function tienePoderAdmin(rol) {
+  return rol === ROLES.ADMIN || rol === ROLES.SUPERVISOR;
+}
 export function puedeVerClinica(rol) {
-  return rol === ROLES.ADMIN || rol === ROLES.MEDICO || rol === ROLES.ENFERMERIA;
+  return tienePoderAdmin(rol) || rol === ROLES.MEDICO || rol === ROLES.ENFERMERIA;
 }
 export function esAdministrador(rol) {
   return rol === ROLES.ADMIN;
 }
 export function puedeGestionarFarmacia(rol) {
-  return rol === ROLES.ADMIN || rol === ROLES.ENFERMERIA;
+  return tienePoderAdmin(rol) || rol === ROLES.ENFERMERIA;
 }
 export function puedeVerPsicologia(rol) {
-  return rol === ROLES.ADMIN || rol === ROLES.PSICOLOGO || rol === ROLES.PSICO_SOCIAL;
+  return tienePoderAdmin(rol) || rol === ROLES.PSICOLOGO || rol === ROLES.PSICO_SOCIAL;
 }
 export function puedeVerTrabajoSocial(rol) {
-  return rol === ROLES.ADMIN || rol === ROLES.TRABAJO_SOCIAL ||
+  return tienePoderAdmin(rol) || rol === ROLES.TRABAJO_SOCIAL ||
          rol === ROLES.PSICO_SOCIAL || rol === ROLES.MEDICO;
 }
 export function puedeEditarTrabajoSocial(rol) {
-  return rol === ROLES.ADMIN || rol === ROLES.TRABAJO_SOCIAL ||
+  return tienePoderAdmin(rol) || rol === ROLES.TRABAJO_SOCIAL ||
          rol === ROLES.PSICO_SOCIAL;
 }
 export function puedeVerModulo(rol, modulo) {

@@ -97,7 +97,7 @@ async function iniciar() {
 }
 
 function puedeEscribir() {
-  return [ROLES.ADMIN, ROLES.MEDICO, ROLES.TECNICO, ROLES.ENFERMERIA].includes(estado.perfil.rol);
+  return [ROLES.ADMIN, ROLES.SUPERVISOR, ROLES.MEDICO, ROLES.TECNICO, ROLES.ENFERMERIA].includes(estado.perfil.rol);
 }
 
 /* ============================================
@@ -625,7 +625,7 @@ async function abrirModal(trabajador = null) {
   document.getElementById('cedula').readOnly = Boolean(trabajador);
 
   const sinCodigo = !trabajador || trabajador.codigo == null;
-  const esAdmin = estado.perfil.rol === ROLES.ADMIN;
+  const esAdmin = [ROLES.ADMIN, ROLES.SUPERVISOR].includes(estado.perfil.rol);
   const $codigo = document.getElementById('codigo');
   $codigo.readOnly = !(sinCodigo || esAdmin);
 

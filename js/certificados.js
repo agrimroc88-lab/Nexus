@@ -18,7 +18,7 @@ import {
 import { alCrear } from './autoria.js?v=1';
 
 /* Roles que pueden registrar. El técnico solo lee. */
-const ROLES_ESCRITURA = ['admin', 'medico_ocupacional', 'enfermeria', 'psicologo', 'trabajo_social'];
+const ROLES_ESCRITURA = ['admin', 'supervisor', 'medico_ocupacional', 'enfermeria', 'psicologo', 'trabajo_social'];
 
 const PARENTESCOS = {
   conyuge:  'Cónyuge / conviviente',
@@ -68,7 +68,7 @@ async function iniciar() {
 
   estado.perfil = perfil;
   estado.puedeEscribir = ROLES_ESCRITURA.includes(perfil.rol);
-  estado.esAdmin = perfil.rol === 'admin';
+  estado.esAdmin = perfil.rol === 'admin' || perfil.rol === 'supervisor';
   montarNavegacion(perfil, 'certificados');
 
   prepararAnios();

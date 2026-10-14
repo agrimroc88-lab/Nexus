@@ -73,7 +73,7 @@ const PIEZAS = {
    pero ya no interactúan con nada fuera de Cumplimiento y
    Capacitaciones. Debe coincidir con las políticas de la base. */
 const PERSONAL = [
-  ROLES.ADMIN, ROLES.MEDICO, ROLES.ENFERMERIA,
+  ROLES.ADMIN, ROLES.SUPERVISOR, ROLES.MEDICO, ROLES.ENFERMERIA,
   ROLES.TRABAJO_SOCIAL, ROLES.ERGONOMO, ROLES.TECNICO
 ];
 

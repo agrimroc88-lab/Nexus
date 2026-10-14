@@ -31,9 +31,9 @@ console.info('NEXUS · habitaciones', VERSION);
    - ASIGNACIÓN: asignar, trasladar y liberar camas, y los
      colchones → admin y trabajo social.
    Los demás roles que abren la pestaña solo consultan. */
-const ROLES_ESTRUCTURA = ['admin', 'tecnico_sst'];
-const ROLES_ASIGNACION = ['admin', 'trabajo_social'];
-const EDITORES_SEG = ['admin', 'tecnico_sst'];
+const ROLES_ESTRUCTURA = ['admin', 'supervisor', 'tecnico_sst'];
+const ROLES_ASIGNACION = ['admin', 'supervisor', 'trabajo_social'];
+const EDITORES_SEG = ['admin', 'supervisor', 'tecnico_sst'];
 const QUIEN_ESTRUCTURA = 'Las registra el técnico de seguridad o el administrador desde el módulo Seguridad Industrial.';
 
 const TIPOS_ESPACIO = {

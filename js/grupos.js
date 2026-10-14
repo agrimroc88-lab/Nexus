@@ -113,7 +113,7 @@ const SITUACIONES = {
    rechaza. El rol consulta queda fuera: es de solo lectura
    por definición. */
 const PERSONAL_SALUD = [
-  ROLES.ADMIN, ROLES.MEDICO, ROLES.ENFERMERIA,
+  ROLES.ADMIN, ROLES.SUPERVISOR, ROLES.MEDICO, ROLES.ENFERMERIA,
   ROLES.TRABAJO_SOCIAL, ROLES.ERGONOMO, ROLES.TECNICO
 ];
 
@@ -128,7 +128,7 @@ function puedeRegistrar() {
    hacer cualquiera del personal de salud—, esto queda
    reservado al admin. */
 function esAdmin() {
-  return gp.perfil?.rol === ROLES.ADMIN;
+  return [ROLES.ADMIN, ROLES.SUPERVISOR].includes(gp.perfil?.rol);
 }
 
 /** Indicar */

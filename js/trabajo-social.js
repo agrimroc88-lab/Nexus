@@ -12,7 +12,7 @@ import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=11'
 import { alCrear } from './autoria.js?v=1';
 import { logoEmpresa } from './logo-empresa.js';
 
-const ROLES_TS = ['admin', 'trabajo_social', 'psico_social'];
+const ROLES_TS = ['admin', 'supervisor', 'trabajo_social', 'psico_social'];
 
 const TIPOS = {
   ingreso: 'Ingreso',
@@ -1207,7 +1207,7 @@ function pintarRegistros() {
     ver.className = 'boton-icono'; ver.textContent = 'Ver / imprimir';
     ver.addEventListener('click', () => verFicha(f.id));
     acc.appendChild(ver);
-    if (estado.perfil.rol === 'admin') {
+    if (estado.perfil.rol === 'admin' || estado.perfil.rol === 'supervisor') {
       const el = document.createElement('button');
       el.className = 'boton-icono'; el.textContent = 'Eliminar';
       el.addEventListener('click', () => eliminarFicha(f.id));

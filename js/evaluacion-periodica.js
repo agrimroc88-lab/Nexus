@@ -36,7 +36,7 @@ import {
 /** Solo el admin puede reabrir y editar un examen ya capturado
     o un trabajador ya marcado como completado. */
 function esAdminEP() {
-  return sesionActual()?.rol === ROLES.ADMIN;
+  return [ROLES.ADMIN, ROLES.SUPERVISOR].includes(sesionActual()?.rol);
 }
 
 /* Psicología y psico-social ven esta pestaña (a pedido

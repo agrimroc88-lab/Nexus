@@ -1168,10 +1168,10 @@ function nombrePsicologo() {
    abierto o derivado. Eliminar, en cualquier estado, siempre es
    cosa del administrador (igual que ya rige en Trabajo Social). */
 function puedeEditarFicha(f) {
-  return f.estado !== 'cerrado' || estado.perfil.rol === 'admin';
+  return f.estado !== 'cerrado' || ['admin', 'supervisor'].includes(estado.perfil.rol);
 }
 function puedeEliminarFicha() {
-  return estado.perfil.rol === 'admin';
+  return ['admin', 'supervisor'].includes(estado.perfil.rol);
 }
 
 async function imprimirFicha() {

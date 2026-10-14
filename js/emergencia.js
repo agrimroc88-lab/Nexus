@@ -84,7 +84,7 @@ const GRUPOS_EN_NOMINA = [
 
 /** Prescribir o suspender medicación es acto clínico */
 function puedeMedicar() {
-  return [ROLES.ADMIN, ROLES.MEDICO, ROLES.ENFERMERIA].includes(em.perfil?.rol);
+  return [ROLES.ADMIN, ROLES.SUPERVISOR, ROLES.MEDICO, ROLES.ENFERMERIA].includes(em.perfil?.rol);
 }
 
 /* ============================================

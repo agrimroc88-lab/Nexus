@@ -74,7 +74,7 @@ const bt = {
    Si esto cambia, también hay que tocar es_personal_salud() en
    la base, que debía coincidir con esta lista. */
 const PERSONAL = [
-  ROLES.ADMIN, ROLES.MEDICO, ROLES.ENFERMERIA,
+  ROLES.ADMIN, ROLES.SUPERVISOR, ROLES.MEDICO, ROLES.ENFERMERIA,
   ROLES.TRABAJO_SOCIAL, ROLES.ERGONOMO, ROLES.TECNICO
 ];
 

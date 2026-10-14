@@ -20,7 +20,7 @@
    ============================================ */
 
 import { supabase } from './supabase.js?v=11';
-import { protegerPagina, ROLES, empresasPermitidas, resolverEmpresaActiva, modulosActivosEmpresa } from './auth.js?v=13';
+import { protegerPagina, ROLES, tienePoderAdmin, empresasPermitidas, resolverEmpresaActiva, modulosActivosEmpresa } from './auth.js?v=13';
 import { montarNavegacion } from './nav.js?v=12';
 import { escapar, textoOGuion, retrasar, formatearFecha } from './utils.js?v=12';
 import {
@@ -186,7 +186,7 @@ const ESCRIBEN_SEGURIDAD = [ROLES.TECNICO, ROLES.ERGONOMO];
 
 function puedeEscribir() {
   const r = estado.perfil.rol;
-  if (r === ROLES.ADMIN) return true;
+  if (tienePoderAdmin(r)) return true;
   if (AMBITO === 'salud') return ESCRIBEN_SALUD.includes(r);
   if (AMBITO === 'seguridad') return ESCRIBEN_SEGURIDAD.includes(r);
   return false;
@@ -205,7 +205,7 @@ function puedeEscribir() {
  */
 function puedeEscribirEventos() {
   const r = estado.perfil.rol;
-  if (r === ROLES.ADMIN) return true;
+  if (tienePoderAdmin(r)) return true;
   if (AMBITO === 'salud') return ESCRIBEN_SALUD.includes(r) && !esSoloLecturaSalud();
   if (AMBITO !== 'seguridad') return false;
   return ESCRIBEN_SEGURIDAD.includes(r)
@@ -220,7 +220,7 @@ function puedeEscribirEventos() {
  * Trabajo social sigue sin entrar aquí en absoluto.
  */
 function puedeVerTestAtd() {
-  return ['admin', 'medico_ocupacional', 'enfermeria', ROLES.PSICOLOGO, ROLES.PSICO_SOCIAL]
+  return ['admin', ROLES.SUPERVISOR, 'medico_ocupacional', 'enfermeria', ROLES.PSICOLOGO, ROLES.PSICO_SOCIAL]
     .includes(estado.perfil.rol);
 }
 
@@ -239,7 +239,7 @@ function esSoloLecturaSalud() {
  * alteren por error o de mala fe.
  */
 function puedeEditarOcupacionales() {
-  return estado.perfil.rol === ROLES.ADMIN;
+  return tienePoderAdmin(estado.perfil.rol);
 }
 
 /* ============================================

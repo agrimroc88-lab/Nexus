@@ -12,6 +12,7 @@ import { escapar, textoOGuion } from './utils.js';
 
 const ROLES_TXT = {
   admin: 'Administrador',
+  supervisor: 'Supervisor',
   medico_ocupacional: 'Médico ocupacional',
   enfermeria: 'Enfermería',
   psicologo: 'Psicólogo',
