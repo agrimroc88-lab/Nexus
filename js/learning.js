@@ -909,11 +909,16 @@ function imprimirAsistencia(conv) {
   const modalidad = d.presencial && d.virtual ? 'Mixta (' + d.presencial + ' presencial, ' + d.virtual + ' virtual)'
     : d.presencial ? 'Presencial' : 'Virtual';
 
-  const logoEmpresa = urlSegura(e.logo_url)
-    ? '<img src="' + escapar(e.logo_url) + '" alt="Logo de ' + escapar(e.razon_social) + '">'
+  // Mismo logo que el menú lateral de NEXUS (nav.js): el de la ficha de
+  // la empresa o, si no tiene, el logo fijo logo.png. La ventana del
+  // registro no tiene dirección propia, así que se usa la dirección completa.
+  const urlLogo = direccionCompleta(e.logo_url || 'logo.png');
+  const logoEmpresa = urlLogo
+    ? '<img src="' + escapar(urlLogo) + '" alt="Logo de ' + escapar(e.razon_social) + '">'
     : '<span class="sin-logo">' + escapar(e.razon_social) + '</span>';
-  const logoProveedor = estado.proveedor && urlSegura(estado.proveedor.logo_url)
-    ? '<img src="' + escapar(estado.proveedor.logo_url) + '" alt="' + escapar(FORMATO.nombreProveedor) + '">'
+  const urlProveedor = estado.proveedor && estado.proveedor.logo_url ? direccionCompleta(estado.proveedor.logo_url) : null;
+  const logoProveedor = urlProveedor
+    ? '<img src="' + escapar(urlProveedor) + '" alt="' + escapar(FORMATO.nombreProveedor) + '">'
     : '';
 
   // Una fila por persona certificada, con sus datos de registro
@@ -1046,9 +1051,15 @@ function edadEn(nacimiento, fecha) {
   return edad >= 0 && edad < 120 ? edad : null;
 }
 
-/* Solo enlaces http(s) para imágenes */
-function urlSegura(url) {
-  return /^https?:\/\/[^\s"'<>]+$/i.test(String(url || ''));
+/* Convierte una ruta (absoluta o relativa al sitio de NEXUS) en una
+   dirección completa http(s). Cualquier otra cosa se descarta. */
+function direccionCompleta(ruta) {
+  try {
+    const url = new URL(String(ruta || ''), window.location.href);
+    return /^https?:$/.test(url.protocol) ? url.href : null;
+  } catch (e) {
+    return null;
+  }
 }
 
 function fechaLocal(iso) {
