@@ -7,7 +7,7 @@
   <link rel="icon" href="nexus-favicon.png">
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/login.css">
-  <link rel="stylesheet" href="css/seleccionar-empresa.css">
+  <link rel="stylesheet" href="css/seleccionar-empresa.css?v=3">
 </head>
 <body class="pantalla-acceso">
 
@@ -32,10 +32,11 @@
       <!-- Nexus Learning: solo para administradores y docentes (lo decide el puente) -->
       <section class="sel-learning" id="sel-learning" hidden>
         <button type="button" class="sel-learning-boton" id="btn-learning">
-          <svg class="sel-learning-logo" width="56" height="56" viewBox="0 0 30 30" aria-hidden="true">
-            <circle cx="8" cy="15" r="6" fill="#F2C14E"/>
-            <circle cx="22" cy="15" r="6" fill="none" stroke="#F2C14E" stroke-width="3"/>
-            <rect x="12" y="13.5" width="6" height="3" fill="#F2C14E"/>
+          <img class="sel-learning-portada" src="img/nexus-learning-portada.jpg" alt="" onload="this.closest('button').classList.add('con-portada')" onerror="this.nextElementSibling.style.display='';this.remove()">
+          <svg class="sel-learning-logo" style="display:none" width="56" height="56" viewBox="0 0 30 30" aria-hidden="true">
+            <circle cx="8" cy="15" r="6" fill="#E3B341"/>
+            <circle cx="22" cy="15" r="6" fill="none" stroke="#E3B341" stroke-width="3"/>
+            <rect x="12" y="13.5" width="6" height="3" fill="#E3B341"/>
           </svg>
           <span class="sel-learning-nombre">Nexus Learning</span>
           <span class="sel-learning-papel" id="sel-learning-papel"></span>
