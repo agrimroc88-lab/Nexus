@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="css/empresas.css">
   <link rel="stylesheet" href="css/trabajadores.css">
   <link rel="stylesheet" href="css/atenciones.css">
-  <link rel="stylesheet" href="css/usuarios.css">
+  <link rel="stylesheet" href="css/usuarios.css?v=2">
 </head>
 <body class="app">
 
@@ -125,6 +125,13 @@
           </div>
         </div>
 
+        <div class="campo campo-ancho">
+          <label class="check-docente">
+            <input type="checkbox" id="us_docente">
+            <span><strong>Docente en Nexus Learning</strong> · podrá entrar a Nexus Learning con esta misma cédula y contraseña. Después, en Nexus Learning → Cursos → Docentes, asígnele los programas que dictará.</span>
+          </label>
+        </div>
+
         <div class="campo campo-ancho" id="us-campo-empresas">
           <label class="etiqueta">Empresas donde trabaja <span class="obligatorio">*</span></label>
           <span class="ayuda">Marque las empresas que esta persona podrá ver. Solo verá las marcadas.</span>
@@ -141,6 +148,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/usuarios.js?v=2"></script>
+  <script type="module" src="js/usuarios.js?v=3"></script>
 </body>
 </html>
