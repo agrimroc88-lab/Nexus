@@ -51,3 +51,19 @@
 .check-empresa:hover { background: var(--color-acento-suave, #e6f0e6); }
 .check-empresa input { width: 1.05rem; height: 1.05rem; accent-color: var(--color-acento, #1b5e20); }
 .campo-ancho { grid-column: 1 / -1; }
+
+/* Casilla "Docente en Nexus Learning" (ver puente-learning.js) */
+.check-docente {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #d6dee8;
+  border-radius: 8px;
+  background: #f5f8fc;
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+.check-docente input { width: 1.1rem; height: 1.1rem; margin-top: 0.15rem; flex: none; accent-color: #123A7A; }
+.chip-docente { background: #e3ebf7; color: #123A7A; }
