@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Capacitación · Nexus Learning</title>
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+  <!-- Fuentes -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Instrument+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <!-- Estilos: generales + propios de esta página -->
+  <link rel="stylesheet" href="css/estilos.css">
+  <link rel="stylesheet" href="css/curso.css">
+</head>
+<body class="fondo-zona">
+
+  <!-- ===== Barra superior ===== -->
+  <header class="barra">
+    <div class="contenedor">
+      <a class="marca" href="index.html" aria-label="Nexus Learning, inicio">
+        <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+          <circle cx="8" cy="15" r="6" fill="#E3B341"/>
+          <circle cx="22" cy="15" r="6" fill="none" stroke="#E3B341" stroke-width="3"/>
+          <rect x="12" y="13.5" width="6" height="3" fill="#E3B341"/>
+        </svg>
+        Nexus Learning
+      </a>
+      <nav>
+        <a href="verificar.html">Verificar certificado</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="contenedor pagina-curso">
+    <div id="estado" class="aviso" role="status">Revisando el código…</div>
+
+    <!-- ===== Código no válido ===== -->
+    <section id="bloque-codigo" class="vista vista-angosta" hidden>
+      <h1>No pudimos abrir esta capacitación</h1>
+      <p id="codigo-motivo" class="aviso error"></p>
+
+      <form id="form-otro-codigo" class="bloque-form" novalidate>
+        <label class="etiqueta" for="otro-codigo">Prueba con otra clave</label>
+        <div class="fila-boton">
+          <input class="campo campo-codigo" id="otro-codigo" placeholder="AGR48213" maxlength="14" autocomplete="off">
+          <button class="boton" type="submit">Ingresar</button>
+        </div>
+      </form>
+
+      <form id="form-recuperar" class="bloque-form" novalidate hidden>
+        <h2>¿Ya obtuviste tu certificado con este código?</h2>
+        <p class="nota-intro">También puedes ver todos tus certificados en <a href="mis-certificados.html">Mis certificados</a>.</p>
+        <p class="nota-intro">Escribe tu cédula para descargarlo de nuevo.</p>
+        <label class="etiqueta" for="recuperar-cedula">Cédula o pasaporte</label>
+        <div class="fila-boton">
+          <input class="campo" id="recuperar-cedula" inputmode="numeric" maxlength="20">
+          <button class="boton secundario" type="submit">Buscar mi certificado</button>
+        </div>
+        <p class="error-campo" id="e-recuperar" role="alert"></p>
+      </form>
+    </section>
+
+    <!-- ===== Capacitación ===== -->
+    <div id="curso" hidden>
+      <div class="curso-cabecera">
+        <div class="cabecera-portada" id="curso-portada" aria-hidden="true"></div>
+        <div class="cabecera-texto">
+          <p class="empresa-etiqueta" id="curso-empresa"></p>
+          <h1 id="curso-titulo"></h1>
+          <p id="curso-datos"></p>
+        </div>
+        <div class="cabecera-progreso" id="cabecera-progreso" hidden>
+          <span id="cabecera-progreso-texto"></span>
+          <div class="barra-progreso" aria-hidden="true"><span id="cabecera-progreso-barra"></span></div>
+        </div>
+      </div>
+
+      <!-- ----- Jornada: capacitaciones del día (una sola clave) ----- -->
+      <section id="vista-jornada" class="vista vista-angosta" hidden>
+        <p class="vista-paso">Jornada de capacitación</p>
+        <h2 id="jornada-saludo">Tus capacitaciones de hoy</h2>
+        <p class="nota-intro">Ya quedaste registrado. Descarga cada certificado o rinde la evaluación de las capacitaciones que la piden.</p>
+        <ol class="lista-jornada" id="lista-jornada"></ol>
+      </section>
+
+      <!-- ----- Registro ----- -->
+      <section id="vista-registro" class="vista vista-angosta" hidden>
+        <h2 id="registro-titulo">Regístrate para comenzar</h2>
+        <p class="nota-intro" id="registro-intro"></p>
+
+        <form id="form-registro" novalidate>
+          <div class="fila-campos">
+            <div>
+              <label class="etiqueta" for="p-nombres">Nombres y apellidos completos</label>
+              <input class="campo" id="p-nombres" autocomplete="name" maxlength="120">
+              <p class="error-campo" id="e-nombres"></p>
+            </div>
+            <div>
+              <label class="etiqueta" for="p-cedula">Cédula o pasaporte</label>
+              <input class="campo" id="p-cedula" inputmode="numeric" maxlength="20">
+              <p class="error-campo" id="e-cedula"></p>
+            </div>
+          </div>
+          <div class="fila-campos fila-tres-campos">
+            <fieldset class="grupo-sexo">
+              <legend class="etiqueta">Sexo</legend>
+              <label class="opcion-sexo"><input type="radio" name="p-sexo" value="M"><span>M</span></label>
+              <label class="opcion-sexo"><input type="radio" name="p-sexo" value="F"><span>F</span></label>
+              <p class="error-campo" id="e-sexo"></p>
+            </fieldset>
+            <div>
+              <label class="etiqueta" for="p-nacimiento">Fecha de nacimiento</label>
+              <input class="campo" id="p-nacimiento" type="date" min="1930-01-01">
+              <p class="error-campo" id="e-nacimiento"></p>
+            </div>
+            <div>
+              <label class="etiqueta" for="p-etnia">Autoidentificación étnica</label>
+              <select class="campo" id="p-etnia">
+                <option value="">Selecciona…</option>
+                <option value="mestizo">Mestizo</option>
+                <option value="blanco">Blanco</option>
+                <option value="indigena">Indígena</option>
+                <option value="montubio">Montubio</option>
+                <option value="afroecuatoriano">Afroecuatoriano</option>
+                <option value="otro">Otro</option>
+                <option value="no_responde">Prefiero no responder</option>
+              </select>
+              <p class="error-campo" id="e-etnia"></p>
+            </div>
+          </div>
+
+          <label class="etiqueta" for="p-correo">Correo electrónico (opcional)</label>
+          <input class="campo" id="p-correo" type="email" autocomplete="email" maxlength="120">
+
+          <label class="consentimiento">
+            <input type="checkbox" id="p-acepta">
+            <span>Autorizo a VitalWork S.A.S. a tratar mis datos (nombres, cédula, sexo, fecha de nacimiento, autoidentificación étnica y correo) únicamente para registrar esta capacitación, emitir y verificar mi certificado, y elaborar el registro de asistencia y estadísticas de la empresa, conforme a la Ley Orgánica de Protección de Datos Personales. Entiendo que la autoidentificación étnica es un dato sensible y que puedo elegir "Prefiero no responder".</span>
+          </label>
+          <p class="error-campo" id="e-acepta"></p>
+
+          <p class="aviso error" id="error-registro" role="alert" hidden></p>
+          <button type="submit" class="boton" id="btn-registro">Continuar</button>
+        </form>
+      </section>
+
+      <!-- ----- Curso ----- -->
+      <div class="curso-cuerpo" id="curso-cuerpo" hidden>
+        <aside class="temario" id="temario-caja" aria-label="Contenido del curso">
+          <p class="temario-progreso" id="progreso-texto"></p>
+          <div class="barra-progreso" aria-hidden="true"><span id="progreso-barra"></span></div>
+          <ol id="temario"></ol>
+        </aside>
+
+        <!-- Lección -->
+        <section id="vista-leccion" class="vista" hidden>
+          <p class="vista-paso" id="leccion-paso"></p>
+          <h2 id="leccion-titulo"></h2>
+          <div id="leccion-video" class="video" hidden></div>
+          <div id="leccion-pdf" class="diapositivas" hidden></div>
+          <div id="leccion-contenido" class="leccion-texto"></div>
+          <div class="navegacion">
+            <button type="button" class="boton secundario" id="btn-anterior">Lección anterior</button>
+            <button type="button" class="boton" id="btn-siguiente">Siguiente lección</button>
+          </div>
+        </section>
+
+        <!-- Evaluación -->
+        <section id="vista-evaluacion" class="vista" hidden>
+          <p class="vista-paso">Evaluación</p>
+          <h2>Demuestra lo que aprendiste</h2>
+          <p class="nota-intro" id="evaluacion-intro"></p>
+          <p class="persona-actual">Respondiendo como <strong id="persona-nombre"></strong>. <button type="button" class="enlace-simple" id="btn-no-soy">No soy yo</button></p>
+
+          <form id="form-evaluacion" novalidate>
+            <div id="preguntas"></div>
+            <div id="error-envio" class="aviso error" role="alert" hidden></div>
+            <div class="navegacion">
+              <button type="button" class="boton secundario" id="btn-repasar">Repasar lecciones</button>
+              <button type="submit" class="boton" id="btn-enviar">Enviar evaluación</button>
+            </div>
+          </form>
+        </section>
+
+        <!-- Resultado -->
+        <section id="vista-resultado" class="vista" hidden>
+          <div id="resultado"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor">
+      <span>Nexus Learning, de VitalWork S.A.S.</span>
+      <a href="verificar.html">Verificar un certificado</a>
+    </div>
+  </footer>
+
+  <!-- Scripts: el orden importa -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/certificado.js?v=2"></script>
+  <script src="js/curso.js"></script>
+</body>
+</html>

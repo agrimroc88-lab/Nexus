@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mis certificados · Nexus Learning</title>
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="description" content="Descarga de nuevo los certificados de tus capacitaciones.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Instrument+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/estilos.css">
+  <link rel="stylesheet" href="css/curso.css">
+</head>
+<body class="fondo-zona">
+
+  <!-- ===== Barra superior ===== -->
+  <header class="barra">
+    <div class="contenedor">
+      <a class="marca" href="index.html" aria-label="Nexus Learning, inicio">
+        <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+          <circle cx="8" cy="15" r="6" fill="#E3B341"/>
+          <circle cx="22" cy="15" r="6" fill="none" stroke="#E3B341" stroke-width="3"/>
+          <rect x="12" y="13.5" width="6" height="3" fill="#E3B341"/>
+        </svg>
+        Nexus Learning
+      </a>
+      <nav>
+        <a href="verificar.html">Verificar certificado</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="contenedor pagina-curso">
+    <div class="curso-cabecera cabecera-simple">
+      <div class="cabecera-texto">
+        <p class="empresa-etiqueta">Estudiantes</p>
+        <h1>Mis certificados</h1>
+        <p>Descarga de nuevo los certificados de las capacitaciones que completaste.</p>
+      </div>
+    </div>
+
+    <section class="vista vista-angosta">
+      <form id="form-buscar" class="bloque-form" novalidate>
+        <p class="nota-intro">Escribe tu cédula y tu fecha de nacimiento, tal como las registraste en la capacitación.</p>
+        <div class="fila-campos">
+          <div>
+            <label class="etiqueta" for="m-cedula">Cédula o pasaporte</label>
+            <input class="campo" id="m-cedula" inputmode="numeric" maxlength="20" autocomplete="off">
+          </div>
+          <div>
+            <label class="etiqueta" for="m-nacimiento">Fecha de nacimiento</label>
+            <input class="campo" id="m-nacimiento" type="date" min="1930-01-01">
+          </div>
+        </div>
+        <p class="aviso error" id="m-error" role="alert" hidden></p>
+        <button class="boton" type="submit" id="btn-buscar">Buscar mis certificados</button>
+      </form>
+
+      <div id="resultado" hidden>
+        <h2 id="m-titulo"></h2>
+        <ol class="lista-jornada" id="m-lista"></ol>
+        <button type="button" class="enlace-simple" id="btn-otra">Buscar con otros datos</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor">
+      <span>Nexus Learning, de VitalWork S.A.S.</span>
+      <a href="index.html">Ir al inicio</a>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/certificado.js?v=2"></script>
+  <script src="js/mis-certificados.js"></script>
+</body>
+</html>
