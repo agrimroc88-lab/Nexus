@@ -9,6 +9,7 @@ import { supabase } from './supabase.js';
 import { protegerPagina, empresaActivaId } from './auth.js';
 import { montarNavegacion } from './nav.js';
 import { escapar, textoOGuion } from './utils.js';
+import { sincronizarDocente } from './puente-learning.js?v=2';
 
 const ROLES_TXT = {
   admin: 'Administrador',
@@ -104,7 +105,7 @@ async function cargarUsuarios() {
 
   const { data, error } = await supabase
     .from('usuarios_app')
-    .select('id, cedula, nombres, apellidos, rol, registro_msp, activo')
+    .select('id, cedula, nombres, apellidos, rol, registro_msp, activo, docente_learning')
     .in('id', ids)
     .order('apellidos');
   estado.usuarios = error ? [] : (data || []);
@@ -145,7 +146,7 @@ function fila(u) {
       ${esYo ? '<span class="secundario">(usted)</span>' : ''}
     </td>
     <td class="celda-centro celda-mono">${escapar(textoOGuion(u.cedula))}</td>
-    <td><span class="rol-chip">${ROLES_TXT[u.rol] || u.rol}</span></td>
+    <td><span class="rol-chip">${ROLES_TXT[u.rol] || u.rol}</span>${u.docente_learning ? ' <span class="rol-chip chip-docente">Docente Learning</span>' : ''}</td>
     <td class="celda-centro">
       <span class="estado-punto ${u.activo ? 'estado-activo' : 'estado-inactivo'}">
         ${u.activo ? 'Activo' : 'Inactivo'}
@@ -186,6 +187,8 @@ function abrirNuevo() {
   ['us_cedula', 'us_nombres', 'us_apellidos', 'us_msp', 'us_clave']
     .forEach((id) => { document.getElementById(id).value = ''; });
   document.getElementById('us_rol').value = 'medico_ocupacional';
+  document.getElementById('us_docente').checked = false;
+  estado.docenteAntes = false;
   document.getElementById('us_cedula').disabled = false;
   document.getElementById('alerta-usuario').hidden = true;
   estado.asignadas = new Set();
@@ -208,6 +211,8 @@ function abrirEditar(u) {
   document.getElementById('us_apellidos').value = u.apellidos ?? '';
   document.getElementById('us_msp').value = u.registro_msp ?? '';
   document.getElementById('us_rol').value = u.rol ?? 'consulta';
+  document.getElementById('us_docente').checked = Boolean(u.docente_learning);
+  estado.docenteAntes = Boolean(u.docente_learning);
   document.getElementById('us_clave').value = '';
   document.getElementById('alerta-usuario').hidden = true;
 
@@ -230,6 +235,7 @@ async function guardarUsuario() {
   const rol = document.getElementById('us_rol').value;
   const msp = document.getElementById('us_msp').value.trim() || null;
   const clave = document.getElementById('us_clave').value;
+  const docente = document.getElementById('us_docente').checked;
 
   if (!/^[0-9]{10}$/.test(cedula)) return err($alerta, 'La cédula debe tener 10 dígitos.');
   if (!nombres || !apellidos) return err($alerta, 'Nombres y apellidos son obligatorios.');
@@ -241,7 +247,7 @@ async function guardarUsuario() {
   $btn.disabled = true;
 
   if (estado.editId) {
-    const patch = { cedula, nombres, apellidos, rol, registro_msp: msp };
+    const patch = { cedula, nombres, apellidos, rol, registro_msp: msp, docente_learning: docente };
     if (clave) {
       if (clave.length < 6) { $btn.disabled = false; return err($alerta, 'La clave debe tener al menos 6 caracteres.'); }
       patch.pass = clave;
@@ -253,11 +259,25 @@ async function guardarUsuario() {
   } else {
     if (clave.length < 6) { $btn.disabled = false; return err($alerta, 'La clave debe tener al menos 6 caracteres.'); }
     const { data: creado, error } = await supabase.from('usuarios_app').insert({
-      cedula, pass: clave, nombres, apellidos, rol, registro_msp: msp, activo: true
+      cedula, pass: clave, nombres, apellidos, rol, registro_msp: msp, activo: true, docente_learning: docente
     }).select('id').single();
     if (error) { $btn.disabled = false; return err($alerta, traducir(error)); }
     await guardarEmpresas(creado.id);
+    estado.editId = creado.id;   // si algo falla después, "Guardar" ya no lo vuelve a crear
+    document.getElementById('btn-guardar-usuario').textContent = 'Guardar cambios';
     $btn.disabled = false;
+  }
+
+  // Nexus Learning: registrar o desactivar como docente (si está marcado o lo estuvo)
+  if (docente || estado.docenteAntes) {
+    $btn.disabled = true;
+    const r = await sincronizarDocente(cedula, `${nombres} ${apellidos}`, docente);
+    $btn.disabled = false;
+    if (r.error) {
+      await cargarUsuarios();
+      return err($alerta, 'El usuario se guardó en NEXUS, pero no se pudo actualizar en Nexus Learning: ' + r.error +
+        ' Vuelva a pulsar "Guardar cambios" para reintentar.');
+    }
   }
 
   document.getElementById('modal-usuario').hidden = true;

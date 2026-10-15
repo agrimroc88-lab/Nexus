@@ -19,7 +19,7 @@ export const LEARNING = {
 
 const PUENTE = LEARNING.url + '/functions/v1/puente-nexus';
 
-async function llamarPuente(accion, msEspera) {
+async function llamarPuente(accion, msEspera, extra) {
   const pase = sessionStorage.getItem('nexus_token');
   if (!pase) return { error: 'No hay una sesión de NEXUS activa.' };
 
@@ -29,7 +29,7 @@ async function llamarPuente(accion, msEspera) {
     const r = await fetch(PUENTE, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'apikey': LEARNING.clave, 'x-sesion-nexus': pase },
-      body: JSON.stringify({ accion }),
+      body: JSON.stringify(Object.assign({ accion }, extra || {})),
       signal: control.signal
     });
     const datos = await r.json().catch(() => ({}));
@@ -54,6 +54,12 @@ export async function papelEnLearning() {
 /* { token_hash, rol } o { error } */
 export function paseDeEntrada() {
   return llamarPuente('entrar', 12000);
+}
+
+/* Módulo Usuarios (admin): registra o desactiva a la persona como
+   docente en Nexus Learning. { ok } o { error } */
+export function sincronizarDocente(cedula, nombres, docente) {
+  return llamarPuente('docente_nexus', 12000, { cedula, nombres, docente: Boolean(docente) });
 }
 
 /* Lleva a la persona a Nexus Learning con su pase de un solo uso */
