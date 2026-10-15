@@ -178,16 +178,16 @@
   font-family: inherit;
   text-align: center;
   color: #fff;
-  background: linear-gradient(160deg, #0f3d3e 0%, #1c5c5d 100%);
-  border: 1px solid rgba(242, 193, 78, 0.45);
+  background: linear-gradient(160deg, #0A2B5D 0%, #123A7A 55%, #1F55A8 100%);
+  border: 1px solid rgba(227, 179, 65, 0.45);
   border-radius: var(--radio);
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
 }
 .sel-learning-boton:hover {
   transform: translateY(-2px);
-  border-color: #f2c14e;
-  box-shadow: 0 10px 30px rgba(242, 193, 78, 0.18);
+  border-color: #E3B341;
+  box-shadow: 0 10px 30px rgba(227, 179, 65, 0.22);
 }
 .sel-learning-boton:disabled { opacity: 0.7; cursor: wait; transform: none; }
 .sel-learning-logo { margin-bottom: 0.2rem; }
@@ -198,10 +198,19 @@
   padding: 0.35rem 0.9rem;
   font-size: 0.82rem;
   font-weight: 700;
-  color: #0f3d3e;
-  background: #f2c14e;
+  color: #0A2B5D;
+  background: #E3B341;
   border-radius: 999px;
 }
+
+/* Con imagen de portada: la imagen arriba y el texto en la franja azul */
+.sel-learning-portada { display: none; }
+.sel-learning-boton.con-portada { justify-content: flex-start; padding: 0 0 1.1rem; overflow: hidden; gap: 0.3rem; }
+.sel-learning-boton.con-portada .sel-learning-portada {
+  display: block; width: 100%; aspect-ratio: 5 / 4; object-fit: cover; object-position: center;
+  margin-bottom: 0.6rem; border-bottom: 3px solid #E3B341;
+}
+.sel-learning-boton.con-portada .sel-learning-entrar { margin-top: 0.35rem; }
 
 @media (max-width: 760px) {
   .acceso-tarjeta-doble .sel-emp-columnas { grid-template-columns: 1fr; }
