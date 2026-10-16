@@ -987,6 +987,28 @@
 
           <p class="alerta" id="atd-alerta" role="alert" hidden></p>
 
+          <!-- Pendientes: quién falta de llenar el test este año -->
+          <section class="panel" id="atd-pendientes" hidden>
+            <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0.5rem;padding:0.5rem 1rem 0;">
+              <h3 class="est-titulo" style="margin:0;">Faltan de llenar el test: <span id="atd-pend-cuenta"></span></h3>
+              <button class="boton-secundario boton-pequeno" id="atd-pend-alternar" type="button">Ver lista</button>
+            </div>
+            <p class="ayuda" id="atd-pend-fuente" style="padding:0 1rem;"></p>
+            <div id="atd-pend-lista" hidden>
+              <div style="padding:0 1rem 0.5rem;">
+                <input class="entrada" id="atd-pend-filtro" type="search" placeholder="Buscar por nombre, código o cédula" aria-label="Buscar pendientes">
+              </div>
+              <div class="tabla-envoltura">
+                <table class="tabla">
+                  <thead>
+                    <tr><th>Código</th><th>Cédula</th><th>Trabajador</th><th>Cargo</th><th class="celda-centro"></th></tr>
+                  </thead>
+                  <tbody id="atd-pend-cuerpo"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
           <!-- Formulario de captura -->
           <section class="panel" id="atd-form" hidden>
             <h3 class="est-titulo" style="padding:0.5rem 1rem 0;">Nueva respuesta</h3>
@@ -2787,6 +2809,6 @@
 
   <div class="if-impresion" id="atd-impresion"></div>
 
-  <script type="module" src="js/anexo1.js?v=58"></script>
+  <script type="module" src="js/anexo1.js?v=59"></script>
 </body>
 </html>
