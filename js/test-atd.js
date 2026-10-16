@@ -106,6 +106,8 @@ const atd = {
   logoUrl: 'logo.png',
   anio: new Date().getFullYear(),
   respuestas: [],  // de TODOS los años de la empresa (historial/comparativo/seguimiento)
+  nomina: [],      // trabajadores de la empresa (código, cédula, nombre) para reconocer a la persona
+  convocados: {},  // { anio: [trabajador_id…] } de la evaluación periódica de ese año
   soloLectura: false
 };
 
@@ -129,7 +131,7 @@ export async function iniciarTestAtd(empresaId, empresaNombre) {
   atd.empresaId = empresaId;
   atd.empresaNombre = empresaNombre || '';
   atd.logoUrl = await logoEmpresa(empresaId);
-  await cargarRespuestas();
+  await Promise.all([cargarRespuestas(), cargarNominaAtd()]);
   llenarSelectorAnioCaptura();
   pintarListadoRespuestas();
   llenarSelectorAnioDerivaciones();
@@ -146,6 +148,56 @@ async function cargarRespuestas() {
 
   atd.respuestas = error ? [] : (data || []);
   return atd.respuestas;
+}
+
+/* Nómina de la empresa y convocados de cada evaluación periódica.
+   Sirven para reconocer a la misma persona por cédula O por código
+   y para saber quién falta de llenar el test. Si algo falla, el
+   módulo sigue funcionando como antes (solo por texto exacto). */
+async function cargarNominaAtd() {
+  atd.nomina = []; atd.convocados = {};
+  try {
+    const [nom, evs] = await Promise.all([
+      supabase.from('v_trabajadores')
+        .select('id, codigo, cedula, nombre_completo, cargo, activo')
+        .eq('empresa_id', atd.empresaId),
+      supabase.from('evaluaciones_periodicas').select('id, anio').eq('empresa_id', atd.empresaId)
+    ]);
+    atd.nomina = nom.data || [];
+    const lista = evs.data || [];
+    if (lista.length) {
+      const { data: conv } = await supabase.from('evaluacion_convocados')
+        .select('evaluacion_id, trabajador_id').in('evaluacion_id', lista.map((e) => e.id));
+      const anioDe = new Map(lista.map((e) => [e.id, e.anio]));
+      (conv || []).forEach((c) => {
+        const a = anioDe.get(c.evaluacion_id);
+        (atd.convocados[a] = atd.convocados[a] || []).push(c.trabajador_id);
+      });
+    }
+  } catch { /* sin nómina: se sigue sin cruce */ }
+}
+
+const norm = (t) => String(t ?? '').trim().toLowerCase();
+
+/** Trabajador de la nómina cuya cédula o código coincide con el texto */
+function trabajadorDe(valor) {
+  const b = norm(valor);
+  if (!b) return null;
+  return atd.nomina.find((t) => norm(t.cedula) === b)
+      || atd.nomina.find((t) => norm(t.codigo) === b) || null;
+}
+
+/** Todas las formas de identificar a esa persona: lo escrito + su cédula + su código */
+function clavesDe(valor) {
+  const claves = new Set();
+  const b = norm(valor);
+  if (b) claves.add(b);
+  const t = trabajadorDe(valor);
+  if (t) {
+    if (norm(t.cedula)) claves.add(norm(t.cedula));
+    if (norm(t.codigo)) claves.add(norm(t.codigo));
+  }
+  return claves;
 }
 
 /* ============================================
@@ -179,8 +231,77 @@ export function cambiarAnioAtd() {
 function actualizarAvance() {
   const n = atd.respuestas.filter((r) => r.anio === atd.anio).length;
   const $a = document.getElementById('atd-avance');
-  if ($a) $a.textContent = `${n} registro(s) capturado(s) para ${atd.anio}.`;
+  const p = pendientesAtd();
+  if ($a) {
+    $a.textContent = `${n} registro(s) capturado(s) para ${atd.anio}.`
+      + (p.total ? ` Faltan ${p.lista.length} de ${p.total} ${p.fuente === 'convocados' ? 'convocados' : 'trabajadores activos'}.` : '');
+  }
+  pintarPendientes();
 }
+
+/* ============================================
+   Pendientes: quién falta de llenar el test
+   Base: los convocados de la evaluación periódica de ese año;
+   si no hay convocados, toda la nómina activa de la empresa.
+   ============================================ */
+
+function pendientesAtd() {
+  if (!atd.nomina.length) return { lista: [], total: 0, fuente: '' };
+  const ids = atd.convocados[atd.anio];
+  const base = ids && ids.length
+    ? atd.nomina.filter((t) => ids.includes(t.id))
+    : atd.nomina.filter((t) => t.activo !== false);
+  const hechas = new Set();
+  atd.respuestas.filter((r) => r.anio === atd.anio)
+    .forEach((r) => clavesDe(r.codigo_cedula).forEach((k) => hechas.add(k)));
+  const lista = base.filter((t) => !hechas.has(norm(t.cedula)) && !hechas.has(norm(t.codigo)))
+    .sort((a, b) => String(a.nombre_completo || '').localeCompare(String(b.nombre_completo || ''), 'es'));
+  return { lista, total: base.length, fuente: ids && ids.length ? 'convocados' : 'nomina' };
+}
+
+function pintarPendientes() {
+  const $sec = document.getElementById('atd-pendientes');
+  if (!$sec) return;
+  const p = pendientesAtd();
+  $sec.hidden = !p.total;
+  if (!p.total) return;
+  document.getElementById('atd-pend-cuenta').textContent = `${p.lista.length} de ${p.total}`;
+  document.getElementById('atd-pend-fuente').textContent = p.fuente === 'convocados'
+    ? `Convocados a la evaluación periódica ${atd.anio} que aún no tienen el test.`
+    : `No hay convocados registrados para ${atd.anio}: se compara con toda la nómina activa.`;
+  const filtro = norm(document.getElementById('atd-pend-filtro')?.value);
+  const filas = p.lista.filter((t) => !filtro
+    || [t.nombre_completo, t.cedula, t.codigo, t.cargo].some((x) => norm(x).includes(filtro)));
+  const $cuerpo = document.getElementById('atd-pend-cuerpo');
+  $cuerpo.innerHTML = filas.length ? filas.map((t) => `
+    <tr>
+      <td>${escapar(t.codigo || '—')}</td>
+      <td>${escapar(t.cedula || '—')}</td>
+      <td>${escapar(t.nombre_completo || '—')}</td>
+      <td>${escapar(t.cargo || '—')}</td>
+      <td class="celda-centro">${atd.soloLectura ? '—' : `
+        <button class="boton-secundario boton-pequeno" data-llenar-atd="${escapar(t.cedula || t.codigo || '')}" type="button">Llenar test</button>`}</td>
+    </tr>`).join('')
+    : `<tr><td colspan="5" class="celda-centro">${p.lista.length ? 'Nadie coincide con la búsqueda.' : '¡Todos completaron el test! ✓'}</td></tr>`;
+  $cuerpo.querySelectorAll('[data-llenar-atd]').forEach(($b) => {
+    $b.addEventListener('click', () => {
+      abrirFormularioAtd();
+      const $c = document.getElementById('atd-f-cedula');
+      $c.value = $b.dataset.llenarAtd;
+      buscarPorCedulaAtd();
+      revisarCedulaAtd();
+    });
+  });
+}
+
+export function alternarPendientesAtd() {
+  const $l = document.getElementById('atd-pend-lista');
+  const $b = document.getElementById('atd-pend-alternar');
+  $l.hidden = !$l.hidden;
+  $b.textContent = $l.hidden ? 'Ver lista' : 'Ocultar lista';
+}
+
+export const filtrarPendientesAtd = retrasar(() => pintarPendientes(), 250);
 
 /* ============================================
    Formulario de captura
@@ -233,10 +354,21 @@ export function alternarBloqueDerivacion() {
  * ya trae todos los años de la empresa cargados.
  */
 function existeRegistroAtd(codigo, anio) {
-  const buscado = (codigo || '').trim().toLowerCase();
-  if (!buscado) return false;
-  return atd.respuestas.some((r) =>
-    r.anio === anio && (r.codigo_cedula || '').trim().toLowerCase() === buscado);
+  const buscadas = clavesDe(codigo);
+  if (!buscadas.size) return null;
+  return atd.respuestas.find((r) => {
+    if (r.anio !== anio) return false;
+    for (const k of clavesDe(r.codigo_cedula)) if (buscadas.has(k)) return true;
+    return false;
+  }) || null;
+}
+
+/** "Juan Pérez (cédula 09…, código T-045)" o el texto escrito */
+function describirTrabajador(valor) {
+  const t = trabajadorDe(valor);
+  if (!t) return `«${String(valor).trim()}»`;
+  const datos = [t.cedula ? `cédula ${t.cedula}` : '', t.codigo ? `código ${t.codigo}` : ''].filter(Boolean).join(', ');
+  return `${t.nombre_completo}${datos ? ` (${datos})` : ''}`;
 }
 
 /**
@@ -251,9 +383,11 @@ export const revisarCedulaAtd = retrasar(() => {
   const $guardar = document.getElementById('atd-btn-guardar');
   const valor = $cedula.value.trim();
 
-  if (valor && existeRegistroAtd(valor, atd.anio)) {
-    $aviso.textContent = `⚠ Trabajador ya registrado: este código/cédula ya tiene un `
-      + `test guardado en ${atd.anio}.`;
+  const previo = valor ? existeRegistroAtd(valor, atd.anio) : null;
+  if (previo) {
+    $aviso.textContent = `⚠ Trabajador ya registrado: ${describirTrabajador(valor)} ya tiene un `
+      + `test guardado en ${atd.anio}` + (norm(previo.codigo_cedula) !== norm(valor)
+        ? ` (registrado como «${previo.codigo_cedula}»).` : '.');
     if ($guardar) $guardar.disabled = true;
   } else {
     $aviso.textContent = '';
@@ -335,7 +469,7 @@ export async function guardarRespuestaAtd() {
   }
 
   if (existeRegistroAtd(v('atd-f-cedula'), atd.anio)) {
-    $error.textContent = `Ya existe un test registrado para este código/cédula en ${atd.anio}.`;
+    $error.textContent = `Ya existe un test registrado para ${describirTrabajador(v('atd-f-cedula'))} en ${atd.anio}.`;
     return;
   }
 
@@ -409,7 +543,8 @@ function pintarListadoRespuestas() {
 
   $cuerpo.innerHTML = filas.map((r) => `
     <tr>
-      <td>${escapar(r.codigo_cedula || '—')}</td>
+      <td>${escapar(r.codigo_cedula || '—')}${trabajadorDe(r.codigo_cedula)
+        ? `<br><span class="ayuda">${escapar(trabajadorDe(r.codigo_cedula).nombre_completo)}</span>` : ''}</td>
       <td>${escapar(r.area_cargo || '—')}</td>
       <td>${escapar(CAT_GENERO[r.genero] || '—')}</td>
       <td>${escapar(CAT_DROGA[r.droga_principal] || '—')}</td>

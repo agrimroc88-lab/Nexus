@@ -38,12 +38,13 @@ import {
   iniciarTestAtd, cambiarAnioAtd, abrirFormularioAtd, cancelarFormularioAtd,
   fijarSoloLecturaAtd,
   alternarBloqueDerivacion, guardarRespuestaAtd, pintarDerivaciones,
-  filtrarDerivaciones, imprimirListadoDerivaciones, buscarPorCedulaAtd, revisarCedulaAtd
-} from './test-atd.js?v=5';
+  filtrarDerivaciones, imprimirListadoDerivaciones, buscarPorCedulaAtd, revisarCedulaAtd,
+  alternarPendientesAtd, filtrarPendientesAtd
+} from './test-atd.js?v=6';
 import {
   iniciarInformeAtd, generarInformeAnualAtd, descargarInformeAnualAtd,
   generarInformeComparativoAtd, descargarInformeComparativoAtd, marcarRecomendacionesEditadas
-} from './informe-test-atd.js?v=9';
+} from './informe-test-atd.js?v=10';
 import { montarGrupos, cargarGrupos, pintarGrupos } from './grupos.js?v=13';
 import { montarBotiquines, cargarBotiquines, pintarBotiquines }
   from './botiquines.js?v=20';
@@ -2458,6 +2459,8 @@ function conectarTestAtd() {
   en('atd-f-desea-tratamiento', 'change', alternarBloqueDerivacion);
   en('atd-f-cedula', 'input', revisarCedulaAtd);
   en('atd-f-cedula', 'blur', buscarPorCedulaAtd);
+  en('atd-pend-alternar', 'click', alternarPendientesAtd);
+  en('atd-pend-filtro', 'input', filtrarPendientesAtd);
 
   en('atd-deriv-filtro-anio', 'change', filtrarDerivaciones);
   en('atd-deriv-filtro-estado', 'change', filtrarDerivaciones);
