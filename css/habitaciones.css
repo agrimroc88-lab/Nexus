@@ -908,3 +908,57 @@
   body.hab-imprimiendo { background: #fff; }
   #hab-impresion, #hab-impresion * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* ---------- Plano interior de la planta (a ojo) ---------- */
+.hab-pl { background-color: #ffffff; container-type: inline-size; overflow: visible; border-width: 3px; }
+.hab-cq-marco:has(.hab-pl) { padding: 6px; }
+.hab-pl-el {
+  justify-content: flex-start;
+  align-items: stretch;
+  padding: 4px 5px;
+  border: 2.5px solid var(--hab-muro);
+  border-radius: 0;
+  background: #f6f1e7;
+  overflow: visible;
+  color: #1f2a23;
+}
+.hab-pl-el > svg { align-self: center; margin-top: 2px; }
+.hab-pl-el--banos { background: #e3f0f7; }
+.hab-pl-el--escaleras {
+  background: repeating-linear-gradient(90deg, #eef0f2 0 10px, #d9dde2 10px 12px);
+}
+.hab-pl-el--sin_construir { background: #e8f2e1; border-style: dashed; }
+.hab-pl-el--comedor, .hab-pl-el--lavanderia, .hab-pl-el--oficina, .hab-pl-el--bodega, .hab-pl-el--garita { background: #f1eef6; }
+.hab-pl-nombre { display: block; text-align: center; font-size: 0.74rem; line-height: 1.15; overflow-wrap: anywhere; }
+.hab-pl-nombre small { font-weight: 600; opacity: 0.75; }
+.hab-pl-camas {
+  display: flex; flex-wrap: wrap; justify-content: center; align-content: flex-start;
+  gap: 2px; margin-top: 3px; overflow: hidden; min-height: 0; flex: 1 1 auto;
+}
+.hab-pl-camas .hab-cama--mini { width: 40px; flex: 0 0 auto; padding: 1px 1px 2px; font-size: 0.62rem; }
+.hab-pl-camas .hab-cama--mini svg { height: 13px; max-width: 30px; }
+
+/* Puerta: hueco en el muro + hoja + arco de giro (símbolo de plano) */
+.hab-pl-puerta {
+  position: absolute;
+  width: 3.6cqw; height: 3.6cqw;
+  min-width: 14px; min-height: 14px;
+  box-sizing: border-box;
+  border-left: 2px solid #7a4b1e;
+  border-bottom: 1.4px dashed #7a4b1e;
+  border-right: 1.4px dashed transparent;
+  border-bottom-right-radius: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
+.hab-pl-puerta::before {             /* hueco en el muro */
+  content: ""; position: absolute; left: -2px; right: -2px; top: -4.5px; height: 5px;
+  background: #ffffff;
+}
+.hab-pl-puerta--n { top: -2.5px; transform: translateX(-50%); }
+.hab-pl-puerta--s { bottom: -2.5px; transform: translateX(-50%) rotate(180deg); }
+.hab-pl-puerta--o { left: -2.5px; transform: translateY(-50%) rotate(-90deg); }
+.hab-pl-puerta--e { right: -2.5px; transform: translateY(-50%) rotate(90deg); }
+.hab-cq--editando .hab-pl-puerta { pointer-events: auto; cursor: grab; touch-action: none; }
+.hab-pl-puerta--sel { border-left-color: var(--color-acento); border-bottom-color: var(--color-acento); }
+.hab-pl-puerta--sel::before { background: var(--color-acento-suave, #fde7b0); }
