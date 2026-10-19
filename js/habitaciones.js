@@ -22,7 +22,7 @@
 import { alCrear, alEditar } from './autoria.js?v=1';
 import { esperarImagenes } from './impresion.js?v=11';
 
-const VERSION = 'v20';
+const VERSION = 'v21';
 console.info('NEXUS · habitaciones', VERSION);
 
 /* Dos permisos distintos:
@@ -2740,7 +2740,10 @@ function vistaPlano($v, edif) {
     ${!editando && faltan.length && elems.length ? `<p class="ayuda">Sin ubicar en el plano: ${faltan.map((x) => esc(nombreEsp(x))).join(', ')}.</p>` : ''}`;
 
   const $pl = document.getElementById('hab-pl');
-  elems.forEach((el) => $pl.appendChild(elementoPl(el, editando, $pl)));
+  /* Los más grandes se dibujan debajo: así un cuarto grande puede
+     contener cuartos internos dibujados encima */
+  elems.slice().sort((a, b) => b.w * b.h - a.w * a.h)
+    .forEach((el) => $pl.appendChild(elementoPl(el, editando, $pl)));
   if (editando) conectarHerramientasPlano(edif, planta, faltan);
 }
 
