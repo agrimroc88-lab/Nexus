@@ -22,7 +22,7 @@
 import { alCrear, alEditar } from './autoria.js?v=1';
 import { esperarImagenes } from './impresion.js?v=11';
 
-const VERSION = 'v19';
+const VERSION = 'v20';
 console.info('NEXUS · habitaciones', VERSION);
 
 /* Dos permisos distintos:
@@ -2676,6 +2676,15 @@ function vistaPlano($v, edif) {
   const planta = S.planoPlanta;
   if (S.pl && (S.pl.edifId !== edif.id || S.pl.planta !== planta)) S.pl = null;
   const editando = !!S.pl;
+  /* Espacios recién creados desde el plano: se ubican solos y quedan elegidos */
+  if (editando) {
+    espaciosDe(edif.id).filter((x) => x.planta === planta && !S.pl.conocidos.has(x.id)).forEach((x) => {
+      S.pl.conocidos.add(x.id);
+      if (S.pl.elems.some((e) => e.id === x.id)) return;
+      const el = ubicarEnPlano(x);
+      S.pl.sel = el.id; S.pl.puerta = null; S.pl.cambios = true;
+    });
+  }
   const elems = editando ? S.pl.elems : elementosPlano(edif, planta);
   const faltan = sinUbicar(edif, planta, elems);
 
@@ -2701,7 +2710,8 @@ function vistaPlano($v, edif) {
   conectarChipsVistaEdif();
   document.querySelectorAll('[data-pp]').forEach((b) => b.addEventListener('click', () => { S.planoPlanta = Number(b.dataset.pp); pintar(); }));
   document.getElementById('pl-editar')?.addEventListener('click', () => {
-    S.pl = { edifId: edif.id, planta, elems: elementosPlano(edif, planta), sel: null, puerta: null, cambios: false };
+    S.pl = { edifId: edif.id, planta, elems: elementosPlano(edif, planta), sel: null, puerta: null, cambios: false,
+      conocidos: new Set(espaciosDe(edif.id).map((x) => x.id)) };
     pintar();
   });
 
@@ -2713,9 +2723,9 @@ function vistaPlano($v, edif) {
     return;
   }
   const totalPlanta = espaciosDe(edif.id).filter((x) => x.planta === planta).length;
-  if (totalPlanta === 0) {
+  if (totalPlanta === 0 && !editando) {
     $z.innerHTML = `<div class="hab-vacio">Esta planta aún no tiene espacios.<br>${S.estructura
-      ? 'Créelos en la vista «Por frentes» con «Editar plantas y espacios» y luego ubíquelos aquí.' : QUIEN_ESTRUCTURA}</div>`;
+      ? 'Pulse «Editar plano» y use «+ Nuevo espacio» para dibujar habitaciones, baños, escaleras y demás.' : QUIEN_ESTRUCTURA}</div>`;
     return;
   }
 
@@ -2868,13 +2878,14 @@ function seleccionarPl(id, puerta) {
 
 function herramientasPlanoHtml(faltan) {
   return `<div class="hab-herramientas" role="toolbar" aria-label="Edición del plano">
+    <button class="boton-primario boton-compacto" id="pl-nuevo" type="button">+ Nuevo espacio</button>
     ${faltan.length ? `<label class="etiqueta" for="pl-esp" style="margin:0">Ubicar</label>
     <select class="entrada" id="pl-esp" style="width:auto">
       ${faltan.map((x) => `<option value="${x.id}">${esc(nombreEsp(x))}</option>`).join('')}
     </select>
     <button class="boton-secundario boton-compacto" id="pl-ubicar" type="button">+ Ubicar</button>
     ${faltan.length > 1 ? '<button class="boton-secundario boton-compacto" id="pl-ubicar-todos" type="button">Ubicar todos</button>' : ''}`
-    : '<span class="ayuda">Todos los espacios de esta planta ya están en el plano.</span>'}
+    : ''}
     ${herramientasSelPlHtml()}
     <span style="flex:1 1 auto"></span>
     <button class="boton-secundario boton-compacto" id="pl-cancelar" type="button">Cancelar</button>
@@ -2953,6 +2964,9 @@ function ubicarEnPlano(esp) {
 
 function conectarHerramientasPlano(edif, planta, faltan) {
   conectarHerramientasSelPl();
+  // Crea el espacio (habitación, baño, escalera…) en esta planta; al volver se ubica solo en el plano
+  document.getElementById('pl-nuevo').addEventListener('click', () =>
+    modalEspacio(null, { edif, planta, frente: edif.tiene_frentes ? 'A' : null }));
   document.getElementById('pl-ubicar')?.addEventListener('click', () => {
     const esp = porId(S.espacios, document.getElementById('pl-esp').value);
     if (!esp) return;
