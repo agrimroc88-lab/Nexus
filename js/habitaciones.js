@@ -11,7 +11,8 @@
    - Nada se borra: quitar marca como retirado y el historial
      de ocupantes y colchones se conserva.
 
-   Tablas: sql/habitaciones.sql (viv_*).
+   Tablas: sql/habitaciones.sql (viv_*). Plano interior a ojo:
+   sql/habitaciones_etapa4_plano.sql (viv_espacios.plano_*).
 
    Este archivo se carga solo cuando alguien abre la pestaña,
    así un error aquí nunca afecta a Ficha, Registros ni
@@ -21,7 +22,7 @@
 import { alCrear, alEditar } from './autoria.js?v=1';
 import { esperarImagenes } from './impresion.js?v=11';
 
-const VERSION = 'v18';
+const VERSION = 'v19';
 console.info('NEXUS · habitaciones', VERSION);
 
 /* Dos permisos distintos:
@@ -93,6 +94,9 @@ function estadoInicial(supabase, perfil, empresaId, contenedor) {
     segEdit: false,
     segColocar: null,
     cq: null,              // edición del croquis en curso
+    vistaEdif: 'frentes',  // 'frentes' | 'plano' (plano interior a ojo)
+    planoPlanta: 1,        // planta que se ve en el plano
+    pl: null,              // edición del plano en curso
     selEspacio: null,
     resaltar: null         // id de cama a resaltar tras una búsqueda
   };
@@ -702,6 +706,7 @@ function ir(nav) {
   S.selEspacio = null;
   S.resaltar = null;
   S.cq = null;
+  S.pl = null;
   S.segEdit = false;
   S.segColocar = null;
   pintar();
@@ -862,6 +867,7 @@ function vistaBase($v) {
 
 function vistaEdificio($v) {
   const edif = porId(S.edificios, S.nav.edificioId);
+  if (S.vistaEdif === 'plano') { vistaPlano($v, edif); return; }
   const c = conteo(camasDeEdificio(edif.id));
   const sel = S.editando && S.selEspacio ? porId(S.espacios, S.selEspacio) : null;
 
@@ -884,6 +890,7 @@ function vistaEdificio($v) {
         <span style="--c:var(--hab-cambio);--f:var(--hab-cambio-f)">Colchón por cambiar</span>
         <span style="--c:var(--hab-salio);--f:var(--hab-salio-f)">Ya no labora</span>
       </div>
+      ${chipsVistaEdif(S.editando || S.segEdit)}
       <div class="hab-filtros">
         <button class="hab-chip" id="hab-detalle" type="button" aria-pressed="${S.detalle}">Ver camas en detalle</button>
         <button class="hab-chip" id="hab-libres" type="button" aria-pressed="${S.soloLibres}">Solo habitaciones con camas libres</button>
@@ -903,6 +910,7 @@ function vistaEdificio($v) {
   document.getElementById('hab-libres').addEventListener('click', () => { S.soloLibres = !S.soloLibres; pintar(); });
   document.getElementById('hab-detalle').addEventListener('click', () => { S.detalle = !S.detalle; pintar(); });
   if (S.editando) conectarHerramientas(sel);
+  conectarChipsVistaEdif();
   conectarBarraSeguridad(edif);
 
   const $f = document.getElementById('hab-fachada');
@@ -2602,6 +2610,394 @@ async function guardarCroquis(base) {
   await cargarCroquis();
   pintar();
   toast('Croquis guardado');
+}
+
+/* ============================================
+   PLANO INTERIOR DE CADA PLANTA (etapa 4)
+   Vista desde arriba, a ojo (sin medidas), en una cuadrícula
+   de 40 × 25. Cada espacio del edificio se ubica arrastrándolo,
+   se estira desde la esquina y lleva una o más puertas, que se
+   arrastran por sus paredes. Lo que queda sin espacios se ve
+   como área libre de la casa.
+   - Ver: todos. Editar: admin y técnico de seguridad.
+   - Columnas viv_espacios.plano_* (habitaciones_etapa4_plano.sql).
+   - No cambia la vista por frentes ni las camas.
+   ============================================ */
+
+const PL_COLS = 40;
+const PL_FILAS = 25;
+const PL_TAM = { habitacion: [7, 6], banos: [4, 4], escaleras: [4, 5], comedor: [10, 7], sin_construir: [8, 6] };
+const PL_MAX_PUERTAS = 3;
+const LADOS_PUERTA = ['n', 'e', 's', 'o'];
+
+const tienePlano = (x) => x.plano_x != null && x.plano_y != null && x.plano_w != null && x.plano_h != null;
+
+function planoDisponible() {
+  return S.espacios.length === 0 || Object.prototype.hasOwnProperty.call(S.espacios[0], 'plano_x');
+}
+
+/** Elementos del plano de una planta: copia editable de cada espacio ubicado. */
+function elementosPlano(edif, planta) {
+  return espaciosDe(edif.id)
+    .filter((x) => x.planta === planta && tienePlano(x))
+    .map((x) => ({
+      id: x.id, x: x.plano_x, y: x.plano_y, w: x.plano_w, h: x.plano_h,
+      puertas: (Array.isArray(x.plano_puertas) ? x.plano_puertas : [])
+        .filter((p) => p && LADOS_PUERTA.includes(p.l))
+        .map((p) => ({ l: p.l, p: Math.min(0.92, Math.max(0.08, Number(p.p) || 0.5)) }))
+    }));
+}
+
+function sinUbicar(edif, planta, elems) {
+  const puestos = new Set(elems.map((e) => e.id));
+  return espaciosDe(edif.id).filter((x) => x.planta === planta && !puestos.has(x.id)).sort(porOrden);
+}
+
+function chipsVistaEdif(bloqueada) {
+  const plano = S.vistaEdif === 'plano';
+  return `<div class="hab-filtros" role="group" aria-label="Vista del edificio">
+    <button class="hab-chip" type="button" data-ve="frentes" aria-pressed="${!plano}" ${bloqueada ? 'disabled' : ''}>Por frentes</button>
+    <button class="hab-chip" type="button" data-ve="plano" aria-pressed="${plano}" ${bloqueada ? 'disabled' : ''}>Plano</button>
+  </div>`;
+}
+
+function conectarChipsVistaEdif() {
+  document.querySelectorAll('[data-ve]').forEach((b) => b.addEventListener('click', () => {
+    if (S.vistaEdif === b.dataset.ve) return;
+    S.vistaEdif = b.dataset.ve;
+    S.editando = false; S.selEspacio = null; S.segEdit = false; S.segColocar = null; S.pl = null;
+    pintar();
+  }));
+}
+
+function vistaPlano($v, edif) {
+  const c = conteo(camasDeEdificio(edif.id));
+  if (!S.planoPlanta || S.planoPlanta > edif.num_plantas) S.planoPlanta = 1;
+  const planta = S.planoPlanta;
+  if (S.pl && (S.pl.edifId !== edif.id || S.pl.planta !== planta)) S.pl = null;
+  const editando = !!S.pl;
+  const elems = editando ? S.pl.elems : elementosPlano(edif, planta);
+  const faltan = sinUbicar(edif, planta, elems);
+
+  const plantas = [];
+  for (let p = 1; p <= edif.num_plantas; p++) plantas.push(p);
+
+  $v.innerHTML = `
+    <div class="hab-cabeza">
+      <h2 class="hab-titulo">${esc(edif.nombre)} <small>código ${esc(edif.codigo)}</small></h2>
+      <div class="hab-cabeza-acciones">
+        ${S.estructura && !editando && planoDisponible() ? '<button class="boton-secundario" id="pl-editar" type="button">Editar plano</button>' : ''}
+      </div>
+    </div>
+    ${cifras(c, true)}
+    <div class="hab-cabeza">
+      ${chipsVistaEdif(editando)}
+      ${plantas.length > 1 ? `<div class="hab-filtros" role="group" aria-label="Planta">
+        ${plantas.map((p) => `<button class="hab-chip" type="button" data-pp="${p}" aria-pressed="${p === planta}" ${editando ? 'disabled' : ''}>${nombrePlanta(p, edif.num_plantas)}</button>`).join('')}
+      </div>` : ''}
+    </div>
+    <div id="pl-zona" class="hab-cq-zona"></div>`;
+
+  conectarChipsVistaEdif();
+  document.querySelectorAll('[data-pp]').forEach((b) => b.addEventListener('click', () => { S.planoPlanta = Number(b.dataset.pp); pintar(); }));
+  document.getElementById('pl-editar')?.addEventListener('click', () => {
+    S.pl = { edifId: edif.id, planta, elems: elementosPlano(edif, planta), sel: null, puerta: null, cambios: false };
+    pintar();
+  });
+
+  const $z = document.getElementById('pl-zona');
+  if (!planoDisponible()) {
+    $z.innerHTML = `<div class="hab-vacio"><strong>El plano necesita preparar la base de datos.</strong><br>
+      El administrador debe ejecutar una vez <code>sql/habitaciones_etapa4_plano.sql</code> en Supabase.
+      Mientras tanto puede usar la vista «Por frentes».</div>`;
+    return;
+  }
+  const totalPlanta = espaciosDe(edif.id).filter((x) => x.planta === planta).length;
+  if (totalPlanta === 0) {
+    $z.innerHTML = `<div class="hab-vacio">Esta planta aún no tiene espacios.<br>${S.estructura
+      ? 'Créelos en la vista «Por frentes» con «Editar plantas y espacios» y luego ubíquelos aquí.' : QUIEN_ESTRUCTURA}</div>`;
+    return;
+  }
+
+  $z.innerHTML = `
+    ${editando ? herramientasPlanoHtml(faltan) : (elems.length === 0
+      ? `<span class="ayuda">${S.estructura ? 'Esta planta aún no tiene plano. Pulse «Editar plano» y ubique cada espacio arrastrándolo, a ojo.' : 'Esta planta aún no tiene plano dibujado.'}</span>`
+      : '<span class="ayuda">Plano a ojo, visto desde arriba. Toque una cama para ver quién la ocupa. Lo blanco es área libre.</span>')}
+    <div class="hab-cq-marco">
+      <div class="hab-cq hab-pl ${editando ? 'hab-cq--editando' : ''}" id="hab-pl" role="${editando ? 'application' : 'group'}"
+        aria-label="Plano de ${esc(nombrePlanta(planta, edif.num_plantas))}"></div>
+    </div>
+    ${!editando && faltan.length && elems.length ? `<p class="ayuda">Sin ubicar en el plano: ${faltan.map((x) => esc(nombreEsp(x))).join(', ')}.</p>` : ''}`;
+
+  const $pl = document.getElementById('hab-pl');
+  elems.forEach((el) => $pl.appendChild(elementoPl(el, editando, $pl)));
+  if (editando) conectarHerramientasPlano(edif, planta, faltan);
+}
+
+const nombreEsp = (x) => (x.tipo === 'habitacion' ? `Hab. ${x.nombre}` : x.nombre);
+
+function elementoPl(el, editando, $pl) {
+  const esp = porId(S.espacios, el.id);
+  const d = document.createElement('div');
+  d.className = `hab-cq-el hab-pl-el hab-pl-el--${esp?.tipo || 'otro'}`;
+  d.dataset.clave = el.id;
+  posicionar(d, el);
+
+  if (esp?.tipo === 'habitacion') {
+    const camas = camasDe(esp.id);
+    const ocup = camas.filter((x) => asigDeCama(x.id)).length;
+    d.innerHTML = `<span class="hab-pl-nombre"><b>${esc(nombreEsp(esp))}</b>${camas.length ? ` <small>${ocup}/${camas.length}</small>` : ''}</span>`;
+    if (!editando && camas.length) {
+      const $c = document.createElement('span');
+      $c.className = 'hab-pl-camas';
+      camas.forEach((cama) => $c.appendChild(camaMini(cama)));
+      d.appendChild($c);
+    }
+  } else {
+    d.innerHTML = `${svgIcono(esp?.tipo)}<span class="hab-pl-nombre"><b>${esc(esp ? nombreEsp(esp) : '—')}</b></span>`;
+  }
+  d.setAttribute('aria-label', esp ? `${TIPOS_ESPACIO[esp.tipo]} ${esp.nombre}` : 'Espacio');
+
+  el.puertas.forEach((pu, i) => d.appendChild(puertaPl(el, pu, i, editando, d)));
+  if (!editando) return d;
+
+  /* ----- Edición: seleccionar, arrastrar, cambiar tamaño ----- */
+  d.tabIndex = 0;
+  d.setAttribute('role', 'button');
+  const sel = S.pl.sel === el.id;
+  d.setAttribute('aria-pressed', String(sel));
+  if (sel) d.classList.add('hab-cq-el--sel');
+  d.insertAdjacentHTML('beforeend', '<span class="hab-cq-asa" aria-hidden="true"></span>');
+
+  let modo = null, ix, iy, ox, oy, ow, oh;
+  d.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('.hab-pl-puerta')) return;
+    e.preventDefault();
+    modo = e.target.classList.contains('hab-cq-asa') ? 'tam' : 'mover';
+    ix = e.clientX; iy = e.clientY; ox = el.x; oy = el.y; ow = el.w; oh = el.h;
+    d.setPointerCapture(e.pointerId);
+    if (S.pl.sel !== el.id) seleccionarPl(el.id, null);
+  });
+  d.addEventListener('pointermove', (e) => {
+    if (!modo) return;
+    const r = $pl.getBoundingClientRect();
+    const dx = Math.round((e.clientX - ix) / r.width * PL_COLS);
+    const dy = Math.round((e.clientY - iy) / r.height * PL_FILAS);
+    if (modo === 'mover') {
+      el.x = Math.max(0, Math.min(PL_COLS - el.w, ox + dx));
+      el.y = Math.max(0, Math.min(PL_FILAS - el.h, oy + dy));
+    } else {
+      el.w = Math.max(2, Math.min(PL_COLS - el.x, ow + dx));
+      el.h = Math.max(2, Math.min(PL_FILAS - el.y, oh + dy));
+    }
+    posicionar(d, el);
+  });
+  const soltar = () => { if (modo) { modo = null; S.pl.cambios = true; } };
+  d.addEventListener('pointerup', soltar);
+  d.addEventListener('pointercancel', soltar);
+  d.addEventListener('keydown', (e) => {
+    const k = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+    if (!k) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); seleccionarPl(el.id, null); } return; }
+    e.preventDefault();
+    if (e.shiftKey) {
+      el.w = Math.max(2, Math.min(PL_COLS - el.x, el.w + k[0]));
+      el.h = Math.max(2, Math.min(PL_FILAS - el.y, el.h + k[1]));
+    } else {
+      el.x = Math.max(0, Math.min(PL_COLS - el.w, el.x + k[0]));
+      el.y = Math.max(0, Math.min(PL_FILAS - el.h, el.y + k[1]));
+    }
+    S.pl.cambios = true;
+    posicionar(d, el);
+  });
+  return d;
+}
+
+/** Puerta: símbolo de plano (hoja + arco) sobre una pared del espacio. */
+function ubicarPuerta(s, pu) {
+  s.className = `hab-pl-puerta hab-pl-puerta--${pu.l}`;
+  const pos = `${(pu.p * 100).toFixed(1)}%`;
+  s.style.left = s.style.top = '';
+  if (pu.l === 'n' || pu.l === 's') s.style.left = pos; else s.style.top = pos;
+}
+
+function puertaPl(el, pu, i, editando, d) {
+  const s = document.createElement('span');
+  ubicarPuerta(s, pu);
+  s.setAttribute('aria-hidden', 'true');
+  if (!editando) return s;
+  if (S.pl.sel === el.id && S.pl.puerta === i) s.classList.add('hab-pl-puerta--sel');
+  s.title = 'Arrastre la puerta por las paredes';
+  let arrastrando = false;
+  s.addEventListener('pointerdown', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    arrastrando = true;
+    s.setPointerCapture(e.pointerId);
+    seleccionarPl(el.id, i);
+  });
+  s.addEventListener('pointermove', (e) => {
+    if (!arrastrando) return;
+    const r = d.getBoundingClientRect();
+    const fx = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+    const fy = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
+    // Pared más cercana al puntero
+    const dist = { n: fy * r.height, s: (1 - fy) * r.height, o: fx * r.width, e: (1 - fx) * r.width };
+    const lado = Object.keys(dist).reduce((a, b) => (dist[a] <= dist[b] ? a : b));
+    pu.l = lado;
+    pu.p = Math.min(0.92, Math.max(0.08, lado === 'n' || lado === 's' ? fx : fy));
+    ubicarPuerta(s, pu);
+    s.classList.add('hab-pl-puerta--sel');
+  });
+  const soltar = () => { if (arrastrando) { arrastrando = false; S.pl.cambios = true; } };
+  s.addEventListener('pointerup', soltar);
+  s.addEventListener('pointercancel', soltar);
+  return s;
+}
+
+function seleccionarPl(id, puerta) {
+  S.pl.sel = id;
+  S.pl.puerta = puerta;
+  document.querySelectorAll('.hab-pl-el').forEach((x) => {
+    const si = x.dataset.clave === id;
+    x.classList.toggle('hab-cq-el--sel', si);
+    x.setAttribute('aria-pressed', String(si));
+    x.querySelectorAll('.hab-pl-puerta').forEach((p, i) => p.classList.toggle('hab-pl-puerta--sel', si && i === puerta));
+  });
+  const $h = document.getElementById('pl-herr-sel');
+  if ($h) { $h.outerHTML = herramientasSelPlHtml(); conectarHerramientasSelPl(); }
+}
+
+function herramientasPlanoHtml(faltan) {
+  return `<div class="hab-herramientas" role="toolbar" aria-label="Edición del plano">
+    ${faltan.length ? `<label class="etiqueta" for="pl-esp" style="margin:0">Ubicar</label>
+    <select class="entrada" id="pl-esp" style="width:auto">
+      ${faltan.map((x) => `<option value="${x.id}">${esc(nombreEsp(x))}</option>`).join('')}
+    </select>
+    <button class="boton-secundario boton-compacto" id="pl-ubicar" type="button">+ Ubicar</button>
+    ${faltan.length > 1 ? '<button class="boton-secundario boton-compacto" id="pl-ubicar-todos" type="button">Ubicar todos</button>' : ''}`
+    : '<span class="ayuda">Todos los espacios de esta planta ya están en el plano.</span>'}
+    ${herramientasSelPlHtml()}
+    <span style="flex:1 1 auto"></span>
+    <button class="boton-secundario boton-compacto" id="pl-cancelar" type="button">Cancelar</button>
+    <button class="boton-primario boton-compacto" id="pl-guardar" type="button">Guardar plano</button>
+  </div>
+  <p class="ayuda">A ojo: arrastre cada espacio a su lugar y estírelo desde la esquina inferior derecha. Las puertas se arrastran por las paredes.
+    Con el teclado: flechas para mover, Mayús + flechas para el tamaño.</p>`;
+}
+
+function herramientasSelPlHtml() {
+  const el = S.pl?.elems.find((x) => x.id === S.pl.sel);
+  if (!el) return '<span id="pl-herr-sel" class="ayuda">Toque un espacio para agregarle puertas, girarlo o quitarlo del plano.</span>';
+  const esp = porId(S.espacios, el.id);
+  const puertaSel = S.pl.puerta != null && el.puertas[S.pl.puerta];
+  return `<span id="pl-herr-sel" style="display:inline-flex;gap:.4rem;flex-wrap:wrap;align-items:center">
+    <b style="color:var(--color-acento-oscuro)">${esc(esp ? nombreEsp(esp) : '')}</b>
+    <button class="boton-secundario boton-compacto" id="pl-puerta" type="button" ${el.puertas.length >= PL_MAX_PUERTAS ? 'disabled' : ''}>+ Puerta</button>
+    ${el.puertas.length ? `<button class="boton-secundario boton-compacto" id="pl-quitar-puerta" type="button">− Puerta${puertaSel ? ' elegida' : ''}</button>` : ''}
+    <button class="boton-secundario boton-compacto" id="pl-girar" type="button">Girar</button>
+    <button class="boton-secundario boton-compacto boton-critico" id="pl-quitar" type="button">Quitar del plano</button>
+  </span>`;
+}
+
+function conectarHerramientasSelPl() {
+  const el = S.pl?.elems.find((x) => x.id === S.pl.sel);
+  if (!el) return;
+  document.getElementById('pl-puerta')?.addEventListener('click', () => {
+    // La nueva puerta va en la primera pared libre (abajo, arriba, derecha, izquierda)
+    const lado = ['s', 'n', 'e', 'o'].find((l) => !el.puertas.some((p) => p.l === l)) || 's';
+    el.puertas.push({ l: lado, p: 0.5 });
+    S.pl.puerta = el.puertas.length - 1;
+    S.pl.cambios = true;
+    pintar();
+    toast('Puerta agregada. Arrástrela por la pared hasta su lugar.');
+  });
+  document.getElementById('pl-quitar-puerta')?.addEventListener('click', () => {
+    const i = S.pl.puerta != null && el.puertas[S.pl.puerta] ? S.pl.puerta : el.puertas.length - 1;
+    el.puertas.splice(i, 1);
+    S.pl.puerta = null;
+    S.pl.cambios = true;
+    pintar();
+  });
+  document.getElementById('pl-girar')?.addEventListener('click', () => {
+    const w = Math.min(el.h, PL_COLS), h = Math.min(el.w, PL_FILAS);
+    el.w = w; el.h = h;
+    el.x = Math.min(el.x, PL_COLS - w); el.y = Math.min(el.y, PL_FILAS - h);
+    const giro = { n: 'e', e: 's', s: 'o', o: 'n' };
+    el.puertas.forEach((p) => { p.l = giro[p.l]; });
+    S.pl.cambios = true;
+    pintar();
+  });
+  document.getElementById('pl-quitar')?.addEventListener('click', () => {
+    S.pl.elems = S.pl.elems.filter((x) => x !== el);
+    S.pl.sel = null; S.pl.puerta = null; S.pl.cambios = true;
+    pintar();
+  });
+}
+
+/** Primer hueco libre del tamaño pedido (si no hay, arriba a la izquierda). */
+function huecoPlano(elems, w, h) {
+  for (let y = 0; y + h <= PL_FILAS; y++) {
+    for (let x = 0; x + w <= PL_COLS; x++) {
+      if (!elems.some((c) => choca({ x, y, w, h }, c))) return { x, y };
+    }
+  }
+  return { x: 0, y: 0 };
+}
+
+function ubicarEnPlano(esp) {
+  const [w, h] = PL_TAM[esp.tipo] || [5, 5];
+  const { x, y } = huecoPlano(S.pl.elems, w, h);
+  const el = { id: esp.id, x, y, w, h, puertas: [{ l: 's', p: 0.5 }] };
+  S.pl.elems.push(el);
+  return el;
+}
+
+function conectarHerramientasPlano(edif, planta, faltan) {
+  conectarHerramientasSelPl();
+  document.getElementById('pl-ubicar')?.addEventListener('click', () => {
+    const esp = porId(S.espacios, document.getElementById('pl-esp').value);
+    if (!esp) return;
+    const el = ubicarEnPlano(esp);
+    S.pl.sel = el.id; S.pl.puerta = null; S.pl.cambios = true;
+    pintar();
+    toast(`${nombreEsp(esp)} ubicado. Arrástrelo a su lugar.`);
+  });
+  document.getElementById('pl-ubicar-todos')?.addEventListener('click', () => {
+    faltan.forEach((esp) => ubicarEnPlano(esp));
+    S.pl.sel = null; S.pl.puerta = null; S.pl.cambios = true;
+    pintar();
+    toast('Espacios ubicados. Arrastre cada uno a su lugar.');
+  });
+  document.getElementById('pl-cancelar').addEventListener('click', () => {
+    const b = document.getElementById('pl-cancelar');
+    if (S.pl.cambios && !b.dataset.confirmar) {
+      b.dataset.confirmar = '1';
+      b.textContent = 'Descartar cambios';
+      return;
+    }
+    S.pl = null; pintar();
+  });
+  document.getElementById('pl-guardar').addEventListener('click', (e) => conBoton(e.currentTarget, () => guardarPlano(edif, planta)));
+}
+
+async function guardarPlano(edif, planta) {
+  const actuales = new Map(S.pl.elems.map((x) => [x.id, x]));
+  const ops = [];
+  espaciosDe(edif.id).filter((x) => x.planta === planta).forEach((esp) => {
+    const el = actuales.get(esp.id);
+    const nuevo = el
+      ? { plano_x: el.x, plano_y: el.y, plano_w: el.w, plano_h: el.h, plano_puertas: el.puertas.map((p) => ({ l: p.l, p: Math.round(p.p * 1000) / 1000 })) }
+      : { plano_x: null, plano_y: null, plano_w: null, plano_h: null, plano_puertas: [] };
+    const igual = esp.plano_x === nuevo.plano_x && esp.plano_y === nuevo.plano_y && esp.plano_w === nuevo.plano_w
+      && esp.plano_h === nuevo.plano_h && JSON.stringify(esp.plano_puertas || []) === JSON.stringify(nuevo.plano_puertas);
+    if (!igual) ops.push(S.sb.from('viv_espacios').update(alEditar(nuevo)).eq('id', esp.id));
+  });
+  if (ops.length === 0) { S.pl = null; pintar(); return; }
+  const res = await Promise.all(ops);
+  const fallo = res.find((r) => r.error);
+  if (fallo) { toast(mensajeError(fallo.error)); return; }
+  S.pl = null;
+  await recargar();
+  toast('Plano guardado');
 }
 
 /* ============================================
