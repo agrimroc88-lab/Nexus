@@ -962,3 +962,6 @@
 .hab-cq--editando .hab-pl-puerta { pointer-events: auto; cursor: grab; touch-action: none; }
 .hab-pl-puerta--sel { border-left-color: var(--color-acento); border-bottom-color: var(--color-acento); }
 .hab-pl-puerta--sel::before { background: var(--color-acento-suave, #fde7b0); }
+/* En el plano, el elegido no se sube encima: los cuartos internos siguen a la vista */
+.hab-pl .hab-cq-el--sel { z-index: auto; outline-offset: -3px; }
+.hab-pl-el--otro { background: #fbfaf6; }
