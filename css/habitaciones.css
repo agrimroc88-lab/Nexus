@@ -929,7 +929,7 @@
 }
 .hab-pl-el--sin_construir { background: #e8f2e1; border-style: dashed; }
 .hab-pl-el--comedor, .hab-pl-el--lavanderia, .hab-pl-el--oficina, .hab-pl-el--bodega, .hab-pl-el--garita { background: #f1eef6; }
-.hab-pl-nombre { display: block; text-align: center; font-size: 0.74rem; line-height: 1.15; overflow-wrap: anywhere; }
+.hab-pl-nombre { display: block; text-align: center; font-size: 0.92rem; line-height: 1.2; overflow-wrap: anywhere; }
 .hab-pl-nombre small { font-weight: 600; opacity: 0.75; }
 .hab-pl-camas {
   display: flex; flex-wrap: wrap; justify-content: center; align-content: flex-start;
@@ -1150,13 +1150,13 @@
   background-image: linear-gradient(#e9eef6 1px, transparent 1px), linear-gradient(90deg, #e9eef6 1px, transparent 1px);
   border: 3px solid #3f5170; border-radius: 6px;
 }
-.hab-cq-el {
+.hab-cq:not(.hab-pl) .hab-cq-el {
   container-type: size;
   border: 1.5px solid #8a97ab; border-radius: 6px; background: #f3f6fb; color: #2b3a52;
   transition: box-shadow .15s;
   font-size: clamp(0.58rem, 22cqmin, 0.85rem);
 }
-.hab-cq-el > svg { width: clamp(12px, 34cqmin, 22px); height: clamp(12px, 34cqmin, 22px); }
+.hab-cq:not(.hab-pl) .hab-cq-el > svg { width: clamp(12px, 34cqmin, 22px); height: clamp(12px, 34cqmin, 22px); }
 .hab-cq-el:hover { box-shadow: 0 0 0 3px rgba(242, 183, 5, .45), 0 6px 16px rgba(18, 58, 122, .15); z-index: 2; }
 .hab-cq-nombre { overflow-wrap: normal; word-break: normal; hyphens: auto; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .hab-cq-el--edificio { border: 1.5px solid #123A7A; background: #fff; color: #12233f; box-shadow: 0 2px 8px rgba(18, 58, 122, .1); }
@@ -1178,3 +1178,6 @@
 .hab-pasillo span { background: #eef2f8; }
 .hab-chip--capa[aria-pressed="true"] { background: #e7eef9; border-color: #123A7A; color: #123A7A; }
 .pl-aviso-armado { margin-top: .5rem; padding: .55rem .8rem; border-radius: 8px; background: #e7eef9; border: 1px solid #b9c7dc; color: #123A7A; font-size: .86rem; }
+/* Puerta en la pared de arriba: el nombre baja para no taparla */
+.hab-pl .hab-pl-el.pl-puerta-arriba { padding-top: max(18px, calc(3.6cqw + 4px)); }
+.hab-pl-nombre small { font-size: .78rem; }
