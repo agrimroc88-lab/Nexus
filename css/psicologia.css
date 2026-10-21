@@ -354,3 +354,13 @@
   margin-left: 0.5rem;
 }
 .ficha-cargo-edicion select { max-width: 220px; }
+
+/* Atenciones: lo que ya viene del sistema y lo adicional manual */
+.man-ayuda { margin: 0 0 .7rem; font-size: .85rem; color: var(--color-texto-tenue); }
+.man-grupo { flex-wrap: wrap; }
+.man-sistema {
+  font-size: .78rem; padding: .2rem .55rem; border-radius: 999px;
+  background: var(--color-acento-suave); color: var(--color-acento-oscuro); white-space: nowrap;
+}
+.man-entradas .campo-mini { width: 96px; }
+.man-entradas .etiqueta { font-size: .72rem; }
