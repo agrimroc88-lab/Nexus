@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="css/empresas.css">
   <link rel="stylesheet" href="css/trabajadores.css">
   <link rel="stylesheet" href="css/atenciones.css">
-  <link rel="stylesheet" href="css/psicologia.css?v=4">
+  <link rel="stylesheet" href="css/psicologia.css?v=8">
   <link rel="stylesheet" href="css/habitaciones.css?v=18">
   <style>
     .seccion-titulo {
@@ -445,6 +445,15 @@
             <label class="etiqueta" for="ts_fecha">Fecha <span class="obligatorio">*</span></label>
             <input class="entrada" id="ts_fecha" type="date">
           </div>
+          <div class="campo">
+            <label class="etiqueta" for="ts_tipo_atencion">Tipo de atención</label>
+            <select class="entrada" id="ts_tipo_atencion">
+              <option value="ingreso">Ingreso</option>
+              <option value="periodica">Periódica / actualización</option>
+              <option value="seguimiento">Seguimiento</option>
+              <option value="asistencial">Asistencial</option>
+            </select>
+          </div>
         </div>
 
         <!-- Ficha del trabajador -->
@@ -679,6 +688,6 @@
   <!-- Zona de impresión (fuera de todo) -->
   <div id="zona-impresion" class="zona-impresion" aria-hidden="true"></div>
 
-  <script type="module" src="js/trabajo-social.js?v=46"></script>
+  <script type="module" src="js/trabajo-social.js?v=47"></script>
 </body>
 </html>
