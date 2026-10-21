@@ -91,6 +91,48 @@ async function cargarFichas() {
     .eq('empresa_id', estado.empresaId)
     .order('creado_en', { ascending: false });
   estado.fichas = error ? [] : (data || []);
+  await completarFichasParaAtenciones();
+}
+
+/* Para la pestaña Atenciones cada ficha cuenta en el mes de su
+   fecha, por su tipo de atención (las antiguas = Ingreso) y por
+   el sexo del trabajador. La vista no trae el tipo (columna nueva,
+   sql/091_ficha_social_tipo_atencion.sql): se lee de la tabla. */
+async function completarFichasParaAtenciones() {
+  if (!estado.fichas.length) { estado.conTipoAtencion = true; return; }
+  const { data, error } = await supabase
+    .from('fichas_sociales').select('id, tipo_atencion')
+    .eq('empresa_id', estado.empresaId);
+  estado.conTipoAtencion = !error;
+  const tipos = new Map((data || []).map((r) => [r.id, r.tipo_atencion]));
+  estado.fichas.forEach((f) => { f.tipo_atencion = tipos.get(f.id) || f.tipo_atencion || 'ingreso'; });
+
+  // Sexo del trabajador (si la vista no lo trae)
+  const sinSexo = [...new Set(estado.fichas.filter((f) => !f.sexo && f.trabajador_id).map((f) => f.trabajador_id))];
+  if (sinSexo.length) {
+    const sexo = new Map();
+    for (let i = 0; i < sinSexo.length; i += 150) {
+      const r = await supabase.from('v_trabajadores').select('id, sexo').in('id', sinSexo.slice(i, i + 150));
+      (r.data || []).forEach((t) => sexo.set(t.id, t.sexo));
+    }
+    estado.fichas.forEach((f) => { if (!f.sexo) f.sexo = sexo.get(f.trabajador_id) || null; });
+  }
+}
+
+/** Fichas del año, contadas por mes → tipo → { h, m } */
+function fichasPorMes(anio) {
+  const filas = {};
+  for (let m = 1; m <= 12; m++) filas[m] = { ingreso: { h: 0, m: 0 }, periodica: { h: 0, m: 0 }, asistencial: { h: 0, m: 0 }, seguimiento: { h: 0, m: 0 } };
+  estado.fichas.forEach((f) => {
+    if (!f.fecha) return;
+    const d = new Date(f.fecha + 'T00:00');
+    if (d.getFullYear() !== anio) return;
+    const celda = filas[d.getMonth() + 1][f.tipo_atencion || 'ingreso'];
+    if (!celda) return;
+    if (f.sexo === 'M') celda.h++;
+    else if (f.sexo === 'F') celda.m++;
+  });
+  return filas;
 }
 
 /** Registro manual: como las fichas de trabajo social no se
@@ -758,6 +800,7 @@ async function editarFicha() {
   document.getElementById('titulo-modal').textContent = 'Editar ficha · ' + f.nombre_completo;
   document.getElementById('ts_codigo').value = f.codigo_trabajador ?? '';
   document.getElementById('ts_fecha').value = f.fecha ?? '';
+  document.getElementById('ts_tipo_atencion').value = f.tipo_atencion || 'ingreso';
   document.getElementById('ts_fecha_salida').value = f.rp_fecha_salida ?? '';
 
   MAPA_CAMPOS_FICHA_TS.forEach(([id, col]) => {
@@ -814,6 +857,7 @@ async function guardarFicha() {
     empresa_id: estado.empresaId,
     trabajador_id: estado.paciente.id,
     fecha: document.getElementById('ts_fecha').value || HOY(),
+    ...(estado.conTipoAtencion ? { tipo_atencion: document.getElementById('ts_tipo_atencion').value || 'ingreso' } : {}),
     nacionalidad: valor('ts_nacionalidad'),
     lugar_nacimiento: valor('ts_lugar_nac'),
     estado_civil: valor('ts_estado_civil'),
@@ -912,6 +956,8 @@ function limpiarFormulario() {
   document.getElementById('cuerpo-familiares').innerHTML = '';
   document.getElementById('cuerpo-discapacidades').innerHTML = '';
   document.getElementById('alerta-ficha').hidden = true;
+  const $tipoAt = document.getElementById('ts_tipo_atencion');
+  if ($tipoAt) $tipoAt.value = 'ingreso';
   estado.cargasAntiguas = null;
   actualizarResumenCargas();
   refrescarSelectoresFamiliares();
@@ -919,12 +965,12 @@ function limpiarFormulario() {
 }
 
 /* ============================================
-   Atenciones (registro manual)
+   Atenciones
 
-   Las fichas de trabajo social no se clasifican por tipo, así
-   que esta tabla se alimenta únicamente del registro manual —
-   es la forma de dejar constancia de "atendí a alguien" sin
-   necesidad de armar la ficha socioeconómica completa cada vez.
+   Cada ficha social cuenta sola en el mes de su fecha, según su
+   tipo de atención (las antiguas = Ingreso) y el sexo. El
+   registro manual se SUMA encima: es para las atenciones que no
+   se registraron en el sistema.
    ============================================ */
 
 const COLORES_TIPO = {
@@ -937,7 +983,7 @@ const COLORES_TIPO = {
 /** Mismo gráfico que ya usa Psicología —aquí solo con el
     registro manual, ya que las fichas de trabajo social no
     llevan tipo. */
-function pintarTendenciaAtenciones(manualDelAnio) {
+function pintarTendenciaAtenciones(manualDelAnio, sistema = null) {
   const $g = document.getElementById('at-grafico');
   const $l = document.getElementById('at-leyenda');
   if (!$g) return;
@@ -949,6 +995,9 @@ function pintarTendenciaAtenciones(manualDelAnio) {
   (manualDelAnio || []).forEach((r) => {
     if (porTipo[r.tipo]) porTipo[r.tipo][r.mes - 1] += (r.hombres || 0) + (r.mujeres || 0);
   });
+  if (sistema) {
+    for (let m = 1; m <= 12; m++) ids.forEach((id) => { porTipo[id][m - 1] += sistema[m][id].h + sistema[m][id].m; });
+  }
 
   const series = ids.map((id) => ({
     nombre: TIPOS[id] || id,
@@ -1032,7 +1081,7 @@ function pintarAtenciones() {
 
   const manualDelAnio = estado.manual.filter((m) => m.anio === anio);
 
-  pintarTendenciaAtenciones(manualDelAnio);
+  pintarTendenciaAtenciones(manualDelAnio, fichasPorMes(anio));
 
   $cuerpo.innerHTML = '';
   $pie.innerHTML = '';
@@ -1045,6 +1094,11 @@ function pintarAtenciones() {
     IDS.forEach((id) => { filas[m][id] = { h: 0, m: 0 }; });
   }
 
+  // Fichas registradas en el sistema (cada una cuenta 1) + registro manual encima
+  const sistema = fichasPorMes(anio);
+  for (let m = 1; m <= 12; m++) {
+    IDS.forEach((id) => { filas[m][id].h += sistema[m][id].h; filas[m][id].m += sistema[m][id].m; });
+  }
   manualDelAnio.forEach((r) => {
     if (!filas[r.mes] || !filas[r.mes][r.tipo]) return;
     filas[r.mes][r.tipo].h += r.hombres || 0;
@@ -1116,20 +1170,23 @@ function abrirManual(mes, datosMes) {
       .filter((r) => r.anio === parseInt(document.getElementById('at-anio').value, 10) && r.mes === mes)
       .map((r) => [r.tipo, r]));
 
+  const sis = fichasPorMes(parseInt(document.getElementById('at-anio').value, 10))[mes];
   const $campos = document.getElementById('man-campos');
-  $campos.innerHTML = IDS_TIPO.map((id) => {
+  $campos.innerHTML = `<p class="man-ayuda">Las fichas registradas en el sistema se cuentan solas. Aquí anote solo las atenciones <b>adicionales</b>, que no se registraron en el sistema.</p>` + IDS_TIPO.map((id) => {
     const r = existentes.get(id);
+    const enSistema = sis[id].h + sis[id].m;
     return `
       <div class="man-grupo">
         <span class="man-tipo">${TIPOS[id]}</span>
+        <span class="man-sistema">En el sistema: <b>${enSistema}</b>${enSistema ? ` (H ${sis[id].h} · M ${sis[id].m})` : ''}</span>
         <div class="man-entradas">
           <div class="campo campo-mini">
-            <label class="etiqueta" for="man_${id}_h">Hombres</label>
+            <label class="etiqueta" for="man_${id}_h">Hombres adicionales</label>
             <input class="entrada" id="man_${id}_h" type="number" min="0"
                    value="${r?.hombres ?? 0}">
           </div>
           <div class="campo campo-mini">
-            <label class="etiqueta" for="man_${id}_m">Mujeres</label>
+            <label class="etiqueta" for="man_${id}_m">Mujeres adicionales</label>
             <input class="entrada" id="man_${id}_m" type="number" min="0"
                    value="${r?.mujeres ?? 0}">
           </div>

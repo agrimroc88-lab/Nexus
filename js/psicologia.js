@@ -377,6 +377,22 @@ function pintarKpiAtenciones(tot) {
 
 const IDS_TIPO = ['ingreso', 'periodica', 'asistencial', 'seguimiento'];
 
+/** Fichas psicológicas del año, contadas por mes → tipo → { h, m } */
+function fichasPorMes(anio) {
+  const filas = {};
+  for (let m = 1; m <= 12; m++) filas[m] = { ingreso: { h: 0, m: 0 }, periodica: { h: 0, m: 0 }, asistencial: { h: 0, m: 0 }, seguimiento: { h: 0, m: 0 } };
+  estado.fichas.forEach((f) => {
+    if (!f.fecha) return;
+    const d = new Date(f.fecha + 'T00:00');
+    if (d.getFullYear() !== anio) return;
+    const celda = filas[d.getMonth() + 1][f.tipo];
+    if (!celda) return;
+    if (f.sexo === 'M') celda.h++;
+    else if (f.sexo === 'F') celda.m++;
+  });
+  return filas;
+}
+
 function abrirManual(mes, datosMes) {
   estado.manualActual = { mes, datosMes };
 
@@ -388,20 +404,23 @@ function abrirManual(mes, datosMes) {
       .filter((r) => r.anio === parseInt(document.getElementById('at-anio').value, 10) && r.mes === mes)
       .map((r) => [r.tipo, r]));
 
+  const sis = fichasPorMes(parseInt(document.getElementById('at-anio').value, 10))[mes];
   const $campos = document.getElementById('man-campos');
-  $campos.innerHTML = IDS_TIPO.map((id) => {
+  $campos.innerHTML = `<p class="man-ayuda">Las fichas registradas en el sistema se cuentan solas. Aquí anote solo las atenciones <b>adicionales</b>, que no se registraron en el sistema.</p>` + IDS_TIPO.map((id) => {
     const r = existentes.get(id);
+    const enSistema = sis[id].h + sis[id].m;
     return `
       <div class="man-grupo">
         <span class="man-tipo">${TIPOS[id]}</span>
+        <span class="man-sistema">En el sistema: <b>${enSistema}</b>${enSistema ? ` (H ${sis[id].h} · M ${sis[id].m})` : ''}</span>
         <div class="man-entradas">
           <div class="campo campo-mini">
-            <label class="etiqueta" for="man_${id}_h">Hombres</label>
+            <label class="etiqueta" for="man_${id}_h">Hombres adicionales</label>
             <input class="entrada" id="man_${id}_h" type="number" min="0"
                    value="${r?.hombres ?? 0}">
           </div>
           <div class="campo campo-mini">
-            <label class="etiqueta" for="man_${id}_m">Mujeres</label>
+            <label class="etiqueta" for="man_${id}_m">Mujeres adicionales</label>
             <input class="entrada" id="man_${id}_m" type="number" min="0"
                    value="${r?.mujeres ?? 0}">
           </div>
