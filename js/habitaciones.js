@@ -22,7 +22,7 @@
 import { alCrear, alEditar } from './autoria.js?v=1';
 import { esperarImagenes } from './impresion.js?v=11';
 
-const VERSION = 'v22';
+const VERSION = 'v23';
 console.info('NEXUS · habitaciones', VERSION);
 
 /* Dos permisos distintos:
@@ -284,8 +284,8 @@ function estadoCama(cama) {
    ============================================ */
 
 const C = {
-  muro: '#5d6b62', estructura: '#8d9a91', claro: '#f4f5f3', blanco: '#ffffff',
-  techo: '#9aa79e', ventana: '#f3c14b', ventanaBorde: '#b98a14', apagada: '#e9ecea'
+  muro: '#3f5170', estructura: '#8a97ab', claro: '#f3f6fb', blanco: '#ffffff',
+  techo: '#123A7A', ventana: '#f3c14b', ventanaBorde: '#b98a14', apagada: '#e6ebf3'
 };
 
 function svgCama(ocupada) {
@@ -2393,6 +2393,56 @@ function vistaCroquis($g, base) {
   const $cq = document.getElementById('hab-cq');
   elems.forEach((el) => $cq.appendChild(elementoCq(el, editando, $cq)));
   if (editando) conectarHerramientasCroquis(base);
+  conectarMenuCroquis($cq, base, editando);
+}
+
+/* Clic derecho en el croquis: las mismas dinámicas que el plano */
+function conectarMenuCroquis($cq, base, editando) {
+  $cq.addEventListener('contextmenu', (e) => {
+    const nodo = e.target.closest('.hab-cq-el');
+    const lista = editando ? S.cq.elems : elementosCroquis(base);
+    const el = nodo && (lista.find((x) => claveCq(x) === nodo.dataset.clave)
+      || (nodo.dataset.edif ? lista.find((x) => x.edificio_id === nodo.dataset.edif) : null));
+    const items = [];
+    const entrar = (edifId, plano) => () => {
+      if (plano) S.vistaEdif = 'plano';
+      ir({ sucursalId: base.sucursal_id, baseId: base.id, edificioId: edifId });
+    };
+    if (!editando) {
+      if (el && el.tipo === 'edificio') {
+        items.push({ label: 'Entrar al edificio', accion: entrar(el.edificio_id, false) });
+        items.push({ label: 'Ver plano interior', accion: entrar(el.edificio_id, true) });
+      }
+      if (S.estructura) {
+        if (items.length) items.push({ sep: true });
+        items.push({ label: 'Editar croquis', accion: () => { S.cq = { baseId: base.id, elems: elementosCroquis(base), sel: null, quitados: [] }; pintar(); } });
+      }
+    } else if (el) {
+      seleccionarCq(claveCq(el));
+      const pulsar = (id) => () => document.getElementById(id)?.click();
+      if (el.tipo !== 'edificio') items.push({ label: 'Renombrar…', k: 'F2', accion: pulsar('cq-renombrar') });
+      items.push({ label: 'Girar', accion: pulsar('cq-girar') });
+      if (el.tipo !== 'edificio') items.push({ sep: true }, { label: 'Quitar del croquis', peligro: true, accion: pulsar('cq-quitar') });
+    } else {
+      const r = $cq.getBoundingClientRect();
+      const gx = Math.floor((e.clientX - r.left) / r.width * CQ_COLS);
+      const gy = Math.floor((e.clientY - r.top) / r.height * CQ_FILAS);
+      items.push({ label: 'Agregar', sub: Object.entries(TIPOS_CROQUIS).map(([tipo, n]) => ({ label: n, accion: () => {
+        const [w, h] = TAM_CROQUIS[tipo];
+        const iguales = S.cq.elems.filter((c) => c.tipo === tipo).length;
+        const nuevo = { tmp: `t${++tmpSeq}`, tipo, nombre: iguales ? `${n} ${iguales + 1}` : n,
+          x: Math.max(0, Math.min(CQ_COLS - w, gx)), y: Math.max(0, Math.min(CQ_FILAS - h, gy)), w, h, nuevo: true };
+        S.cq.elems.push(nuevo); S.cq.sel = claveCq(nuevo); S.cq.cambios = true;
+        pintar();
+      } })) });
+      items.push({ sep: true });
+      items.push({ label: 'Guardar croquis', accion: () => document.getElementById('cq-guardar')?.click() });
+      items.push({ label: 'Cancelar', accion: () => document.getElementById('cq-cancelar')?.click() });
+    }
+    if (!items.length) return;
+    e.preventDefault();
+    abrirMenuPl(items, e.clientX, e.clientY, el ? (el.tipo === 'edificio' ? porId(S.edificios, el.edificio_id)?.nombre || '' : el.nombre) : '');
+  });
 }
 
 function posicionar(d, el) {
@@ -2406,6 +2456,8 @@ function elementoCq(el, editando, $cq) {
   const d = document.createElement('div');
   d.className = `hab-cq-el hab-cq-el--${el.tipo}`;
   d.dataset.clave = claveCq(el);
+  if (el.edificio_id) d.dataset.edif = el.edificio_id;
+  d.title = el.tipo === 'edificio' ? (porId(S.edificios, el.edificio_id)?.nombre || el.nombre) : el.nombre;
   posicionar(d, el);
 
   if (el.tipo === 'edificio') {
