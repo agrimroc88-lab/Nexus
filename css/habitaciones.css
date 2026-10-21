@@ -1077,3 +1077,103 @@
 .pl-menu-punto { width: 10px; height: 10px; border-radius: 3px; flex: 0 0 auto; }
 .pl-menu-seg { width: 18px; height: 18px; flex: 0 0 auto; display: inline-block; }
 .pl-menu-seg svg { width: 100%; height: 100%; display: block; }
+
+/* ======================================================
+   Tema azul NEXUS para toda la pestaña Habitaciones
+   (centros, bases, croquis, edificios, plano y ventanas).
+   Cama libre verde · ocupada rojito · ya no labora morado.
+   ====================================================== */
+.hab {
+  --color-acento: #123A7A;
+  --color-acento-oscuro: #0d2b5c;
+  --color-acento-suave: #e7eef9;
+  --color-borde: #d5deea;
+  --hab-ocupada: #D9534F;  --hab-ocupada-f: #FBE3E2;
+  --hab-salio: #6d3fa0;    --hab-salio-f: #efe7f7;
+  --hab-estructura: #8a97ab;
+  --hab-muro: #3f5170;
+}
+.hab .boton-primario { background: #123A7A; border-color: #123A7A; color: #fff; }
+.hab .boton-primario:hover { background: #0d2b5c; }
+.hab .boton-secundario { border-color: #b9c7dc; color: #123A7A; }
+.hab .boton-secundario:hover { background: #e7eef9; }
+
+/* Buscador y migas */
+.hab-buscador { border-radius: 12px; box-shadow: 0 1px 2px rgba(18, 58, 122, .06); }
+.hab-migas a, .hab-miga { color: #123A7A; }
+.hab-titulo { color: #123A7A; }
+
+/* Cifras */
+.hab-cifra { background: #fff; border: 1px solid #dde4ef; border-radius: 12px; box-shadow: 0 1px 2px rgba(18, 58, 122, .05); }
+.hab-cifra span { text-transform: uppercase; letter-spacing: .04em; font-size: .7rem; }
+.hab-cifra strong { color: #123A7A; }
+.hab-cifra--libre strong { color: var(--hab-libre); }
+
+/* Tarjetas de centros, bases y edificios */
+.hab-rejilla { gap: 1rem; }
+.hab-tarjeta {
+  position: relative; overflow: hidden; border-radius: 14px; border-color: #dde4ef;
+  box-shadow: 0 1px 3px rgba(18, 58, 122, .06); transition: transform .15s, box-shadow .15s, border-color .15s;
+}
+.hab-tarjeta::before { content: ""; position: absolute; inset: 0 0 auto; height: 4px; background: #123A7A; opacity: .85; }
+.hab-tarjeta:hover { transform: translateY(-3px); border-color: #123A7A; box-shadow: 0 10px 24px rgba(18, 58, 122, .16); }
+.hab-tarjeta-nombre { color: #12233f; }
+.hab-barra { background: #e7eef9; height: 7px; border-radius: 99px; }
+.hab-barra i { border-radius: 99px; }
+.hab-tarjeta--nueva { border: 2px dashed #b9c7dc; color: #123A7A; font-weight: 600; }
+.hab-tarjeta--nueva::before { display: none; }
+.hab-tarjeta--nueva:hover { background: #f3f6fb; }
+.hab-vacio { border-radius: 12px; border-color: #c9d6e8; }
+
+/* Chips */
+.hab-chip { border-color: #d5deea; transition: background .15s; }
+.hab-chip:hover { background: #f3f6fb; }
+.hab-chip[aria-pressed="true"] { background: #123A7A; border-color: #123A7A; color: #fff; }
+
+/* Barra de herramientas de la vista por frentes */
+.hab-herramientas { background: #f3f6fb; border: 1px solid #c9d6e8; border-radius: 10px; box-shadow: 0 4px 14px rgba(18, 58, 122, .08); }
+
+/* Edificio por frentes: espacios más claros y con la misma dinámica */
+.hab-planta { border-color: var(--hab-muro); }
+.hab-planta-nombre { color: #123A7A; font-weight: 700; }
+.hab-esp { border-color: #c4cfdf; transition: box-shadow .15s; }
+.hab-esp:hover { box-shadow: inset 0 0 0 2px rgba(242, 183, 5, .55); }
+.hab-esp--sel { outline: 3px solid #f2b705; }
+.hab-esp-cabeza b { color: #12233f; }
+.hab-esp--otro { background: repeating-linear-gradient(135deg, #f3f6fb 0 8px, #e9eef6 8px 16px); color: #3f5170; }
+.hab-agregar-esp { border: 1.5px dashed #9fb2d0; color: #123A7A; background: #f7f9fc; }
+.hab-agregar-esp:hover { background: #e7eef9; }
+
+/* Croquis de la base: lienzo blanco con cuadrícula azulada */
+.hab-cq {
+  background-color: #fff;
+  background-image: linear-gradient(#e9eef6 1px, transparent 1px), linear-gradient(90deg, #e9eef6 1px, transparent 1px);
+  border: 3px solid #3f5170; border-radius: 6px;
+}
+.hab-cq-el {
+  container-type: size;
+  border: 1.5px solid #8a97ab; border-radius: 6px; background: #f3f6fb; color: #2b3a52;
+  transition: box-shadow .15s;
+  font-size: clamp(0.58rem, 22cqmin, 0.85rem);
+}
+.hab-cq-el > svg { width: clamp(12px, 34cqmin, 22px); height: clamp(12px, 34cqmin, 22px); }
+.hab-cq-el:hover { box-shadow: 0 0 0 3px rgba(242, 183, 5, .45), 0 6px 16px rgba(18, 58, 122, .15); z-index: 2; }
+.hab-cq-nombre { overflow-wrap: normal; word-break: normal; hyphens: auto; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.hab-cq-el--edificio { border: 1.5px solid #123A7A; background: #fff; color: #12233f; box-shadow: 0 2px 8px rgba(18, 58, 122, .1); }
+.hab-cq-el--edificio:hover { box-shadow: 0 0 0 3px rgba(242, 183, 5, .45), 0 10px 22px rgba(18, 58, 122, .2); }
+.hab-cq-el--comedor { background: #FCE8D8; border-color: #D9844A; color: #8a4a1c; }
+.hab-cq-el--garita { background: #F1EEF6; border-color: #8E7CB0; color: #4e3f72; }
+.hab-cq-el--entrada { background: #e7eef9; border-color: #123A7A; color: #123A7A; }
+.hab-cq-el--gimnasio { background: #ECEEFB; border-color: #7480C4; color: #3b4590; }
+.hab-cq-el--tanque_agua { background: #DBF1F1; border-color: #4FA3A3; color: #1f6464; }
+.hab-cq-el--otro { background: #FBFAF6; border-color: #A9A08F; color: #5a5243; }
+.hab-cq-el--sel { outline: 3px solid #f2b705; }
+.hab-cq-asa { background: #123A7A; }
+.hab-pasillo {
+  background:
+    repeating-linear-gradient(90deg, #c4cfdf 0 14px, transparent 14px 26px) center / 100% 2px no-repeat,
+    #eef2f8;
+  color: #5b6b85;
+}
+.hab-pasillo span { background: #eef2f8; }
+.hab-chip--capa[aria-pressed="true"] { background: #e7eef9; border-color: #123A7A; color: #123A7A; }
