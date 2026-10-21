@@ -22,7 +22,7 @@
 import { alCrear, alEditar } from './autoria.js?v=1';
 import { esperarImagenes } from './impresion.js?v=11';
 
-const VERSION = 'v24';
+const VERSION = 'v25';
 console.info('NEXUS · habitaciones', VERSION);
 
 /* Dos permisos distintos:
@@ -2934,6 +2934,7 @@ function elementoPl(el, editando, $pl, edif) {
   }
   d.setAttribute('aria-label', esp ? `${TIPOS_ESPACIO[esp.tipo]} ${esp.nombre}` : 'Espacio');
   el.puertas.forEach((pu, i) => d.appendChild(puertaPl(el, pu, i, editando, d)));
+  d.classList.toggle('pl-puerta-arriba', el.puertas.some((p) => p.l === 'n'));
 
   if (!editando) return d;
 
@@ -3039,7 +3040,12 @@ function puertaPl(el, pu, i, editando, d) {
     ubicarPuerta(s, pu);
     s.classList.add('hab-pl-puerta--sel');
   });
-  const soltar = () => { if (arrastrando) { arrastrando = false; marcarCambioPl(); } };
+  const soltar = () => {
+    if (!arrastrando) return;
+    arrastrando = false;
+    d.classList.toggle('pl-puerta-arriba', el.puertas.some((p) => p.l === 'n'));
+    marcarCambioPl();
+  };
   s.addEventListener('pointerup', soltar);
   s.addEventListener('pointercancel', soltar);
   return s;
