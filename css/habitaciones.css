@@ -1177,3 +1177,4 @@
 }
 .hab-pasillo span { background: #eef2f8; }
 .hab-chip--capa[aria-pressed="true"] { background: #e7eef9; border-color: #123A7A; color: #123A7A; }
+.pl-aviso-armado { margin-top: .5rem; padding: .55rem .8rem; border-radius: 8px; background: #e7eef9; border: 1px solid #b9c7dc; color: #123A7A; font-size: .86rem; }
