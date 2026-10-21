@@ -22,7 +22,7 @@
 import { alCrear, alEditar } from './autoria.js?v=1';
 import { esperarImagenes } from './impresion.js?v=11';
 
-const VERSION = 'v23';
+const VERSION = 'v24';
 console.info('NEXUS · habitaciones', VERSION);
 
 /* Dos permisos distintos:
@@ -2699,7 +2699,7 @@ const CORTO_PL = { habitacion: 'Habitación', sin_construir: 'Terreno abierto', 
 const EQUIPOS_PL = ['extintor', 'botiquin', 'detector_humo', 'luz_emergencia', 'alarma', 'gabinete_incendio', 'telefono_emergencia'];
 /* Íconos de la cinta (trazo 24 × 24) */
 const ICO_PL = {
-  guardar: 'M5 3h11l3 3v15H5zM8 3v6h8V3M8 21v-7h8v7', deshacer: 'M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3',
+  guardar: 'M5 3h11l3 3v15H5zM8 3v6h8V3M8 21v-7h8v7', armar: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h16v7H4z', deshacer: 'M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3',
   duplicar: 'M4 4h10v10H4zM10 10h10v10H10z', girar: 'M20 12a8 8 0 1 1-3-6.2M20 4v5h-5', puerta: 'M6 21V4h9v17M3 21h18M12 12h1',
   quitar: 'M4 12h16', borrar: 'M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14', editar: 'M4 20h4L19 9l-4-4L4 16zM13 7l4 4',
   cama: 'M3 18v-8M3 14h18v4M7 11h4v3M21 14v-2a2 2 0 0 0-2-2h-6', grid: 'M4 4h16v16H4zM4 10h16M4 15h16M10 4v16M15 4v16',
@@ -2728,6 +2728,57 @@ function elementosPlano(edif, planta) {
         .filter((p) => p && LADOS_PUERTA.includes(p.l))
         .map((p) => ({ l: p.l, p: Math.min(0.92, Math.max(0.08, Number(p.p) || 0.5)) }))
     }));
+}
+
+/* Arma un plano a partir de la estructura por frentes que ya existe:
+   frente de arriba, pasillo al medio y frente de abajo, cada espacio
+   con un ancho proporcional a su tamaño. Sin frentes: una sola fila.
+   Es un punto de partida: luego se ajusta a ojo y se guarda. */
+function armarDesdeFrentes(edif, planta, soloIds = null) {
+  const usar = (x) => !soloIds || soloIds.has(x.id);
+  const elems = [];
+  const poner = (esp, x, y, w, h, lado) => {
+    if (!usar(esp)) return;
+    w = Math.max(2, Math.min(PL_COLS, w)); h = Math.max(2, Math.min(PL_FILAS, h));
+    x = Math.max(0, Math.min(PL_COLS - w, x)); y = Math.max(0, Math.min(PL_FILAS - h, y));
+    elems.push({ id: esp.id, x, y, w, h, puertas: lado ? [{ l: lado, p: 0.5 }] : [] });
+  };
+  if (!edif.tiene_frentes) {
+    const fila = filaDe(edif.id, planta, null);
+    const total = fila.reduce((a, x) => a + (x.ancho || 1), 0) || 1;
+    let acum = 0;
+    fila.forEach((x) => {
+      const x0 = Math.round(acum * PL_COLS / total);
+      acum += x.ancho || 1;
+      poner(x, x0, 2, Math.round(acum * PL_COLS / total) - x0, 12, 's');
+    });
+    return elems;
+  }
+  const tramos = tramosDe(edif.id, planta);
+  const suma = (l) => l.reduce((a, x) => a + (x.ancho || 1), 0);
+  const total = tramos.reduce((a, t) => a + (t.tipo === 'ab' ? (t.esp.ancho || 1) : Math.max(suma(t.A), suma(t.B), 1)), 0) || 1;
+  const [arriba, abajo] = edif.frentes_invertidos ? ['B', 'A'] : ['A', 'B'];
+  const Y = { [arriba]: 1, [abajo]: 15 }, ALTO = 9;
+  const puerta = { [arriba]: 's', [abajo]: 'n' };
+  const col = (u) => Math.round(u * PL_COLS / total);
+  let u = 0;
+  tramos.forEach((t) => {
+    if (t.tipo === 'ab') {
+      const x0 = col(u); u += t.esp.ancho || 1;
+      poner(t.esp, x0, 1, col(u) - x0, 23, null);
+      return;
+    }
+    const ancho = Math.max(suma(t.A), suma(t.B), 1);
+    [arriba, abajo].forEach((f) => {
+      let v = u;
+      t[f].forEach((x) => {
+        const x0 = col(v); v += x.ancho || 1;
+        poner(x, x0, Y[f], col(v) - x0, ALTO, puerta[f]);
+      });
+    });
+    u += ancho;
+  });
+  return elems;
 }
 
 function sinUbicar(edif, planta, elems) {
@@ -2777,7 +2828,12 @@ function vistaPlano($v, edif) {
   // El editor está siempre activo para quien puede editar (un solo «Guardar plano»)
   if (!S.pl && editaPlano()) {
     S.pl = { edifId: edif.id, planta, elems: elementosPlano(edif, planta), sel: null, puerta: null, cambios: false,
-      conocidos: new Set(espaciosDe(edif.id).map((x) => x.id)), hist: [], pendiente: null, colocar: null };
+      conocidos: new Set(espaciosDe(edif.id).map((x) => x.id)), hist: [], pendiente: null, colocar: null, armado: false };
+    if (!S.pl.elems.length && espaciosDe(edif.id).some((x) => x.planta === planta)) {
+      S.pl.elems = armarDesdeFrentes(edif, planta);
+      S.pl.cambios = true;
+      S.pl.armado = true;
+    }
   }
   const editando = !!S.pl;
   if (editando) {
@@ -2792,7 +2848,9 @@ function vistaPlano($v, edif) {
     });
     S.pl.pendiente = null;
   }
-  const elems = editando ? S.pl.elems : elementosPlano(edif, planta);
+  let elems = editando ? S.pl.elems : elementosPlano(edif, planta);
+  const provisional = !editando && !elems.length && planoDisponible();
+  if (provisional) elems = armarDesdeFrentes(edif, planta);
   const faltan = sinUbicar(edif, planta, elems);
 
   $v.innerHTML = `
@@ -2828,7 +2886,10 @@ function vistaPlano($v, edif) {
     return;
   }
 
-  $z.innerHTML = `<div class="hab-cq-marco">
+  $z.innerHTML = `${editando && S.pl.armado ? `<div class="pl-aviso-armado"><b>Armamos este plano a partir de su estructura por frentes.</b>
+      Ajústelo a ojo (mueva, estire, agregue puertas) y pulse <b>Guardar plano</b>.</div>` : ''}
+    ${provisional ? '<div class="pl-aviso-armado">Plano provisional, armado desde la vista por frentes (aún no fue dibujado).</div>' : ''}
+    <div class="hab-cq-marco">
       <div class="hab-cq hab-pl ${editando ? 'hab-cq--editando' : ''} ${S.plVer.grid ? '' : 'pl-sin-grid'} ${S.pl?.colocar ? 'pl-colocando' : ''}" id="hab-pl"
         role="${editando ? 'application' : 'group'}" aria-label="Plano de ${esc(nombrePlanta(planta, edif.num_plantas))}"></div>
     </div>
@@ -3321,7 +3382,14 @@ function gruposCinta(edif, planta) {
     case 'inicio': return [
       { nombre: 'Plano', botones: [
         botonCinta('Guardar', ICO_PL.guardar, () => guardarPlano(edif, planta), { off: !S.pl.cambios }),
-        botonCinta('Deshacer', ICO_PL.deshacer, deshacerPl, { off: !S.pl.hist.length })] },
+        botonCinta('Deshacer', ICO_PL.deshacer, deshacerPl, { off: !S.pl.hist.length }),
+        botonCinta('Armar desde frentes', ICO_PL.armar, () => {
+          if (S.pl.elems.length && !confirm('¿Rehacer el plano de esta planta a partir de la vista por frentes? Lo que movió a ojo se reemplaza (puede usar Deshacer).')) return;
+          recordarPl();
+          S.pl.elems = armarDesdeFrentes(edif, planta);
+          S.pl.armado = true; S.pl.sel = null;
+          marcarCambioPl(); pintar();
+        })] },
       { nombre: 'Espacio elegido', botones: [
         botonCinta('Nombre o tipo', ICO_PL.editar, conSel(() => modalEspacio(esp, { edif, planta: esp.planta, frente: esp.frente })), { off: !el }),
         botonCinta('Duplicar', ICO_PL.duplicar, conSel(() => nuevoEspacioPl(edif, planta, esp.tipo, { copiaDe: el })), { off: !el }),
@@ -3426,7 +3494,13 @@ function pintarPanelPl(edif, planta, faltan) {
       S.pl.sel = el.id; marcarCambioPl(); pintar();
     }));
     document.getElementById('pl-ubicar-todos')?.addEventListener('click', () => {
-      faltan.forEach((x) => ubicarEnPlano(x));
+      // Se acomodan como están en la vista por frentes; si chocan con lo ya dibujado, en el primer hueco
+      recordarPl();
+      const sugeridos = armarDesdeFrentes(edif, planta, new Set(faltan.map((x) => x.id)));
+      sugeridos.forEach((el) => {
+        if (S.pl.elems.some((c) => choca(el, c))) { const h = huecoPlano(S.pl.elems, el.w, el.h); el.x = h.x; el.y = h.y; }
+        S.pl.elems.push(el);
+      });
       marcarCambioPl(); pintar();
       toast('Espacios ubicados. Arrastre cada uno a su lugar.');
     });
