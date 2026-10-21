@@ -1470,7 +1470,7 @@ async function guardarPersonaExterna() {
   const $error = document.getElementById('pe-error');
   $error.textContent = '';
 
-  const cedula = document.getElementById('pe_cedula').value.trim();
+  const cedula = document.getElementById('pe_cedula').value.toUpperCase().replace(/[\s.-]/g, '');
   const nombres = document.getElementById('pe_nombres').value.trim();
   const apellidos = document.getElementById('pe_apellidos').value.trim();
   const nacimiento = document.getElementById('pe_nacimiento').value || null;
@@ -1478,7 +1478,9 @@ async function guardarPersonaExterna() {
   const alergias = document.getElementById('pe_alergias').value.trim();
 
   if (!cedula) return $error.textContent = 'La cédula es obligatoria';
-  if (!validarCedula(cedula)) return $error.textContent = 'Cédula inválida';
+  // Ecuatoriana (10 dígitos con verificador) o extranjera: DNI, cédula de otro país o pasaporte
+  const extranjero = !/^\d{10}$/.test(cedula) && /^[A-Z0-9]{5,20}$/.test(cedula);
+  if (!validarCedula(cedula) && !extranjero) return $error.textContent = 'Cédula inválida. Si es extranjero, escriba su documento (5 a 20 letras o números).';
   if (!nombres) return $error.textContent = 'Los nombres son obligatorios';
   if (!apellidos) return $error.textContent = 'Los apellidos son obligatorios';
 

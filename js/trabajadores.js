@@ -776,12 +776,27 @@ function recolectar() {
     datos[campo] = valor === '' ? null : valor;
   });
   datos.codigo = parseInt(datos.codigo, 10) || null;
+  if (datos.cedula) datos.cedula = normalizarDocumento(datos.cedula);
   return datos;
+}
+
+/* Cédula ecuatoriana (10 dígitos con verificador) o documento
+   extranjero: cédula de otro país, DNI o pasaporte (5 a 20 letras
+   o números, sin espacios). 10 dígitos siempre se validan como
+   ecuatoriana para detectar errores de tipeo. */
+function normalizarDocumento(v) {
+  return String(v || '').toUpperCase().replace(/[\s.-]/g, '');
+}
+function esExtranjero(v) {
+  return !/^\d{10}$/.test(v) && /^[A-Z0-9]{5,20}$/.test(v);
+}
+function documentoValido(v) {
+  return validarCedula(v) || esExtranjero(v);
 }
 
 function validar(datos) {
   if (!datos.cedula) return { ok: false, mensaje: 'La cédula es obligatoria' };
-  if (!validarCedula(datos.cedula)) return { ok: false, mensaje: 'La cédula no es válida' };
+  if (!documentoValido(datos.cedula)) return { ok: false, mensaje: 'La cédula no es válida. Si es extranjero, escriba su documento (5 a 20 letras o números).' };
   /* El código solo es opcional en las sucursales marcadas
      como que no asignan número de nómina. En el resto sigue
      siendo obligatorio: en mina el código va en el casco y en
@@ -871,28 +886,30 @@ function abrirSalida(trabajador) {
  * Si existe, ofrece reingreso en vez de crear duplicado.
  */
 const evaluarCedula = retrasar(async () => {
-  const valor = document.getElementById('cedula').value.trim();
+  const valor = normalizarDocumento(document.getElementById('cedula').value);
   const $ayuda = document.getElementById('ayuda-cedula');
 
   if (estado.editandoId || estado.reingresoDe) return;
 
   if (valor.length === 0) { $ayuda.textContent = ''; $ayuda.className = 'ayuda'; return; }
 
-  if (valor.length < 10) {
-    $ayuda.textContent = `${valor.length}/10 dígitos`;
-    $ayuda.className = 'ayuda';
-    $hallazgo.hidden = true;
-    return;
-  }
-
-  if (!validarCedula(valor)) {
+  const soloDigitos = /^\d+$/.test(valor);
+  if (soloDigitos && valor.length === 10 && !validarCedula(valor)) {
     $ayuda.textContent = 'Dígito verificador incorrecto';
     $ayuda.className = 'ayuda ayuda-error';
     $hallazgo.hidden = true;
     return;
   }
+  if (!documentoValido(valor)) {
+    $ayuda.textContent = soloDigitos && valor.length < 10
+      ? `${valor.length}/10 dígitos · si es extranjero (DNI, pasaporte), desde 5 caracteres`
+      : 'Documento no válido: solo letras y números (5 a 20)';
+    $ayuda.className = 'ayuda';
+    $hallazgo.hidden = true;
+    return;
+  }
 
-  $ayuda.textContent = 'Cédula válida';
+  $ayuda.textContent = esExtranjero(valor) ? 'Documento extranjero' : 'Cédula válida';
   $ayuda.className = 'ayuda ayuda-ok';
 
   /* ¿Ya existe en esta empresa? */
@@ -1089,7 +1106,7 @@ function traducirBd(error) {
   }
   if (error.code === '23514') {
     if (error.message.includes('ck_codigo_rango')) return 'El código debe estar entre 1 y 3000';
-    if (error.message.includes('ck_cedula_formato')) return 'La cédula debe tener 10 dígitos';
+    if (error.message.includes('ck_cedula_formato')) return 'La base de datos aún no acepta documentos extranjeros: el administrador debe ejecutar sql/090_documento_extranjero.sql';
     return 'Los datos no cumplen una restricción de validación';
   }
   if (error.code === '42501') return 'No tiene permisos para esta acción';
