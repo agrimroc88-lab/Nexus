@@ -185,10 +185,10 @@ const NexusCertificado = (function () {
     let ah = 0, aw = 0;
     if (alianza) {
       ah = 25; aw = logoAliado ? ah * logoAliado.prop : 40;
-      if (aw > 46) { aw = 46; ah = logoAliado ? aw / logoAliado.prop : ah; }
+      if (aw > 68) { aw = 68; ah = logoAliado ? aw / logoAliado.prop : ah; }
     }
     const total = w + 4 + tw + (alianza ? 14 + aw : 0);
-    const x0 = W / 2 - total / 2 - (alianza ? 6 : 0);
+    const x0 = W / 2 - total / 2 - (alianza ? 8 : 0);
     marca(doc, x0, 9, h);
     if (alianza) {
       const xs = x0 + w + 4 + tw + 6;
