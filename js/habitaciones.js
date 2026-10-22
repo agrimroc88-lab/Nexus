@@ -22,20 +22,20 @@
 import { alCrear, alEditar } from './autoria.js?v=1';
 import { esperarImagenes } from './impresion.js?v=11';
 
-const VERSION = 'v25';
+const VERSION = 'v26';
 console.info('NEXUS · habitaciones', VERSION);
 
 /* Dos permisos distintos:
    - ESTRUCTURA: bases, edificios, plantas, espacios, camas y
-     literas (agregar o quitar) y el croquis → admin y técnico
-     de seguridad (desde el módulo Seguridad Industrial).
+     literas (agregar o quitar), el croquis y el plano → admin,
+     técnico de seguridad y trabajo social.
    - ASIGNACIÓN: asignar, trasladar y liberar camas, y los
      colchones → admin y trabajo social.
    Los demás roles que abren la pestaña solo consultan. */
-const ROLES_ESTRUCTURA = ['admin', 'supervisor', 'tecnico_sst'];
+const ROLES_ESTRUCTURA = ['admin', 'supervisor', 'tecnico_sst', 'trabajo_social'];
 const ROLES_ASIGNACION = ['admin', 'supervisor', 'trabajo_social'];
 const EDITORES_SEG = ['admin', 'supervisor', 'tecnico_sst'];
-const QUIEN_ESTRUCTURA = 'Las registra el técnico de seguridad o el administrador desde el módulo Seguridad Industrial.';
+const QUIEN_ESTRUCTURA = 'Las registra trabajo social, el técnico de seguridad o el administrador.';
 
 const TIPOS_ESPACIO = {
   habitacion: 'Habitación',
