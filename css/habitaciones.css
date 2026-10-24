@@ -1190,7 +1190,7 @@
   display: flex; align-items: center; gap: 0.35rem;
   margin: -0.45rem -0.45rem 0.1rem;
   padding: 0.28rem 0.5rem;
-  background: var(--area, #1F5FA8); color: #fff;
+  background: var(--area, #1F5FA8); color: var(--area-t, #fff);
   font-size: 0.72rem; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase;
   line-height: 1.15; min-width: 0;
 }
@@ -1213,7 +1213,8 @@
   background: color-mix(in srgb, var(--area) 14%, #fff); border: 1px solid var(--area);
   color: #1d2733; font-size: 0.8rem; font-weight: 600;
 }
-.hab-area-chip b { background: var(--area); color: #fff; border-radius: 999px; padding: 0 0.4rem; font-size: 0.72rem; }
+.hab-area-chip { box-shadow: 0 0 8px color-mix(in srgb, var(--area) 45%, transparent); }
+.hab-area-chip b { background: var(--area); color: var(--area-t, #fff); border-radius: 999px; padding: 0 0.4rem; font-size: 0.72rem; }
 
 /* Editor de áreas */
 .hab-areas-lista { display: grid; gap: 0.5rem; margin-top: 0.6rem; }
@@ -1234,3 +1235,23 @@
 .hab-area-color-libre input { width: 34px; height: 30px; padding: 0; border: 0; background: none; cursor: pointer; }
 .hab-area-elegir { align-items: center; }
 .hab-area-elegir select { flex: 1; }
+
+/* ----- Grupo de habitaciones pegadas de la misma área: un solo contorno neón ----- */
+.hab-esp.hab-grupo, .hab-pl-el.hab-grupo { position: relative; }
+.hab-grupo::after {
+  content: ""; position: absolute; inset: 1px; pointer-events: none; z-index: 3;
+  border: 3px solid var(--area);
+  filter: drop-shadow(0 0 3px var(--area)) drop-shadow(0 0 7px var(--area));
+}
+.hab-pl-el.hab-grupo::after { inset: -3px; }
+/* Lados que comparte con su vecina: sin línea, así el contorno es del grupo */
+.hab-grupo-sin-o::after { border-left-width: 0; left: -1px; }
+.hab-grupo-sin-e::after { border-right-width: 0; right: -1px; }
+.hab-grupo-sin-n::after { border-top-width: 0; }
+.hab-grupo-sin-s::after { border-bottom-width: 0; }
+.hab-pl-el.hab-grupo-sin-o::after { left: -6px; }
+.hab-pl-el.hab-grupo-sin-e::after { right: -6px; }
+.hab-pl-el.hab-grupo-sin-n::after { top: -6px; }
+.hab-pl-el.hab-grupo-sin-s::after { bottom: -6px; }
+.hab-esp.hab-grupo { border-color: color-mix(in srgb, var(--area) 45%, #c9d2de); box-shadow: none; }
+@media print { .hab-grupo::after { filter: none; } }
