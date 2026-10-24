@@ -22,7 +22,7 @@
 import { alCrear, alEditar } from './autoria.js?v=1';
 import { esperarImagenes } from './impresion.js?v=11';
 
-const VERSION = 'v27';
+const VERSION = 'v29';
 console.info('NEXUS · habitaciones', VERSION);
 
 /* Dos permisos distintos:
@@ -948,6 +948,7 @@ function vistaEdificio($v) {
     $f.appendChild(planta);
   }
   $f.insertAdjacentHTML('beforeend', '<div class="hab-suelo" aria-hidden="true"></div>');
+  marcarGruposArea($f);
   pintarSeguridad($f, edif);
   conectarColocar($f, edif);
 
@@ -1098,7 +1099,7 @@ function espacioHtml(esp) {
     const tenue = S.soloLibres && !S.editando && (camas.length === 0 || ocup === camas.length);
     const area = areaDe(esp);
     d.className = 'hab-esp' + (tenue ? ' hab-esp--tenue' : '') + (seleccionado ? ' hab-esp--sel' : '') + (area ? ' hab-esp--area' : '');
-    if (area) d.style.setProperty('--area', area.color);
+    if (area) { d.style.setProperty('--area', area.color); d.dataset.area = area.id; }
     d.innerHTML = `${area ? etiquetaArea(area) : ''}<div class="hab-esp-cabeza"><b>Hab. ${esc(esp.nombre)}</b>
       <span>${esp.frente === 'AB' ? 'A y B · ' : ''}${camas.length ? `${ocup}/${camas.length}` : ''}</span></div>`;
     const $camas = document.createElement('div');
@@ -1283,20 +1284,30 @@ function codigoSugerido(nombre, prefijo) {
    con su dibujo y su color; se ve encima de la habitación.
    ============================================ */
 const AREAS_SUGERIDAS = [
-  ['Mecánicos', '🔧', '#5B6770'], ['Choferes', '🚚', '#1F5FA8'], ['Supervisores', '🦺', '#E07B00'],
-  ['Operadores de maquinaria', '🚜', '#C9A000'], ['Guardias ADAE', '🛡️', '#123A7A'], ['Guardias AGRIMROC', '👮', '#2E7D32'],
-  ['Cocina', '🍳', '#C0392B'], ['Geología', '⛏️', '#8D5524'], ['Eléctricos', '⚡', '#F2B400']
+  ['Mecánicos', '🔧', '#607D8B'], ['Choferes', '🚚', '#00B4FF'], ['Supervisores', '🦺', '#FFD400'],
+  ['Operadores de maquinaria', '🚜', '#FF9F1C'], ['Guardias ADAE', '🛡️', '#2D5BFF'], ['Guardias AGRIMROC', '👮', '#22E06B'],
+  ['Cocina', '🍳', '#FF2D55'], ['Geología', '⛏️', '#B5651D'], ['Eléctricos', '⚡', '#B026FF'],
+  ['Personal de salud', '🩺', '#00E5D4']
 ];
 const ICONOS_AREA = ['🔧', '🛠️', '⚙️', '🚚', '🚗', '🚌', '🚜', '🏗️', '🦺', '👷', '👮', '🛡️', '💂', '🍳', '👨‍🍳', '🍽️',
   '⛏️', '🪨', '💎', '⚡', '🔌', '💡', '🧪', '🩺', '💊', '🧹', '🧺', '📋', '💻', '📦', '🔥', '💧', '🌱', '📡', '🔩', '🧰'];
-const COLORES_AREA = ['#123A7A', '#1F5FA8', '#2E7D32', '#1A8F4A', '#C0392B', '#E07B00', '#F2B400', '#C9A000',
-  '#8D5524', '#6D3FA0', '#AD1457', '#00838F', '#5B6770', '#37474F'];
+/* Colores vivos (tono neón) */
+const COLORES_AREA = ['#FF6A00', '#00B4FF', '#FFD400', '#FF9F1C', '#2D5BFF', '#22E06B', '#FF2D55', '#B5651D',
+  '#B026FF', '#00E5D4', '#FF4FD8', '#A3FF12', '#FF3B30', '#7C4DFF', '#00C853', '#607D8B'];
+
+/* Letra oscura sobre colores claros (amarillo, lima…), blanca sobre los demás */
+function textoSobre(hex) {
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex || '');
+  if (!m) return '#fff';
+  const [r, g, b] = m.slice(1).map((x) => parseInt(x, 16) / 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.6 ? '#1b1f24' : '#fff';
+}
 
 function areaDe(esp) {
   return esp && esp.area_id ? S.areas.find((a) => a.id === esp.area_id) || null : null;
 }
 function etiquetaArea(area, clase = 'hab-area') {
-  return `<div class="${clase}" style="--area:${esc(area.color)}" title="Área: ${esc(area.nombre)}"><span class="hab-area-ico" aria-hidden="true">${esc(area.icono)}</span><span>${esc(area.nombre)}</span></div>`;
+  return `<div class="${clase}" style="--area:${esc(area.color)};--area-t:${textoSobre(area.color)}" title="Área: ${esc(area.nombre)}"><span class="hab-area-ico" aria-hidden="true">${esc(area.icono)}</span><span>${esc(area.nombre)}</span></div>`;
 }
 
 /* Asigna (o quita) el área de un espacio sin recargar toda la pestaña */
@@ -1317,7 +1328,51 @@ function leyendaAreasHtml(edif) {
   espaciosDe(edif.id).forEach((x) => { const a = areaDe(x); if (a) usadas.set(a.id, (usadas.get(a.id) || 0) + 1); });
   if (!usadas.size) return '';
   return `<div class="hab-areas-leyenda" aria-label="Áreas de este edificio">${S.areas.filter((a) => usadas.has(a.id)).map((a) =>
-    `<span class="hab-area-chip" style="--area:${esc(a.color)}">${esc(a.icono)} ${esc(a.nombre)} <b>${usadas.get(a.id)}</b></span>`).join('')}</div>`;
+    `<span class="hab-area-chip" style="--area:${esc(a.color)};--area-t:${textoSobre(a.color)}">${esc(a.icono)} ${esc(a.nombre)} <b>${usadas.get(a.id)}</b></span>`).join('')}</div>`;
+}
+
+/* Habitaciones PEGADAS de la misma área (2 o más): un solo contorno neón
+   alrededor del grupo. Cada habitación dibuja solo los lados exteriores
+   del grupo; los lados que comparte con su vecina quedan sin línea. */
+function marcarGruposArea($f) {
+  $f.querySelectorAll('.hab-esp[data-area]').forEach((d) => {
+    const mismo = (x) => x && x.classList && x.classList.contains('hab-esp') && x.dataset.area === d.dataset.area;
+    const ant = mismo(d.previousElementSibling), sig = mismo(d.nextElementSibling);
+    if (!ant && !sig) return;
+    d.classList.add('hab-grupo');
+    if (ant) d.classList.add('hab-grupo-sin-o');
+    if (sig) d.classList.add('hab-grupo-sin-e');
+  });
+}
+
+/* En el plano: se tocan (o hay 1 cuadrito entre ellas) y comparten al menos la mitad de una pared */
+function marcarGruposPl($pl, elems) {
+  const conArea = elems.map((el) => ({ el, esp: porId(S.espacios, el.id) }))
+    .filter((x) => x.esp && x.esp.tipo === 'habitacion' && areaDe(x.esp));
+  // Comparten pared: al menos la mitad del lado más corto
+  const cruza = (a1, a2, b1, b2) => Math.min(a2, b2) - Math.max(a1, b1) >= Math.min(a2 - a1, b2 - b1) / 2;
+  conArea.forEach(({ el, esp }) => {
+    const lados = { n: false, s: false, e: false, o: false };
+    conArea.forEach((o) => {
+      if (o.el === el || o.esp.area_id !== esp.area_id) return;
+      const b = o.el;
+      if (cruza(el.y, el.y + el.h, b.y, b.y + b.h)) {
+        const dE = b.x - (el.x + el.w), dO = el.x - (b.x + b.w);
+        if (dE >= 0 && dE <= 1) lados.e = true;
+        if (dO >= 0 && dO <= 1) lados.o = true;
+      }
+      if (cruza(el.x, el.x + el.w, b.x, b.x + b.w)) {
+        const dS = b.y - (el.y + el.h), dN = el.y - (b.y + b.h);
+        if (dS >= 0 && dS <= 1) lados.s = true;
+        if (dN >= 0 && dN <= 1) lados.n = true;
+      }
+    });
+    if (!lados.n && !lados.s && !lados.e && !lados.o) return;
+    const d = $pl.querySelector(`[data-clave="${CSS.escape(String(el.id))}"]`);
+    if (!d) return;
+    d.classList.add('hab-grupo');
+    Object.keys(lados).forEach((k) => { if (lados[k]) d.classList.add('hab-grupo-sin-' + k); });
+  });
 }
 
 function modalAreas() {
@@ -1337,9 +1392,39 @@ function modalAreas() {
     m.cuerpo.querySelectorAll('[data-editar]').forEach((b) => b.addEventListener('click', () => formArea(porId(S.areas, Number(b.dataset.editar)) || S.areas.find((x) => String(x.id) === b.dataset.editar))));
     const botones = [['Cerrar', 'boton-secundario', () => m.cerrar()]];
     if (S.estructura && !S.areas.length) botones.push(['Cargar áreas sugeridas', 'boton-secundario', cargarSugeridas]);
+    if (S.estructura && S.areas.length) botones.push(['Aplicar colores nuevos', 'boton-secundario', actualizarPaleta]);
     if (S.estructura) botones.push(['+ Nueva área', 'boton-primario', () => formArea(null)]);
     m.botones(botones);
   };
+  /* Pone a las áreas sugeridas los colores vivos actuales (por nombre) y
+     agrega las sugeridas que falten (por ejemplo, Personal de salud).
+     Las áreas creadas a mano no se tocan. */
+  const actualizarPaleta = (b) => conBoton(b, async () => {
+    const norm = (t) => String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    let cambiadas = 0;
+    const nuevas = [];
+    for (let i = 0; i < AREAS_SUGERIDAS.length; i++) {
+      const [nombre, icono, color] = AREAS_SUGERIDAS[i];
+      const a = S.areas.find((x) => norm(x.nombre) === norm(nombre));
+      if (a) {
+        if (a.color.toLowerCase() !== color.toLowerCase()) {
+          const r = await S.sb.from('viv_areas').update(alEditar({ color })).eq('id', a.id);
+          if (r.error) return m.error(mensajeError(r.error));
+          cambiadas++;
+        }
+      } else {
+        nuevas.push(alCrear({ empresa_id: S.empresaId, nombre, icono, color, orden: (i + 1) * 10 }));
+      }
+    }
+    if (nuevas.length) {
+      const r = await S.sb.from('viv_areas').insert(nuevas);
+      if (r.error) return m.error(mensajeError(r.error));
+    }
+    await cargarAreas();
+    pintarLista();
+    pintar();
+    toast(`Colores actualizados: ${cambiadas}${nuevas.length ? ` · áreas agregadas: ${nuevas.map((x) => x.nombre).join(', ')}` : ''}`);
+  });
   const cargarSugeridas = (b) => conBoton(b, async () => {
     const filas = AREAS_SUGERIDAS.map(([nombre, icono, color], i) => alCrear({ empresa_id: S.empresaId, nombre, icono, color, orden: (i + 1) * 10 }));
     const { error } = await S.sb.from('viv_areas').insert(filas);
@@ -3077,6 +3162,7 @@ function vistaPlano($v, edif) {
      contener cuartos internos dibujados encima */
   elems.slice().sort((a, b) => b.w * b.h - a.w * a.h)
     .forEach((el) => $pl.appendChild(elementoPl(el, editando, $pl, edif)));
+  marcarGruposPl($pl, elems);
   if (S.plVer.seg) pintarSegPl($pl, edif, planta);
   if (editando) conectarLienzoPl($pl, edif, planta, faltan);
   pintarPanelPl(edif, planta, faltan);
@@ -3096,7 +3182,7 @@ function elementoPl(el, editando, $pl, edif) {
     const camas = camasDe(esp.id);
     const ocup = camas.filter((x) => asigDeCama(x.id)).length;
     const area = areaDe(esp);
-    if (area) { d.classList.add('hab-pl-el--area'); d.style.setProperty('--area', area.color); }
+    if (area) { d.classList.add('hab-pl-el--area'); d.style.setProperty('--area', area.color); d.dataset.area = area.id; }
     d.innerHTML = `${area ? etiquetaArea(area, 'hab-area hab-area--pl') : ''}<span class="hab-pl-nombre"><b>${esc(nombreEsp(esp))}</b>${camas.length ? ` <small>${ocup}/${camas.length}</small>` : ''}</span>`;
     if (S.plVer.camas && camas.length) {
       const $c = document.createElement('span');
