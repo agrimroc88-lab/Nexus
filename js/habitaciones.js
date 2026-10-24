@@ -22,7 +22,7 @@
 import { alCrear, alEditar } from './autoria.js?v=1';
 import { esperarImagenes } from './impresion.js?v=11';
 
-const VERSION = 'v29';
+const VERSION = 'v30';
 console.info('NEXUS · habitaciones', VERSION);
 
 /* Dos permisos distintos:
@@ -228,8 +228,10 @@ const PASILLOS = {
   lado: 'Delante de la fila de cuartos',
   ninguno: 'Sin pasillo interior'
 };
-function pasilloDe(edif) {
-  const p = edif.pasillo || (edif.tiene_frentes ? 'central' : 'lado');
+/* planta (opcional): una planta puede tener su propio pasillo (etapa 6) */
+function pasilloDe(edif, planta) {
+  const propio = planta && edif.pasillos_planta ? edif.pasillos_planta[String(planta)] : null;
+  const p = (propio && PASILLOS[propio] ? propio : null) || edif.pasillo || (edif.tiene_frentes ? 'central' : 'lado');
   if (!edif.tiene_frentes && (p === 'central' || p === 'frente')) return 'lado';
   if (edif.tiene_frentes && p === 'lado') return 'central';
   return p;
@@ -944,7 +946,7 @@ function vistaEdificio($v) {
     planta.setAttribute('aria-label', nombrePlanta(p, edif.num_plantas));
     planta.innerHTML = `<div class="hab-planta-nombre">${nombrePlanta(p, edif.num_plantas)}</div>`;
     planta.appendChild(edif.tiene_frentes ? plantaConFrentes(edif, p) : filaHtml(edif, p, null));
-    if (!edif.tiene_frentes && pasilloDe(edif) === 'lado') planta.appendChild(pasilloHtml('lado'));
+    if (!edif.tiene_frentes && pasilloDe(edif, p) === 'lado') planta.appendChild(pasilloHtml('lado'));
     $f.appendChild(planta);
   }
   $f.insertAdjacentHTML('beforeend', '<div class="hab-suelo" aria-hidden="true"></div>');
@@ -997,7 +999,7 @@ function plantaConFrentes(edif, planta) {
   const columnas = ['auto'];
   /* Filas según el pasillo: central → A, pasillo, B;
      frente → pasillo A, A, B, pasillo B; ninguno → A, B. */
-  const tipoPasillo = pasilloDe(edif);
+  const tipoPasillo = pasilloDe(edif, planta);
   /* El frente de arriba es A, salvo que el edificio indique
      «B arriba y A abajo». */
   const [arriba, abajo] = edif.frentes_invertidos ? ['B', 'A'] : ['A', 'B'];
@@ -1593,6 +1595,9 @@ function modalEdificio(edif) {
     <div class="campo"><label class="etiqueta" for="he-pasillo">Pasillo</label>
       <select class="entrada" id="he-pasillo"></select>
       <span class="ayuda">Se dibuja en el plano de cada planta; ahí se pueden ubicar extintores, luces y señalética.</span></div>
+    <div class="campo" id="he-pp-campo"><span class="etiqueta">Pasillo por planta</span>
+      <div class="hab-pp" id="he-pp"></div>
+      <span class="ayuda">Si una planta es distinta (por ejemplo, planta baja con cuartos espalda con espalda que salen directo afuera, y plantas de arriba con pasillo en medio), elíjalo aquí.</span></div>
     <span class="ayuda">Luego, con «Editar plantas y espacios», agrega en cada planta sus habitaciones, comedor, bodegas, garita, etc.</span>
   </div>`;
   const $fr = m.cuerpo.querySelector('#he-frentes');
@@ -1604,9 +1609,41 @@ function modalEdificio(edif) {
     $pa.innerHTML = claves.map((k) => `<option value="${k}" ${k === actual ? 'selected' : ''}>${PASILLOS[k]}</option>`).join('');
   };
   const ordenCampo = () => { m.cuerpo.querySelector('#he-orden-campo').hidden = !$fr.checked; };
-  $fr.addEventListener('change', () => { opcionesPasillo(); ordenCampo(); });
+
+  /* Pasillo por planta (etapa 6): la columna existe si algún edificio la trae */
+  const hayPP = S.edificios.some((x) => 'pasillos_planta' in x);
+  const ppActual = { ...(edif?.pasillos_planta || {}) };
+  const $pp = m.cuerpo.querySelector('#he-pp');
+  const $plantas = m.cuerpo.querySelector('#he-plantas');
+  const pintarPP = () => {
+    $pp.querySelectorAll('select').forEach((x) => { ppActual[x.dataset.planta] = x.value; });
+    const total = parseInt($plantas.value, 10) || 1;
+    const claves = $fr.checked ? ['central', 'frente', 'ninguno'] : ['lado', 'ninguno'];
+    const nombreGeneral = PASILLOS[$pa.value] || '';
+    $pp.innerHTML = Array.from({ length: total }, (_, i) => i + 1).map((k) => `<label class="hab-pp-fila">
+      <span>${nombrePlanta(k, total)}</span>
+      <select class="entrada" data-planta="${k}">
+        <option value="">Igual que el edificio (${esc(nombreGeneral.toLowerCase())})</option>
+        ${claves.map((c) => `<option value="${c}" ${ppActual[k] === c ? 'selected' : ''}>${c === 'ninguno' && $fr.checked ? 'Espalda con espalda, salen directo afuera (sin pasillo)' : PASILLOS[c]}</option>`).join('')}
+      </select></label>`).join('');
+  };
+  if (!hayPP && S.edificios.length) {
+    m.cuerpo.querySelector('#he-pp-campo').innerHTML = '<span class="etiqueta">Pasillo por planta</span><span class="ayuda">Para elegir un pasillo distinto en cada planta, el administrador debe ejecutar una vez <code>sql/habitaciones_etapa6_pasillo_por_planta.sql</code> en Supabase.</span>';
+  }
+  const conPP = () => !!m.cuerpo.querySelector('#he-pp');
+  const extraPP = () => {
+    if (!conPP()) return {};
+    const out = {};
+    $pp.querySelectorAll('select').forEach((x) => { if (x.value) out[x.dataset.planta] = x.value; });
+    return hayPP || Object.keys(out).length ? { pasillos_planta: out } : {};
+  };
+
+  $fr.addEventListener('change', () => { opcionesPasillo(); ordenCampo(); if (conPP()) pintarPP(); });
+  $pa.addEventListener('change', () => { if (conPP()) pintarPP(); });
+  $plantas.addEventListener('change', () => { if (conPP()) pintarPP(); });
   opcionesPasillo();
   ordenCampo();
+  if (conPP()) pintarPP();
   /* La columna existe solo si se ejecutó habitaciones_frentes.sql
      (o la versión nueva de habitaciones_etapa3.sql). */
   const hayOrden = S.edificios.length === 0 || S.edificios.some((x) => 'frentes_invertidos' in x);
@@ -1625,7 +1662,7 @@ function modalEdificio(edif) {
     if (nuevo) {
       const { data, error } = await S.sb.from('viv_edificios').insert(alCrear({
         empresa_id: S.empresaId, base_id: S.nav.baseId, nombre, codigo, num_plantas: plantas, tiene_frentes: frentes,
-        ...(S.seguridadFalta ? {} : { pasillo: valor(m, 'he-pasillo') }), ...extraOrden()
+        ...(S.seguridadFalta ? {} : { pasillo: valor(m, 'he-pasillo') }), ...extraOrden(), ...extraPP()
       })).select().single();
       if (error) return m.error(mensajeError(error));
       m.cerrar();
@@ -1653,8 +1690,8 @@ function modalEdificio(edif) {
     }
     const { error } = await S.sb.from('viv_edificios')
       .update(alEditar({ nombre, codigo, num_plantas: plantas, tiene_frentes: frentes,
-        ...(S.seguridadFalta ? {} : { pasillo: valor(m, 'he-pasillo') }), ...extraOrden() })).eq('id', edif.id);
-    if (error) return m.error(mensajeError(error));
+        ...(S.seguridadFalta ? {} : { pasillo: valor(m, 'he-pasillo') }), ...extraOrden(), ...extraPP() })).eq('id', edif.id);
+    if (error) return m.error(/pasillos_planta/.test(error.message || '') ? 'Para elegir el pasillo de cada planta, el administrador debe ejecutar sql/habitaciones_etapa6_pasillo_por_planta.sql en Supabase.' : mensajeError(error));
     m.cerrar();
     toast('Edificio actualizado');
     await recargar();
@@ -1735,12 +1772,15 @@ function herramientasHtml(sel) {
   }
   const hab = sel.tipo === 'habitacion';
   const [puedeIzq, puedeDer] = limitesMover(sel);
+  const puedeArriba = !!destinoVertical(sel, -1), puedeAbajo = !!destinoVertical(sel, 1);
   const btn = (h, texto, extra = '', des = false) =>
     `<button class="boton-secundario boton-compacto ${extra}" type="button" data-h="${h}" ${des ? 'disabled' : ''}>${texto}</button>`;
   return `<div class="hab-herramientas" role="toolbar" aria-label="Editar ${esc(sel.nombre)}">
     <span class="hab-herramientas-nombre">${hab ? 'Habitación ' : ''}${esc(sel.nombre)} · ${TAMANOS[sel.ancho]}</span>
     ${btn('izq', '← Mover', '', !puedeIzq)}
     ${btn('der', 'Mover →', '', !puedeDer)}
+    ${btn('arriba', '↑ Subir', '', !puedeArriba)}
+    ${btn('abajo', '↓ Bajar', '', !puedeAbajo)}
     ${btn('menos', '− Angosto', '', sel.ancho <= 1)}
     ${btn('mas', '+ Ancho', '', sel.ancho >= ANCHO_MAX)}
     ${hab ? btn('cama', '+ Cama o litera') : ''}
@@ -1755,6 +1795,9 @@ function conectarHerramientas(sel) {
   const h = (k) => document.querySelector(`.hab-herramientas [data-h="${k}"]`);
   h('izq')?.addEventListener('click', () => moverEspacio(sel, -1));
   h('der')?.addEventListener('click', () => moverEspacio(sel, 1));
+  h('arriba')?.addEventListener('click', () => moverVertical(sel, -1));
+  h('abajo')?.addEventListener('click', () => moverVertical(sel, 1));
+  conectarTeclasEdicion();
   h('menos')?.addEventListener('click', () => cambiarAncho(sel, -1));
   h('mas')?.addEventListener('click', () => cambiarAncho(sel, 1));
   h('cama')?.addEventListener('click', () => modalAgregarCama(sel));
@@ -1832,6 +1875,118 @@ async function moverEspacio(esp, dir) {
   if (fallo) { toast(mensajeError(fallo.error)); await recargar(); return; }
   cambios.forEach(({ x, orden }) => { x.orden = orden; });
   pintar();
+}
+
+/* ---------- Subir o bajar un espacio (↑ ↓) ----------
+   Filas de arriba hacia abajo: planta más alta primero y, en
+   cada planta, el frente de arriba y luego el de abajo. Subir
+   lleva el espacio a la fila de arriba (otro frente u otra
+   planta) en la misma posición horizontal. */
+function filasVisuales(edif) {
+  const filas = [];
+  const [arriba, abajo] = edif.frentes_invertidos ? ['B', 'A'] : ['A', 'B'];
+  for (let p = edif.num_plantas; p >= 1; p--) {
+    if (edif.tiene_frentes) filas.push({ planta: p, frente: arriba }, { planta: p, frente: abajo });
+    else filas.push({ planta: p, frente: null });
+  }
+  return filas;
+}
+function destinoVertical(esp, dir) {
+  const edif = porId(S.edificios, esp.edificio_id);
+  if (!edif) return null;
+  if (esp.frente === 'AB') {                        // ocupa ambos frentes: solo cambia de planta
+    const p = esp.planta - dir;
+    return p >= 1 && p <= edif.num_plantas ? { planta: p, frente: 'AB' } : null;
+  }
+  const filas = filasVisuales(edif);
+  const i = filas.findIndex((f) => f.planta === esp.planta && (f.frente || null) === (esp.frente || null));
+  return i < 0 ? null : filas[i + dir] || null;
+}
+async function moverVertical(esp, dir) {
+  const edif = porId(S.edificios, esp.edificio_id);
+  const dest = destinoVertical(esp, dir);
+  if (!edif || !dest) return;
+  // Posición horizontal actual dentro de su fila
+  const filaAct = filaDe(edif.id, esp.planta, esp.frente === 'AB' ? 'A' : esp.frente);
+  const pos = Math.max(0, filaAct.findIndex((x) => x.id === esp.id));
+  // Fila destino (sin el propio espacio) y vecino que quedará a su derecha
+  const filaDest = filaDe(edif.id, dest.planta, dest.frente === 'AB' ? 'A' : dest.frente).filter((x) => x.id !== esp.id);
+  const siguiente = filaDest[pos] || null;
+  const anterior = pos > 0 ? filaDest[Math.min(pos, filaDest.length) - 1] : null;
+  // Orden de toda la planta destino con el espacio insertado
+  const todos = espaciosDe(edif.id).filter((x) => x.planta === dest.planta && x.id !== esp.id).sort(porOrden);
+  let k = siguiente ? todos.indexOf(siguiente) : (anterior ? todos.indexOf(anterior) + 1 : todos.length);
+  if (k < 0) k = todos.length;
+  todos.splice(k, 0, esp);
+  const cambiaPlanta = dest.planta !== esp.planta;
+  const cambios = [];
+  todos.forEach((x, n) => {
+    const orden = (n + 1) * 10;
+    if (x === esp) {
+      const c = { orden, planta: dest.planta, frente: dest.frente };
+      // En otra planta, su lugar en el plano se vuelve a ubicar allá
+      if (cambiaPlanta && 'plano_x' in esp) Object.assign(c, { plano_x: null, plano_y: null, plano_w: null, plano_h: null });
+      cambios.push([x, c]);
+    } else if (x.orden !== orden) cambios.push([x, { orden }]);
+  });
+  const res = await Promise.all(cambios.map(([x, c]) => S.sb.from('viv_espacios').update(alEditar(c)).eq('id', x.id)));
+  const fallo = res.find((r) => r.error);
+  if (fallo) { toast(mensajeError(fallo.error)); await recargar(); return; }
+  cambios.forEach(([x, c]) => Object.assign(x, c));
+  // Equipos de seguridad pegados a ese espacio viajan con él
+  if (cambiaPlanta && !S.seguridadFalta) {
+    const suyos = (S.seguridad || []).filter((q) => q.ancla_espacio === esp.id);
+    if (suyos.length) {
+      await S.sb.from('viv_seguridad').update(alEditar({ planta: dest.planta })).eq('ancla_espacio', esp.id);
+      suyos.forEach((q) => { q.planta = dest.planta; });
+    }
+  }
+  toast(`${nombreEspCorto(esp)} → ${nombrePlanta(dest.planta, edif.num_plantas)}${dest.frente && dest.frente !== 'AB' ? ` · frente ${dest.frente}` : ''}`);
+  pintar();
+}
+
+/* Ctrl+C / Ctrl+V en la vista por frentes: la copia (sin camas) queda a la derecha del elegido */
+let portapapelesFr = null;
+async function pegarEnFrentes(junto) {
+  if (!portapapelesFr) { toast('Elija un espacio y pulse Ctrl + C para copiarlo.'); return; }
+  const edif = porId(S.edificios, junto.edificio_id);
+  const usados = new Set(espaciosDe(edif.id).map((x) => String(x.nombre).toLowerCase()));
+  const nombre = nombreCopia(portapapelesFr, edif, junto.planta, portapapelesFr.planta, usados);
+  const fila = {
+    empresa_id: S.empresaId, edificio_id: edif.id, planta: junto.planta, frente: junto.frente || null,
+    orden: junto.orden + 1, ancho: portapapelesFr.ancho || 1, tipo: portapapelesFr.tipo, nombre
+  };
+  if (!S.areasFalta && portapapelesFr.area_id && S.areas.some((a) => a.id === portapapelesFr.area_id)) fila.area_id = portapapelesFr.area_id;
+  const { data, error } = await S.sb.from('viv_espacios').insert(alCrear(fila)).select().single();
+  if (error) { toast(mensajeError(error)); return; }
+  S.espacios.push(data);
+  S.selEspacio = data.id;
+  toast(`${nombreEspCorto(data)} pegado (sin camas)`);
+  pintar();
+}
+
+/* Flechas del teclado mientras se editan plantas y espacios */
+let teclasEdicion = false;
+function conectarTeclasEdicion() {
+  if (teclasEdicion) return;
+  teclasEdicion = true;
+  document.addEventListener('keydown', (e) => {
+    if (!S || !S.editando || !S.selEspacio || S.vistaEdif === 'plano' || modalActual) return;
+    if (e.target.closest && e.target.closest('input, select, textarea, [contenteditable]')) return;
+    const esp = porId(S.espacios, S.selEspacio);
+    if (!esp) return;
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+      e.preventDefault();
+      portapapelesFr = { tipo: esp.tipo, nombre: esp.nombre, ancho: esp.ancho, area_id: esp.area_id ?? null, planta: esp.planta };
+      toast(`${nombreEspCorto(esp)} copiado · Ctrl + V lo pega a su derecha (sin camas)`);
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') { e.preventDefault(); pegarEnFrentes(esp); return; }
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const acciones = { ArrowLeft: () => moverEspacio(esp, -1), ArrowRight: () => moverEspacio(esp, 1),
+      ArrowUp: () => moverVertical(esp, -1), ArrowDown: () => moverVertical(esp, 1) };
+    if (acciones[e.key]) { e.preventDefault(); acciones[e.key](); }
+  });
 }
 
 async function cambiarAncho(esp, delta) {
@@ -3039,6 +3194,63 @@ function armarDesdeFrentes(edif, planta, soloIds = null) {
   return elems;
 }
 
+/* Plano → vista por frentes (al guardar el plano):
+   - Frente: lo de la mitad de arriba del plano va al frente de arriba
+     y lo de abajo al de abajo; lo que atraviesa casi todo el alto
+     (un baño central, escaleras) queda en «Frentes A y B».
+   - Orden: de izquierda a derecha, como en el plano.
+   - Tamaño: proporcional al ancho dibujado (1 a 6).
+   Los espacios que no están en el plano quedan al final, en su orden. */
+async function acomodarFrentesDesdePlano(edif, planta, elems) {
+  const lista = (elems || []).map((el) => ({ el, esp: porId(S.espacios, el.id) })).filter((x) => x.esp);
+  if (!lista.length) return null;
+  const top = Math.min(...lista.map((x) => x.el.y));
+  const bot = Math.max(...lista.map((x) => x.el.y + x.el.h));
+  const mid = (top + bot) / 2;
+  const [arriba, abajo] = edif.frentes_invertidos ? ['B', 'A'] : ['A', 'B'];
+
+  // Unidad de ancho: la habitación típica del plano
+  const anchosHab = lista.filter((x) => x.esp.tipo === 'habitacion').map((x) => x.el.w).sort((a, b) => a - b);
+  const unidad = Math.max(3, anchosHab.length ? anchosHab[Math.floor(anchosHab.length / 2)] : PL_TAM.habitacion[0]);
+
+  // Una sola hilera dibujada (todo a la misma altura): va entera al frente de arriba
+  const centros = lista.map((x) => x.el.y + x.el.h / 2);
+  const unaHilera = Math.max(...centros) - Math.min(...centros) < 4;
+  const nuevos = new Map();
+  lista.forEach(({ el, esp }) => {
+    let frente = null;
+    if (edif.tiene_frentes && unaHilera) frente = esp.frente === 'AB' ? 'AB' : arriba;
+    else if (edif.tiene_frentes) {
+      const atraviesa = el.y <= mid - 1 && el.y + el.h >= mid + 1 && el.h >= (bot - top) * 0.6;
+      frente = atraviesa ? 'AB' : (el.y + el.h / 2 < mid ? arriba : abajo);
+    }
+    const ancho = Math.max(1, Math.min(ANCHO_MAX, Math.round(el.w / unidad) || 1));
+    nuevos.set(esp.id, { frente, ancho, cx: el.x + el.w / 2, cy: el.y + el.h / 2 });
+  });
+  const enPlano = lista.map((x) => x.esp)
+    .sort((a, b) => nuevos.get(a.id).cx - nuevos.get(b.id).cx || nuevos.get(a.id).cy - nuevos.get(b.id).cy);
+  const fuera = espaciosDe(edif.id).filter((x) => x.planta === planta && !nuevos.has(x.id)).sort(porOrden);
+
+  const cambios = [];
+  enPlano.concat(fuera).forEach((esp, k) => {
+    const n = nuevos.get(esp.id);
+    const c = {};
+    const orden = (k + 1) * 10;
+    if (esp.orden !== orden) c.orden = orden;
+    if (n) {
+      if ((esp.frente || null) !== n.frente) c.frente = n.frente;
+      if (esp.ancho !== n.ancho) c.ancho = n.ancho;
+    }
+    if (Object.keys(c).length) cambios.push([esp, c]);
+  });
+  if (!cambios.length) return null;
+  const res = await Promise.all(cambios.map(([esp, c]) => S.sb.from('viv_espacios').update(alEditar(c)).eq('id', esp.id)));
+  const fallo = res.find((r) => r.error);
+  if (fallo) return mensajeError(fallo.error);
+  cambios.forEach(([esp, c]) => Object.assign(esp, c));
+  return null;
+}
+
 function sinUbicar(edif, planta, elems) {
   const puestos = new Set(elems.map((e) => e.id));
   return espaciosDe(edif.id).filter((x) => x.planta === planta && !puestos.has(x.id)).sort(porOrden);
@@ -3086,7 +3298,7 @@ function vistaPlano($v, edif) {
   // El editor está siempre activo para quien puede editar (un solo «Guardar plano»)
   if (!S.pl && editaPlano()) {
     S.pl = { edifId: edif.id, planta, elems: elementosPlano(edif, planta), sel: null, puerta: null, cambios: false,
-      conocidos: new Set(espaciosDe(edif.id).map((x) => x.id)), hist: [], pendiente: null, colocar: null, armado: false };
+      conocidos: new Set(espaciosDe(edif.id).map((x) => x.id)), hist: [], pendiente: null, colocar: null, armado: false, multi: new Set() };
     if (!S.pl.elems.length && espaciosDe(edif.id).some((x) => x.planta === planta)) {
       S.pl.elems = armarDesdeFrentes(edif, planta);
       S.pl.cambios = true;
@@ -3153,7 +3365,7 @@ function vistaPlano($v, edif) {
     </div>
     <p class="ayuda pl-ayuda">${editando
       ? (S.pl.colocar ? `<b>Toque en el plano dónde va: ${esc((TIPOS_SEG[S.pl.colocar] || {}).n || '')}.</b> <button type="button" class="enlace-boton" id="pl-cancelar-colocar">Cancelar</button>`
-        : 'Clic derecho sobre el plano o sobre un espacio para ver las opciones · arrastre para mover · esquina inferior derecha para estirar · las puertas se arrastran por las paredes.')
+        : 'Clic derecho sobre el plano o sobre un espacio para ver las opciones · arrastre para mover · esquina inferior derecha para estirar · las puertas se arrastran por las paredes · <b>Ctrl + clic</b> o un recuadro para elegir varios · <b>Ctrl + C</b> / <b>Ctrl + V</b> copiar y pegar.')
       : (elems.length ? 'Plano a ojo, visto desde arriba. Toque una cama para ver quién la ocupa.' : 'Esta planta aún no tiene plano dibujado.')}</p>`;
   document.getElementById('pl-cancelar-colocar')?.addEventListener('click', () => { S.pl.colocar = null; pintar(); });
 
@@ -3166,6 +3378,7 @@ function vistaPlano($v, edif) {
   if (S.plVer.seg) pintarSegPl($pl, edif, planta);
   if (editando) conectarLienzoPl($pl, edif, planta, faltan);
   pintarPanelPl(edif, planta, faltan);
+  if (editando && seleccionPl().length > 1) pintarSeleccionPl();
 }
 
 function elementoPl(el, editando, $pl, edif) {
@@ -3202,22 +3415,27 @@ function elementoPl(el, editando, $pl, edif) {
   /* ----- Edición: seleccionar, arrastrar, estirar, menú ----- */
   d.tabIndex = 0;
   d.setAttribute('role', 'button');
-  const sel = S.pl.sel === el.id;
+  const sel = S.pl.sel === el.id || (S.pl.multi && S.pl.multi.has(el.id));
   d.setAttribute('aria-pressed', String(sel));
   if (sel) d.classList.add('hab-cq-el--sel');
   d.insertAdjacentHTML('beforeend', '<span class="hab-cq-asa" aria-hidden="true"></span>');
 
-  let modo = null, ix, iy, ox, oy, ow, oh, guardado = false;
+  let modo = null, ix, iy, ox, oy, ow, oh, guardado = false, grupoMov = null;
   d.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
     if (S.pl.colocar) return;                                      // lo maneja el lienzo
     if (e.target.closest('.hab-pl-puerta, .hab-cama, .hab-pl-seg')) return;
     e.preventDefault(); e.stopPropagation();
     cerrarMenuPl();
+    // Ctrl o Mayús + clic: suma o quita de la selección (varios a la vez)
+    if (e.ctrlKey || e.metaKey || e.shiftKey) { alternarSeleccionPl(el.id); return; }
     modo = e.target.classList.contains('hab-cq-asa') ? 'tam' : 'mover';
     ix = e.clientX; iy = e.clientY; ox = el.x; oy = el.y; ow = el.w; oh = el.h; guardado = false;
     d.setPointerCapture(e.pointerId);
-    if (S.pl.sel !== el.id) seleccionarPl(el.id, null);
+    const enGrupo = seleccionPl().length > 1 && seleccionPl().includes(el.id);
+    grupoMov = enGrupo && modo === 'mover'
+      ? S.pl.elems.filter((x) => seleccionPl().includes(x.id) && x !== el).map((x) => ({ x, ox: x.x, oy: x.y })) : null;
+    if (!enGrupo && S.pl.sel !== el.id) seleccionarPl(el.id, null);
   });
   d.addEventListener('pointermove', (e) => {
     if (!modo) return;
@@ -3226,6 +3444,18 @@ function elementoPl(el, editando, $pl, edif) {
     const dy = Math.round((e.clientY - iy) / r.height * PL_FILAS);
     if (!dx && !dy) return;
     if (!guardado) { recordarPl(); guardado = true; }
+    if (modo === 'mover' && grupoMov) {
+      // Todo el grupo se mueve junto (sin salirse del plano)
+      const todos = [{ x: el, ox, oy }].concat(grupoMov);
+      const mdx = Math.max(-Math.min(...todos.map((g) => g.ox)), Math.min(dx, Math.min(...todos.map((g) => PL_COLS - g.x.w - g.ox))));
+      const mdy = Math.max(-Math.min(...todos.map((g) => g.oy)), Math.min(dy, Math.min(...todos.map((g) => PL_FILAS - g.x.h - g.oy))));
+      todos.forEach((g) => {
+        g.x.x = g.ox + mdx; g.x.y = g.oy + mdy;
+        const dd = $pl.querySelector(`[data-clave="${CSS.escape(String(g.x.id))}"]`);
+        if (dd) posicionar(dd, g.x);
+      });
+      return;
+    }
     if (modo === 'mover') {
       el.x = Math.max(0, Math.min(PL_COLS - el.w, ox + dx));
       el.y = Math.max(0, Math.min(PL_FILAS - el.h, oy + dy));
@@ -3235,7 +3465,13 @@ function elementoPl(el, editando, $pl, edif) {
     }
     posicionar(d, el);
   });
-  const soltar = () => { if (modo) { modo = null; if (guardado) marcarCambioPl(); } };
+  const soltar = () => {
+    if (!modo) return;
+    const eraGrupo = !!grupoMov;
+    modo = null; grupoMov = null;
+    if (guardado) { marcarCambioPl(); if (S.areas.length || eraGrupo) pintar(); }
+    else if (eraGrupo) { S.pl.multi = new Set(); seleccionarPl(el.id, null); }   // clic sin mover: solo este
+  };
   d.addEventListener('pointerup', soltar);
   d.addEventListener('pointercancel', soltar);
   d.addEventListener('contextmenu', (e) => {
@@ -3248,6 +3484,7 @@ function elementoPl(el, editando, $pl, edif) {
   });
   d.addEventListener('keydown', (e) => {
     const k = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+    if (seleccionPl().length > 1 && (k || e.key === 'Delete') && !e.shiftKey) return;   // lo maneja el teclado del plano
     if (e.key === 'Delete') { e.preventDefault(); quitarDelPlano(el); return; }
     if (!k) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); seleccionarPl(el.id, null); } return; }
     e.preventDefault();
@@ -3364,18 +3601,219 @@ function conectarLienzoPl($pl, edif, planta, faltan) {
       crearSegPl(edif, planta, tipo, cuarto ? { ancla_tipo: 'espacio', ancla_espacio: cuarto.dataset.clave } : { ancla_tipo: 'planta', ancla_espacio: null }, px, py);
       return;
     }
-    if (e.target === $pl) { cerrarMenuPl(); seleccionarPl(null, null); }
+    if (e.target === $pl) { cerrarMenuPl(); iniciarRecuadroPl(e, $pl); }
   }, true);
+  conectarTeclasPlano();
+}
+
+/* ---------- Varios a la vez: selección, recuadro, copiar y pegar ---------- */
+function seleccionPl() {
+  if (!S.pl) return [];
+  const ids = new Set(S.pl.multi || []);
+  if (S.pl.sel) ids.add(S.pl.sel);
+  return Array.from(ids);
+}
+function pintarSeleccionPl() {
+  const ids = new Set(seleccionPl());
+  document.querySelectorAll('.hab-pl-el').forEach((x) => {
+    const si = ids.has(x.dataset.clave) || ids.has(Number(x.dataset.clave));
+    x.classList.toggle('hab-cq-el--sel', si);
+    x.setAttribute('aria-pressed', String(si));
+  });
+  const n = ids.size;
+  const $a = document.querySelector('.pl-ayuda');
+  if ($a && n > 1) $a.innerHTML = `<b>${n} elegidos.</b> Arrastre uno para mover todos · flechas para moverlos · <b>Ctrl + C</b> copiar · <b>Ctrl + V</b> pegar · <b>Supr</b> quitar del plano · <b>Esc</b> soltar la selección.`;
+}
+function alternarSeleccionPl(id) {
+  const ids = new Set(seleccionPl());
+  if (ids.has(id)) ids.delete(id); else ids.add(id);
+  const lista = Array.from(ids);
+  S.pl.sel = lista.length === 1 ? lista[0] : (lista.includes(S.pl.sel) ? S.pl.sel : lista[0] || null);
+  S.pl.multi = new Set(lista.filter((x) => x !== S.pl.sel));
+  S.pl.puerta = null;
+  if (lista.length <= 1) { S.pl.multi = new Set(); seleccionarPl(S.pl.sel, null); }
+  pintarSeleccionPl();
+}
+function elegirVariosPl(ids) {
+  S.pl.sel = ids[0] || null;
+  S.pl.multi = new Set(ids.slice(1));
+  S.pl.puerta = null;
+  seleccionarPl(S.pl.sel, null);
+  pintarSeleccionPl();
+}
+
+// Arrastrar sobre una zona vacía dibuja un recuadro: elige lo que queda dentro
+function iniciarRecuadroPl(e, $pl) {
+  const r = $pl.getBoundingClientRect();
+  const x0 = e.clientX, y0 = e.clientY;
+  const banda = document.createElement('div');
+  banda.className = 'pl-banda';
+  let activa = false;
+  const mover = (ev) => {
+    const w = Math.abs(ev.clientX - x0), h = Math.abs(ev.clientY - y0);
+    if (!activa && w < 5 && h < 5) return;
+    if (!activa) { activa = true; $pl.appendChild(banda); }
+    Object.assign(banda.style, { left: (Math.min(x0, ev.clientX) - r.left) + 'px', top: (Math.min(y0, ev.clientY) - r.top) + 'px', width: w + 'px', height: h + 'px' });
+  };
+  const soltar = (ev) => {
+    document.removeEventListener('pointermove', mover);
+    document.removeEventListener('pointerup', soltar);
+    banda.remove();
+    if (!activa) { S.pl.multi = new Set(); seleccionarPl(null, null); return; }
+    const gx1 = (Math.min(x0, ev.clientX) - r.left) / r.width * PL_COLS, gx2 = (Math.max(x0, ev.clientX) - r.left) / r.width * PL_COLS;
+    const gy1 = (Math.min(y0, ev.clientY) - r.top) / r.height * PL_FILAS, gy2 = (Math.max(y0, ev.clientY) - r.top) / r.height * PL_FILAS;
+    // Basta con que el espacio quede dentro en su mayor parte
+    const dentro = S.pl.elems.filter((el) => {
+      const ix = Math.max(0, Math.min(gx2, el.x + el.w) - Math.max(gx1, el.x));
+      const iy = Math.max(0, Math.min(gy2, el.y + el.h) - Math.max(gy1, el.y));
+      return ix * iy >= el.w * el.h * 0.5;
+    }).map((el) => el.id);
+    elegirVariosPl(dentro);
+  };
+  document.addEventListener('pointermove', mover);
+  document.addEventListener('pointerup', soltar);
+}
+
+// Portapapeles de espacios (se conserva al cambiar de planta)
+let portapapelesPl = null;
+
+function copiarPl() {
+  const ids = seleccionPl();
+  if (!ids.length) { toast('Elija primero uno o varios espacios'); return; }
+  const elems = S.pl.elems.filter((x) => ids.includes(x.id));
+  const mx = Math.min(...elems.map((x) => x.x)), my = Math.min(...elems.map((x) => x.y));
+  portapapelesPl = {
+    edifId: S.pl.edifId, planta: S.pl.planta,
+    items: elems.map((el) => {
+      const esp = porId(S.espacios, el.id);
+      return { tipo: esp.tipo, nombre: esp.nombre, ancho: esp.ancho, area_id: esp.area_id ?? null,
+        dx: el.x - mx, dy: el.y - my, w: el.w, h: el.h, puertas: el.puertas.map((p) => ({ ...p })) };
+    })
+  };
+  toast(`${elems.length} ${elems.length === 1 ? 'espacio copiado' : 'espacios copiados'} · Ctrl + V para pegar (sin camas)`);
+}
+
+/* Nombre de la copia: habitaciones con el siguiente número libre
+   (en otra planta respeta la centena: 201 → 301); los demás, como al crearlos. */
+function nombreCopia(item, edif, planta, origen, usados) {
+  if (item.tipo !== 'habitacion') {
+    const n = nombrePorDefecto(item.tipo, edif.id);
+    let nombre = n || item.nombre, k = 2;
+    while (usados.has(nombre.toLowerCase())) nombre = `${n || item.nombre} ${k++}`;
+    usados.add(nombre.toLowerCase());
+    return nombre;
+  }
+  const num = parseInt(String(item.nombre).replace(/\D/g, ''), 10);
+  let cand;
+  if (!isNaN(num) && planta !== origen && num >= 100) cand = planta * 100 + (num % 100);
+  else {
+    const nums = Array.from(usados).map((x) => parseInt(x, 10)).filter((x) => !isNaN(x) && (planta < 2 || Math.floor(x / 100) === planta || x < 100));
+    cand = nums.length ? Math.max(...nums) + 1 : (planta > 1 ? planta * 100 + 1 : 1);
+  }
+  while (usados.has(String(cand).toLowerCase())) cand++;
+  usados.add(String(cand).toLowerCase());
+  return String(cand);
+}
+
+async function pegarPl() {
+  if (!S.pl || !portapapelesPl || !portapapelesPl.items.length) { toast('No hay nada copiado. Elija espacios y pulse Ctrl + C.'); return; }
+  const edif = porId(S.edificios, S.pl.edifId);
+  const planta = S.pl.planta;
+  const items = portapapelesPl.items;
+  const W = Math.max(...items.map((i) => i.dx + i.w)), H = Math.max(...items.map((i) => i.dy + i.h));
+  // Donde quepa todo el grupo junto
+  const hueco = huecoPlano(S.pl.elems, Math.min(W, PL_COLS), Math.min(H, PL_FILAS));
+  const usados = new Set(espaciosDe(edif.id).map((x) => String(x.nombre).toLowerCase()));
+  const filaOrden = espaciosDe(edif.id).filter((x) => x.planta === planta);
+  let orden = (filaOrden.length ? Math.max(...filaOrden.map((x) => x.orden)) : 0) + 10;
+  const filas = items.map((it) => {
+    const fila = {
+      empresa_id: S.empresaId, edificio_id: edif.id, planta, frente: edif.tiene_frentes ? 'A' : null,
+      orden, ancho: it.ancho || ANCHO_INICIAL[it.tipo] || 1, tipo: it.tipo,
+      nombre: nombreCopia(it, edif, planta, portapapelesPl.planta, usados)
+    };
+    orden += 10;
+    if (!S.areasFalta && it.area_id && S.areas.some((a) => a.id === it.area_id)) fila.area_id = it.area_id;
+    return alCrear(fila);
+  });
+  const { data, error } = await S.sb.from('viv_espacios').insert(filas).select();
+  if (error) { toast(mensajeError(error)); return; }
+  recordarPl();
+  const nuevos = [];
+  (data || []).forEach((esp, k) => {
+    const it = items[k];
+    S.espacios.push(esp);
+    S.pl.conocidos.add(esp.id);
+    const el = {
+      id: esp.id,
+      x: Math.max(0, Math.min(PL_COLS - it.w, hueco.x + it.dx)),
+      y: Math.max(0, Math.min(PL_FILAS - it.h, hueco.y + it.dy)),
+      w: it.w, h: it.h, puertas: it.puertas.map((p) => ({ ...p }))
+    };
+    S.pl.elems.push(el);
+    nuevos.push(esp.id);
+  });
+  S.pl.sel = nuevos[0] || null;
+  S.pl.multi = new Set(nuevos.slice(1));
+  marcarCambioPl();
+  pintar();
+  toast(`${nuevos.length} ${nuevos.length === 1 ? 'espacio pegado' : 'espacios pegados'} (sin camas) · pulse «Guardar plano»`);
+}
+
+function quitarVariosDelPlano() {
+  const ids = seleccionPl();
+  if (!ids.length) return;
+  recordarPl();
+  S.pl.elems = S.pl.elems.filter((x) => !ids.includes(x.id));
+  S.pl.sel = null; S.pl.puerta = null; S.pl.multi = new Set();
+  marcarCambioPl();
+  pintar();
+}
+
+function moverVariosPl(dx, dy) {
+  const elems = S.pl.elems.filter((x) => seleccionPl().includes(x.id));
+  if (!elems.length) return;
+  const mdx = Math.max(-Math.min(...elems.map((x) => x.x)), Math.min(dx, Math.min(...elems.map((x) => PL_COLS - x.w - x.x))));
+  const mdy = Math.max(-Math.min(...elems.map((x) => x.y)), Math.min(dy, Math.min(...elems.map((x) => PL_FILAS - x.h - x.y))));
+  if (!mdx && !mdy) return;
+  recordarPl();
+  elems.forEach((x) => { x.x += mdx; x.y += mdy; });
+  marcarCambioPl();
+  pintar();
+}
+
+// Atajos del plano: Ctrl+C, Ctrl+V, Ctrl+E (todo), flechas y Supr con varios, Esc
+let teclasPlano = false;
+function conectarTeclasPlano() {
+  if (teclasPlano) return;
+  teclasPlano = true;
+  document.addEventListener('keydown', (e) => {
+    if (!S || !S.pl || S.vistaEdif !== 'plano' || modalActual) return;
+    if (e.target.closest && e.target.closest('input, select, textarea, [contenteditable]')) return;
+    const ctrl = e.ctrlKey || e.metaKey;
+    const k = e.key.toLowerCase();
+    if (ctrl && k === 'c') { e.preventDefault(); copiarPl(); return; }
+    if (ctrl && k === 'v') { e.preventDefault(); pegarPl(); return; }
+    if (ctrl && (k === 'e' || k === 'a')) { e.preventDefault(); elegirVariosPl(S.pl.elems.map((x) => x.id)); return; }
+    if (seleccionPl().length > 1) {
+      const fl = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+      if (fl && !e.shiftKey) { e.preventDefault(); moverVariosPl(fl[0], fl[1]); return; }
+      if (e.key === 'Delete') { e.preventDefault(); quitarVariosDelPlano(); return; }
+      if (e.key === 'Escape') { S.pl.multi = new Set(); seleccionarPl(S.pl.sel, null); pintarSeleccionPl(); }
+    }
+  });
 }
 
 /* ---------- Selección, historial y cambios ---------- */
 
 function seleccionarPl(id, puerta) {
   if (!S.pl) return;
+  if (S.pl.multi && S.pl.multi.size && !(S.pl.multi.has(id) || S.pl.sel === id)) S.pl.multi = new Set();
   S.pl.sel = id;
   S.pl.puerta = puerta;
+  const multi = S.pl.multi || new Set();
   document.querySelectorAll('.hab-pl-el').forEach((x) => {
-    const si = x.dataset.clave === id;
+    const si = x.dataset.clave === id || multi.has(x.dataset.clave) || multi.has(Number(x.dataset.clave));
     x.classList.toggle('hab-cq-el--sel', si);
     x.setAttribute('aria-pressed', String(si));
     x.querySelectorAll('.hab-pl-puerta').forEach((p, i) => p.classList.toggle('hab-pl-puerta--sel', si && i === puerta));
@@ -3831,6 +4269,9 @@ async function guardarPlano(edif, planta) {
   const res = await Promise.all(ops);
   const fallo = res.find((r) => r.error);
   if (fallo) { toast(mensajeError(fallo.error)); return; }
+  // La vista por frentes se acomoda según lo dibujado
+  const errFrentes = await acomodarFrentesDesdePlano(edif, planta, S.pl.elems);
+  if (errFrentes) toast('Plano guardado, pero no se pudo acomodar la vista por frentes: ' + errFrentes);
   const sel = S.pl.sel;
   S.pl = null;
   await recargar();
@@ -4438,7 +4879,7 @@ async function imprimirPlanos(edif, op) {
       planta.className = 'hab-planta';
       planta.dataset.planta = p;
       planta.appendChild(edif.tiene_frentes ? plantaConFrentes(edif, p) : filaHtml(edif, p, null));
-      if (!edif.tiene_frentes && pasilloDe(edif) === 'lado') planta.appendChild(pasilloHtml('lado'));
+      if (!edif.tiene_frentes && pasilloDe(edif, p) === 'lado') planta.appendChild(pasilloHtml('lado'));
       $f.appendChild(planta);
       pintarSeguridad($f, edif);
       const area = document.createElement('div');
