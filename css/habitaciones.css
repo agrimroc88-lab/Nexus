@@ -1255,3 +1255,10 @@
 .hab-pl-el.hab-grupo-sin-s::after { bottom: -6px; }
 .hab-esp.hab-grupo { border-color: color-mix(in srgb, var(--area) 45%, #c9d2de); box-shadow: none; }
 @media print { .hab-grupo::after { filter: none; } }
+
+/* Pasillo por planta (Configurar edificio) */
+.hab-pp { display: grid; gap: 0.4rem; margin-top: 0.3rem; }
+.hab-pp-fila { display: grid; grid-template-columns: 110px minmax(0, 1fr); align-items: center; gap: 0.6rem; font-size: 0.88rem; }
+
+/* Recuadro de selección en el plano */
+.pl-banda { position: absolute; z-index: 20; border: 1.5px dashed #123A7A; background: rgba(31, 95, 168, 0.12); pointer-events: none; border-radius: 2px; }
