@@ -22,7 +22,7 @@
 import { alCrear, alEditar } from './autoria.js?v=1';
 import { esperarImagenes } from './impresion.js?v=11';
 
-const VERSION = 'v26';
+const VERSION = 'v27';
 console.info('NEXUS · habitaciones', VERSION);
 
 /* Dos permisos distintos:
@@ -100,6 +100,8 @@ function estadoInicial(supabase, perfil, empresaId, contenedor) {
     plVer: null,           // plano: mostrar cuadrícula, camas, seguridad
     plCinta: null,         // plano: pestaña de la cinta
     selEspacio: null,
+    areas: [],             // viv_areas: Mecánicos, Cocina… (dibujo y color)
+    areasFalta: false,     // true si aún no se ejecutó habitaciones_etapa5_areas.sql
     resaltar: null         // id de cama a resaltar tras una búsqueda
   };
 }
@@ -466,8 +468,20 @@ async function cargar() {
   S.asig = asig.filter((a) => idsCamas.has(a.cama_id));
 
   await cargarTrabajadores(S.asig.map((a) => a.trabajador_id));
+  await cargarAreas();
   await cargarCroquis();
   await cargarSeguridad();
+}
+
+/* Áreas de trabajo (etapa 5). Si falta el SQL, todo lo demás sigue igual. */
+async function cargarAreas() {
+  try {
+    S.areas = await traerTodo(() => S.sb.from('viv_areas').select('*').eq('empresa_id', S.empresaId).eq('activo', true).order('orden').order('nombre'));
+    S.areasFalta = false;
+  } catch (err) {
+    S.areas = [];
+    S.areasFalta = true;
+  }
 }
 
 /* Aparte: si falta el SQL de la etapa 2, el resto de la
@@ -879,6 +893,7 @@ function vistaEdificio($v) {
       <h2 class="hab-titulo">${esc(edif.nombre)} <small>código ${esc(edif.codigo)}</small></h2>
       <div class="hab-cabeza-acciones">
         ${!S.editando && !S.segEdit ? '<button class="boton-secundario" id="hab-imprimir" type="button">Imprimir planos</button>' : ''}
+        ${S.estructura || S.areas.length ? '<button class="boton-secundario" id="hab-areas" type="button">🏷️ Áreas</button>' : ''}
         ${S.estructura ? `
         <button class="boton-secundario" id="hab-config-edif" type="button">Configurar edificio</button>
         <button class="${S.editando ? 'boton-primario' : 'boton-secundario'}" id="hab-modo" type="button" aria-pressed="${S.editando}">
@@ -899,11 +914,13 @@ function vistaEdificio($v) {
         <button class="hab-chip" id="hab-libres" type="button" aria-pressed="${S.soloLibres}">Solo habitaciones con camas libres</button>
       </div>
     </div>
+    ${leyendaAreasHtml(edif)}
     ${barraSeguridadHtml(edif)}
     ${S.editando ? herramientasHtml(sel) : ''}
     <div class="hab-fachada ${S.editando ? 'hab-editando' : ''} ${S.detalle ? '' : 'hab-compacta'}" id="hab-fachada"></div>`;
 
   document.getElementById('hab-config-edif')?.addEventListener('click', () => modalEdificio(edif));
+  document.getElementById('hab-areas')?.addEventListener('click', () => modalAreas());
   document.getElementById('hab-imprimir')?.addEventListener('click', () => modalImprimir(edif));
   document.getElementById('hab-modo')?.addEventListener('click', () => {
     S.editando = !S.editando; S.selEspacio = null;
@@ -1079,8 +1096,10 @@ function espacioHtml(esp) {
     const camas = camasDe(esp.id);
     const ocup = camas.filter((c) => asigDeCama(c.id)).length;
     const tenue = S.soloLibres && !S.editando && (camas.length === 0 || ocup === camas.length);
-    d.className = 'hab-esp' + (tenue ? ' hab-esp--tenue' : '') + (seleccionado ? ' hab-esp--sel' : '');
-    d.innerHTML = `<div class="hab-esp-cabeza"><b>Hab. ${esc(esp.nombre)}</b>
+    const area = areaDe(esp);
+    d.className = 'hab-esp' + (tenue ? ' hab-esp--tenue' : '') + (seleccionado ? ' hab-esp--sel' : '') + (area ? ' hab-esp--area' : '');
+    if (area) d.style.setProperty('--area', area.color);
+    d.innerHTML = `${area ? etiquetaArea(area) : ''}<div class="hab-esp-cabeza"><b>Hab. ${esc(esp.nombre)}</b>
       <span>${esp.frente === 'AB' ? 'A y B · ' : ''}${camas.length ? `${ocup}/${camas.length}` : ''}</span></div>`;
     const $camas = document.createElement('div');
     $camas.className = 'hab-camas';
@@ -1256,6 +1275,148 @@ function codigoSugerido(nombre, prefijo) {
   if (num) return prefijo + num[0];
   return String(nombre).normalize('NFD').replace(/[^A-Za-z0-9 ]/g, '')
     .split(/\s+/).filter(Boolean).map((p) => p[0]).join('').slice(0, 4).toUpperCase() || prefijo;
+}
+
+/* ============================================
+   ÁREAS DE TRABAJO (etapa 5)
+   Cada habitación puede llevar un área (Mecánicos, Cocina…)
+   con su dibujo y su color; se ve encima de la habitación.
+   ============================================ */
+const AREAS_SUGERIDAS = [
+  ['Mecánicos', '🔧', '#5B6770'], ['Choferes', '🚚', '#1F5FA8'], ['Supervisores', '🦺', '#E07B00'],
+  ['Operadores de maquinaria', '🚜', '#C9A000'], ['Guardias ADAE', '🛡️', '#123A7A'], ['Guardias AGRIMROC', '👮', '#2E7D32'],
+  ['Cocina', '🍳', '#C0392B'], ['Geología', '⛏️', '#8D5524'], ['Eléctricos', '⚡', '#F2B400']
+];
+const ICONOS_AREA = ['🔧', '🛠️', '⚙️', '🚚', '🚗', '🚌', '🚜', '🏗️', '🦺', '👷', '👮', '🛡️', '💂', '🍳', '👨‍🍳', '🍽️',
+  '⛏️', '🪨', '💎', '⚡', '🔌', '💡', '🧪', '🩺', '💊', '🧹', '🧺', '📋', '💻', '📦', '🔥', '💧', '🌱', '📡', '🔩', '🧰'];
+const COLORES_AREA = ['#123A7A', '#1F5FA8', '#2E7D32', '#1A8F4A', '#C0392B', '#E07B00', '#F2B400', '#C9A000',
+  '#8D5524', '#6D3FA0', '#AD1457', '#00838F', '#5B6770', '#37474F'];
+
+function areaDe(esp) {
+  return esp && esp.area_id ? S.areas.find((a) => a.id === esp.area_id) || null : null;
+}
+function etiquetaArea(area, clase = 'hab-area') {
+  return `<div class="${clase}" style="--area:${esc(area.color)}" title="Área: ${esc(area.nombre)}"><span class="hab-area-ico" aria-hidden="true">${esc(area.icono)}</span><span>${esc(area.nombre)}</span></div>`;
+}
+
+/* Asigna (o quita) el área de un espacio sin recargar toda la pestaña */
+async function asignarArea(esp, areaId) {
+  const { error } = await S.sb.from('viv_espacios').update(alEditar({ area_id: areaId })).eq('id', esp.id);
+  if (error) { toast(mensajeError(error)); return; }
+  esp.area_id = areaId;
+  const a = areaDe(esp);
+  toast(a ? `${nombreEspCorto(esp)}: ${a.nombre}` : `${nombreEspCorto(esp)}: sin área`);
+  pintar();
+}
+function nombreEspCorto(esp) { return esp.tipo === 'habitacion' ? `Hab. ${esp.nombre}` : esp.nombre; }
+
+/* Leyenda con las áreas que hay en el edificio */
+function leyendaAreasHtml(edif) {
+  if (!S.areas.length) return '';
+  const usadas = new Map();
+  espaciosDe(edif.id).forEach((x) => { const a = areaDe(x); if (a) usadas.set(a.id, (usadas.get(a.id) || 0) + 1); });
+  if (!usadas.size) return '';
+  return `<div class="hab-areas-leyenda" aria-label="Áreas de este edificio">${S.areas.filter((a) => usadas.has(a.id)).map((a) =>
+    `<span class="hab-area-chip" style="--area:${esc(a.color)}">${esc(a.icono)} ${esc(a.nombre)} <b>${usadas.get(a.id)}</b></span>`).join('')}</div>`;
+}
+
+function modalAreas() {
+  const m = modal('Áreas de trabajo');
+  if (S.areasFalta) {
+    m.cuerpo.innerHTML = '<div class="hab-nota">Para usar las áreas, el administrador debe ejecutar una vez <code>sql/habitaciones_etapa5_areas.sql</code> en Supabase.</div>';
+    m.botones([['Cerrar', 'boton-primario', () => m.cerrar()]]);
+    return;
+  }
+  const pintarLista = () => {
+    m.cuerpo.innerHTML = `<p class="ayuda">Cada habitación puede llevar un área. Se ve encima de la habitación con su dibujo y su color. Se asigna en «Editar» de la habitación o con clic derecho en el plano.</p>
+      <div class="hab-areas-lista">${S.areas.length ? S.areas.map((a) => `
+        <div class="hab-area-fila">${etiquetaArea(a)}
+          <span class="hab-area-uso">${S.espacios.filter((x) => x.area_id === a.id).length} habitación(es)</span>
+          ${S.estructura ? `<button class="boton-secundario boton-compacto" type="button" data-editar="${a.id}">Editar</button>` : ''}
+        </div>`).join('') : '<div class="hab-vacio">Aún no hay áreas.</div>'}</div>`;
+    m.cuerpo.querySelectorAll('[data-editar]').forEach((b) => b.addEventListener('click', () => formArea(porId(S.areas, Number(b.dataset.editar)) || S.areas.find((x) => String(x.id) === b.dataset.editar))));
+    const botones = [['Cerrar', 'boton-secundario', () => m.cerrar()]];
+    if (S.estructura && !S.areas.length) botones.push(['Cargar áreas sugeridas', 'boton-secundario', cargarSugeridas]);
+    if (S.estructura) botones.push(['+ Nueva área', 'boton-primario', () => formArea(null)]);
+    m.botones(botones);
+  };
+  const cargarSugeridas = (b) => conBoton(b, async () => {
+    const filas = AREAS_SUGERIDAS.map(([nombre, icono, color], i) => alCrear({ empresa_id: S.empresaId, nombre, icono, color, orden: (i + 1) * 10 }));
+    const { error } = await S.sb.from('viv_areas').insert(filas);
+    if (error) return m.error(mensajeError(error));
+    await cargarAreas();
+    pintarLista();
+    pintar();
+  });
+
+  const formArea = (area) => {
+    m.titulo(area ? `Editar área · ${area.nombre}` : 'Nueva área');
+    let icono = area?.icono || ICONOS_AREA[0];
+    let color = area?.color || COLORES_AREA[0];
+    m.cuerpo.innerHTML = `<div class="hab-form">
+      <div class="hab-area-muestra" id="ha-muestra"></div>
+      <div class="campo"><label class="etiqueta" for="ha-nombre">Nombre del área o cargo</label>
+        <input class="entrada" id="ha-nombre" maxlength="40" value="${esc(area?.nombre || '')}" placeholder="Ej.: Mecánicos, Cocina, Guardias ADAE"></div>
+      <div class="campo"><span class="etiqueta">Dibujo</span>
+        <div class="hab-area-iconos" role="radiogroup" aria-label="Dibujo">${ICONOS_AREA.map((ic) =>
+          `<button type="button" class="hab-area-ico-op" data-ico="${ic}" role="radio" aria-checked="false" aria-label="${ic}">${ic}</button>`).join('')}</div>
+        <label class="ayuda" for="ha-ico-libre">¿No está el dibujo? Escriba o pegue cualquier emoji:
+          <input class="entrada hab-area-ico-libre" id="ha-ico-libre" maxlength="8" value=""></label></div>
+      <div class="campo"><span class="etiqueta">Color</span>
+        <div class="hab-area-colores">${COLORES_AREA.map((c) =>
+          `<button type="button" class="hab-area-color-op" data-color="${c}" style="--c:${c}" aria-label="Color ${c}"></button>`).join('')}
+          <label class="hab-area-color-libre" title="Otro color"><input type="color" id="ha-color" value="${esc(color)}"> Otro</label></div></div>
+    </div>`;
+    const $n = m.cuerpo.querySelector('#ha-nombre');
+    const muestra = () => {
+      m.cuerpo.querySelector('#ha-muestra').innerHTML = etiquetaArea({ nombre: $n.value.trim() || 'Nombre del área', icono, color });
+      m.cuerpo.querySelectorAll('.hab-area-ico-op').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.ico === icono)));
+      m.cuerpo.querySelectorAll('.hab-area-color-op').forEach((b) => b.classList.toggle('activo', b.dataset.color.toLowerCase() === color.toLowerCase()));
+    };
+    $n.addEventListener('input', muestra);
+    m.cuerpo.querySelectorAll('.hab-area-ico-op').forEach((b) => b.addEventListener('click', () => { icono = b.dataset.ico; m.cuerpo.querySelector('#ha-ico-libre').value = ''; muestra(); }));
+    m.cuerpo.querySelector('#ha-ico-libre').addEventListener('input', (e) => { const v = e.target.value.trim(); if (v) { icono = v; muestra(); } });
+    m.cuerpo.querySelectorAll('.hab-area-color-op').forEach((b) => b.addEventListener('click', () => { color = b.dataset.color; m.cuerpo.querySelector('#ha-color').value = color; muestra(); }));
+    m.cuerpo.querySelector('#ha-color').addEventListener('input', (e) => { color = e.target.value; muestra(); });
+    muestra();
+
+    const guardar = (b) => conBoton(b, async () => {
+      const nombre = $n.value.trim();
+      if (nombre.length < 2) return m.error('Escriba el nombre del área (al menos 2 letras).');
+      if (S.areas.some((x) => x.id !== area?.id && x.nombre.toLowerCase() === nombre.toLowerCase())) return m.error('Ya existe un área con ese nombre.');
+      const datos = { nombre, icono, color };
+      const r = area
+        ? await S.sb.from('viv_areas').update(alEditar(datos)).eq('id', area.id)
+        : await S.sb.from('viv_areas').insert(alCrear({ ...datos, empresa_id: S.empresaId, orden: (S.areas.length + 1) * 10 }));
+      if (r.error) return m.error(mensajeError(r.error));
+      await cargarAreas();
+      m.titulo('Áreas de trabajo');
+      pintarLista();
+      pintar();
+      toast(area ? 'Área actualizada' : `Área «${nombre}» creada`);
+    });
+    const quitar = (b) => conBoton(b, async () => {
+      const uso = S.espacios.filter((x) => x.area_id === area.id).length;
+      if (!confirm(`¿Quitar el área «${area.nombre}»?${uso ? ` ${uso} habitación(es) quedarán sin área.` : ''}`)) return;
+      if (uso) {
+        const r1 = await S.sb.from('viv_espacios').update(alEditar({ area_id: null })).eq('area_id', area.id);
+        if (r1.error) return m.error(mensajeError(r1.error));
+        S.espacios.forEach((x) => { if (x.area_id === area.id) x.area_id = null; });
+      }
+      const r = await S.sb.from('viv_areas').update(alEditar({ activo: false })).eq('id', area.id);
+      if (r.error) return m.error(mensajeError(r.error));
+      await cargarAreas();
+      m.titulo('Áreas de trabajo');
+      pintarLista();
+      pintar();
+    });
+    const lista = [['Volver', 'boton-secundario', () => { m.titulo('Áreas de trabajo'); pintarLista(); }]];
+    if (area) lista.push(['Quitar área', 'boton-secundario boton-critico', quitar]);
+    lista.push([area ? 'Guardar' : 'Crear área', 'boton-primario', guardar]);
+    m.botones(lista);
+    $n.focus();
+  };
+  pintarLista();
 }
 
 /* ---------- Base ---------- */
@@ -1639,6 +1800,12 @@ function modalEspacio(esp, { edif, planta, frente, tipo: tipoPedido }) {
       <div class="campo"><label class="etiqueta" for="hs-fecha">Entregado el</label>
         <input class="entrada" id="hs-fecha" type="date" value="${hoy()}"></div>
     </div><span class="ayuda" id="hs-camas-ayuda">Las literas se agregan después con «+ Cama o litera».</span>` : ''}
+    ${!S.areasFalta ? `<div class="campo" id="hs-area-bloque"><label class="etiqueta" for="hs-area">Área de trabajo</label>
+      <div class="hab-form-fila hab-area-elegir"><select class="entrada" id="hs-area">
+        <option value="">Sin área</option>
+        ${S.areas.map((a) => `<option value="${a.id}" ${esp?.area_id === a.id ? 'selected' : ''}>${esc(a.icono)} ${esc(a.nombre)}</option>`).join('')}
+      </select><button class="boton-secundario boton-compacto" type="button" id="hs-areas-admin">Administrar áreas</button></div>
+      <span class="ayuda">Se muestra encima de la habitación con su dibujo y su color.</span></div>` : ''}
     ${!nuevo && esp.tipo === 'habitacion' ? '<div class="hab-nota" id="hs-aviso-tipo" hidden>Al dejar de ser habitación, sus camas dejarán de aparecer en el mapa. Su historial se conserva.</div>' : ''}
   </div>`;
 
@@ -1661,7 +1828,10 @@ function modalEspacio(esp, { edif, planta, frente, tipo: tipoPedido }) {
     if ($aviso) $aviso.hidden = hab;
     const $todas = m.cuerpo.querySelector('#hs-todas-bloque');
     if ($todas) $todas.hidden = t !== 'escaleras';
+    const $area = m.cuerpo.querySelector('#hs-area-bloque');
+    if ($area) $area.hidden = !hab;
   };
+  m.cuerpo.querySelector('#hs-areas-admin')?.addEventListener('click', () => modalAreas());
   $tipo.addEventListener('change', ajustar);
   ajustar();
 
@@ -1674,15 +1844,18 @@ function modalEspacio(esp, { edif, planta, frente, tipo: tipoPedido }) {
     }
 
     const ambos = !!m.cuerpo.querySelector('#hs-ab')?.checked;
+    const $selArea = m.cuerpo.querySelector('#hs-area');
+    const areaElegida = $selArea && tipo === 'habitacion' ? (S.areas.find((a) => String(a.id) === $selArea.value)?.id ?? null) : null;
+    const conArea = (fila) => ($selArea ? { ...fila, area_id: areaElegida } : fila);
     if (nuevo) {
       const fila = ambos
         ? espaciosDe(edif.id).filter((x) => x.planta === planta)
         : filaDe(edif.id, planta, frente);
       const orden = (fila.length ? Math.max(...fila.map((x) => x.orden)) : 0) + 10;
-      const { data, error } = await S.sb.from('viv_espacios').insert(alCrear({
+      const { data, error } = await S.sb.from('viv_espacios').insert(alCrear(conArea({
         empresa_id: S.empresaId, edificio_id: edif.id, planta, frente: ambos ? 'AB' : (frente || null),
         orden, ancho: ANCHO_INICIAL[tipo], tipo, nombre
-      })).select().single();
+      }))).select().single();
       if (error) return m.error(mensajeError(error));
 
       /* Escaleras: también en las demás plantas, mismo frente. */
@@ -1724,7 +1897,7 @@ function modalEspacio(esp, { edif, planta, frente, tipo: tipoPedido }) {
       const r = await S.sb.from('viv_camas').update(alEditar({ activo: false, retirada_en: hoy() })).eq('espacio_id', esp.id).eq('activo', true);
       if (r.error) return m.error(mensajeError(r.error));
     }
-    const cambios = { tipo, nombre };
+    const cambios = conArea({ tipo, nombre });
     if (edif.tiene_frentes) {
       if (ambos && esp.frente !== 'AB') cambios.frente = 'AB';
       if (!ambos && esp.frente === 'AB') cambios.frente = 'A';
@@ -2922,7 +3095,9 @@ function elementoPl(el, editando, $pl, edif) {
   if (esp?.tipo === 'habitacion') {
     const camas = camasDe(esp.id);
     const ocup = camas.filter((x) => asigDeCama(x.id)).length;
-    d.innerHTML = `<span class="hab-pl-nombre"><b>${esc(nombreEsp(esp))}</b>${camas.length ? ` <small>${ocup}/${camas.length}</small>` : ''}</span>`;
+    const area = areaDe(esp);
+    if (area) { d.classList.add('hab-pl-el--area'); d.style.setProperty('--area', area.color); }
+    d.innerHTML = `${area ? etiquetaArea(area, 'hab-area hab-area--pl') : ''}<span class="hab-pl-nombre"><b>${esc(nombreEsp(esp))}</b>${camas.length ? ` <small>${ocup}/${camas.length}</small>` : ''}</span>`;
     if (S.plVer.camas && camas.length) {
       const $c = document.createElement('span');
       $c.className = 'hab-pl-camas';
@@ -3266,6 +3441,13 @@ function menuEspacioPl(esp, el, edif, punto) {
     ] });
     const libre = camas.find((x) => !asigDeCama(x.id));
     l.push({ label: 'Asignar cama a un trabajador…', deshabilitado: !libre || !S.asigna, accion: () => abrirCama(libre, 'asignar') });
+    if (!S.areasFalta) {
+      l.push({ label: 'Área de trabajo', sub: [
+        ...S.areas.map((a) => ({ label: `${a.icono} ${a.nombre}${esp.area_id === a.id ? '  ✓' : ''}`, accion: () => asignarArea(esp, a.id) })),
+        { label: 'Sin área', accion: () => asignarArea(esp, null), deshabilitado: !esp.area_id },
+        { label: 'Administrar áreas…', accion: () => modalAreas() }
+      ] });
+    }
   }
   l.push({ label: 'Agregar cuarto interno', sub: menuTiposPl((t) => nuevoEspacioPl(edif, planta, t, { dentro: el })) });
   l.push({ label: 'Agregar puerta', accion: () => agregarPuertaPl(el), deshabilitado: el.puertas.length >= PL_MAX_PUERTAS });
