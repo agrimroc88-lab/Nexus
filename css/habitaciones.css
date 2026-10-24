@@ -1181,3 +1181,56 @@
 /* Puerta en la pared de arriba: el nombre baja para no taparla */
 .hab-pl .hab-pl-el.pl-puerta-arriba { padding-top: max(18px, calc(3.6cqw + 4px)); }
 .hab-pl-nombre small { font-size: .78rem; }
+
+/* ============================================
+   Áreas de trabajo (etapa 5): etiqueta con dibujo y color
+   encima de cada habitación, leyenda y editor
+   ============================================ */
+.hab-area {
+  display: flex; align-items: center; gap: 0.35rem;
+  margin: -0.45rem -0.45rem 0.1rem;
+  padding: 0.28rem 0.5rem;
+  background: var(--area, #1F5FA8); color: #fff;
+  font-size: 0.72rem; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase;
+  line-height: 1.15; min-width: 0;
+}
+.hab-area > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hab-area-ico { font-size: 1.05rem; line-height: 1; flex: none; filter: drop-shadow(0 1px 1px rgba(0,0,0,.25)); }
+.hab-esp--area { border-color: var(--area); box-shadow: inset 0 0 0 1px var(--area); }
+.hab-compacta .hab-area { margin: -0.35rem -0.35rem 0.05rem; font-size: 0.66rem; padding: 0.22rem 0.4rem; }
+.hab-imp .hab-area { margin: -0.3rem -0.3rem 0.05rem; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+/* En el plano: franja arriba del cuarto */
+.hab-area--pl { position: absolute; left: 0; right: 0; top: 0; margin: 0; border-radius: 0; font-size: 0.66rem; padding: 0.16rem 0.35rem; z-index: 1; pointer-events: none; }
+.hab-pl .hab-pl-el.hab-pl-el--area { border-color: var(--area); box-shadow: inset 0 0 0 1px var(--area); }
+.hab-pl-el--area .hab-pl-nombre { margin-top: 0.9rem; }
+
+/* Leyenda de áreas del edificio */
+.hab-areas-leyenda { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.2rem 0 0.8rem; }
+.hab-area-chip {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  padding: 0.2rem 0.6rem; border-radius: 999px;
+  background: color-mix(in srgb, var(--area) 14%, #fff); border: 1px solid var(--area);
+  color: #1d2733; font-size: 0.8rem; font-weight: 600;
+}
+.hab-area-chip b { background: var(--area); color: #fff; border-radius: 999px; padding: 0 0.4rem; font-size: 0.72rem; }
+
+/* Editor de áreas */
+.hab-areas-lista { display: grid; gap: 0.5rem; margin-top: 0.6rem; }
+.hab-area-fila { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 0.6rem; }
+.hab-area-fila .hab-area { margin: 0; border-radius: 8px; padding: 0.45rem 0.7rem; font-size: 0.8rem; }
+.hab-area-uso { font-size: 0.8rem; color: var(--color-texto-tenue); white-space: nowrap; }
+.hab-area-muestra { display: flex; justify-content: center; margin-bottom: 0.4rem; }
+.hab-area-muestra .hab-area { margin: 0; border-radius: 10px; padding: 0.55rem 0.9rem; font-size: 0.95rem; min-width: 220px; justify-content: center; }
+.hab-area-muestra .hab-area-ico { font-size: 1.5rem; }
+.hab-area-iconos { display: grid; grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)); gap: 0.3rem; margin: 0.3rem 0; }
+.hab-area-ico-op { height: 42px; font-size: 1.35rem; border: 1px solid var(--color-borde, #d5dbe3); border-radius: 8px; background: #fff; cursor: pointer; }
+.hab-area-ico-op[aria-checked="true"] { border: 2px solid #123A7A; background: #eef3fb; }
+.hab-area-ico-libre { width: 90px; display: inline-block; margin-left: 0.4rem; font-size: 1.1rem; }
+.hab-area-colores { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; margin-top: 0.3rem; }
+.hab-area-color-op { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #fff; background: var(--c); box-shadow: 0 0 0 1px #c9d2de; cursor: pointer; }
+.hab-area-color-op.activo { box-shadow: 0 0 0 3px #123A7A; }
+.hab-area-color-libre { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.82rem; cursor: pointer; }
+.hab-area-color-libre input { width: 34px; height: 30px; padding: 0; border: 0; background: none; cursor: pointer; }
+.hab-area-elegir { align-items: center; }
+.hab-area-elegir select { flex: 1; }
