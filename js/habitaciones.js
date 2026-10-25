@@ -22,7 +22,7 @@
 import { alCrear, alEditar } from './autoria.js?v=1';
 import { esperarImagenes } from './impresion.js?v=11';
 
-const VERSION = 'v30';
+const VERSION = 'v31';
 console.info('NEXUS · habitaciones', VERSION);
 
 /* Dos permisos distintos:
@@ -1127,7 +1127,17 @@ function espacioHtml(esp) {
     d.appendChild($camas);
   }
 
+  if (!S.editando && esp.tipo !== 'sin_construir' && planoDisponible()) {
+    // Flujo guiado: tocar la habitación (no una cama) abre su plano para el detalle interior
+    d.classList.add('hab-esp--entrable');
+    d.title = 'Toque para ver y editar por dentro (plano)';
+    d.addEventListener('click', (e) => {
+      if (e.target.closest('.hab-cama, button, a, .hab-litera-nombre')) return;
+      abrirPlanoEn(esp);
+    });
+  }
   if (S.editando) {
+    d.addEventListener('dblclick', (e) => { e.preventDefault(); abrirPlanoEn(esp); });
     d.setAttribute('role', 'button');
     d.setAttribute('tabindex', '0');
     d.setAttribute('aria-pressed', String(seleccionado));
@@ -1377,7 +1387,9 @@ function marcarGruposPl($pl, elems) {
   });
 }
 
-function modalAreas() {
+/* alVolver(areaId): si se abrió desde una habitación, al crear un área
+   se vuelve a la habitación con esa área ya elegida */
+function modalAreas(alVolver = null, abrirNueva = false) {
   const m = modal('Áreas de trabajo');
   if (S.areasFalta) {
     m.cuerpo.innerHTML = '<div class="hab-nota">Para usar las áreas, el administrador debe ejecutar una vez <code>sql/habitaciones_etapa5_areas.sql</code> en Supabase.</div>';
@@ -1392,7 +1404,7 @@ function modalAreas() {
           ${S.estructura ? `<button class="boton-secundario boton-compacto" type="button" data-editar="${a.id}">Editar</button>` : ''}
         </div>`).join('') : '<div class="hab-vacio">Aún no hay áreas.</div>'}</div>`;
     m.cuerpo.querySelectorAll('[data-editar]').forEach((b) => b.addEventListener('click', () => formArea(porId(S.areas, Number(b.dataset.editar)) || S.areas.find((x) => String(x.id) === b.dataset.editar))));
-    const botones = [['Cerrar', 'boton-secundario', () => m.cerrar()]];
+    const botones = [[alVolver ? 'Volver' : 'Cerrar', 'boton-secundario', () => { m.cerrar(); if (alVolver) alVolver(null); }]];
     if (S.estructura && !S.areas.length) botones.push(['Cargar áreas sugeridas', 'boton-secundario', cargarSugeridas]);
     if (S.estructura && S.areas.length) botones.push(['Aplicar colores nuevos', 'boton-secundario', actualizarPaleta]);
     if (S.estructura) botones.push(['+ Nueva área', 'boton-primario', () => formArea(null)]);
@@ -1477,10 +1489,17 @@ function modalAreas() {
         : await S.sb.from('viv_areas').insert(alCrear({ ...datos, empresa_id: S.empresaId, orden: (S.areas.length + 1) * 10 }));
       if (r.error) return m.error(mensajeError(r.error));
       await cargarAreas();
+      toast(area ? 'Área actualizada' : `Área «${nombre}» creada`);
+      if (alVolver) {
+        const nueva = area || S.areas.find((x) => x.nombre.toLowerCase() === nombre.toLowerCase());
+        m.cerrar();
+        pintar();
+        alVolver(nueva ? nueva.id : null);
+        return;
+      }
       m.titulo('Áreas de trabajo');
       pintarLista();
       pintar();
-      toast(area ? 'Área actualizada' : `Área «${nombre}» creada`);
     });
     const quitar = (b) => conBoton(b, async () => {
       const uso = S.espacios.filter((x) => x.area_id === area.id).length;
@@ -1503,7 +1522,7 @@ function modalAreas() {
     m.botones(lista);
     $n.focus();
   };
-  pintarLista();
+  if (abrirNueva && S.estructura) formArea(null); else pintarLista();
 }
 
 /* ---------- Base ---------- */
@@ -1531,13 +1550,23 @@ function modalBase(base) {
     if (!nombre) return m.error('Escriba el nombre de la base.');
     if (!/^[A-Z0-9]{1,6}$/.test(codigo)) return m.error('El código debe tener de 1 a 6 letras o números, sin espacios.');
     const fila = { nombre, codigo };
-    const { error } = nueva
-      ? await S.sb.from('viv_bases').insert(alCrear({ ...fila, empresa_id: S.empresaId, sucursal_id: S.nav.sucursalId }))
+    const { data: creada, error } = nueva
+      ? await S.sb.from('viv_bases').insert(alCrear({ ...fila, empresa_id: S.empresaId, sucursal_id: S.nav.sucursalId })).select().single()
       : await S.sb.from('viv_bases').update(alEditar(fila)).eq('id', base.id);
     if (error) return m.error(mensajeError(error));
     m.cerrar();
-    toast(nueva ? `Base «${nombre}» creada` : 'Base actualizada');
+    toast(nueva ? `Base «${nombre}» creada. Ubique sus edificios y demás elementos en el croquis.` : 'Base actualizada');
     await recargar();
+    // Flujo guiado: la base nueva se abre en su croquis, listo para dibujar
+    if (nueva && creada && !S.croquisFalta) {
+      const b2 = porId(S.bases, creada.id);
+      if (b2) {
+        S.nav = { sucursalId: b2.sucursal_id, baseId: b2.id, edificioId: null };
+        S.vistaBase = 'croquis';
+        S.cq = { baseId: b2.id, elems: elementosCroquis(b2), sel: null, quitados: [] };
+        pintar();
+      }
+    }
   });
 
   const botones = [['Cancelar', 'boton-secundario', () => m.cerrar()]];
@@ -1786,6 +1815,7 @@ function herramientasHtml(sel) {
     ${hab ? btn('cama', '+ Cama o litera') : ''}
     ${hab ? btn('quitar-cama', '− Cama o litera', '', camasDe(sel.id).length === 0) : ''}
     ${btn('editar', 'Nombre o tipo')}
+    ${planoDisponible() ? btn('plano', 'Por dentro (plano) ▸') : ''}
     ${btn('quitar', 'Quitar', 'boton-critico')}
   </div>`;
 }
@@ -1807,6 +1837,7 @@ function conectarHerramientas(sel) {
     modalEspacio(sel, { edif, planta: sel.planta, frente: sel.frente });
   });
   h('quitar')?.addEventListener('click', () => modalQuitarEspacio(sel));
+  h('plano')?.addEventListener('click', () => abrirPlanoEn(sel));
 }
 
 function limitesMover(esp) {
@@ -1945,6 +1976,26 @@ async function moverVertical(esp, dir) {
   pintar();
 }
 
+/* Abre el plano del piso de ese espacio con el espacio elegido (para cuartos o baños internos) */
+function abrirPlanoEn(esp) {
+  S.editando = false; S.selEspacio = null;
+  S.vistaEdif = 'plano';
+  S.planoPlanta = esp.planta;
+  S.pl = null;
+  pintar();
+  if (!S.pl) return;
+  if (!S.pl.elems.some((x) => x.id === esp.id)) {
+    const el = ubicarEnPlano(esp);
+    S.pl.cambios = true;
+    S.pl.conocidos.add(esp.id);
+    if (el) S.pl.sel = el.id;
+  }
+  S.pl.sel = esp.id;
+  pintar();
+  document.querySelector(`.hab-pl-el[data-clave="${CSS.escape(String(esp.id))}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  toast(`${nombreEspCorto(esp)}: clic derecho sobre ella → «Agregar cuarto interno» para baños o cuartos dentro`);
+}
+
 /* Ctrl+C / Ctrl+V en la vista por frentes: la copia (sin camas) queda a la derecha del elegido */
 let portapapelesFr = null;
 async function pegarEnFrentes(junto) {
@@ -2044,7 +2095,7 @@ function modalEspacio(esp, { edif, planta, frente, tipo: tipoPedido }) {
       <div class="hab-form-fila hab-area-elegir"><select class="entrada" id="hs-area">
         <option value="">Sin área</option>
         ${S.areas.map((a) => `<option value="${a.id}" ${esp?.area_id === a.id ? 'selected' : ''}>${esc(a.icono)} ${esc(a.nombre)}</option>`).join('')}
-      </select><button class="boton-secundario boton-compacto" type="button" id="hs-areas-admin">Administrar áreas</button></div>
+      </select><button class="boton-secundario boton-compacto" type="button" id="hs-areas-admin">+ Nueva área</button></div>
       <span class="ayuda">Se muestra encima de la habitación con su dibujo y su color.</span></div>` : ''}
     ${!nuevo && esp.tipo === 'habitacion' ? '<div class="hab-nota" id="hs-aviso-tipo" hidden>Al dejar de ser habitación, sus camas dejarán de aparecer en el mapa. Su historial se conserva.</div>' : ''}
   </div>`;
@@ -2071,7 +2122,20 @@ function modalEspacio(esp, { edif, planta, frente, tipo: tipoPedido }) {
     const $area = m.cuerpo.querySelector('#hs-area-bloque');
     if ($area) $area.hidden = !hab;
   };
-  m.cuerpo.querySelector('#hs-areas-admin')?.addEventListener('click', () => modalAreas());
+  m.cuerpo.querySelector('#hs-areas-admin')?.addEventListener('click', () => {
+    // Recuerda lo escrito y vuelve aquí con el área nueva ya elegida
+    const borrador = { tipo: $tipo.value, nombre: $nombre.value };
+    modalAreas((areaId) => {
+      if (areaId == null && !borrador) return;
+      modalEspacio(esp, { edif, planta, frente, tipo: borrador.tipo });
+      const m2 = modalActual;
+      if (!m2) return;
+      const $n2 = m2.cuerpo.querySelector('#hs-nombre');
+      if ($n2 && borrador.nombre) { $n2.value = borrador.nombre; $n2.dispatchEvent(new Event('input')); }
+      const $a2 = m2.cuerpo.querySelector('#hs-area');
+      if ($a2 && areaId != null) $a2.value = String(areaId);
+    }, true);
+  });
   $tipo.addEventListener('change', ajustar);
   ajustar();
 
@@ -2893,6 +2957,7 @@ function elementoCq(el, editando, $cq) {
       d.tabIndex = 0;
       const entrar = () => {
         const base = porId(S.bases, S.nav.baseId);
+        S.vistaEdif = 'frentes';      // del croquis se entra a la vista por frentes
         ir({ sucursalId: base.sucursal_id, baseId: base.id, edificioId: el.edificio_id });
       };
       d.addEventListener('click', entrar);
@@ -2902,6 +2967,15 @@ function elementoCq(el, editando, $cq) {
   }
 
   /* ----- Edición: seleccionar, arrastrar, cambiar tamaño ----- */
+  // Doble clic sobre un edificio: su configuración (plantas, frentes, pasillos)
+  if (el.tipo === 'edificio') {
+    d.title += ' · doble clic para configurar el edificio';
+    d.addEventListener('dblclick', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const edif = porId(S.edificios, el.edificio_id);
+      if (edif) modalEdificio(edif);
+    });
+  }
   d.tabIndex = 0;
   d.setAttribute('role', 'button');
   d.setAttribute('aria-pressed', String(S.cq.sel === claveCq(el)));
@@ -3969,6 +4043,7 @@ function menuEspacioPl(esp, el, edif, punto) {
       l.push({ label: 'Área de trabajo', sub: [
         ...S.areas.map((a) => ({ label: `${a.icono} ${a.nombre}${esp.area_id === a.id ? '  ✓' : ''}`, accion: () => asignarArea(esp, a.id) })),
         { label: 'Sin área', accion: () => asignarArea(esp, null), deshabilitado: !esp.area_id },
+        { label: '+ Nueva área para esta habitación…', accion: () => modalAreas((areaId) => { if (areaId != null) asignarArea(esp, areaId); }, true) },
         { label: 'Administrar áreas…', accion: () => modalAreas() }
       ] });
     }
