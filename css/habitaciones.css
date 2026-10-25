@@ -1266,3 +1266,61 @@
 /* Flujo guiado: la habitación se toca para entrar a su plano */
 .hab-esp--entrable { cursor: pointer; transition: box-shadow .15s; }
 .hab-esp--entrable:hover { box-shadow: inset 0 0 0 2px var(--area, #1F5FA8); }
+
+/* ============================================
+   Piezas de los baños (etapa 7): dibujos grandes con nombre y estado
+   ============================================ */
+.hab-esp--con-piezas { justify-content: flex-start; padding-top: 0.6rem; }
+.hab-piezas { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.4rem; margin-top: 0.45rem; width: 100%; }
+.hab-pieza {
+  position: relative; display: inline-flex; flex-direction: column; align-items: center; gap: 0.15rem;
+  width: 74px; padding: 0.35rem 0.2rem 0.3rem; border-radius: 10px;
+  background: #fff; border: 2px solid #9fd8b4; cursor: pointer;
+  font: 600 0.68rem/1.1 inherit; color: #1d2733; text-align: center;
+  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+}
+.hab-pieza svg { width: 42px; height: 42px; }
+.hab-pieza span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.7rem; }
+.hab-pieza:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,.12); }
+.hab-pieza--reparacion { border-color: #F2B400; background: #FFF8E1; }
+.hab-pieza--danada { border-color: #D9534F; background: #FDECEA; }
+.hab-pieza--danada svg { opacity: .55; }
+.hab-pieza-marca {
+  position: absolute; top: -7px; right: -7px; width: 20px; height: 20px; border-radius: 50%;
+  display: grid; place-items: center; font-style: normal; font-size: 0.7rem; font-weight: 800;
+  background: #D9534F; color: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25);
+}
+.hab-pieza--reparacion .hab-pieza-marca { background: #F2B400; }
+.hab-compacta .hab-pieza { width: 54px; }
+.hab-compacta .hab-pieza svg { width: 34px; height: 34px; }
+
+/* En el plano: dentro del cuarto, arrastrables al editar */
+.hab-pl-el--con-piezas .hab-pl-nombre { position: absolute; top: 0.25rem; left: 0; right: 0; }
+.hab-pl-el--con-piezas > svg { display: none; }
+.hab-pl-piezas { position: absolute; inset: 0; pointer-events: none; }
+.hab-pl-pieza {
+  position: absolute; transform: translate(-50%, -50%); pointer-events: auto;
+  width: auto; min-width: 46px; padding: 0.2rem 0.25rem; gap: 0.05rem; font-size: 0.6rem; z-index: 2;
+}
+.hab-pl-pieza svg { width: 32px; height: 32px; }
+.hab-cq--editando .hab-pl-pieza { cursor: grab; touch-action: none; }
+.hab-cq--editando .hab-pl-pieza:active { cursor: grabbing; }
+
+/* Ventanas de piezas */
+.hab-piezas-conteo { display: grid; gap: 0.45rem; margin-top: 0.6rem; }
+.hab-pc-fila { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; align-items: center; gap: 0.7rem; padding: 0.35rem 0.5rem; border: 1px solid #dde4ee; border-radius: 12px; background: #fff; }
+.hab-pc-ico svg { width: 52px; height: 52px; display: block; }
+.hab-pc-fila b { font-size: 1rem; color: #1d2733; }
+.hab-pc-ctrl { display: inline-flex; align-items: center; gap: 0.4rem; }
+.hab-pc-ctrl button { width: 40px; height: 40px; padding: 0; font-size: 1.3rem; font-weight: 700; border-radius: 50%; }
+.hab-pc-ctrl output { min-width: 2ch; text-align: center; font-size: 1.25rem; font-weight: 800; color: #123A7A; }
+.hab-pieza-grande { display: flex; justify-content: center; }
+.hab-pieza-grande svg { width: 96px; height: 96px; }
+.hab-pieza-estados { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.3rem; }
+.hab-pe { padding: 0.5rem 0.8rem; border-radius: 999px; border: 2px solid #dde4ee; background: #fff; font-weight: 700; cursor: pointer; }
+.hab-pe[aria-pressed="true"].hab-pe--ok { border-color: #1a8f4a; background: #e7f6ec; }
+.hab-pe[aria-pressed="true"].hab-pe--reparacion { border-color: #F2B400; background: #FFF8E1; }
+.hab-pe[aria-pressed="true"].hab-pe--danada { border-color: #D9534F; background: #FDECEA; }
+.hab-pl-piezas--apretado .hab-pl-pieza { min-width: 0; padding: 0.1rem; border-width: 1.5px; }
+.hab-pl-piezas--apretado .hab-pl-pieza svg { width: 22px; height: 22px; }
+.hab-pl-piezas--apretado .hab-pl-pieza span { display: none; }
