@@ -22,7 +22,7 @@
 import { alCrear, alEditar } from './autoria.js?v=1';
 import { esperarImagenes } from './impresion.js?v=11';
 
-const VERSION = 'v35';
+const VERSION = 'v36';
 console.info('NEXUS · habitaciones', VERSION);
 
 /* Dos permisos distintos:
@@ -1118,7 +1118,7 @@ async function abrirMapas($g, base) {
   $g.className = 'hab-mapas-raiz';
   $g.innerHTML = '<p class="ayuda">Cargando mapas…</p>';
   try {
-    modMapas = modMapas || await import('./mapas.js?v=3');
+    modMapas = modMapas || await import('./mapas.js?v=4');
     const eds = edificiosDe(base.id);
     await modMapas.montarMapas({
       sb: S.sb, empresaId: S.empresaId, perfil: S.perfil, contenedor: $g,

@@ -20,7 +20,7 @@
    (sql/habitaciones_etapa8_mapas.sql).
    ============================================ */
 
-const VERSION = 'v2';
+const VERSION = 'v3';
 console.info('NEXUS · mapas', VERSION);
 
 /* ---------- Hoja (unidades del dibujo) ---------- */
@@ -172,10 +172,32 @@ function hojaSvg(editando) {
   M.rects = {};
   const eds = C.edificios;
   const conAltas = eds.filter((e) => e.num_plantas > 1);
-  const altoMain = conAltas.length ? AREA.h * 0.66 : AREA.h;
-  const main = { x: AREA.x, y: AREA.y, w: AREA.w, h: altoMain };
-  const cel = Math.min(main.w / CQ_COLS, main.h / CQ_FILAS);
-  const ox = main.x + (main.w - CQ_COLS * cel) / 2, oy = main.y;
+  // Plantas altas a la MISMA escala que su planta baja: se mide todo en celdas del croquis
+  const bbox = (els) => {
+    const minx = Math.min(...els.map((e) => e.x)), miny = Math.min(...els.map((e) => e.y));
+    return { bw: Math.max(1, Math.max(...els.map((e) => e.x + e.w)) - minx), bh: Math.max(1, Math.max(...els.map((e) => e.y + e.h)) - miny) };
+  };
+  const piezas = [];
+  conAltas.forEach((e) => {
+    const c = C.croquis.find((x) => x.edificio_id === e.id);
+    const cw = c ? c.w : 8, ch = c ? c.h : 4;
+    const p1 = C.planoDe(e, 1) || [];
+    const b1 = p1.length ? bbox(p1) : null;
+    const k = b1 ? Math.min(cw / b1.bw, ch / b1.bh) : null;      // celdas por unidad del plano
+    for (let p = 2; p <= e.num_plantas; p++) {
+      const pl = C.planoDe(e, p) || [];
+      if (pl.length && k) { const b = bbox(pl); piezas.push({ e, p, w: b.bw * k, h: b.bh * k }); }
+      else piezas.push({ e, p, w: cw, h: ch });
+    }
+  });
+  const usadas = C.croquis.length ? Math.min(CQ_FILAS, Math.max(...C.croquis.map((c) => c.y + c.h)) + 0.5) : CQ_FILAS;
+  const HUECO = 1.2, TIT = 34, SEP = 22;                         // celdas entre piezas · px título · px separación
+  const altoAltas = piezas.length ? Math.max(...piezas.map((x) => x.h)) : 0;
+  const anchoAltas = piezas.reduce((a, x) => a + x.w, 0) + Math.max(0, piezas.length - 1) * HUECO;
+  const cel = piezas.length
+    ? Math.min(AREA.w / CQ_COLS, AREA.w / anchoAltas, (AREA.h - TIT - SEP) / (usadas + altoAltas))
+    : Math.min(AREA.w / CQ_COLS, AREA.h / CQ_FILAS);
+  const ox = AREA.x + (AREA.w - CQ_COLS * cel) / 2, oy = AREA.y;
   const cq = (c) => ({ x: ox + c.x * cel, y: oy + c.y * cel, w: c.w * cel, h: c.h * cel });
 
   let s = '';
@@ -203,22 +225,15 @@ function hojaSvg(editando) {
     s += `<rect x="${r1(r.x)}" y="${r1(r.y)}" width="${r1(r.w)}" height="${r1(r.h)}" fill="${fondo}" stroke="#2b2b2b" stroke-width="1.8"/>${titulo(c.nombre || '', r)}`;
   });
 
-  // Plantas altas, aparte y abajo
-  if (conAltas.length) {
-    const zona = { x: AREA.x, y: AREA.y + altoMain + 16, w: AREA.w, h: AREA.h - altoMain - 16 };
-    const piezas = [];
-    conAltas.forEach((e) => { for (let p = 2; p <= e.num_plantas; p++) piezas.push({ e, p }); });
-    const asp = (e) => { const c = C.croquis.find((x) => x.edificio_id === e.id); return c ? c.w / c.h : 2.2; };
-    let altoIn = zona.h - 34;
-    const sumaAncho = () => piezas.reduce((a, x) => a + asp(x.e) * altoIn, 0) + (piezas.length - 1) * 30;
-    if (sumaAncho() > zona.w) altoIn = altoIn * zona.w / sumaAncho();
-    let x = zona.x + Math.max(0, (zona.w - sumaAncho()) / 2);
-    piezas.forEach(({ e, p }) => {
-      const w = asp(e) * altoIn;
-      const r = { x, y: zona.y + 26, w, h: altoIn };
-      s += `<text x="${r1(x + w / 2)}" y="${r1(zona.y + 14)}" text-anchor="middle" font-size="15" font-family="Arial, Helvetica, sans-serif" fill="#222">${esc(`${e.nombre} · ${C.nombrePlanta(p, e.num_plantas)}`.toUpperCase())}</text>`;
+  // Plantas altas, aparte y abajo, a la misma escala que la planta baja
+  if (piezas.length) {
+    const y0 = oy + usadas * cel + SEP;
+    let x = AREA.x + Math.max(0, (AREA.w - anchoAltas * cel) / 2);
+    piezas.forEach(({ e, p, w, h }) => {
+      const r = { x, y: y0 + TIT, w: w * cel, h: h * cel };
+      s += `<text x="${r1(r.x + r.w / 2)}" y="${r1(y0 + 18)}" text-anchor="middle" font-size="15" font-family="Arial, Helvetica, sans-serif" fill="#222">${esc(`${e.nombre} · ${C.nombrePlanta(p, e.num_plantas)}`.toUpperCase())}</text>`;
       s += dibujarEdificio(e, p, r, false);
-      x += w + 30;
+      x += (w + HUECO) * cel;
     });
   }
 
@@ -520,7 +535,7 @@ function pintar() {
     <div class="mp-ayuda"><b>${esc(h[1].replace(/^[^ ]+ /, ''))}:</b> ${esc(h[2])}${M.herr === 'senal' && M.senalTipo ? ` · <span class="mp-senal-elegida">${C.svgSeg({ tipo: M.senalTipo, datos: {} }).replace('<svg ', '<svg width="20" height="20" ')} ${esc(nombreSenal(M.senalTipo))}</span>` : ''}</div>
     <div class="mp-selbar" id="mp-selbar"></div>` : `<p class="ayuda">Vista de consulta. Lo dibuja el técnico de seguridad o el administrador.</p>`}
     <div class="mp-lienzo" id="mp-lienzo"><style>${ESTILO_HOJA}</style>${hojaSvg(editar)}</div>
-    <p class="ayuda mp-pie">Los edificios y sus cuartos salen del croquis y del plano de cada piso: si los cambia allá, el mapa se actualiza solo. Las plantas altas se dibujan aparte, abajo.</p>`;
+    <p class="ayuda mp-pie">Los edificios y sus cuartos salen del croquis y del plano de cada piso: si los cambia allá, el mapa se actualiza solo. Las plantas altas se dibujan aparte, abajo, a la misma escala que la planta baja.</p>`;
 
   $c.querySelectorAll('[data-tipo]').forEach((b) => b.addEventListener('click', () => { M.tipo = b.dataset.tipo; M.sel = null; M.temp = null; pintar(); }));
   $c.querySelectorAll('[data-imprimir]').forEach((b) => b.addEventListener('click', () => imprimir(b.dataset.imprimir)));
