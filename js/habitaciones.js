@@ -22,7 +22,7 @@
 import { alCrear, alEditar } from './autoria.js?v=1';
 import { esperarImagenes } from './impresion.js?v=11';
 
-const VERSION = 'v32';
+const VERSION = 'v33';
 console.info('NEXUS · habitaciones', VERSION);
 
 /* Dos permisos distintos:
@@ -1070,7 +1070,9 @@ function vistaBases($v) {
 function vistaBase($v) {
   const base = porId(S.bases, S.nav.baseId);
   const eds = edificiosDe(base.id);
+  if (S.vistaBase === 'mapas' && S.cq) S.vistaBase = 'croquis';
   const enCroquis = S.vistaBase === 'croquis';
+  const enMapas = S.vistaBase === 'mapas';
   $v.innerHTML = `
     <div class="hab-cabeza"><h2 class="hab-titulo">${esc(base.nombre)} <small>código ${esc(base.codigo)}</small></h2>
       <div class="hab-cabeza-acciones">${S.estructura && !S.cq ? `
@@ -1079,7 +1081,8 @@ function vistaBase($v) {
     ${eds.length ? cifras(conteo(camasDeBase(base.id))) : ''}
     <div class="hab-filtros" role="group" aria-label="Forma de ver la base">
       <button class="hab-chip" type="button" data-vb="croquis" aria-pressed="${enCroquis}" ${S.cq ? 'disabled' : ''}>Croquis</button>
-      <button class="hab-chip" type="button" data-vb="edificios" aria-pressed="${!enCroquis}" ${S.cq ? 'disabled' : ''}>Edificios</button>
+      <button class="hab-chip" type="button" data-vb="edificios" aria-pressed="${!enCroquis && !enMapas}" ${S.cq ? 'disabled' : ''}>Edificios</button>
+      <button class="hab-chip hab-chip--mapas" type="button" data-vb="mapas" aria-pressed="${enMapas}" ${S.cq ? 'disabled' : ''}>🗺️ Mapas de evacuación y riesgos</button>
     </div>
     <div id="hab-g" class="hab-rejilla"></div>`;
   document.getElementById('hab-editar-base')?.addEventListener('click', () => modalBase(base));
@@ -1088,6 +1091,7 @@ function vistaBase($v) {
 
   const $g = document.getElementById('hab-g');
   if (enCroquis) { vistaCroquis($g, base); return; }
+  if (enMapas) { abrirMapas($g, base); return; }
   if (eds.length === 0) {
     $g.outerHTML = `<div class="hab-vacio">Esta base aún no tiene edificios.<br>${S.estructura ? 'Agregue el primero con «+ Nuevo edificio».' : QUIEN_ESTRUCTURA}</div>`;
     return;
@@ -1103,6 +1107,35 @@ function vistaBase($v) {
     t.addEventListener('click', () => ir({ sucursalId: base.sucursal_id, baseId: base.id, edificioId: e.id }));
     $g.appendChild(t);
   });
+}
+
+/* ---------- Mapas de evacuación y riesgos (módulo aparte: js/mapas.js) ----------
+   Se carga solo al abrir la pestaña; si falla, el resto de Habitaciones sigue igual.
+   Solo LEE el croquis, los planos y la señalética; guarda lo suyo en viv_mapas. */
+let modMapas = null;
+async function abrirMapas($g, base) {
+  $g.className = 'hab-mapas-raiz';
+  $g.innerHTML = '<p class="ayuda">Cargando mapas…</p>';
+  try {
+    modMapas = modMapas || await import('./mapas.js?v=1');
+    const eds = edificiosDe(base.id);
+    await modMapas.montarMapas({
+      sb: S.sb, empresaId: S.empresaId, perfil: S.perfil, contenedor: $g,
+      base, edificios: eds,
+      espacios: S.espacios.filter((x) => eds.some((e) => e.id === x.edificio_id)),
+      seguridad: S.seguridadFalta ? [] : S.seguridad.filter((x) => eds.some((e) => e.id === x.edificio_id)),
+      croquis: elementosCroquis(base),
+      planoDe: (edif, planta) => {
+        const el = elementosPlano(edif, planta);
+        return el.length ? el : armarDesdeFrentes(edif, planta);
+      },
+      svgSeg, TIPOS_SEG, nombrePlanta, esc, toast, alCrear, alEditar,
+      puedeEditar: EDITORES_SEG.includes(S.perfil?.rol)
+    });
+  } catch (e) {
+    console.error('NEXUS · mapas:', e);
+    $g.innerHTML = '<div class="hab-vacio">No fue posible abrir los mapas. Recargue la página.</div>';
+  }
 }
 
 /* ---------- Nivel 4 · El edificio por dentro ---------- */
@@ -4672,6 +4705,21 @@ const TIPOS_SEG = {
   usar_auditiva:       { n: 'Uso obligatorio de protección auditiva', capa: 'senal', g: G_OBL, e: 'obligacion', i: 'M5 13a7 7 0 0 1 14 0M4 13h3v6H4zM17 13h3v6h-3z' },
   usar_chaleco:        { n: 'Uso obligatorio de chaleco reflectivo', capa: 'senal', g: G_OBL, e: 'obligacion', i: 'M8 3L4 6v14h16V6l-4-3-2 4h-4zM4 12h16M12 7v13' },
   lavar_manos:         { n: 'Lavado obligatorio de manos', capa: 'senal', g: G_OBL, e: 'obligacion', i: 'M4 11h8a2 2 0 0 1 0 4H9M4 15h6l4 3H4zM17 4c0 2-2 3-2 5a2 2 0 0 0 4 0c0-2-2-3-2-5z' },
+  // Señales de los mapas de evacuación y riesgos (etapa 8)
+  extintor_co2:        { n: 'Extintor de CO₂ (dióxido de carbono)', capa: 'incendio', g: G_INC, e: 'rojo', i: 'M9 9h6v12H9zM10 9V6h4M14 6l4-2.5M18 3.5v5M10.5 15h3' },
+  punto_encuentro:     { n: 'Punto de encuentro', capa: 'senal', g: G_EVA, e: 'verde', i: 'M12 12m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0M3.5 3.5l4 4M20.5 3.5l-4 4M3.5 20.5l4-4M20.5 20.5l-4-4M3.5 3.5h3M3.5 3.5v3M20.5 3.5h-3M20.5 3.5v3M3.5 20.5h3M3.5 20.5v-3M20.5 20.5h-3M20.5 20.5v-3' },
+  riesgo_incendio:     { n: 'Riesgo de incendio', capa: 'senal', g: G_ADV, e: 'advertencia', i: 'M12 20c-3.5 0-5.5-2.5-5.5-5.5 0-3.5 3.5-5.5 2.8-9.5 2.6 1.6 4.2 4.2 4.2 6.8.9-.8 1.3-2 1.3-3.4 1.8 1.8 2.7 3.9 2.7 6.1 0 3-2 5.5-5.5 5.5z' },
+  riesgo_corte:        { n: 'Riesgo de corte', capa: 'senal', g: G_ADV, e: 'advertencia', i: 'M3 21l11-11 3.5 3.5L6.5 21zM14 10l4-4a2.5 2.5 0 0 1 3.5 3.5l-4 4' },
+  riesgo_ergonomico:   { n: 'Riesgo ergonómico', capa: 'senal', g: G_ADV, e: 'advertencia', i: 'M10 4m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0M10 7l2 6-2 8M12 13l5-1M8 10l-3 3 2 2M12 13l4 8' },
+  riesgo_tropezar:     { n: 'Riesgo de tropezar (piso irregular u obstáculos)', capa: 'senal', g: G_ADV, e: 'advertencia', i: 'M9 4m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0M9 7l4 5-3 4-4 4M13 12l6 1M3 21h18M14 21l2-3h3v3' },
+  sierra_electrica:    { n: 'Riesgo de corte con sierra eléctrica', capa: 'senal', g: G_ADV, e: 'advertencia', i: 'M12 12m-6 0a6 6 0 1 0 12 0a6 6 0 1 0 -12 0M12 12m-1.5 0a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0M12 6l1.5-2.5M18 12l2.5 1.5M12 18l-1.5 2.5M6 12l-2.5-1.5' },
+  no_apagar_agua:      { n: 'Prohibido apagar con agua', capa: 'senal', g: G_PRO, e: 'prohibicion', i: 'M12 3c3 4 6 7 6 10a6 6 0 0 1-12 0c0-3 3-6 6-10z' },
+  no_joyas:            { n: 'Prohibido relojes, cadenas, pulseras, aretes y anillos', capa: 'senal', g: G_PRO, e: 'prohibicion', i: 'M12 14m-5 0a5 5 0 1 0 10 0a5 5 0 1 0 -10 0M9.5 9.5L12 5l2.5 4.5' },
+  no_mascotas:         { n: 'Prohibido el ingreso de mascotas', capa: 'senal', g: G_PRO, e: 'prohibicion', i: 'M4 11l2-5 3 3h6l3-3 2 5v5h-2v4h-2v-4H9v4H7v-4H5z' },
+  usar_red_cabello:    { n: 'Uso obligatorio de red para el cabello', capa: 'senal', g: G_OBL, e: 'obligacion', i: 'M5 13a7 7 0 0 1 14 0zM5 13h14M8 8l8 5M16 8l-8 5M12 6v7' },
+  usar_botas_caucho:   { n: 'Uso obligatorio de botas de caucho con puntera', capa: 'senal', g: G_OBL, e: 'obligacion', i: 'M8 3h5v10l6 2.5V20H5v-4.5l3-2.5zM5 17h14' },
+  agua_potable:        { n: 'Beber solo agua potable purificada (filtro)', capa: 'senal', g: G_OBL, e: 'obligacion', i: 'M7 5h10l-1.5 15h-7zM8 9h8M12 12c1 1.4 2 2.4 2 3.4a2 2 0 0 1-4 0c0-1 1-2 2-3.4z' },
+  permitido_fumar:     { n: 'Permitido fumar en este sitio', capa: 'senal', g: 'Información', e: 'info', i: 'M3 15h13v3H3zM17.5 15v3M20 15v3M17.5 12c0-2 2.5-2 2.5-4.5' },
   // Cualquier otra
   otra_senal:          { n: 'Otra señal (escriba cuál)', capa: 'senal', g: 'Otra', e: 'advertencia', i: 'M12 6v8M12 17.5v.5' },
   otro:                { n: 'Otro elemento', capa: 'senal', g: 'Otra', e: 'neutro', i: ICONOS.otro }
@@ -4739,6 +4787,8 @@ function svgSeg(el) {
       dentro = `<path d="M12 2 L23 21.5 H1 Z" fill="${SEN_AMARILLO}" stroke="#111" stroke-width="1.6" stroke-linejoin="round"/>${glifo('#111', 0.54, 5.5, 8)}`; break;
     case 'obligacion':
       dentro = `<circle cx="12" cy="12" r="11" fill="${SEN_AZUL}"/>${glifo('#fff', 0.6, 4.8, 4.8)}`; break;
+    case 'info':
+      dentro = `<rect x="1" y="1" width="22" height="22" rx="3" fill="${SEN_AZUL}"/>${icono('#fff')}`; break;
     case 'luz':
       dentro = `<rect x="1" y="1" width="22" height="22" rx="3" fill="#fff6dc" stroke="#b07a00" stroke-width="1.2"/>${icono('#8a5300')}`; break;
     default:
