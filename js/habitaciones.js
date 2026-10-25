@@ -22,7 +22,7 @@
 import { alCrear, alEditar } from './autoria.js?v=1';
 import { esperarImagenes } from './impresion.js?v=11';
 
-const VERSION = 'v33';
+const VERSION = 'v34';
 console.info('NEXUS · habitaciones', VERSION);
 
 /* Dos permisos distintos:
@@ -100,6 +100,7 @@ function estadoInicial(supabase, perfil, empresaId, contenedor) {
     plVer: null,           // plano: mostrar cuadrícula, camas, seguridad
     plCinta: null,         // plano: pestaña de la cinta
     selEspacio: null,
+    cqPlanta: 1,           // piso que se ve dentro de los edificios en el croquis
     areas: [],             // viv_areas: Mecánicos, Cocina… (dibujo y color)
     areasFalta: false,     // true si aún no se ejecutó habitaciones_etapa5_areas.sql
     piezas: [],            // viv_piezas: inodoros, duchas, lavamanos… de los baños
@@ -1117,7 +1118,7 @@ async function abrirMapas($g, base) {
   $g.className = 'hab-mapas-raiz';
   $g.innerHTML = '<p class="ayuda">Cargando mapas…</p>';
   try {
-    modMapas = modMapas || await import('./mapas.js?v=1');
+    modMapas = modMapas || await import('./mapas.js?v=3');
     const eds = edificiosDe(base.id);
     await modMapas.montarMapas({
       sb: S.sb, empresaId: S.empresaId, perfil: S.perfil, contenedor: $g,
@@ -3117,11 +3118,18 @@ function vistaCroquis($g, base) {
     return;
   }
 
+  const maxPisos = Math.max(1, ...edificiosDe(base.id).map((e) => e.num_plantas || 1));
+  if (!S.cqPlanta || S.cqPlanta > maxPisos) S.cqPlanta = 1;
+  const pisos = maxPisos > 1 ? `<div class="cq-pisos" role="tablist" aria-label="Piso que se ve en el croquis">
+      ${Array.from({ length: maxPisos }, (_, i) => i + 1).map((p) =>
+        `<button type="button" role="tab" class="cq-piso" data-cqp="${p}" aria-selected="${p === S.cqPlanta}">${p === 1 ? 'Planta baja' : `Planta ${p}`}</button>`).join('')}
+    </div>` : '';
   $g.innerHTML = `
+    ${pisos}
     ${editando ? herramientasCroquisHtml() : (S.estructura ? `<div class="hab-cabeza">
-      <span class="ayuda">Toque un edificio para entrar a sus habitaciones.</span>
+      <span class="ayuda">Toque una habitación para ver y asignar sus camas · toque el nombre del edificio para entrar · doble clic sobre el edificio para dibujar su plano de este piso.</span>
       <button class="boton-secundario" id="cq-editar" type="button">Editar croquis</button></div>`
-      : '<span class="ayuda">Toque un edificio para entrar a sus habitaciones.</span>')}
+      : '<span class="ayuda">Toque una habitación para ver sus camas · toque el nombre del edificio para entrar.</span>')}
     <div class="hab-cq-marco">
       <div class="hab-cq ${editando ? 'hab-cq--editando' : ''}" id="hab-cq" role="${editando ? 'application' : 'group'}"
         aria-label="Croquis de ${esc(base.nombre)}"></div>
@@ -3132,10 +3140,116 @@ function vistaCroquis($g, base) {
     pintar();
   });
 
+  $g.querySelectorAll('[data-cqp]').forEach((b) => b.addEventListener('click', () => { S.cqPlanta = Number(b.dataset.cqp); pintar(); }));
   const $cq = document.getElementById('hab-cq');
   elems.forEach((el) => $cq.appendChild(elementoCq(el, editando, $cq)));
   if (editando) conectarHerramientasCroquis(base);
   conectarMenuCroquis($cq, base, editando);
+}
+
+/* ---------- El edificio por dentro, en el croquis ----------
+   Los cuartos del piso elegido, con su forma real (sin estirarse:
+   el dibujo se ajusta al contorno manteniendo sus proporciones),
+   coloreados según sus camas: verde con libres, rojo lleno. */
+function interiorCq(edif, planta) {
+  let elems = planoDisponible() ? elementosPlano(edif, planta) : [];
+  if (!elems.length) elems = armarDesdeFrentes(edif, planta);
+  if (!elems.length) return null;
+  const minx = Math.min(...elems.map((e) => e.x)), miny = Math.min(...elems.map((e) => e.y));
+  const maxx = Math.max(...elems.map((e) => e.x + e.w)), maxy = Math.max(...elems.map((e) => e.y + e.h));
+  const m = 0.25;
+  let s = '';
+  elems.slice().sort((a, b) => b.w * b.h - a.w * a.h).forEach((el) => {
+    const esp = porId(S.espacios, el.id);
+    if (!esp) return;
+    const hab = esp.tipo === 'habitacion';
+    const camas = hab ? camasDe(esp.id) : [];
+    const ocup = camas.filter((c) => asigDeCama(c.id)).length;
+    const area = areaDe(esp);
+    const fondo = !hab ? (COLOR_TIPO[esp.tipo] || COLOR_TIPO.otro)[0]
+      : camas.length === 0 ? '#ffffff' : ocup >= camas.length ? 'var(--hab-ocupada-f, #fdecea)' : 'var(--hab-libre-f, #e7f6ec)';
+    const fs = Math.max(0.42, Math.min(0.95, el.w / 5.2, el.h / 2.6));
+    const nombre = hab ? esp.nombre : esp.nombre;
+    s += `<g class="cq-cuarto${hab ? ' cq-cuarto--hab' : ''}" ${hab ? `data-cq-esp="${esc(esp.id)}"` : ''}>
+      <title>${esc(nombreEspCorto(esp))}${hab ? ` · ${ocup}/${camas.length} camas ocupadas` : ''}${area ? ' · ' + esc(area.nombre) : ''}</title>
+      <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="${fondo}" stroke="${area ? area.color : '#1d2733'}" stroke-width="${area ? 2.2 : 1.2}" vector-effect="non-scaling-stroke"/>
+      ${area ? `<rect x="${el.x}" y="${el.y}" width="${el.w}" height="${Math.min(el.h * 0.22, 0.7)}" fill="${area.color}"/>` : ''}
+      <text x="${el.x + el.w / 2}" y="${el.y + Math.min(el.h * 0.45, fs * 1.6 + (area ? 0.6 : 0))}" text-anchor="middle" font-size="${fs}" font-weight="700" fill="#1d2733">${esc(nombre)}</text>
+      ${hab && camas.length ? `<text x="${el.x + el.w / 2}" y="${el.y + Math.min(el.h * 0.8, fs * 2.9 + (area ? 0.6 : 0))}" text-anchor="middle" font-size="${fs * 0.8}" fill="#36435a">${ocup}/${camas.length}</text>` : ''}
+      ${hab ? camasCq(camas, el) : ''}
+    </g>`;
+    (el.puertas || []).forEach((pu) => {
+      const p = Math.min(0.92, Math.max(0.08, Number(pu.p) || 0.5));
+      const a = Math.min(1, ((pu.l === 'n' || pu.l === 's') ? el.w : el.h) * 0.3);
+      const [x1, y1, x2, y2] = pu.l === 'n' ? [el.x + p * el.w - a / 2, el.y, el.x + p * el.w + a / 2, el.y]
+        : pu.l === 's' ? [el.x + p * el.w - a / 2, el.y + el.h, el.x + p * el.w + a / 2, el.y + el.h]
+          : pu.l === 'o' ? [el.x, el.y + p * el.h - a / 2, el.x, el.y + p * el.h + a / 2]
+            : [el.x + el.w, el.y + p * el.h - a / 2, el.x + el.w, el.y + p * el.h + a / 2];
+      s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#fff" stroke-width="3.2" vector-effect="non-scaling-stroke"/>`;
+    });
+  });
+  return `<svg class="cq-interior" viewBox="${minx - m} ${miny - m} ${maxx - minx + 2 * m} ${maxy - miny + 2 * m}" preserveAspectRatio="xMidYMid meet" aria-hidden="false">${s}</svg>`;
+}
+
+/* Camitas dentro del cuarto (si hay lugar): verde libre, rojo ocupada… */
+function camasCq(camas, el) {
+  if (!camas.length || el.w < 2.6 || el.h < 2.2) return '';
+  const COL = { libre: 'var(--hab-libre, #1a8f4a)', ocupada: 'var(--hab-ocupada, #D9534F)', cambio: 'var(--hab-cambio, #b07f14)', salio: 'var(--hab-salio, #6d3fa0)' };
+  const t = Math.min(0.62, el.w / (camas.length + 1.5), el.h * 0.22);
+  const ancho = camas.length * t * 1.25;
+  const x0 = el.x + (el.w - ancho) / 2 + t * 0.12, y0 = el.y + el.h - t * 1.35;
+  return camas.map((c, i) => `<rect x="${x0 + i * t * 1.25}" y="${y0}" width="${t}" height="${t}" rx="${t * 0.2}" fill="${COL[estadoCama(c)]}"/>`).join('');
+}
+
+/* Contorno del edificio con la misma forma (proporción) que su plano */
+function ajustarContorno(el, avisar) {
+  const edif = porId(S.edificios, el.edificio_id);
+  if (!edif) return false;
+  let elems = planoDisponible() ? elementosPlano(edif, 1) : [];
+  if (!elems.length) elems = armarDesdeFrentes(edif, 1);
+  if (!elems.length) { if (avisar) toast('Este edificio aún no tiene cuartos para tomar su forma'); return false; }
+  const bw = Math.max(...elems.map((e) => e.x + e.w)) - Math.min(...elems.map((e) => e.x));
+  const bh = Math.max(...elems.map((e) => e.y + e.h)) - Math.min(...elems.map((e) => e.y));
+  const prop = bw / bh;
+  // Se conserva el área aproximada del contorno actual
+  const area = el.w * el.h;
+  let w = Math.max(2, Math.round(Math.sqrt(area * prop))), h = Math.max(2, Math.round(w / prop));
+  if (w > CQ_COLS) { w = CQ_COLS; h = Math.max(2, Math.round(w / prop)); }
+  if (h > CQ_FILAS) { h = CQ_FILAS; w = Math.max(2, Math.round(h * prop)); }
+  el.w = w; el.h = h;
+  el.x = Math.min(el.x, CQ_COLS - w); el.y = Math.min(el.y, CQ_FILAS - h);
+  S.cq.cambios = true;
+  if (avisar) { toast(`${edif.nombre}: contorno ajustado a su plano. Pulse «Guardar croquis».`); pintar(); }
+  return true;
+}
+
+/* Toque en una habitación del croquis: sus camas, para ver, asignar o liberar */
+function modalCamasEspacio(esp) {
+  if (!esp) return;
+  const edif = porId(S.edificios, esp.edificio_id);
+  const camas = camasDe(esp.id);
+  const m = modal(`${nombreEspCorto(esp)} · ${edif?.nombre || ''} · ${nombrePlanta(esp.planta, edif?.num_plantas || 1)}`);
+  const ocup = camas.filter((c) => asigDeCama(c.id)).length;
+  const area = areaDe(esp);
+  m.cuerpo.innerHTML = `${area ? etiquetaArea(area, 'hab-area hab-area--modal') : ''}
+    <p class="ayuda">${camas.length ? `${ocup} de ${camas.length} camas ocupadas. Toque una cama libre para asignarla o una ocupada para ver, trasladar o liberar.` : 'Esta habitación aún no tiene camas.'}</p>
+    <div class="hab-camas cq-modal-camas"></div>`;
+  const $c = m.cuerpo.querySelector('.cq-modal-camas');
+  const antes = S.detalle; S.detalle = true;
+  camas.forEach((c) => {
+    const b = camaHtml(c);
+    b.addEventListener('click', () => m.cerrar(), true);
+    $c.appendChild(b);
+  });
+  S.detalle = antes;
+  const botones = [['Cerrar', 'boton-secundario', () => m.cerrar()]];
+  botones.push(['Ver el edificio', 'boton-primario', () => {
+    m.cerrar();
+    const base = porId(S.bases, S.nav.baseId);
+    S.vistaEdif = 'frentes';
+    ir({ sucursalId: base.sucursal_id, baseId: base.id, edificioId: esp.edificio_id });
+  }]);
+  m.botones(botones);
 }
 
 /* Clic derecho en el croquis: las mismas dinámicas que el plano */
@@ -3206,9 +3320,15 @@ function elementoCq(el, editando, $cq) {
     const edif = porId(S.edificios, el.edificio_id);
     const c = conteo(camasDeEdificio(el.edificio_id));
     const tono = c.total === 0 ? '' : c.libres === 0 ? 'lleno' : c.libres / c.total < 0.15 ? 'pocas' : 'hay';
-    d.innerHTML = `${edif ? `<span class="hab-cq-fachada" aria-hidden="true">${svgFachada(edif)}</span>` : ''}
-      <span class="hab-cq-pie"><span class="hab-cq-nombre">${esc(edif?.nombre || el.nombre)}</span>
-      ${c.total ? `<span class="hab-cq-libres hab-cq-libres--${tono}">${c.libres === 0 ? 'Lleno' : `${c.libres} libres`}</span>` : ''}</span>`;
+    const piso = S.cqPlanta || 1;
+    const sinPiso = edif && piso > edif.num_plantas;
+    const dentro = edif && !sinPiso ? interiorCq(edif, piso) : null;
+    if (dentro) d.classList.add('hab-cq-el--interior');
+    if (sinPiso) d.classList.add('hab-cq-el--sin-piso');
+    d.innerHTML = `${dentro || (edif ? `<span class="hab-cq-fachada" aria-hidden="true">${svgFachada(edif)}</span>` : '')}
+      <span class="hab-cq-pie"><span class="hab-cq-nombre" data-entrar="1">${esc(edif?.nombre || el.nombre)}</span>
+      ${sinPiso ? `<span class="hab-cq-libres">${edif.num_plantas} ${edif.num_plantas === 1 ? 'planta' : 'plantas'}</span>`
+        : (c.total ? `<span class="hab-cq-libres hab-cq-libres--${tono}">${c.libres === 0 ? 'Lleno' : `${c.libres} libres`}</span>` : '')}</span>`;
     d.setAttribute('aria-label', `${edif?.nombre}: ${c.total ? `${c.libres} camas libres de ${c.total}` : 'sin camas'}`);
   } else {
     d.innerHTML = `${el.tipo === 'cancha' ? '<span class="hab-cq-lineas" aria-hidden="true"></span>' : ''}
@@ -3225,7 +3345,28 @@ function elementoCq(el, editando, $cq) {
         S.vistaEdif = 'frentes';      // del croquis se entra a la vista por frentes
         ir({ sucursalId: base.sucursal_id, baseId: base.id, edificioId: el.edificio_id });
       };
-      d.addEventListener('click', entrar);
+      let tClic = null;
+      d.addEventListener('click', (e) => {
+        const hab = e.target.closest('[data-cq-esp]');
+        if (hab && !e.target.closest('[data-entrar]')) {
+          // Un clic en la habitación: sus camas (se espera por si es doble clic)
+          clearTimeout(tClic);
+          tClic = setTimeout(() => modalCamasEspacio(porId(S.espacios, hab.dataset.cqEsp) || S.espacios.find((x) => String(x.id) === hab.dataset.cqEsp)), 260);
+          return;
+        }
+        clearTimeout(tClic);
+        tClic = setTimeout(entrar, 260);
+      });
+      d.addEventListener('dblclick', (e) => {
+        clearTimeout(tClic);
+        const edif = porId(S.edificios, el.edificio_id);
+        if (!edif || !planoDisponible() || !S.estructura) return;
+        const base = porId(S.bases, S.nav.baseId);
+        S.vistaEdif = 'plano';
+        S.planoPlanta = Math.min(edif.num_plantas, S.cqPlanta || 1);
+        S.pl = null;
+        ir({ sucursalId: base.sucursal_id, baseId: base.id, edificioId: edif.id });
+      });
       d.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); entrar(); } });
     }
     return d;
@@ -3311,6 +3452,7 @@ function herramientasCroquisHtml() {
     <button class="boton-secundario boton-compacto" id="cq-agregar" type="button">+ Agregar</button>
     ${herramientasSelHtml()}
     <span style="flex:1 1 auto"></span>
+    <button class="boton-secundario boton-compacto" id="cq-ajustar-todos" type="button" title="Cada edificio toma la forma de su plano">Ajustar todos a sus planos</button>
     <button class="boton-secundario boton-compacto" id="cq-cancelar" type="button">Cancelar</button>
     <button class="boton-primario boton-compacto" id="cq-guardar" type="button">Guardar croquis</button>
   </div>
@@ -3324,6 +3466,7 @@ function herramientasSelHtml() {
   return `<span id="cq-herr-sel" style="display:inline-flex;gap:.4rem;flex-wrap:wrap;align-items:center">
     <b style="color:var(--color-acento-oscuro)">${esc(esEdif ? porId(S.edificios, el.edificio_id)?.nombre : el.nombre)}</b>
     <button class="boton-secundario boton-compacto" id="cq-girar" type="button">Girar</button>
+    ${esEdif ? '<button class="boton-secundario boton-compacto" id="cq-ajustar" type="button" title="Da al contorno la misma forma que el plano del edificio">Ajustar a su plano</button>' : ''}
     ${esEdif ? '' : `<button class="boton-secundario boton-compacto" id="cq-renombrar" type="button">Renombrar</button>
     <button class="boton-secundario boton-compacto boton-critico" id="cq-quitar" type="button">Quitar</button>`}
   </span>`;
@@ -3339,6 +3482,7 @@ function conectarHerramientasSel() {
     S.cq.cambios = true;
     pintar();
   });
+  document.getElementById('cq-ajustar')?.addEventListener('click', () => ajustarContorno(el, true));
   document.getElementById('cq-renombrar')?.addEventListener('click', () => {
     const m = modal(`Renombrar ${el.nombre}`);
     m.cuerpo.innerHTML = `<div class="hab-form"><div class="campo"><label class="etiqueta" for="cq-nombre">Nombre</label>
@@ -3360,6 +3504,11 @@ function conectarHerramientasSel() {
 
 function conectarHerramientasCroquis(base) {
   conectarHerramientasSel();
+  document.getElementById('cq-ajustar-todos')?.addEventListener('click', () => {
+    const n = S.cq.elems.filter((el) => el.tipo === 'edificio').filter((el) => ajustarContorno(el, false)).length;
+    toast(n ? `${n} edificio(s) ajustados a sus planos. Revise que no se monten y pulse «Guardar croquis».` : 'Ningún edificio tiene plano todavía');
+    pintar();
+  });
   document.getElementById('cq-agregar').addEventListener('click', () => {
     const tipo = document.getElementById('cq-tipo').value;
     const [w, h] = TAM_CROQUIS[tipo];

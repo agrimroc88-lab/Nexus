@@ -20,7 +20,7 @@
    (sql/habitaciones_etapa8_mapas.sql).
    ============================================ */
 
-const VERSION = 'v1';
+const VERSION = 'v2';
 console.info('NEXUS · mapas', VERSION);
 
 /* ---------- Hoja (unidades del dibujo) ---------- */
@@ -258,7 +258,10 @@ function dibujarEdificio(edif, planta, R, conContorno) {
   const minx = Math.min(...elems.map((e) => e.x)), miny = Math.min(...elems.map((e) => e.y));
   const maxx = Math.max(...elems.map((e) => e.x + e.w)), maxy = Math.max(...elems.map((e) => e.y + e.h));
   const bw = Math.max(1, maxx - minx), bh = Math.max(1, maxy - miny);
-  const T = { x: (c) => R.x + (c - minx) / bw * R.w, y: (c) => R.y + (c - miny) / bh * R.h, sx: R.w / bw, sy: R.h / bh };
+  // Igual que en el croquis: el plano se ajusta al contorno sin deformarse (centrado)
+  const k = Math.min(R.w / bw, R.h / bh);
+  const dx = R.x + (R.w - bw * k) / 2, dy = R.y + (R.h - bh * k) / 2;
+  const T = { x: (c) => dx + (c - minx) * k, y: (c) => dy + (c - miny) * k, sx: k, sy: k };
   if (conContorno) s += `<rect x="${r1(R.x)}" y="${r1(R.y)}" width="${r1(R.w)}" height="${r1(R.h)}" fill="#fff" stroke="none"/>`;
   // Los grandes primero (cuartos internos encima)
   elems.slice().sort((a, b) => b.w * b.h - a.w * a.h).forEach((el) => {
