@@ -22,7 +22,7 @@
 import { alCrear, alEditar } from './autoria.js?v=1';
 import { esperarImagenes } from './impresion.js?v=11';
 
-const VERSION = 'v36';
+const VERSION = 'v37';
 console.info('NEXUS · habitaciones', VERSION);
 
 /* Dos permisos distintos:
@@ -3047,12 +3047,15 @@ const TIPOS_CROQUIS = {
   area_verde: 'Área verde',
   gimnasio: 'Gimnasio',
   tanque_agua: 'Tanque de agua',
+  banos: 'Baños',
+  lavanderia: 'Lavandería',
+  bodega: 'Bodega',
   otro: 'Otro'
 };
 const TAM_CROQUIS = {
   edificio: [8, 4], cancha: [8, 5], estacionamiento: [7, 4], punto_encuentro: [3, 3],
   comedor: [6, 4], garita: [2, 2], entrada: [3, 2], area_verde: [6, 4], gimnasio: [5, 3],
-  tanque_agua: [2, 2], otro: [4, 3]
+  tanque_agua: [2, 2], banos: [3, 2], lavanderia: [3, 2], bodega: [3, 2], otro: [4, 3]
 };
 const ICONOS_CQ = {
   cancha: 'M3 5h18v14H3zM12 5v14M12 12m-2.5 0a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0 -5 0',
@@ -3064,6 +3067,9 @@ const ICONOS_CQ = {
   area_verde: 'M12 21v-6M7 15a5 5 0 1 1 10 0zM9 9a3 3 0 1 1 6 0',
   gimnasio: 'M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10',
   tanque_agua: 'M6 5c0-1.5 12-1.5 12 0v14c0 1.5-12 1.5-12 0zM6 5c0 1.5 12 1.5 12 0',
+  banos: ICONOS.banos,
+  lavanderia: ICONOS.lavanderia,
+  bodega: ICONOS.bodega,
   otro: ICONOS.otro
 };
 function svgIconoCq(tipo) {
