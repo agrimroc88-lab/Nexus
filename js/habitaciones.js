@@ -22,7 +22,7 @@
 import { alCrear, alEditar } from './autoria.js?v=1';
 import { esperarImagenes } from './impresion.js?v=11';
 
-const VERSION = 'v34';
+const VERSION = 'v35';
 console.info('NEXUS · habitaciones', VERSION);
 
 /* Dos permisos distintos:
@@ -3151,36 +3151,42 @@ function vistaCroquis($g, base) {
    Los cuartos del piso elegido, con su forma real (sin estirarse:
    el dibujo se ajusta al contorno manteniendo sus proporciones),
    coloreados según sus camas: verde con libres, rojo lleno. */
-function interiorCq(edif, planta) {
+function interiorCq(edif, planta, caja) {
   let elems = planoDisponible() ? elementosPlano(edif, planta) : [];
   if (!elems.length) elems = armarDesdeFrentes(edif, planta);
   if (!elems.length) return null;
   const minx = Math.min(...elems.map((e) => e.x)), miny = Math.min(...elems.map((e) => e.y));
-  const maxx = Math.max(...elems.map((e) => e.x + e.w)), maxy = Math.max(...elems.map((e) => e.y + e.h));
-  const m = 0.25;
+  const bw = Math.max(...elems.map((e) => e.x + e.w)) - minx, bh = Math.max(...elems.map((e) => e.y + e.h)) - miny;
+  // Lienzo en «décimas de celda» del croquis: los cuartos se estiran para llenar
+  // todo el contorno del edificio, pero letras y camitas mantienen su tamaño.
+  const VW = Math.max(20, (caja?.w || bw) * 10), VH = Math.max(12, (caja?.h || bh) * 10 - 6);
+  const pad = 1.2;
+  const sx = (VW - 2 * pad) / bw, sy = (VH - 2 * pad) / bh;
+  const R = (e) => ({ x: pad + (e.x - minx) * sx, y: pad + (e.y - miny) * sy, w: e.w * sx, h: e.h * sy, puertas: e.puertas });
   let s = '';
-  elems.slice().sort((a, b) => b.w * b.h - a.w * a.h).forEach((el) => {
-    const esp = porId(S.espacios, el.id);
+  elems.slice().sort((a, b) => b.w * b.h - a.w * a.h).forEach((e0) => {
+    const esp = porId(S.espacios, e0.id);
     if (!esp) return;
+    const el = R(e0);
     const hab = esp.tipo === 'habitacion';
     const camas = hab ? camasDe(esp.id) : [];
     const ocup = camas.filter((c) => asigDeCama(c.id)).length;
     const area = areaDe(esp);
     const fondo = !hab ? (COLOR_TIPO[esp.tipo] || COLOR_TIPO.otro)[0]
       : camas.length === 0 ? '#ffffff' : ocup >= camas.length ? 'var(--hab-ocupada-f, #fdecea)' : 'var(--hab-libre-f, #e7f6ec)';
-    const fs = Math.max(0.42, Math.min(0.95, el.w / 5.2, el.h / 2.6));
-    const nombre = hab ? esp.nombre : esp.nombre;
+    const banda = area ? Math.min(el.h * 0.16, 1.6) : 0;
+    const fs = Math.max(2.4, Math.min(4.6, el.w / 4.2, el.h / 3.2));
     s += `<g class="cq-cuarto${hab ? ' cq-cuarto--hab' : ''}" ${hab ? `data-cq-esp="${esc(esp.id)}"` : ''}>
       <title>${esc(nombreEspCorto(esp))}${hab ? ` · ${ocup}/${camas.length} camas ocupadas` : ''}${area ? ' · ' + esc(area.nombre) : ''}</title>
       <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="${fondo}" stroke="${area ? area.color : '#1d2733'}" stroke-width="${area ? 2.2 : 1.2}" vector-effect="non-scaling-stroke"/>
-      ${area ? `<rect x="${el.x}" y="${el.y}" width="${el.w}" height="${Math.min(el.h * 0.22, 0.7)}" fill="${area.color}"/>` : ''}
-      <text x="${el.x + el.w / 2}" y="${el.y + Math.min(el.h * 0.45, fs * 1.6 + (area ? 0.6 : 0))}" text-anchor="middle" font-size="${fs}" font-weight="700" fill="#1d2733">${esc(nombre)}</text>
-      ${hab && camas.length ? `<text x="${el.x + el.w / 2}" y="${el.y + Math.min(el.h * 0.8, fs * 2.9 + (area ? 0.6 : 0))}" text-anchor="middle" font-size="${fs * 0.8}" fill="#36435a">${ocup}/${camas.length}</text>` : ''}
+      ${area ? `<rect x="${el.x}" y="${el.y}" width="${el.w}" height="${banda}" fill="${area.color}"/>` : ''}
+      <text x="${el.x + el.w / 2}" y="${el.y + banda + Math.min(el.h * 0.42, fs * 1.25)}" text-anchor="middle" font-size="${fs}" font-weight="700" fill="#1d2733">${esc(esp.nombre)}</text>
+      ${hab && camas.length && el.h > fs * 3.4 ? `<text x="${el.x + el.w / 2}" y="${el.y + banda + fs * 2.35}" text-anchor="middle" font-size="${fs * 0.78}" fill="#36435a">${ocup}/${camas.length}</text>` : ''}
       ${hab ? camasCq(camas, el) : ''}
     </g>`;
     (el.puertas || []).forEach((pu) => {
       const p = Math.min(0.92, Math.max(0.08, Number(pu.p) || 0.5));
-      const a = Math.min(1, ((pu.l === 'n' || pu.l === 's') ? el.w : el.h) * 0.3);
+      const a = Math.min(5, ((pu.l === 'n' || pu.l === 's') ? el.w : el.h) * 0.3);
       const [x1, y1, x2, y2] = pu.l === 'n' ? [el.x + p * el.w - a / 2, el.y, el.x + p * el.w + a / 2, el.y]
         : pu.l === 's' ? [el.x + p * el.w - a / 2, el.y + el.h, el.x + p * el.w + a / 2, el.y + el.h]
           : pu.l === 'o' ? [el.x, el.y + p * el.h - a / 2, el.x, el.y + p * el.h + a / 2]
@@ -3188,17 +3194,17 @@ function interiorCq(edif, planta) {
       s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#fff" stroke-width="3.2" vector-effect="non-scaling-stroke"/>`;
     });
   });
-  return `<svg class="cq-interior" viewBox="${minx - m} ${miny - m} ${maxx - minx + 2 * m} ${maxy - miny + 2 * m}" preserveAspectRatio="xMidYMid meet" aria-hidden="false">${s}</svg>`;
+  return `<svg class="cq-interior" viewBox="0 0 ${VW} ${VH}" preserveAspectRatio="none" aria-hidden="false">${s}</svg>`;
 }
 
 /* Camitas dentro del cuarto (si hay lugar): verde libre, rojo ocupada… */
 function camasCq(camas, el) {
-  if (!camas.length || el.w < 2.6 || el.h < 2.2) return '';
+  if (!camas.length || el.w < 6 || el.h < 8) return '';
   const COL = { libre: 'var(--hab-libre, #1a8f4a)', ocupada: 'var(--hab-ocupada, #D9534F)', cambio: 'var(--hab-cambio, #b07f14)', salio: 'var(--hab-salio, #6d3fa0)' };
-  const t = Math.min(0.62, el.w / (camas.length + 1.5), el.h * 0.22);
-  const ancho = camas.length * t * 1.25;
-  const x0 = el.x + (el.w - ancho) / 2 + t * 0.12, y0 = el.y + el.h - t * 1.35;
-  return camas.map((c, i) => `<rect x="${x0 + i * t * 1.25}" y="${y0}" width="${t}" height="${t}" rx="${t * 0.2}" fill="${COL[estadoCama(c)]}"/>`).join('');
+  const t = Math.min(2.6, el.w / (camas.length * 1.3 + 0.8), el.h * 0.2);
+  const ancho = camas.length * t * 1.3;
+  const x0 = el.x + (el.w - ancho) / 2 + t * 0.15, y0 = el.y + el.h - t * 1.45;
+  return camas.map((c, i) => `<rect x="${x0 + i * t * 1.3}" y="${y0}" width="${t}" height="${t}" rx="${t * 0.2}" fill="${COL[estadoCama(c)]}"/>`).join('');
 }
 
 /* Contorno del edificio con la misma forma (proporción) que su plano */
@@ -3322,7 +3328,7 @@ function elementoCq(el, editando, $cq) {
     const tono = c.total === 0 ? '' : c.libres === 0 ? 'lleno' : c.libres / c.total < 0.15 ? 'pocas' : 'hay';
     const piso = S.cqPlanta || 1;
     const sinPiso = edif && piso > edif.num_plantas;
-    const dentro = edif && !sinPiso ? interiorCq(edif, piso) : null;
+    const dentro = edif && !sinPiso ? interiorCq(edif, piso, el) : null;
     if (dentro) d.classList.add('hab-cq-el--interior');
     if (sinPiso) d.classList.add('hab-cq-el--sin-piso');
     d.innerHTML = `${dentro || (edif ? `<span class="hab-cq-fachada" aria-hidden="true">${svgFachada(edif)}</span>` : '')}
