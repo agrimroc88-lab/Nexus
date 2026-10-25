@@ -22,7 +22,7 @@
 import { alCrear, alEditar } from './autoria.js?v=1';
 import { esperarImagenes } from './impresion.js?v=11';
 
-const VERSION = 'v31';
+const VERSION = 'v32';
 console.info('NEXUS · habitaciones', VERSION);
 
 /* Dos permisos distintos:
@@ -102,6 +102,8 @@ function estadoInicial(supabase, perfil, empresaId, contenedor) {
     selEspacio: null,
     areas: [],             // viv_areas: Mecánicos, Cocina… (dibujo y color)
     areasFalta: false,     // true si aún no se ejecutó habitaciones_etapa5_areas.sql
+    piezas: [],            // viv_piezas: inodoros, duchas, lavamanos… de los baños
+    piezasFalta: false,    // true si aún no se ejecutó habitaciones_etapa7_piezas_banos.sql
     resaltar: null         // id de cama a resaltar tras una búsqueda
   };
 }
@@ -330,6 +332,226 @@ function svgIcono(tipo) {
   return `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="${ICONOS[tipo] || ICONOS.otro}"/></svg>`;
 }
 
+/* ============================================
+   PIEZAS DE LOS BAÑOS (etapa 7)
+   Inodoros, duchas, lavamanos… cada uno con nombre y estado.
+   ============================================ */
+const TIPOS_PIEZA = {
+  inodoro:   { n: 'Inodoro',   f: '#E8F1FF', c: '#1F5FA8', i: 'M7 3h10v4.5H7zM5.5 7.5h13c0 4.2-2.6 7.2-6.5 7.2S5.5 11.7 5.5 7.5zM9 14.5 8 21h8l-1-6.5' },
+  ducha:     { n: 'Ducha',     f: '#E3F8FB', c: '#00838F', i: 'M5 21V7a4 4 0 0 1 4-4h1a4 4 0 0 1 4 4M10.5 9.5h7l-3.5-3zM11.5 13v1.2M14 12.5v1.2M16.5 13v1.2M12.5 16v1.2M15.5 16v1.2M14 19v1.2' },
+  lavamanos: { n: 'Lavamanos', f: '#EEF3FB', c: '#37474F', i: 'M2.5 10h19c0 4.2-3.6 6.6-9.5 6.6S2.5 14.2 2.5 10zM12 10V5.5h4.5M16.5 5.5v1.8M10 16.6V21h4v-4.4' },
+  urinario:  { n: 'Urinario',  f: '#FFF7E0', c: '#B07F14', i: 'M8 3.5h8v9.5c0 3-1.8 5.2-4 5.2s-4-2.2-4-5.2zM12 18.2V21M10 8h4' },
+  lavadero:  { n: 'Lavadero',  f: '#F1ECFB', c: '#6D3FA0', i: 'M2.5 9h19v4.5a3 3 0 0 1-3 3h-13a3 3 0 0 1-3-3zM6 16.5V21M18 16.5V21M10 9V5.5h4V9M7 12.5h10' },
+  espejo:    { n: 'Espejo',    f: '#F4F6F8', c: '#607D8B', i: 'M12 2.8c3 0 5.2 3.2 5.2 7.4S15 17.6 12 17.6 6.8 14.4 6.8 10.2 9 2.8 12 2.8zM9 21h6M12 17.6V21M10 7.5l2.5-2' }
+};
+const ESTADOS_PIEZA = { ok: 'Funciona', reparacion: 'En reparación', danada: 'Dañada' };
+const CON_PIEZAS = ['banos', 'lavanderia', 'otro'];
+
+function svgPieza(tipo) {
+  const t = TIPOS_PIEZA[tipo] || TIPOS_PIEZA.inodoro;
+  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${t.i}" fill="${t.f}" stroke="${t.c}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+const piezasBano = (espId) => S.piezas.filter((p) => p.espacio_id === espId)
+  .sort((a, b) => Object.keys(TIPOS_PIEZA).indexOf(a.tipo) - Object.keys(TIPOS_PIEZA).indexOf(b.tipo) || a.orden - b.orden || String(a.nombre).localeCompare(String(b.nombre), 'es', { numeric: true }));
+
+async function cargarPiezas() {
+  try {
+    S.piezas = await traerTodo(() => S.sb.from('viv_piezas').select('*').eq('empresa_id', S.empresaId).eq('activo', true).order('id'));
+    S.piezasFalta = false;
+  } catch (err) {
+    S.piezas = [];
+    S.piezasFalta = true;
+  }
+}
+
+function piezaHtml(p) {
+  if (!p.estado) p.estado = 'ok';
+  return `<button type="button" class="hab-pieza hab-pieza--${esc(p.estado)}" data-pieza="${esc(p.id)}" title="${esc(p.nombre)} · ${esc(ESTADOS_PIEZA[p.estado] || '')}${p.nota ? ' · ' + esc(p.nota) : ''}">
+    ${svgPieza(p.tipo)}<span>${esc(p.nombre)}</span>${p.estado !== 'ok' ? `<i class="hab-pieza-marca" aria-hidden="true">${p.estado === 'danada' ? '✕' : '🔧'}</i>` : ''}</button>`;
+}
+
+/* Resumen corto: 🚽 4 · 🚿 3 (con cuántas están dañadas) */
+function resumenPiezas(espId) {
+  const lista = piezasBano(espId);
+  const mal = lista.filter((p) => p.estado !== 'ok').length;
+  return { total: lista.length, mal };
+}
+
+/* Cuántas piezas de cada tipo tiene el espacio (con − / +) */
+function modalPiezasConteo(esp) {
+  if (S.piezasFalta) {
+    const m0 = modal('Piezas del baño');
+    m0.cuerpo.innerHTML = '<div class="hab-nota">Para registrar inodoros, duchas y lavamanos, el administrador debe ejecutar una vez <code>sql/habitaciones_etapa7_piezas_banos.sql</code> en Supabase.</div>';
+    m0.botones([['Cerrar', 'boton-primario', () => m0.cerrar()]]);
+    return;
+  }
+  const m = modal(`Piezas · ${esp.nombre}`);
+  const actual = {};
+  Object.keys(TIPOS_PIEZA).forEach((t) => { actual[t] = piezasBano(esp.id).filter((p) => p.tipo === t).length; });
+  const quiere = { ...actual };
+  const pintarC = () => {
+    m.cuerpo.innerHTML = `<p class="ayuda">Indique cuántas hay de cada una. Cada pieza queda con su nombre (Ducha 1, Ducha 2…) y luego puede marcar si funciona, está en reparación o dañada tocándola.</p>
+      <div class="hab-piezas-conteo">${Object.entries(TIPOS_PIEZA).map(([t, d]) => `
+        <div class="hab-pc-fila">
+          <span class="hab-pc-ico">${svgPieza(t)}</span>
+          <b>${d.n}</b>
+          <span class="hab-pc-ctrl">
+            <button type="button" class="boton-secundario" data-menos="${t}" ${quiere[t] <= 0 ? 'disabled' : ''} aria-label="Una ${d.n.toLowerCase()} menos">−</button>
+            <output>${quiere[t]}</output>
+            <button type="button" class="boton-secundario" data-mas="${t}" ${quiere[t] >= 30 ? 'disabled' : ''} aria-label="Una ${d.n.toLowerCase()} más">+</button>
+          </span>
+        </div>`).join('')}</div>`;
+    m.cuerpo.querySelectorAll('[data-menos]').forEach((b) => b.addEventListener('click', () => { quiere[b.dataset.menos]--; pintarC(); }));
+    m.cuerpo.querySelectorAll('[data-mas]').forEach((b) => b.addEventListener('click', () => { quiere[b.dataset.mas]++; pintarC(); }));
+  };
+  pintarC();
+  const guardar = (b) => conBoton(b, async () => {
+    const altas = [], bajas = [];
+    Object.keys(TIPOS_PIEZA).forEach((t) => {
+      const tiene = piezasBano(esp.id).filter((p) => p.tipo === t);
+      if (quiere[t] > tiene.length) {
+        const nums = tiene.map((p) => parseInt(String(p.nombre).replace(/\D/g, ''), 10)).filter((x) => !isNaN(x));
+        let k = nums.length ? Math.max(...nums) : 0;
+        for (let i = tiene.length; i < quiere[t]; i++) {
+          k++;
+          altas.push(alCrear({ empresa_id: S.empresaId, espacio_id: esp.id, tipo: t, nombre: `${TIPOS_PIEZA[t].n} ${k}`, orden: k }));
+        }
+      } else if (quiere[t] < tiene.length) {
+        // Se quitan primero las de número más alto
+        tiene.slice().sort((a, b) => b.orden - a.orden).slice(0, tiene.length - quiere[t]).forEach((p) => bajas.push(p));
+      }
+    });
+    if (!altas.length && !bajas.length) { m.cerrar(); return; }
+    if (bajas.length && !confirm(`Se quitarán ${bajas.length} pieza(s): ${bajas.map((p) => p.nombre).join(', ')}. ¿Continuar?`)) return;
+    if (altas.length) {
+      const r = await S.sb.from('viv_piezas').insert(altas).select();
+      if (r.error) return m.error(mensajeError(r.error));
+      S.piezas.push(...(r.data || []));
+    }
+    if (bajas.length) {
+      const r = await S.sb.from('viv_piezas').update(alEditar({ activo: false })).in('id', bajas.map((p) => p.id));
+      if (r.error) return m.error(mensajeError(r.error));
+      const fuera = new Set(bajas.map((p) => p.id));
+      S.piezas = S.piezas.filter((p) => !fuera.has(p.id));
+    }
+    m.cerrar();
+    toast(`${esp.nombre}: ${piezasBano(esp.id).length} pieza(s)`);
+    pintar();
+  });
+  m.botones([['Cancelar', 'boton-secundario', () => m.cerrar()], ['Guardar', 'boton-primario', guardar]]);
+}
+
+/* Una pieza: nombre, estado y nota */
+function modalPieza(p) {
+  const m = modal(p.nombre);
+  let estado = p.estado;
+  m.cuerpo.innerHTML = `<div class="hab-form">
+    <div class="hab-pieza-grande">${svgPieza(p.tipo)}</div>
+    <div class="campo"><label class="etiqueta" for="hp-nombre">Nombre</label>
+      <input class="entrada" id="hp-nombre" maxlength="40" value="${esc(p.nombre)}" ${S.estructura ? '' : 'disabled'}></div>
+    <div class="campo"><span class="etiqueta">Estado</span>
+      <div class="hab-pieza-estados">${Object.entries(ESTADOS_PIEZA).map(([k, v]) =>
+        `<button type="button" class="hab-pe hab-pe--${k}" data-estado="${k}" aria-pressed="${k === estado}" ${S.estructura || S.asigna ? '' : 'disabled'}>${k === 'ok' ? '✅' : k === 'reparacion' ? '🔧' : '❌'} ${v}</button>`).join('')}</div></div>
+    <div class="campo"><label class="etiqueta" for="hp-nota">Observación (opcional)</label>
+      <input class="entrada" id="hp-nota" maxlength="200" value="${esc(p.nota || '')}" placeholder="Ej.: fuga en la llave, reportado el lunes" ${S.estructura || S.asigna ? '' : 'disabled'}></div>
+  </div>`;
+  m.cuerpo.querySelectorAll('[data-estado]').forEach((b) => b.addEventListener('click', () => {
+    estado = b.dataset.estado;
+    m.cuerpo.querySelectorAll('[data-estado]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.estado === estado)));
+  }));
+  const guardar = (b) => conBoton(b, async () => {
+    const nombre = valor(m, 'hp-nombre');
+    if (!nombre) return m.error('Escriba un nombre para la pieza.');
+    const cambios = { nombre, estado, nota: valor(m, 'hp-nota') || null };
+    const r = await S.sb.from('viv_piezas').update(alEditar(cambios)).eq('id', p.id);
+    if (r.error) return m.error(mensajeError(r.error));
+    Object.assign(p, cambios);
+    m.cerrar();
+    toast(`${p.nombre}: ${ESTADOS_PIEZA[estado]}`);
+    pintar();
+  });
+  const quitar = (b) => conBoton(b, async () => {
+    if (!confirm(`¿Quitar ${p.nombre}?`)) return;
+    const r = await S.sb.from('viv_piezas').update(alEditar({ activo: false })).eq('id', p.id);
+    if (r.error) return m.error(mensajeError(r.error));
+    S.piezas = S.piezas.filter((x) => x.id !== p.id);
+    m.cerrar();
+    pintar();
+  });
+  const lista = [['Cerrar', 'boton-secundario', () => m.cerrar()]];
+  if (S.estructura) lista.push(['Quitar pieza', 'boton-secundario boton-critico', quitar]);
+  if (S.estructura || S.asigna) lista.push(['Guardar', 'boton-primario', guardar]);
+  m.botones(lista);
+}
+
+/* Agrega una sola pieza (clic derecho en el plano) */
+async function agregarPieza(esp, tipo, px = null, py = null) {
+  if (S.piezasFalta) { modalPiezasConteo(esp); return; }
+  const tiene = piezasBano(esp.id).filter((p) => p.tipo === tipo);
+  const nums = tiene.map((p) => parseInt(String(p.nombre).replace(/\D/g, ''), 10)).filter((x) => !isNaN(x));
+  const k = (nums.length ? Math.max(...nums) : 0) + 1;
+  const fila = alCrear({ empresa_id: S.empresaId, espacio_id: esp.id, tipo, nombre: `${TIPOS_PIEZA[tipo].n} ${k}`, orden: k,
+    ...(px != null ? { plano_px: Math.round(px * 100) / 100, plano_py: Math.round(py * 100) / 100 } : {}) });
+  const r = await S.sb.from('viv_piezas').insert(fila).select().single();
+  if (r.error) { toast(mensajeError(r.error)); return; }
+  S.piezas.push(r.data);
+  toast(`${r.data.nombre} agregado`);
+  pintar();
+}
+
+/* Piezas dentro del cuarto en el plano: en su lugar guardado o, si no
+   tiene, acomodadas en filas. Quien edita las arrastra a su sitio. */
+function piezasPl(d, esp, editando, el) {
+  const lista = piezasBano(esp.id);
+  if (!lista.length) return;
+  const cont = document.createElement('div');
+  cont.className = 'hab-pl-piezas';
+  // Cuadrícula según el tamaño del cuarto (cada pieza ocupa unas 3 × 3 celdas)
+  const W = el ? el.w : 10, H = el ? el.h : 8;
+  const porFila = Math.max(1, Math.min(lista.length, Math.floor(W / 2.8)));
+  const filas = Math.ceil(lista.length / porFila);
+  if (filas * 2.8 > H - 1 || porFila * 2.8 > W + 0.5) cont.classList.add('hab-pl-piezas--apretado');
+  lista.forEach((p, i) => {
+    const b = document.createElement('div');
+    b.innerHTML = piezaHtml(p);
+    const $p = b.firstElementChild;
+    $p.classList.add('hab-pl-pieza');
+    const fx = p.plano_px != null ? Number(p.plano_px) : ((i % porFila) + 0.5) / porFila * 100;
+    const fy = p.plano_py != null ? Number(p.plano_py) : 14 + (Math.floor(i / porFila) + 0.5) / filas * 84;
+    $p.style.left = Math.min(92, Math.max(8, fx)) + '%';
+    $p.style.top = Math.min(90, Math.max(10, fy)) + '%';
+    let arr = null;
+    $p.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      if (!editando || e.button !== 0) return;
+      e.preventDefault();
+      arr = { x: e.clientX, y: e.clientY, movio: false };
+      $p.setPointerCapture(e.pointerId);
+    });
+    $p.addEventListener('pointermove', (e) => {
+      if (!arr) return;
+      if (Math.abs(e.clientX - arr.x) + Math.abs(e.clientY - arr.y) > 4) arr.movio = true;
+      if (!arr.movio) return;
+      const r = d.getBoundingClientRect();
+      $p.style.left = Math.min(95, Math.max(5, (e.clientX - r.left) / r.width * 100)) + '%';
+      $p.style.top = Math.min(95, Math.max(5, (e.clientY - r.top) / r.height * 100)) + '%';
+    });
+    $p.addEventListener('pointerup', async () => {
+      if (!arr) return;
+      const movio = arr.movio; arr = null;
+      if (!movio) { modalPieza(p); return; }
+      const px = Math.round(parseFloat($p.style.left) * 100) / 100, py = Math.round(parseFloat($p.style.top) * 100) / 100;
+      const r = await S.sb.from('viv_piezas').update(alEditar({ plano_px: px, plano_py: py })).eq('id', p.id);
+      if (r.error) { toast(mensajeError(r.error)); return; }
+      p.plano_px = px; p.plano_py = py;
+    });
+    if (!editando) $p.addEventListener('click', (e) => { e.stopPropagation(); modalPieza(p); });
+    cont.appendChild($p);
+  });
+  d.appendChild(cont);
+  d.classList.add('hab-pl-el--con-piezas');
+}
+
 function svgCentro(nombre) {
   const n = String(nombre || '').toLowerCase();
   if (/mina|socav|bocamina/.test(n)) {
@@ -471,6 +693,7 @@ async function cargar() {
 
   await cargarTrabajadores(S.asig.map((a) => a.trabajador_id));
   await cargarAreas();
+  await cargarPiezas();
   await cargarCroquis();
   await cargarSeguridad();
 }
@@ -1093,8 +1316,15 @@ function espacioHtml(esp) {
     d.className = 'hab-esp hab-esp--abierto' + (seleccionado ? ' hab-esp--sel' : '');
     d.innerHTML = `<span>${esc(esp.nombre)}</span>`;
   } else if (esp.tipo !== 'habitacion') {
-    d.className = 'hab-esp hab-esp--otro' + (seleccionado ? ' hab-esp--sel' : '');
-    d.innerHTML = `${svgIcono(esp.tipo)}<span>${esc(esp.nombre)}</span>${esp.frente === 'AB' ? '<span class="hab-ab">Frentes A y B</span>' : ''}`;
+    const piezas = piezasBano(esp.id);
+    d.className = 'hab-esp hab-esp--otro' + (seleccionado ? ' hab-esp--sel' : '') + (piezas.length ? ' hab-esp--con-piezas' : '');
+    d.innerHTML = `${svgIcono(esp.tipo)}<span>${esc(esp.nombre)}</span>${esp.frente === 'AB' ? '<span class="hab-ab">Frentes A y B</span>' : ''}
+      ${piezas.length ? `<div class="hab-piezas">${piezas.map(piezaHtml).join('')}</div>` : ''}`;
+    d.querySelectorAll('[data-pieza]').forEach((b) => b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const p = S.piezas.find((x) => String(x.id) === b.dataset.pieza);
+      if (p) modalPieza(p);
+    }));
   } else {
     const camas = camasDe(esp.id);
     const ocup = camas.filter((c) => asigDeCama(c.id)).length;
@@ -1814,6 +2044,7 @@ function herramientasHtml(sel) {
     ${btn('mas', '+ Ancho', '', sel.ancho >= ANCHO_MAX)}
     ${hab ? btn('cama', '+ Cama o litera') : ''}
     ${hab ? btn('quitar-cama', '− Cama o litera', '', camasDe(sel.id).length === 0) : ''}
+    ${CON_PIEZAS.includes(sel.tipo) ? btn('piezas', `🚽 Piezas${piezasBano(sel.id).length ? ` (${piezasBano(sel.id).length})` : ''}`) : ''}
     ${btn('editar', 'Nombre o tipo')}
     ${planoDisponible() ? btn('plano', 'Por dentro (plano) ▸') : ''}
     ${btn('quitar', 'Quitar', 'boton-critico')}
@@ -1832,6 +2063,7 @@ function conectarHerramientas(sel) {
   h('mas')?.addEventListener('click', () => cambiarAncho(sel, 1));
   h('cama')?.addEventListener('click', () => modalAgregarCama(sel));
   h('quitar-cama')?.addEventListener('click', () => modalQuitarCamas(sel));
+  h('piezas')?.addEventListener('click', () => modalPiezasConteo(sel));
   h('editar')?.addEventListener('click', () => {
     const edif = porId(S.edificios, sel.edificio_id);
     modalEspacio(sel, { edif, planta: sel.planta, frente: sel.frente });
@@ -3479,6 +3711,7 @@ function elementoPl(el, editando, $pl, edif) {
     }
   } else {
     d.innerHTML = `${svgIcono(esp?.tipo)}<span class="hab-pl-nombre"><b>${esc(esp ? nombreEsp(esp) : '—')}</b></span>`;
+    if (esp) piezasPl(d, esp, editando, el);
   }
   d.setAttribute('aria-label', esp ? `${TIPOS_ESPACIO[esp.tipo]} ${esp.nombre}` : 'Espacio');
   el.puertas.forEach((pu, i) => d.appendChild(puertaPl(el, pu, i, editando, d)));
@@ -3498,7 +3731,7 @@ function elementoPl(el, editando, $pl, edif) {
   d.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
     if (S.pl.colocar) return;                                      // lo maneja el lienzo
-    if (e.target.closest('.hab-pl-puerta, .hab-cama, .hab-pl-seg')) return;
+    if (e.target.closest('.hab-pl-puerta, .hab-cama, .hab-pl-seg, .hab-pl-pieza')) return;
     e.preventDefault(); e.stopPropagation();
     cerrarMenuPl();
     // Ctrl o Mayús + clic: suma o quita de la selección (varios a la vez)
@@ -4047,6 +4280,12 @@ function menuEspacioPl(esp, el, edif, punto) {
         { label: 'Administrar áreas…', accion: () => modalAreas() }
       ] });
     }
+  }
+  if (esp && CON_PIEZAS.includes(esp.tipo)) {
+    l.push({ label: 'Piezas del baño', sub: [
+      ...Object.entries(TIPOS_PIEZA).map(([t, dd]) => ({ label: `Agregar ${dd.n.toLowerCase()}`, accion: () => agregarPieza(esp, t, punto.px, punto.py) })),
+      { label: 'Cantidades…', accion: () => modalPiezasConteo(esp) }
+    ] });
   }
   l.push({ label: 'Agregar cuarto interno', sub: menuTiposPl((t) => nuevoEspacioPl(edif, planta, t, { dentro: el })) });
   l.push({ label: 'Agregar puerta', accion: () => agregarPuertaPl(el), deshabilitado: el.puertas.length >= PL_MAX_PUERTAS });
