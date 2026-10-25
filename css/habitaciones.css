@@ -1324,3 +1324,39 @@
 .hab-pl-piezas--apretado .hab-pl-pieza { min-width: 0; padding: 0.1rem; border-width: 1.5px; }
 .hab-pl-piezas--apretado .hab-pl-pieza svg { width: 22px; height: 22px; }
 .hab-pl-piezas--apretado .hab-pl-pieza span { display: none; }
+
+/* ============================================
+   Mapas de evacuación y riesgos (js/mapas.js)
+   ============================================ */
+.hab-chip--mapas { border-color: #1b873f; }
+.hab-chip--mapas[aria-pressed="true"] { background: #1b873f; border-color: #1b873f; color: #fff; }
+.mp { display: block; }
+.mp-barra { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.6rem; align-items: center; margin-bottom: 0.6rem; }
+.mp-tabs { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+.mp-tab { padding: 0.5rem 0.9rem; border-radius: 10px 10px 0 0; border: 1px solid #c9d6ee; border-bottom: 3px solid transparent; background: #f3f6fb; font-weight: 700; color: #123A7A; cursor: pointer; }
+.mp-tab[aria-selected="true"] { background: #fff; border-bottom-color: #123A7A; }
+.mp-acciones { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.mp-pendiente { box-shadow: 0 0 0 3px #f2b400; }
+.mp-herr { display: flex; flex-wrap: wrap; gap: 0.3rem; padding: 0.45rem; border-radius: 12px; background: #123A7A; }
+.mp-h { padding: 0.42rem 0.7rem; border-radius: 8px; border: 0; background: rgba(255,255,255,.12); color: #fff; font-weight: 600; font-size: 0.85rem; cursor: pointer; }
+.mp-h:hover { background: rgba(255,255,255,.22); }
+.mp-h[aria-pressed="true"] { background: #fff; color: #123A7A; }
+.mp-sep { flex: 1; }
+.mp-ayuda { margin: 0.45rem 0 0.3rem; font-size: 0.86rem; color: #36435a; }
+.mp-senal-elegida { display: inline-flex; align-items: center; gap: 0.3rem; font-weight: 700; }
+.mp-selbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin: 0.2rem 0 0.4rem; padding: 0.35rem 0.6rem; border-radius: 10px; background: #eef3fb; font-size: 0.86rem; }
+.mp-selbar[hidden] { display: none; }
+.mp-selbar button { min-width: 34px; padding: 0.25rem 0.55rem; border-radius: 8px; border: 1px solid #b9c7df; background: #fff; cursor: pointer; font-weight: 700; }
+.mp-selbar .mp-quitar { color: #b3261e; border-color: #e3a9a4; }
+.mp-lienzo { border: 1px solid #c9d2de; border-radius: 8px; background: #fff; overflow: auto; }
+.mp-lienzo > svg.mp-hoja { display: block; width: 100%; height: auto; min-width: 900px; user-select: none; touch-action: none; }
+.mp-item { cursor: move; }
+.mp-pie { margin-top: 0.4rem; }
+.mp-grupo h4 { margin: 0.8rem 0 0.35rem; color: #123A7A; font-size: 0.92rem; }
+.mp-senales { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.35rem; }
+.mp-senal-op { display: flex; align-items: center; gap: 0.45rem; padding: 0.35rem 0.45rem; border: 1px solid #dde4ee; border-radius: 8px; background: #fff; text-align: left; font-size: 0.78rem; cursor: pointer; }
+.mp-senal-op svg { width: 30px; height: 30px; flex: none; }
+.mp-senal-op:hover { border-color: #123A7A; background: #f3f6fb; }
+.mp-buscar { width: 100%; margin-bottom: 0.3rem; }
+.mp-ctl label { display: flex; align-items: center; gap: 0.4rem; }
+.mp-modal .modal-caja { max-width: min(860px, 96vw); }
