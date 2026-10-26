@@ -20,7 +20,7 @@
    (sql/habitaciones_etapa8_mapas.sql).
    ============================================ */
 
-const VERSION = 'v3';
+const VERSION = 'v4';
 console.info('NEXUS · mapas', VERSION);
 
 /* ---------- Hoja (unidades del dibujo) ---------- */
@@ -290,13 +290,59 @@ function dibujarEdificio(edif, planta, R, conContorno) {
     }
     (el.puertas || []).forEach((pu) => { s += puertaSvg(r, pu); });
     const nombre = esp ? (esp.tipo === 'habitacion' ? `Hab. ${esp.nombre}` : esp.nombre) : '';
-    if (nombre && esp?.tipo !== 'escaleras') {
-      const fs = Math.max(7, Math.min(13, r.w / 6.5, r.h / 3));
-      s += `<text x="${r1(r.x + r.w / 2)}" y="${r1(r.y + Math.min(r.h * 0.28, fs * 1.6))}" text-anchor="middle" font-size="${r1(fs)}" fill="#222">${esc(nombre)}</text>`;
-    }
+    if (nombre && esp?.tipo !== 'escaleras') s += textoCuarto(nombre, r, el.puertas || []);
   });
   M.rects[`plano-${edif.id}-${planta}`] = { T, edif: edif.id, planta };
   return s;
+}
+
+/* Nombre del cuarto: dentro de sus paredes, lejos de las puertas y partido en líneas si no cabe */
+function textoCuarto(nombre, r, puertas) {
+  const hueco = (l) => { const lado = (l === 'n' || l === 's') ? r.w : r.h; return Math.min(16, lado * 0.32) + 2; };
+  const tiene = (l) => puertas.some((p) => p.l === l);
+  let x0 = r.x + 3, x1 = r.x + r.w - 3, y0 = r.y + 3, y1 = r.y + r.h - 3;
+  if (tiene('n')) y0 = r.y + hueco('n');
+  if (tiene('s')) y1 = r.y + r.h - hueco('s');
+  if (r.w > 70) {
+    if (tiene('o')) x0 = r.x + hueco('o');
+    if (tiene('e')) x1 = r.x + r.w - hueco('e');
+  } else {
+    // Cuarto angosto con puertas a los lados: el texto va en el tramo libre más alto
+    const tapas = puertas.filter((p) => p.l === 'o' || p.l === 'e').map((p) => {
+      const a = Math.min(16, r.h * 0.32), yy = r.y + Math.min(0.92, Math.max(0.08, Number(p.p) || 0.5)) * r.h - a / 2;
+      return [yy - 1, yy + a + 1];
+    }).sort((a, b) => a[0] - b[0]);
+    if (tapas.length) {
+      const libres = [];
+      let ini = y0;
+      tapas.forEach(([a, b]) => { if (a > ini) libres.push([ini, Math.min(a, y1)]); ini = Math.max(ini, b); });
+      if (ini < y1) libres.push([ini, y1]);
+      const mejor = libres.sort((a, b) => (b[1] - b[0]) - (a[1] - a[0]))[0];
+      if (mejor && mejor[1] - mejor[0] >= 7) { y0 = mejor[0]; y1 = mejor[1]; }
+    }
+  }
+  if (y1 - y0 < 8) { y0 = r.y + 2; y1 = r.y + r.h - 2; }
+  const W = Math.max(8, x1 - x0), H = Math.max(6, y1 - y0);
+  const partir = (fs) => {
+    const max = Math.max(1, Math.floor(W / (fs * 0.64)));
+    const lineas = [];
+    let act = '';
+    String(nombre).split(/\s+/).forEach((pal) => {
+      while (pal.length > max) { if (act) { lineas.push(act); act = ''; } lineas.push(pal.slice(0, max)); pal = pal.slice(max); }
+      if (!pal) return;
+      if (!act) act = pal;
+      else if ((act + ' ' + pal).length <= max) act += ' ' + pal;
+      else { lineas.push(act); act = pal; }
+    });
+    if (act) lineas.push(act);
+    return lineas;
+  };
+  let fs = 13, lineas = partir(fs);
+  while (fs > 5 && lineas.length * fs * 1.15 > H) { fs -= 0.5; lineas = partir(fs); }
+  const caben = Math.max(1, Math.floor(H / (fs * 1.15)));
+  if (lineas.length > caben) { lineas = lineas.slice(0, caben); lineas[caben - 1] = lineas[caben - 1].replace(/.$/, '…'); }
+  const cx = (x0 + x1) / 2;
+  return `<text x="${r1(cx)}" y="${r1(y0 + fs * 0.95)}" text-anchor="middle" font-size="${r1(fs)}" fill="#222">${lineas.map((l, i) => `<tspan x="${r1(cx)}" dy="${i ? r1(fs * 1.15) : 0}">${esc(l)}</tspan>`).join('')}</text>`;
 }
 
 function puertaSvg(r, pu) {
