@@ -605,7 +605,8 @@
 .detalle-agregar-medicamento .entrada { flex: 1; min-width: 160px; }
 .detalle-agregar-medicamento .entrada-mini { flex: none; width: 70px; }
 
-#det-medicamento-elegido {
+#det-medicamento-elegido,
+#det-insumo-elegido {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
@@ -613,7 +614,8 @@
   width: 100%;
 }
 
-#det-medicamento-elegido-nombre {
+#det-medicamento-elegido-nombre,
+#det-insumo-elegido-nombre {
   font-weight: 600;
   font-size: 0.85rem;
   width: 100%;
@@ -1199,3 +1201,5 @@
   color: #f57373;
   border-color: #f57373;
 }
+
+#det-medicamento-elegido[hidden], #det-insumo-elegido[hidden] { display: none; }
