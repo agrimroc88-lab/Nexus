@@ -2001,7 +2001,7 @@ async function abrirDetalle(a) {
       .select('id, cantidad, indicacion, entregado, motivo_no_entrega, medicamentos(nombre_generico, nombre_comercial, concentracion, forma)')
       .eq('atencion_id', a.id),
     supabase.from('insumos_kardex')
-      .select('cantidad, nota, insumos(nombre, unidad)')
+      .select('id, insumo_id, tipo, cantidad, nota, insumos(nombre, unidad)')
       .eq('atencion_id', a.id),
     supabase.from('atenciones')
       .select('motivo_consulta, presion_sistolica, presion_diastolica, frecuencia_cardiaca, frecuencia_resp, temperatura, saturacion, peso, talla')
@@ -2018,6 +2018,7 @@ async function abrirDetalle(a) {
 
   estado.detalleDiagnosticos = dx.data || [];
   estado.medicamentoElegidoDetalle = null;
+  estado.insumoElegidoDetalle = null;
   estado.certDetalle = cert.data || null;
 
   if (estado.certDetalle) {
@@ -2188,8 +2189,32 @@ async function abrirDetalle(a) {
         <span>${escapar(r.insumos?.nombre || '')}</span>
         <span class="celda-mono">× ${r.cantidad} ${escapar(r.insumos?.unidad || '')}</span>
         ${r.nota ? `<span class="secundario">${escapar(r.nota)}</span>` : ''}
+        ${estado.esAdmin && r.tipo === 'salida_consumo' ? `
+          <button type="button" class="boton-secundario boton-critico boton-mini boton-quitar-insumo"
+                  data-id="${r.id}" data-insumo="${r.insumo_id}" data-cantidad="${r.cantidad}"
+                  data-nombre="${escapar(r.insumos?.nombre || '')}">
+            Quitar
+          </button>` : ''}
       </div>
     `).join('') || '<p class="pista">Sin insumos registrados.</p>'}
+
+    ${estado.esAdmin ? `
+      <div class="detalle-agregar-medicamento">
+        <input type="text" id="det-buscar-insumo" class="entrada"
+               placeholder="Buscar insumo para agregar…" autocomplete="off">
+        <div id="det-sugerencias-insumo" class="sugerencias" hidden></div>
+        <div id="det-insumo-elegido" hidden>
+          <span id="det-insumo-elegido-nombre"></span>
+          <input type="number" id="det-insumo-cantidad" class="entrada entrada-mini"
+                 min="1" step="1" value="1" placeholder="Cant.">
+          <button type="button" class="boton-secundario" id="btn-agregar-insumo-detalle">
+            Agregar
+          </button>
+          <button type="button" class="boton-secundario" id="btn-cancelar-insumo-detalle">
+            Cancelar
+          </button>
+        </div>
+      </div>` : ''}
 
     ${a.observacion ? `
       <h4 class="detalle-titulo">Observación</h4>
@@ -2204,6 +2229,7 @@ async function abrirDetalle(a) {
 
   if (estado.esAdmin) {
     conectarBuscadorMedicamentoDetalle();
+    conectarBuscadorInsumoDetalle();
     if (!estado.certDetalle) conectarCertificadoPost();
   }
 }
@@ -2302,6 +2328,127 @@ async function agregarMedicamentoDetalle() {
 
   await cargarMedicamentos();
   await abrirDetalle(a);
+}
+
+/* ============================================
+   Editar atención concluida: insumos
+   Igual que los medicamentos: agregar uno que se olvidó o
+   quitar uno puesto por error. Descuenta o devuelve el stock
+   y deja la línea en el kárdex de insumos con la atención,
+   así que eliminar la atención lo sigue devolviendo solo.
+   ============================================ */
+
+function conectarBuscadorInsumoDetalle() {
+  const $buscar = document.getElementById('det-buscar-insumo');
+  const $sug = document.getElementById('det-sugerencias-insumo');
+  const $elegido = document.getElementById('det-insumo-elegido');
+  const $nombreElegido = document.getElementById('det-insumo-elegido-nombre');
+  if (!$buscar) return;
+
+  $buscar.addEventListener('input', () => {
+    const texto = $buscar.value.trim().toLowerCase();
+    if (texto.length < 2) { $sug.hidden = true; return; }
+    const hallados = estado.insumos
+      .filter((x) => (x.nombre || '').toLowerCase().includes(texto)).slice(0, 10);
+    if (hallados.length === 0) {
+      $sug.innerHTML = '<p class="sugerencia-vacia">Sin coincidencias</p>';
+      $sug.hidden = false;
+      return;
+    }
+    $sug.innerHTML = '';
+    hallados.forEach((ins) => {
+      const etiqueta = etiquetaInsumo(ins);
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'sugerencia';
+      b.innerHTML = `<span class="sugerencia-nombre">${escapar(etiqueta)}</span>
+                     <span class="sugerencia-meta">Stock: ${ins.stock_disponible ?? 0}</span>`;
+      b.addEventListener('click', () => {
+        estado.insumoElegidoDetalle = ins;
+        $nombreElegido.textContent = etiqueta;
+        $elegido.hidden = false;
+        $buscar.value = '';
+        $sug.hidden = true;
+      });
+      $sug.appendChild(b);
+    });
+    $sug.hidden = false;
+  });
+
+  document.getElementById('btn-cancelar-insumo-detalle')?.addEventListener('click', () => {
+    estado.insumoElegidoDetalle = null;
+    $elegido.hidden = true;
+    document.getElementById('det-insumo-cantidad').value = '1';
+  });
+
+  document.getElementById('btn-agregar-insumo-detalle')?.addEventListener('click', agregarInsumoDetalle);
+}
+
+async function agregarInsumoDetalle() {
+  const ins = estado.insumoElegidoDetalle;
+  const a = estado.detalle;
+  if (!ins || !a) return;
+
+  const cantidad = parseInt(document.getElementById('det-insumo-cantidad').value, 10);
+  if (!cantidad || cantidad <= 0) return alert('Indique una cantidad válida.');
+
+  /* Stock al día: puede haber cambiado desde que se cargó la página */
+  const { data: actual, error: e0 } = await supabase.from('insumos')
+    .select('stock_disponible').eq('id', ins.id).single();
+  if (e0) return alert('No se pudo consultar el stock: ' + e0.message);
+  const stock = Number(actual?.stock_disponible) || 0;
+  if (cantidad > stock) {
+    return alert(`No se puede agregar ${cantidad}: solo hay ${stock} de ${ins.nombre} en inventario.`);
+  }
+
+  const $btn = document.getElementById('btn-agregar-insumo-detalle');
+  $btn.disabled = true;
+  $btn.textContent = 'Agregando…';
+
+  const { error: e1 } = await supabase.from('insumos')
+    .update(alEditar({ stock_disponible: stock - cantidad })).eq('id', ins.id);
+  if (e1) {
+    $btn.disabled = false; $btn.textContent = 'Agregar';
+    return alert('No se pudo agregar: ' + e1.message);
+  }
+  const { error: e2 } = await supabase.from('insumos_kardex').insert(alCrear({
+    insumo_id: ins.id,
+    tipo: 'salida_consumo',
+    cantidad,
+    nota: 'Agregado después de la atención',
+    atencion_id: a.id
+  }));
+  if (e2) {
+    // Sin kárdex no queda rastro: se devuelve el stock
+    await supabase.from('insumos').update(alEditar({ stock_disponible: stock })).eq('id', ins.id);
+    $btn.disabled = false; $btn.textContent = 'Agregar';
+    return alert('No se pudo agregar: ' + e2.message);
+  }
+
+  await cargarInsumos();
+  await abrirDetalle(a);
+}
+
+async function quitarInsumoDetalle(kardexId, insumoId, cantidad, nombre) {
+  if (!confirm(`¿Quitar ${nombre} (× ${cantidad}) de esta atención?\n\n`
+    + 'La cantidad se devuelve sola al inventario.')) return;
+
+  const { data: actual, error: e0 } = await supabase.from('insumos')
+    .select('stock_disponible').eq('id', insumoId).single();
+  if (e0) return alert('No se pudo quitar: ' + e0.message);
+
+  await marcarAntesDeBorrar(supabase, 'insumos_kardex', kardexId);
+  const { error: e1 } = await supabase.from('insumos_kardex').delete().eq('id', kardexId);
+  if (e1) return alert('No se pudo quitar: ' + e1.message);
+
+  const { error: e2 } = await supabase.from('insumos')
+    .update(alEditar({ stock_disponible: (Number(actual?.stock_disponible) || 0) + Number(cantidad) }))
+    .eq('id', insumoId);
+  if (e2) alert('Se quitó de la atención, pero no se pudo devolver al inventario: ' + e2.message
+    + '\nAjuste el stock en Farmacia → Insumos.');
+
+  await cargarInsumos();
+  await abrirDetalle(estado.detalle);
 }
 
 async function quitarMedicamentoDetalle(id, nombre) {
@@ -3071,6 +3218,8 @@ function conectarEventos() {
   document.getElementById('detalle-cuerpo').addEventListener('click', (e) => {
     const btn = e.target.closest('.boton-quitar-medicamento');
     if (btn) quitarMedicamentoDetalle(btn.dataset.id, btn.dataset.nombre);
+    const bi = e.target.closest('.boton-quitar-insumo');
+    if (bi) quitarInsumoDetalle(bi.dataset.id, bi.dataset.insumo, bi.dataset.cantidad, bi.dataset.nombre);
   });
 
   ['at_reposo', 'at_cert_inicio', 'at_cert_rot_inicio', 'at_cert_rot_dias']
