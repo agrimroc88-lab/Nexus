@@ -2079,7 +2079,7 @@ async function abrirDetalle(a) {
       </div>
     `).join('') || '<p class="pista">Sin diagnósticos.</p>'}
 
-    <h4 class="detalle-titulo">Medicamentos</h4>
+    <h4 class="detalle-titulo">Medicamentos e insumos</h4>
     ${(rx.data || []).map((m) => {
       const med = m.medicamentos || {};
       const generico = `${med.nombre_generico || ''} ${med.concentracion || ''}`.trim();
@@ -2100,12 +2100,27 @@ async function abrirDetalle(a) {
             Quitar
           </button>` : ''}
       </div>
-    `;}).join('') || '<p class="pista">Sin prescripción.</p>'}
+    `;}).join('')}
+    ${(ri.data || []).map((r) => `
+      <div class="detalle-linea">
+        <span class="insignia">Insumo</span>
+        <span class="detalle-medicamento">${escapar(r.insumos?.nombre || '')}</span>
+        <span class="celda-mono">× ${r.cantidad} ${escapar(r.insumos?.unidad || '')}</span>
+        ${r.nota ? `<span class="secundario">${escapar(r.nota)}</span>` : ''}
+        ${estado.esAdmin && r.tipo === 'salida_consumo' ? `
+          <button type="button" class="boton-secundario boton-critico boton-mini boton-quitar-insumo"
+                  data-id="${r.id}" data-insumo="${r.insumo_id}" data-cantidad="${r.cantidad}"
+                  data-nombre="${escapar(r.insumos?.nombre || '')}">
+            Quitar
+          </button>` : ''}
+      </div>
+    `).join('')}
+    ${!(rx.data || []).length && !(ri.data || []).length ? '<p class="pista">Sin medicamentos ni insumos.</p>' : ''}
 
     ${estado.esAdmin ? `
       <div class="detalle-agregar-medicamento">
         <input type="text" id="det-buscar-medicamento" class="entrada"
-               placeholder="Buscar medicamento para agregar…" autocomplete="off">
+               placeholder="Buscar medicamento o insumo para agregar…" autocomplete="off">
         <div id="det-sugerencias-medicamento" class="sugerencias" hidden></div>
         <div id="det-medicamento-elegido" hidden>
           <span id="det-medicamento-elegido-nombre"></span>
@@ -2183,39 +2198,6 @@ async function abrirDetalle(a) {
       </div>`
     : '<p class="pista">Esta atención no tiene certificado interno.</p>')}
 
-    <h4 class="detalle-titulo">Insumos</h4>
-    ${(ri.data || []).map((r) => `
-      <div class="detalle-linea">
-        <span>${escapar(r.insumos?.nombre || '')}</span>
-        <span class="celda-mono">× ${r.cantidad} ${escapar(r.insumos?.unidad || '')}</span>
-        ${r.nota ? `<span class="secundario">${escapar(r.nota)}</span>` : ''}
-        ${estado.esAdmin && r.tipo === 'salida_consumo' ? `
-          <button type="button" class="boton-secundario boton-critico boton-mini boton-quitar-insumo"
-                  data-id="${r.id}" data-insumo="${r.insumo_id}" data-cantidad="${r.cantidad}"
-                  data-nombre="${escapar(r.insumos?.nombre || '')}">
-            Quitar
-          </button>` : ''}
-      </div>
-    `).join('') || '<p class="pista">Sin insumos registrados.</p>'}
-
-    ${estado.esAdmin ? `
-      <div class="detalle-agregar-medicamento">
-        <input type="text" id="det-buscar-insumo" class="entrada"
-               placeholder="Buscar insumo para agregar…" autocomplete="off">
-        <div id="det-sugerencias-insumo" class="sugerencias" hidden></div>
-        <div id="det-insumo-elegido" hidden>
-          <span id="det-insumo-elegido-nombre"></span>
-          <input type="number" id="det-insumo-cantidad" class="entrada entrada-mini"
-                 min="1" step="1" value="1" placeholder="Cant.">
-          <button type="button" class="boton-secundario" id="btn-agregar-insumo-detalle">
-            Agregar
-          </button>
-          <button type="button" class="boton-secundario" id="btn-cancelar-insumo-detalle">
-            Cancelar
-          </button>
-        </div>
-      </div>` : ''}
-
     ${a.observacion ? `
       <h4 class="detalle-titulo">Observación</h4>
       <p class="detalle-texto">${escapar(a.observacion)}</p>` : ''}
@@ -2229,7 +2211,6 @@ async function abrirDetalle(a) {
 
   if (estado.esAdmin) {
     conectarBuscadorMedicamentoDetalle();
-    conectarBuscadorInsumoDetalle();
     if (!estado.certDetalle) conectarCertificadoPost();
   }
 }
@@ -2253,10 +2234,14 @@ function conectarBuscadorMedicamentoDetalle() {
     const texto = $buscar.value.trim().toLowerCase();
     if (texto.length < 2) { $sug.hidden = true; return; }
 
-    const hallados = estado.medicamentos.filter((m) => {
+    /* Medicamentos e insumos en la misma lista, como al registrar la atención */
+    const meds = estado.medicamentos.filter((m) => {
       const campo = `${m.nombre_generico ?? ''} ${m.nombre_comercial ?? ''} ${m.concentracion ?? ''}`.toLowerCase();
       return campo.includes(texto);
-    }).slice(0, 10);
+    }).map((m) => ({ tipo: 'medicamento', item: m, etiqueta: etiquetaMedicamento(m) }));
+    const ins = estado.insumos.filter((x) => (x.nombre || '').toLowerCase().includes(texto))
+      .map((x) => ({ tipo: 'insumo', item: x, etiqueta: etiquetaInsumo(x) }));
+    const hallados = [...meds.slice(0, 7), ...ins.slice(0, 5)].slice(0, 10);
 
     if (hallados.length === 0) {
       $sug.innerHTML = '<p class="sugerencia-vacia">Sin coincidencias</p>';
@@ -2265,16 +2250,20 @@ function conectarBuscadorMedicamentoDetalle() {
     }
 
     $sug.innerHTML = '';
-    hallados.forEach((m) => {
-      const etiqueta = etiquetaMedicamento(m);
+    hallados.forEach(({ tipo, item: m, etiqueta }) => {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'sugerencia';
       b.innerHTML = `<span class="sugerencia-nombre">${escapar(etiqueta)}</span>
-                     <span class="sugerencia-meta">Stock: ${m.stock_disponible ?? 0}</span>`;
+                     <span class="sugerencia-meta">${tipo === 'insumo' ? 'Insumo · ' : ''}Stock: ${m.stock_disponible ?? 0}</span>`;
       b.addEventListener('click', () => {
-        estado.medicamentoElegidoDetalle = m;
-        $nombreElegido.textContent = etiqueta;
+        estado.medicamentoElegidoDetalle = tipo === 'medicamento' ? m : null;
+        estado.insumoElegidoDetalle = tipo === 'insumo' ? m : null;
+        $nombreElegido.textContent = tipo === 'insumo' ? `Insumo: ${etiqueta}` : etiqueta;
+        /* Un insumo no lleva indicación */
+        const $ind = document.getElementById('det-medicamento-indicacion');
+        $ind.hidden = tipo === 'insumo';
+        if (tipo === 'insumo') $ind.value = '';
         $elegido.hidden = false;
         $buscar.value = '';
         $sug.hidden = true;
@@ -2286,6 +2275,8 @@ function conectarBuscadorMedicamentoDetalle() {
 
   document.getElementById('btn-cancelar-medicamento-detalle')?.addEventListener('click', () => {
     estado.medicamentoElegidoDetalle = null;
+    estado.insumoElegidoDetalle = null;
+    document.getElementById('det-medicamento-indicacion').hidden = false;
     $elegido.hidden = true;
     document.getElementById('det-medicamento-cantidad').value = '1';
     document.getElementById('det-medicamento-indicacion').value = '';
@@ -2295,6 +2286,7 @@ function conectarBuscadorMedicamentoDetalle() {
 }
 
 async function agregarMedicamentoDetalle() {
+  if (estado.insumoElegidoDetalle) return agregarInsumoDetalle();
   const m = estado.medicamentoElegidoDetalle;
   const a = estado.detalle;
   if (!m || !a) return;
@@ -2332,64 +2324,18 @@ async function agregarMedicamentoDetalle() {
 
 /* ============================================
    Editar atención concluida: insumos
-   Igual que los medicamentos: agregar uno que se olvidó o
-   quitar uno puesto por error. Descuenta o devuelve el stock
+   Mismo buscador que los medicamentos: agregar uno que se
+   olvidó o quitar uno puesto por error. Descuenta o devuelve el stock
    y deja la línea en el kárdex de insumos con la atención,
    así que eliminar la atención lo sigue devolviendo solo.
    ============================================ */
-
-function conectarBuscadorInsumoDetalle() {
-  const $buscar = document.getElementById('det-buscar-insumo');
-  const $sug = document.getElementById('det-sugerencias-insumo');
-  const $elegido = document.getElementById('det-insumo-elegido');
-  const $nombreElegido = document.getElementById('det-insumo-elegido-nombre');
-  if (!$buscar) return;
-
-  $buscar.addEventListener('input', () => {
-    const texto = $buscar.value.trim().toLowerCase();
-    if (texto.length < 2) { $sug.hidden = true; return; }
-    const hallados = estado.insumos
-      .filter((x) => (x.nombre || '').toLowerCase().includes(texto)).slice(0, 10);
-    if (hallados.length === 0) {
-      $sug.innerHTML = '<p class="sugerencia-vacia">Sin coincidencias</p>';
-      $sug.hidden = false;
-      return;
-    }
-    $sug.innerHTML = '';
-    hallados.forEach((ins) => {
-      const etiqueta = etiquetaInsumo(ins);
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'sugerencia';
-      b.innerHTML = `<span class="sugerencia-nombre">${escapar(etiqueta)}</span>
-                     <span class="sugerencia-meta">Stock: ${ins.stock_disponible ?? 0}</span>`;
-      b.addEventListener('click', () => {
-        estado.insumoElegidoDetalle = ins;
-        $nombreElegido.textContent = etiqueta;
-        $elegido.hidden = false;
-        $buscar.value = '';
-        $sug.hidden = true;
-      });
-      $sug.appendChild(b);
-    });
-    $sug.hidden = false;
-  });
-
-  document.getElementById('btn-cancelar-insumo-detalle')?.addEventListener('click', () => {
-    estado.insumoElegidoDetalle = null;
-    $elegido.hidden = true;
-    document.getElementById('det-insumo-cantidad').value = '1';
-  });
-
-  document.getElementById('btn-agregar-insumo-detalle')?.addEventListener('click', agregarInsumoDetalle);
-}
 
 async function agregarInsumoDetalle() {
   const ins = estado.insumoElegidoDetalle;
   const a = estado.detalle;
   if (!ins || !a) return;
 
-  const cantidad = parseInt(document.getElementById('det-insumo-cantidad').value, 10);
+  const cantidad = parseInt(document.getElementById('det-medicamento-cantidad').value, 10);
   if (!cantidad || cantidad <= 0) return alert('Indique una cantidad válida.');
 
   /* Stock al día: puede haber cambiado desde que se cargó la página */
@@ -2401,7 +2347,7 @@ async function agregarInsumoDetalle() {
     return alert(`No se puede agregar ${cantidad}: solo hay ${stock} de ${ins.nombre} en inventario.`);
   }
 
-  const $btn = document.getElementById('btn-agregar-insumo-detalle');
+  const $btn = document.getElementById('btn-agregar-medicamento-detalle');
   $btn.disabled = true;
   $btn.textContent = 'Agregando…';
 
