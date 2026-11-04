@@ -270,6 +270,12 @@
      entero sale bien, que importa mas. */
   @page { size: A4 portrait; margin: 16mm 15mm 18mm 20mm; }
 
+  /* La orden de compra ya recibe el margen de la página (arriba):
+     su relleno propio y el del contenedor se sumaban encima y la
+     tabla quedaba encogida al centro de la hoja con bordes enormes. */
+  #orden-impresion,
+  #orden-impresion .oc-hoja { padding: 0 !important; }
+
   /* ---------- Portada ----------
 
      El problema de la anterior era el apinamiento: todo caia

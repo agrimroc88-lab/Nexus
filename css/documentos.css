@@ -112,6 +112,11 @@
        perforadora muerde la primera columna de la tabla. */
     padding: 20mm 15mm 20mm 30mm !important;
     box-sizing: border-box;
+    /* El relleno se repite arriba y abajo de CADA hoja, no solo
+       al inicio de la primera y al final de la última: sin esto
+       la segunda hoja salía pegada al borde del papel. */
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
   }
 
   /* La orden de compra pidió aprovechar todo el ancho posible
@@ -123,6 +128,8 @@
   #orden-impresion {
     padding: 15mm 15mm 20mm 24mm !important;
     box-sizing: border-box;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
   }
 
   /* Los contenedores que ya posicionan la hoja no deben
