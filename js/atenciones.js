@@ -89,6 +89,9 @@ async function iniciar() {
 
   estado.perfil = perfil;
   estado.esAdmin = tienePoderAdmin(perfil.rol);
+  /* Corregir medicamentos e insumos de una atención ya cerrada (o
+     eliminarla) mueve el inventario: solo el administrador. */
+  estado.puedeCorregir = perfil.rol === 'admin';
   montarNavegacion(perfil, 'atenciones');
 
   prepararAnios();
@@ -1987,7 +1990,7 @@ async function abrirDetalle(a) {
      no hay nada que imprimir. */
   document.getElementById('btn-reimprimir-cert').hidden = true;
   document.getElementById('btn-anular-cert').hidden = true;
-  document.getElementById('btn-eliminar-atencion').hidden = !estado.esAdmin;
+  document.getElementById('btn-eliminar-atencion').hidden = !estado.puedeCorregir;
   document.getElementById('detalle-titulo').textContent =
     `${formatearFecha(a.fecha)} · ${a.nombre_completo}`;
   $cuerpo.innerHTML = '<p class="pista">Cargando…</p>';
@@ -2094,7 +2097,7 @@ async function abrirDetalle(a) {
         </span>
         <span class="celda-mono">× ${m.cantidad}</span>
         ${m.indicacion ? `<span class="secundario">${escapar(m.indicacion)}</span>` : ''}
-        ${estado.esAdmin ? `
+        ${estado.puedeCorregir ? `
           <button type="button" class="boton-secundario boton-critico boton-mini boton-quitar-medicamento"
                   data-id="${m.id}" data-nombre="${escapar(generico)}">
             Quitar
@@ -2107,7 +2110,7 @@ async function abrirDetalle(a) {
         <span class="detalle-medicamento">${escapar(r.insumos?.nombre || '')}</span>
         <span class="celda-mono">× ${r.cantidad} ${escapar(r.insumos?.unidad || '')}</span>
         ${r.nota ? `<span class="secundario">${escapar(r.nota)}</span>` : ''}
-        ${estado.esAdmin && r.tipo === 'salida_consumo' ? `
+        ${estado.puedeCorregir && r.tipo === 'salida_consumo' ? `
           <button type="button" class="boton-secundario boton-critico boton-mini boton-quitar-insumo"
                   data-id="${r.id}" data-insumo="${r.insumo_id}" data-cantidad="${r.cantidad}"
                   data-nombre="${escapar(r.insumos?.nombre || '')}">
@@ -2117,7 +2120,7 @@ async function abrirDetalle(a) {
     `).join('')}
     ${!(rx.data || []).length && !(ri.data || []).length ? '<p class="pista">Sin medicamentos ni insumos.</p>' : ''}
 
-    ${estado.esAdmin ? `
+    ${estado.puedeCorregir ? `
       <div class="detalle-agregar-medicamento">
         <input type="text" id="det-buscar-medicamento" class="entrada"
                placeholder="Buscar medicamento o insumo para agregar…" autocomplete="off">
@@ -2209,10 +2212,8 @@ async function abrirDetalle(a) {
     </p>
   `;
 
-  if (estado.esAdmin) {
-    conectarBuscadorMedicamentoDetalle();
-    if (!estado.certDetalle) conectarCertificadoPost();
-  }
+  if (estado.puedeCorregir) conectarBuscadorMedicamentoDetalle();
+  if (estado.esAdmin && !estado.certDetalle) conectarCertificadoPost();
 }
 
 /* ============================================
