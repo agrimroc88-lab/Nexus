@@ -716,6 +716,20 @@ function pintarEvidenciasModal(r) {
       ${faltantes.map((ev) =>
         `<span class="evidencia-chip">${escapar(ev.etiqueta)}</span>`).join('')}
     `;
+    /* GTH-09: cada pendiente es un tema del catálogo; la ✕ lo retira */
+    if (editable && r.requisito_codigo === 'GTH-09') {
+      $pend.querySelectorAll('.evidencia-chip').forEach(($chip, i) => {
+        const ev = faltantes[i];
+        if (!ev.tema_id) return;
+        const x = document.createElement('button');
+        x.type = 'button';
+        x.className = 'evidencia-chip-quitar';
+        x.textContent = '✕';
+        x.title = 'Retirar este tema';
+        x.addEventListener('click', () => retirarTemaPorId(ev.tema_id, ev.etiqueta, true));
+        $chip.appendChild(x);
+      });
+    }
     $cont.appendChild($pend);
   }
 
@@ -1178,6 +1192,22 @@ function filaCapacitacion(c) {
       quitar.textContent = 'Quitar tema';
       quitar.addEventListener('click', () => quitarTema(c));
       $acc.appendChild(quitar);
+    } else {
+      const reactivar = document.createElement('button');
+      reactivar.className = 'boton-icono';
+      reactivar.type = 'button';
+      reactivar.textContent = 'Reactivar tema';
+      reactivar.addEventListener('click', () => reactivarTema(c));
+      $acc.appendChild(reactivar);
+
+      if (tienePoderAdmin(estado.perfil.rol)) {
+        const eliminar = document.createElement('button');
+        eliminar.className = 'boton-icono boton-icono-critico';
+        eliminar.type = 'button';
+        eliminar.textContent = 'Eliminar';
+        eliminar.addEventListener('click', () => eliminarTema(c));
+        $acc.appendChild(eliminar);
+      }
     }
   } else {
     $acc.innerHTML = '<span class="celda-tenue">—</span>';
@@ -1321,17 +1351,41 @@ async function quitarTema(c) {
     : `¿Retirar "${c.tema}"?\n\nSaldrá de la lista y de GTH-09 en todas las empresas.`;
 
   if (!confirm(aviso)) return;
+  await retirarTemaPorId(c.tema_id, c.tema, false);
+}
 
-  const { error } = await supabase
-    .from('capacitacion_temas')
-    .update({ activo: false })
-    .eq('id', c.tema_id);
+/* Las tres operaciones van por RPC (093): además de cambiar el
+   tema, recalculan GTH-09 y reacomodan sus documentos. */
+async function rpcTema(funcion, temaId) {
+  const { data, error } = await supabase.rpc(funcion, { p_tema: temaId });
+  if (error) { alert(traducirBd(error)); return false; }
+  if (data && data.ok === false) { alert(data.motivo || 'No fue posible completar la acción.'); return false; }
+  return true;
+}
 
-  if (error) { alert(traducirBd(error)); return; }
-
+async function refrescarTemas() {
   await cargarCapacitaciones();
   pintarCapacitaciones();
-  await cargarTodo();
+  if (estado.actual && !document.getElementById('modal-req').hidden) await refrescarModal();
+  else await cargarTodo();
+}
+
+async function retirarTemaPorId(temaId, nombre, preguntar) {
+  if (preguntar && !confirm(`¿Retirar "${nombre}"?\n\nDejará de exigirse en GTH-09 y de contar como pendiente ` +
+      '(en todas las empresas). Podrá reactivarlo desde la pestaña Capacitaciones.')) return;
+  if (await rpcTema('retirar_tema_capacitacion', temaId)) await refrescarTemas();
+}
+
+async function reactivarTema(c) {
+  if (!confirm(`¿Reactivar "${c.tema}"?\n\nVolverá a la lista y a GTH-09. ` +
+      'Si ya tiene registro de asistencia, contará como entregado.')) return;
+  if (await rpcTema('reactivar_tema_capacitacion', c.tema_id)) await refrescarTemas();
+}
+
+async function eliminarTema(c) {
+  if (!confirm(`¿ELIMINAR definitivamente "${c.tema}"?\n\nSe borrará el tema y todos sus registros ` +
+      '(fechas, asistentes y enlaces) en TODAS las empresas y años. No se puede deshacer.')) return;
+  if (await rpcTema('eliminar_tema_capacitacion', c.tema_id)) await refrescarTemas();
 }
 
 function alertaTema(texto) {
