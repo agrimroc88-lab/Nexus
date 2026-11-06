@@ -1109,6 +1109,18 @@
   color: #f5d76e;
 }
 
+.evidencia-chip-quitar {
+  margin-left: 0.35rem;
+  padding: 0 0.15rem;
+  font-size: 0.72rem;
+  line-height: 1;
+  color: #b42318;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.evidencia-chip-quitar:hover { color: #7a1a12; }
+
 .evidencia-chip {
   padding: 0.12rem 0.5rem;
   font-size: 0.76rem;
